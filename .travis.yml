@@ -1,0 +1,10 @@
+language: julia
+os:
+    - linux
+julia:
+    - 0.6
+notifications:
+    email: false
+after_success:
+  - julia -e 'Pkg.add("Coverage"); cd(Pkg.dir("XLSX")); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  - julia -e 'cd(Pkg.dir("XLSX")); using Coverage; Codecov.submit(Codecov.process_folder())'
