@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet mc:Ignorable="x14ac" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac">
+	<dimension ref="A1:B6"/>
+	<sheetViews>
+		<sheetView tabSelected="1" workbookViewId="0">
+			<selection activeCell="B6" sqref="B6"/>
+		</sheetView>
+	</sheetViews>
+	<sheetFormatPr baseColWidth="10" defaultRowHeight="16" x14ac:dyDescent="0.2"/>
+	<cols>
+		<col bestFit="1" customWidth="1" max="2" min="2" width="15.83203125"/>
+	</cols>
+	<sheetData>
+		<row r="1" spans="1:2" x14ac:dyDescent="0.2">
+			<c r="A1" t="s">
+				<v>0</v>
+			</c>
+			<c r="B1" t="s">
+				<v>1</v>
+			</c>
+		</row>
+		<row r="2" spans="1:2" x14ac:dyDescent="0.2">
+			<c r="A2" t="s">
+				<v>2</v>
+			</c>
+			<c r="B2">
+				<v>102</v>
+			</c>
+		</row>
+		<row r="3" spans="1:2" x14ac:dyDescent="0.2">
+			<c r="A3" t="s">
+				<v>3</v>
+			</c>
+			<c r="B3">
+				<v>102.2</v>
+			</c>
+		</row>
+		<row r="4" spans="1:2" x14ac:dyDescent="0.2">
+			<c r="A4" t="s">
+				<v>4</v>
+			</c>
+			<c r="B4" s="1">
+				<v>30422</v>
+			</c>
+		</row>
+		<row r="5" spans="1:2" x14ac:dyDescent="0.2">
+			<c r="A5" t="s">
+				<v>5</v>
+			</c>
+			<c r="B5" s="2">
+				<v>0.82291666666666663</v>
+			</c>
+		</row>
+		<row r="6" spans="1:2" x14ac:dyDescent="0.2">
+			<c r="A6" t="s">
+				<v>6</v>
+			</c>
+			<c r="B6" s="3">
+				<v>43206.805447106482</v>
+			</c>
+		</row>
+	</sheetData>
+	<pageMargins bottom="0.75" footer="0.3" header="0.3" left="0.7" right="0.7" top="0.75"/>
+</worksheet>

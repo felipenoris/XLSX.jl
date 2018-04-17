@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst count="4" uniqueCount="4" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+	<si>
+		<t>B2</t>
+	</si>
+	<si>
+		<t>C2</t>
+	</si>
+	<si>
+		<t>palavra1</t>
+	</si>
+	<si>
+		<t>palavra2</t>
+	</si>
+</sst>

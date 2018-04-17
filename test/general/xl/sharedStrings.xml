@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst count="7" uniqueCount="7" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+	<si>
+		<t>text</t>
+	</si>
+	<si>
+		<t>regular text</t>
+	</si>
+	<si>
+		<t>integer</t>
+	</si>
+	<si>
+		<t>float</t>
+	</si>
+	<si>
+		<t>date</t>
+	</si>
+	<si>
+		<t>hour</t>
+	</si>
+	<si>
+		<t>datetime</t>
+	</si>
+</sst>

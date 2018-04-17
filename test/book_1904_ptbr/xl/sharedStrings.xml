@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst count="16" uniqueCount="16" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+	<si>
+		<t>Coluna A</t>
+	</si>
+	<si>
+		<t>Coluna B</t>
+	</si>
+	<si>
+		<t>Coluna C</t>
+	</si>
+	<si>
+		<t>Coluna D</t>
+	</si>
+	<si>
+		<t>linha 2</t>
+	</si>
+	<si>
+		<t>linha 3</t>
+	</si>
+	<si>
+		<t>linha 4</t>
+	</si>
+	<si>
+		<t>Merge de A1:D1</t>
+	</si>
+	<si>
+		<t>A2</t>
+	</si>
+	<si>
+		<t>B2</t>
+	</si>
+	<si>
+		<t>C2</t>
+	</si>
+	<si>
+		<t>D2</t>
+	</si>
+	<si>
+		<t>A3</t>
+	</si>
+	<si>
+		<t>B3</t>
+	</si>
+	<si>
+		<t>C3</t>
+	</si>
+	<si>
+		<t>D3</t>
+	</si>
+</sst>
