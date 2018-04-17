@@ -12,7 +12,16 @@ end
 CellRef(row::Int, col::Int) = CellRef(encode_column_number(col) * string(row))
 
 """
+    decode_column_number(column_name::AbstractString) :: Int
+
 Converts column name to a column number.
+
+```julia
+julia> XLSX.decode_column_number("D")
+4
+```
+
+See also: `encode_column_number`.
 """
 function decode_column_number(column_name::AbstractString) :: Int
     local result::Int = 0
@@ -30,7 +39,16 @@ function decode_column_number(column_name::AbstractString) :: Int
 end
 
 """
+    encode_column_number(column_number::Int) :: String
+
 Converts column number to a column name.
+
+```julia
+julia> XLSX.encode_column_number(4)
+"D"
+```
+
+See also: `decode_column_number`.
 """
 function encode_column_number(column_number::Int) :: String
     @assert column_number > 0 && column_number <= 16384 "Column number should be in the range from 1 to 16384."
@@ -138,9 +156,11 @@ macro range_str(cellrange)
 end
 
 """
-Checks wether `c` is a cell name inside a range given by `r`.
+    Base.in(cell::CellRef, rng::CellRange) :: Bool
+
+Checks wether `cell` is a cell reference inside a range given by `rng`.
 """
-function Base.in(cell::CellRef, rng::CellRange)
+function Base.in(cell::CellRef, rng::CellRange) :: Bool
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
     r = row_number(cell)
@@ -158,7 +178,12 @@ function Base.in(cell::CellRef, rng::CellRange)
     return false
 end
 
-Base.issubset(subrng::CellRange, rng::CellRange) = in(subrng.start, rng) && in(subrng.stop, rng)
+"""
+    Base.issubset(subrng::CellRange, rng::CellRange)
+
+Checks wether `subrng` is a cell range contained in `rng`.
+"""
+Base.issubset(subrng::CellRange, rng::CellRange) :: Bool = in(subrng.start, rng) && in(subrng.stop, rng)
 
 function Base.size(rng::CellRange)
     top = row_number(rng.start)
@@ -169,8 +194,19 @@ function Base.size(rng::CellRange)
     return ( bottom - top + 1, right - left + 1 )
 end
 
-row_number(c::CellRef) = c.row_number
-column_number(c::CellRef) = c.column_number
+"""
+    row_number(c::CellRef) :: Int
+
+Returns the row number of a given cell reference.
+"""
+row_number(c::CellRef) :: Int = c.row_number
+
+"""
+    column_number(c::CellRef) :: Int
+
+Returns the column number of a given cell reference.
+"""
+column_number(c::CellRef) :: Int = c.column_number
 
 """
 Returns (row, column) representing a `ref` position relative to `rng`.

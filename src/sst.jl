@@ -34,4 +34,4 @@ Looks for a string inside the Shared Strings Table (sst).
 sst_unformatted_string(wb::Workbook, index::Int) :: String = unformatted_text(wb.sst[index+1])
 sst_unformatted_string(xl::XLSXFile, index::Int) :: String = sst_unformatted_string(xl.workbook, index)
 sst_unformatted_string(ws::Worksheet, index::Int) :: String = sst_unformatted_string(ws.package, index)
-sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) = sst_unformatted_string(target, parse(Int, index_str))
+sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) :: String = sst_unformatted_string(target, parse(Int, index_str))
