@@ -1,4 +1,5 @@
 
+__precompile__(true)
 module XLSX
 
 import ZipFile, LightXML, Missings

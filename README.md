@@ -26,7 +26,6 @@ XLSX.Worksheet: "Sheet1". Dimension: "B2:C8".
 julia> sh["C3"] # access a cell value
 21.2
 
-
 julia> sh["B3:C4"] # access a range
 2×2 Array{Any,2}:
  10.5          21.2
