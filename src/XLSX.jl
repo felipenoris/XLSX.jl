@@ -13,5 +13,6 @@ include("read.jl")
 include("workbook.jl")
 include("worksheet.jl")
 include("styles.jl")
+include("datastreams.jl")
 
 end # module XLSX
