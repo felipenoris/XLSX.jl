@@ -171,3 +171,16 @@ sheet = f["Sheet1"]
 @test sheet["C7"] == 2
 @test sheet["B8"] == "palavra1"
 @test sheet["C8"] == "palavra2"
+
+# book_1904_ptbr.xlsx
+f = XLSX.read("book_1904_ptbr.xlsx")
+
+@test f["Plan1"][:] == Any[ "Coluna A" "Coluna B" "Coluna C" "Coluna D";
+                            10 10.5 Date(2018, 3, 22) "linha 2";
+                            20 20.5 Date(2017, 12, 31) "linha 3";
+                            30 30.5 Date(2018, 1, 1) "linha 4" ]
+
+@test f["Plan2"]["A1"] == "Merge de A1:D1"
+@test ismissing(f["Plan2"]["B1"])
+@test f["Plan2"]["C2"] == "C2"
+@test f["Plan2"]["D3"] == "D3"
