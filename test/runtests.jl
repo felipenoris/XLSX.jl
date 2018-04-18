@@ -1,6 +1,6 @@
 
 import XLSX
-using Base.Test
+using Base.Test, Missings
 
 ef_blank_ptbr_1904 = XLSX.read("blank_ptbr_1904.xlsx")
 ef_Book1 = XLSX.read("Book1.xlsx")
@@ -152,3 +152,22 @@ sheet = f["general"]
 @test sheet["B5"] == Dates.Time(Dates.Hour(19), Dates.Minute(45))
 @test sheet["A6"] == "datetime"
 @test sheet["B6"] == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+
+# Book1.xlsx
+f = XLSX.read("Book1.xlsx")
+sheet = f["Sheet1"]
+@test ismissing(sheet["A1"])
+@test sheet["B2"] == "B2"
+@test sheet["C2"] == "C2"
+@test isapprox(sheet["B3"], 10.5)
+@test isapprox(sheet["C3"], 21.2)
+@test sheet["B4"] == Date(2018, 3, 21)
+@test sheet["C4"] == Date(2018, 3, 22)
+@test sheet["B5"] == Date(2018, 3, 21)
+@test sheet["C5"] == Date(2018, 3, 22)
+@test sheet["B6"] == true
+@test sheet["C6"] == false
+@test sheet["B7"] == 1
+@test sheet["C7"] == 2
+@test sheet["B8"] == "palavra1"
+@test sheet["C8"] == "palavra2"
