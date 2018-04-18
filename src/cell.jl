@@ -43,7 +43,7 @@ function Cell(c::LightXML.XMLElement)
 end
 
 """
-	cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Dates.Date, Dates.Time, Dates.DateTime}
+	cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 Returns a Julia representation of a given cell value.
 The result data type is chosen based on the value of the cell as well as its style.
@@ -57,7 +57,7 @@ as an integer inside the spreadsheet XML.
 
 If `cell` has empty value or empty `String`, this function will return `Missings.missing`.
 """
-function cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Dates.Date, Dates.Time, Dates.DateTime}
+function cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
     if cell.datatype == "inlineStr"
         error("datatype inlineStr not supported...")
