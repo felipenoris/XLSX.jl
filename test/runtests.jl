@@ -173,7 +173,7 @@ sheet = f["Sheet1"]
 @test sheet["C8"] == "palavra2"
 
 # book_1904_ptbr.xlsx
-f = XLSX.read("book_1904_ptbr.xlsx")
+f = XLSX.XLSXFile("book_1904_ptbr.xlsx")
 
 @test f["Plan1"][:] == Any[ "Coluna A" "Coluna B" "Coluna C" "Coluna D";
                             10 10.5 Date(2018, 3, 22) "linha 2";
