@@ -21,7 +21,7 @@ function dimension(ws::Worksheet) :: CellRange
     end
 end
 
-function Base.getindex(ws::Worksheet, single::CellRef) :: Any
+function getdata(ws::Worksheet, single::CellRef) :: Any
     xroot = LightXML.root(ws.data)
     @assert LightXML.name(xroot) == "worksheet" "Unicorn!"
     vec_sheetdata = xroot["sheetData"]
@@ -56,7 +56,7 @@ function Base.getindex(ws::Worksheet, single::CellRef) :: Any
     return Missings.missing
 end
 
-function Base.getindex(ws::Worksheet, rng::CellRange) :: Array{Any,2}
+function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     result = Array{Any, 2}(size(rng))
     fill!(result, Missings.missing)
 
@@ -100,7 +100,7 @@ function Base.getindex(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     return result
 end
 
-function Base.getindex(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
+function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     if is_valid_cellname(ref)
         return getindex(ws, CellRef(ref))
     elseif is_valid_cellrange(ref)
@@ -110,10 +110,10 @@ function Base.getindex(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}
     end
 end
 
-Base.getindex(ws::Worksheet, ::Colon) = getindex(ws, dimension(ws))
+getdata(ws::Worksheet) = getdata(ws, dimension(ws))
 
-getdata(ws::Worksheet, r) = getindex(ws, r)
-getdata(ws::Worksheet) = getindex(ws, dimension(ws))
+Base.getindex(ws::Worksheet, r) = getdata(ws, r)
+Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 Base.show(io::IO, ws::Worksheet) = println(io, "XLSX.Worksheet: \"$(ws.name)\". Dimension: $(dimension(ws)).")
 
