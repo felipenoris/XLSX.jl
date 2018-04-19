@@ -193,3 +193,19 @@ f = XLSX.XLSXFile("book_1904_ptbr.xlsx")
 @test ismissing(f["Plan2"]["B1"])
 @test f["Plan2"]["C2"] == "C2"
 @test f["Plan2"]["D3"] == "D3"
+
+# numbers.xlsx
+f = XLSX.read("numbers.xlsx")
+floats = f[1][:]
+for n in floats
+    if !ismissing(n)
+        @test isa(n, Float64)
+    end
+end
+
+ints = f[2][:]
+for n in ints
+    if !ismissing(n)
+        @test isa(n, Int)
+    end
+end
