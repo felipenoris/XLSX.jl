@@ -13,13 +13,9 @@ end
 =#
 
 """
-    SheetRowIterator(sheet, [cellrange]; [skip_empty_rows])
+    SheetRowIterator(sheet)
 
-Iterates over Worksheet cells.
-A `cellrange` can be specified to query for a rectangular subset of the worksheet data. It defaults to `dimension(sheet)`.
-If `skip_empty_rows == true`, the iterator will skip empty rows.
-
-See also `SheetRow`, `eachrow`.
+Iterates over Worksheet cells. See `eachrow` method docs.
 """
 struct SheetRowIterator
     sheet::Worksheet
@@ -85,4 +81,23 @@ function getcell(r::SheetRow, column_name::AbstractString)
     return getcell(r, decode_column_number(column_name))
 end
 
+"""
+    eachrow(sheet)
+
+Creates a row iterator for a worksheet.
+
+Example: Query all cells from columns 1 to 4.
+
+```julia
+left = 1  # 1st column
+right = 4 # 4th column
+for sheetrow in XLSX.eachrow(sheet)
+    for column in left:right
+        cell = XLSX.getcell(sheetrow, column)
+
+        # do something with cell
+    end
+end
+```
+"""
 eachrow(ws::Worksheet) = SheetRowIterator(ws)
