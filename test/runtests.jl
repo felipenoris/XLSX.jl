@@ -212,6 +212,8 @@ end
 
 error_sheet = f["error"]
 @test error_sheet["A1"] == "errors"
+@test !XLSX.iserror(XLSX.getcell(error_sheet, "A1"))
+@test XLSX.iserror(XLSX.getcell(error_sheet, "A2"))
 @test ismissing(error_sheet["A2"])
 @test ismissing(error_sheet["A3"])
 @test ismissing(error_sheet["A4"])

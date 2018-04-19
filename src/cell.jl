@@ -1,8 +1,8 @@
 
 Base.isempty(::EmptyCell) = true
 Base.isempty(::AbstractCell) = false
-iserror(::EmptyCell) = false
 iserror(c::Cell) = c.datatype == "e"
+iserror(::AbstractCell) = false
 
 function Cell(c::LightXML.XMLElement)
     # c (Cell) element is defined at section 18.3.1.4
