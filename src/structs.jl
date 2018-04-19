@@ -44,9 +44,6 @@ end
 struct EmptyCell <: AbstractCell
 end
 
-Base.isempty(::EmptyCell) = true
-Base.isempty(::AbstractCell) = false
-
 """
 A `CellRange` represents a rectangular range of cells in a spreadsheet.
 

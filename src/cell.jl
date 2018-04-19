@@ -1,10 +1,15 @@
 
+Base.isempty(::EmptyCell) = true
+Base.isempty(::AbstractCell) = false
+iserror(::EmptyCell) = false
+iserror(c::Cell) = c.datatype == "e"
+
 function Cell(c::LightXML.XMLElement)
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert LightXML.name(c) == "c" "`cellvalue` function expects a `c` (cell) XMLElement."
+    @assert LightXML.name(c) == "c" "`Cell` Expects a `c` (cell) XMLElement."
 
     ref = CellRef(LightXML.attribute(c, "r"))
 
@@ -59,6 +64,10 @@ If `cell` has empty value or empty `String`, this function will return `Missings
 """
 function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
+    if iserror(cell)
+        return Missings.missing
+    end
+
     if cell.datatype == "inlineStr"
         error("datatype inlineStr not supported...")
     end
@@ -109,7 +118,7 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
         end
     end
 
-    error("Couldn't parse cellvalue for $cell.")
+    error("Couldn't parse celldata for $cell.")
 end
 
 

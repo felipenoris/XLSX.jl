@@ -196,16 +196,22 @@ f = XLSX.XLSXFile("book_1904_ptbr.xlsx")
 
 # numbers.xlsx
 f = XLSX.read("numbers.xlsx")
-floats = f[1][:]
+floats = f["float"][:]
 for n in floats
     if !ismissing(n)
         @test isa(n, Float64)
     end
 end
 
-ints = f[2][:]
+ints = f["int"][:]
 for n in ints
     if !ismissing(n)
         @test isa(n, Int)
     end
 end
+
+error_sheet = f["error"]
+@test error_sheet["A1"] == "errors"
+@test ismissing(error_sheet["A2"])
+@test ismissing(error_sheet["A3"])
+@test ismissing(error_sheet["A4"])
