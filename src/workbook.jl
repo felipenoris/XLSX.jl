@@ -60,9 +60,7 @@ function parse_workbook!(xf::XLSXFile)
     # workbookPr
     vec_workbookPr = xroot["workbookPr"]
     if length(vec_workbookPr) > 0
-        if length(vec_workbookPr) != 1
-            warn("$xf has more than 1 workbookPr nodes in xl/workbook.xml. Will process only the first one.")
-        end
+        @assert length(vec_workbookPr) == 1 "Malformed workbook. $xf has more than 1 workbookPr nodes in xl/workbook.xml."
 
         workbookPr_element = vec_workbookPr[1]
         if LightXML.has_attribute(workbookPr_element, "date1904")
@@ -84,17 +82,15 @@ function parse_workbook!(xf::XLSXFile)
     # shared string table
     SHARED_STRINGS_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
     if has_relationship_by_type(workbook, SHARED_STRINGS_RELATIONSHIP_TYPE)
-    	sst_root = xmlroot(xf, "xl/" * get_relationship_target_by_type(workbook, SHARED_STRINGS_RELATIONSHIP_TYPE))
-    	@assert LightXML.name(sst_root) == "sst" "Malformed package. sst file should have sst root."
-    	workbook.sst = sst_root["si"]
+        sst_root = xmlroot(xf, "xl/" * get_relationship_target_by_type(workbook, SHARED_STRINGS_RELATIONSHIP_TYPE))
+        @assert LightXML.name(sst_root) == "sst" "Malformed workbook. sst file should have sst root."
+        workbook.sst = sst_root["si"]
     end
 
     # sheets
     vec_sheets = xroot["sheets"]
     if length(vec_sheets) > 0
-        if length(vec_sheets) != 1
-            warn("$xf has more than 1 sheet nodes in xl/workbook.xml. Will process only the first one.")
-        end
+        @assert length(vec_sheets) == 1 "Malformed workbook. $xf has more than 1 sheet node in xl/workbook.xml."
 
         sheets_element = vec_sheets[1]
 
