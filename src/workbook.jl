@@ -66,9 +66,9 @@ function parse_workbook!(xf::XLSXFile)
         if LightXML.has_attribute(workbookPr_element, "date1904")
             attribute_value_date1904 = LightXML.attribute(workbookPr_element, "date1904")
 
-            if attribute_value_date1904 == "1"
+            if attribute_value_date1904 == "1" || attribute_value_date1904 == "true"
                 workbook.date1904 = true
-            elseif attribute_value_date1904 == "0"
+            elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
                 workbook.date1904 = false
             else
                 error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
