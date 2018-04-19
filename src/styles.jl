@@ -24,6 +24,12 @@ function styles_cell_xf(wb::Workbook, index::Int) :: LightXML.XMLElement
 end
 
 styles_cell_xf(wb::Workbook, index::AbstractString) = styles_cell_xf(wb, parse(Int, index))
+styles_cell_xf(ws::Worksheet, cell::Cell) = styles_cell_xf(ws.package.workbook, cell)
+
+function styles_cell_xf(wb::Workbook, cell::Cell)
+	@assert !isempty(cell.style) "Cell $(cell.ref.name) has empty style."
+	styles_cell_xf(wb, cell.style)
+end
 
 "Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
@@ -65,18 +71,33 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
 	return false
 end
 
-styles_is_datetime(wb::Workbook, index::AbstractString) = styles_is_datetime(wb, parse(Int, index))
+function styles_is_datetime(wb::Workbook, index::AbstractString)
+	@assert !isempty(index)
+	styles_is_datetime(wb, parse(Int, index))
+end
+
 styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(ws.package.workbook, index)
 
 function styles_is_float(wb::Workbook, index::Int) :: Bool
 	numFmtId = styles_cell_xf_numFmtId(wb, index)
 
-	if numFmtId == 2 || (4 <= numFmtId && numFmtId <= 11) || numFmtId == 39 || numFmtId == 40 || numFmtId == 48
+	if numFmtId == 2 || numFmtId == 4 || (7 <= numFmtId && numFmtId <= 11) || numFmtId == 39 || numFmtId == 40 || numFmtId == 44 || numFmtId == 48
 		return true
+	end
+
+	if numFmtId > 81
+		code = styles_numFmt_formatCode(wb, numFmtId)
+		if contains(code, ".0")
+			return true
+		end
 	end
 
 	return false
 end
 
-styles_is_float(wb::Workbook, index::AbstractString) = styles_is_float(wb, parse(Int, index))
+function styles_is_float(wb::Workbook, index::AbstractString)
+	@assert !isempty(index)
+	styles_is_float(wb, parse(Int, index))
+end
+
 styles_is_float(ws::Worksheet, index) = styles_is_float(ws.package.workbook, index)
