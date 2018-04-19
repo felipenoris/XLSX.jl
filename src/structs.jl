@@ -31,13 +31,21 @@ struct CellRef
     column_number::Int
 end
 
-struct Cell
+abstract type AbstractCell end
+
+struct Cell <: AbstractCell
     ref::CellRef
     datatype::String
     style::String
     value::String
     formula::String
 end
+
+struct EmptyCell <: AbstractCell
+end
+
+Base.isempty(::EmptyCell) = true
+Base.isempty(::AbstractCell) = false
 
 """
 A `CellRange` represents a rectangular range of cells in a spreadsheet.

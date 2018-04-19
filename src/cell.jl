@@ -43,7 +43,7 @@ function Cell(c::LightXML.XMLElement)
 end
 
 """
-	cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+	celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 Returns a Julia representation of a given cell value.
 The result data type is chosen based on the value of the cell as well as its style.
@@ -57,7 +57,7 @@ as an integer inside the spreadsheet XML.
 
 If `cell` has empty value or empty `String`, this function will return `Missings.missing`.
 """
-function cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
     if cell.datatype == "inlineStr"
         error("datatype inlineStr not supported...")
@@ -82,7 +82,7 @@ function cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing,
 
         if !isempty(cell.style) && styles_is_datetime(ws, cell.style)
             # datetime
-            return _cellvalue_datetime(cell.value, isdate1904(ws))
+            return _celldata_datetime(cell.value, isdate1904(ws))
 
         elseif !isempty(cell.style) && styles_is_float(ws, cell.style)
 
@@ -113,7 +113,7 @@ function cellvalue(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing,
 end
 
 
-function _cellvalue_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}
+function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}
 
 	# does not allow empty string
     @assert !isempty(v) "Cannot convert an empty string into a datetime value."

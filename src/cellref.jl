@@ -81,8 +81,22 @@ Base.show(io::IO, c::CellRef) = show(io, string(c))
 Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
 
+const RGX_COLUMN_NAME = r"^[A-Z]?[A-Z]?[A-Z]$"
 const RGX_CELLNAME = r"^[A-Z]+[0-9]+$"
 const RGX_CELLRANGE = r"^[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
+
+function is_valid_column_name(n::AbstractString) :: Bool
+    if !ismatch(RGX_COLUMN_NAME, n)
+        return false
+    end
+
+    column_number = decode_column_number(n)
+    if column_number < 1 || column_number > 16384
+        return false
+    end
+
+    return true
+end
 
 # Cellname is bounded by A1 : XFD1048576
 function is_valid_cellname(n::AbstractString) :: Bool
@@ -99,10 +113,7 @@ function is_valid_cellname(n::AbstractString) :: Bool
     end
 
     m_column = match(r"^[A-Z]+", n)
-    column_name = m_column.match
-    column_number = decode_column_number(column_name)
-
-    if column_number < 1 || column_number > 16384
+    if !is_valid_column_name(m_column.match)
         return false
     end
 
@@ -123,6 +134,16 @@ function is_valid_cellrange(n::AbstractString) :: Bool
     m_stop = match(r"[A-Z]+[0-9]+$", n)
     stop_name = m_stop.match
     if !is_valid_cellname(stop_name)
+        return false
+    end
+
+    rng = CellRange(n)
+    top = row_number(rng.start)
+    bottom = row_number(rng.stop)
+    left = column_number(rng.start)
+    right = column_number(rng.stop)
+
+    if right < left || bottom < top
         return false
     end
 

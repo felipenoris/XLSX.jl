@@ -37,6 +37,12 @@ ef_book_sparse_2 = XLSX.read("book_sparse_2.xlsx")
 @test !XLSX.is_valid_cellname("XFD1048577")
 @test XLSX.is_valid_cellname("XFD1")
 @test !XLSX.is_valid_cellname("ZFD1")
+@test XLSX.is_valid_column_name("A")
+@test XLSX.is_valid_column_name("AZ")
+@test XLSX.is_valid_column_name("AAZ")
+@test !XLSX.is_valid_column_name("AAAZ")
+@test !XLSX.is_valid_column_name(":")
+@test !XLSX.is_valid_column_name("É")
 
 cn = XLSX.CellRef("A1")
 @test string(cn) == "A1"
@@ -98,6 +104,9 @@ fullrng = XLSX.range"B2:E5"
 @test !issubset(XLSX.range"A1:E5", fullrng)
 
 @test XLSX.is_valid_cellrange("B2:C8")
+@test !XLSX.is_valid_cellrange("Z10:A1") # start cell should be at the top left corner of the range
+@test !XLSX.is_valid_cellrange("A10:A1")
+@test !XLSX.is_valid_cellrange("Z1:A1")
 
 # hashing and equality
 @test XLSX.CellRef("AMI1") == XLSX.CellRef("AMI1")

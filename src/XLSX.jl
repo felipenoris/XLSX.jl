@@ -6,6 +6,7 @@ import ZipFile, LightXML, Missings
 
 include("structs.jl")
 include("cellref.jl")
+include("iterator.jl")
 include("sst.jl")
 include("relationship.jl")
 include("read.jl")

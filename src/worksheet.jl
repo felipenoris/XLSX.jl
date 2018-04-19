@@ -22,38 +22,13 @@ function dimension(ws::Worksheet) :: CellRange
 end
 
 function getdata(ws::Worksheet, single::CellRef) :: Any
-    xroot = LightXML.root(ws.data)
-    @assert LightXML.name(xroot) == "worksheet" "Unicorn!"
-    vec_sheetdata = xroot["sheetData"]
-    @assert length(vec_sheetdata) <= 1 "Malformed sheet $(ws.name)."
-    if length(vec_sheetdata) == 0
+    cell = getcell(ws, single)
+
+    if isempty(cell)
         return Missings.missing
+    else
+        return celldata(ws, cell)
     end
-
-    rows = vec_sheetdata[1]["row"] # rows is a Vector{LightXML.XMLElement}
-
-    for r in rows
-        current_row_index = parse(Int, LightXML.attribute(r, "r"))
-
-        if current_row_index != row_number(single)
-            continue
-        end
-
-        # iterate over row -> c elements
-        for c in r["c"]
-
-            ref = CellRef(LightXML.attribute(c, "r"))
-            if column_number(ref) != column_number(single)
-                continue
-            else
-                cell = Cell(c)
-                @assert row_number(cell.ref) == current_row_index "Malformed Excel file."
-                return cellvalue(ws, cell)
-            end
-        end
-    end
-
-    return Missings.missing
 end
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
@@ -65,34 +40,14 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    xroot = LightXML.root(ws.data)
-    @assert LightXML.name(xroot) == "worksheet" "Unicorn!"
-    vec_sheetdata = xroot["sheetData"]
-    @assert length(vec_sheetdata) <= 1 "Malformed sheet $(ws.name)."
-    if length(vec_sheetdata) == 0
-        return result
-    end
-
-    rows = vec_sheetdata[1]["row"] # rows is a Vector{LightXML.XMLElement}
-
-    for r in rows
-        current_row_index = parse(Int, LightXML.attribute(r, "r"))
-
-        if current_row_index < top || bottom < current_row_index
-            continue
-        end
-
-        # iterate over row -> c elements
-        for c in r["c"]
-
-            ref = CellRef(LightXML.attribute(c, "r"))
-            if column_number(ref) < left || right < column_number(ref)
-                continue
-            else
-                cell = Cell(c)
-                @assert row_number(cell.ref) == current_row_index "Malformed Excel file."
-                (r, c) = relative_cell_position(cell.ref, rng)
-                result[r, c] = cellvalue(ws, cell)
+    for sheetrow in eachrow(ws)
+        if top <= sheetrow.row && sheetrow.row <= bottom
+            for column in left:right
+                cell = getcell(sheetrow, column)
+                if !isempty(cell)
+                    (r, c) = relative_cell_position(cell.ref, rng)
+                    result[r, c] = celldata(ws, cell)
+                end
             end
         end
     end
@@ -102,9 +57,9 @@ end
 
 function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     if is_valid_cellname(ref)
-        return getindex(ws, CellRef(ref))
+        return getdata(ws, CellRef(ref))
     elseif is_valid_cellrange(ref)
-        return getindex(ws, CellRange(ref))
+        return getdata(ws, CellRange(ref))
     else
         error("$ref is not a valid cell or range reference.")
     end
@@ -117,82 +72,42 @@ Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 Base.show(io::IO, ws::Worksheet) = println(io, "XLSX.Worksheet: \"$(ws.name)\". Dimension: $(dimension(ws)).")
 
-function getcell(ws::Worksheet, single::CellRef) :: Cell
-    xroot = LightXML.root(ws.data)
-    @assert LightXML.name(xroot) == "worksheet" "Unicorn!"
-    vec_sheetdata = xroot["sheetData"]
-    @assert length(vec_sheetdata) <= 1 "Malformed sheet $(ws.name)."
-    if length(vec_sheetdata) == 0
-        return Missings.missing
-    end
+function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
 
-    rows = vec_sheetdata[1]["row"] # rows is a Vector{LightXML.XMLElement}
-
-    for r in rows
-        current_row_index = parse(Int, LightXML.attribute(r, "r"))
-
-        if current_row_index != row_number(single)
-            continue
-        end
-
-        # iterate over row -> c elements
-        for c in r["c"]
-            ref = CellRef(LightXML.attribute(c, "r"))
-
-            if column_number(ref) == column_number(single)
-                return Cell(c)
-            end
+    for sheetrow in eachrow(ws)
+        if row_number(sheetrow) == row_number(single)
+            return getcell(sheetrow, column_number(single))
         end
     end
 
-    error("Cell $ref not found in worksheet $(ws.name).")
+    return EmptyCell()
 end
 
 function getcell(ws::Worksheet, ref::AbstractString)
     if is_valid_cellname(ref)
         return getcell(ws, CellRef(ref))
     else
-        error("$ref is not a valid cell or range reference.")
+        error("$ref is not a valid cell reference.")
     end
 end
 
-function getcellrange(ws::Worksheet, rng::CellRange) :: Array{Union{Cell, Missings.Missing},2}
-    result = Array{Union{Cell, Missings.Missing},2}(size(rng))
-    fill!(result, Missings.missing)
+function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
+    result = Array{AbstractCell, 2}(size(rng))
+    fill!(result, EmptyCell())
 
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    xroot = LightXML.root(ws.data)
-    @assert LightXML.name(xroot) == "worksheet" "Unicorn!"
-    vec_sheetdata = xroot["sheetData"]
-    @assert length(vec_sheetdata) <= 1 "Malformed sheet $(ws.name)."
-    if length(vec_sheetdata) == 0
-        return result
-    end
-
-    rows = vec_sheetdata[1]["row"] # rows is a Vector{LightXML.XMLElement}
-
-    for r in rows
-        current_row_index = parse(Int, LightXML.attribute(r, "r"))
-
-        if current_row_index < top || bottom < current_row_index
-            continue
-        end
-
-        # iterate over row -> c elements
-        for c in r["c"]
-
-            ref = CellRef(LightXML.attribute(c, "r"))
-            if column_number(ref) < left || right < column_number(ref)
-                continue
-            else
-                cell = Cell(c)
-                @assert row_number(cell.ref) == current_row_index "Malformed Excel file."
-                (r, c) = relative_cell_position(cell.ref, rng)
-                result[r, c] = cell
+    for sheetrow in eachrow(ws)
+        if top <= sheetrow.row && sheetrow.row <= bottom
+            for column in left:right
+                cell = getcell(sheetrow, column)
+                if !isempty(cell)
+                    (r, c) = relative_cell_position(cell.ref, rng)
+                    result[r, c] = cell
+                end
             end
         end
     end
