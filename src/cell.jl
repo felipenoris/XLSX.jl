@@ -77,7 +77,6 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
     end
 
     if cell.datatype == "s"
-
         # use sst
         str = sst_unformatted_string(ws, cell.value)
 
@@ -122,7 +121,11 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
         end
     elseif cell.datatype == "str"
         # plain string
-        return cell.value
+        if isempty(cell.value)
+            return Missings.missing
+        else
+            return cell.value
+        end
     end
 
     error("Couldn't parse celldata for $cell.")
