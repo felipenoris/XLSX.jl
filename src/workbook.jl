@@ -98,9 +98,9 @@ function parse_workbook!(xf::XLSXFile)
         num_sheets = length(vec_sheet)
         workbook.sheets = Vector{Worksheet}(num_sheets)
 
-        for sheet_element in vec_sheet
+        for (index, sheet_element) in enumerate(vec_sheet)
             worksheet = Worksheet(xf, sheet_element)
-            workbook.sheets[worksheet.sheetId] = worksheet
+            workbook.sheets[index] = worksheet
         end
     end
 
@@ -142,4 +142,4 @@ end
 
 Base.getindex(xl::XLSXFile, sheet_index::Int) :: Worksheet = xl.workbook.sheets[sheet_index]
 
-Base.show(io::IO, xf::XLSXFile) = println(io, "XLSXFile(\"$(xf.filepath)\")")
+Base.show(io::IO, xf::XLSXFile) = print(io, "XLSXFile(\"$(xf.filepath)\")")

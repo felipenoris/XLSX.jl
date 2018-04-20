@@ -26,11 +26,7 @@ function read(filepath::AbstractString) :: XLSXFile
                 continue
             end
 
-            try
-                xf.data[f.name] = LightXML.parse_string(readstring(f))
-            catch ee
-                error("Error parsing $(f.name): $ee.")
-            end
+            xf.data[f.name] = LightXML.parse_string(readstring(f))
         end
 
         # Check for minimum package requirements
@@ -41,7 +37,7 @@ function read(filepath::AbstractString) :: XLSXFile
 
         return xf
     catch e
-        error("Error parsing $filepath: $e.")
+        error("Error parsing $filepath. $e. $(catch_stacktrace()).")
     finally
         close(xlfile)
     end

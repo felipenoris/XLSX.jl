@@ -70,7 +70,7 @@ getdata(ws::Worksheet) = getdata(ws, dimension(ws))
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
-Base.show(io::IO, ws::Worksheet) = println(io, "XLSX.Worksheet: \"$(ws.name)\". Dimension: $(dimension(ws)).")
+Base.show(io::IO, ws::Worksheet) = print(io, "XLSX.Worksheet: \"$(ws.name)\". Dimension: $(dimension(ws)).")
 
 function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
 

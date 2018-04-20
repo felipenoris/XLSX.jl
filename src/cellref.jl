@@ -76,7 +76,7 @@ function encode_column_number(column_number::Int) :: String
 end
 
 Base.string(c::CellRef) = c.name
-Base.show(io::IO, c::CellRef) = show(io, string(c))
+Base.show(io::IO, c::CellRef) = print(io, string(c))
 
 Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
@@ -167,7 +167,7 @@ function CellRange(r::AbstractString)
 end
 
 Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
-Base.show(io::IO, cr::CellRange) = show(io, string(cr))
+Base.show(io::IO, cr::CellRange) = print(io, string(cr))
 
 Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::CellRange) = hash(cr.start) + hash(cr.stop)
