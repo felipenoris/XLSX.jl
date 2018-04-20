@@ -177,19 +177,19 @@ macro range_str(cellrange)
 end
 
 """
-    Base.in(cell::CellRef, rng::CellRange) :: Bool
+    Base.in(ref::CellRef, rng::CellRange) :: Bool
 
-Checks wether `cell` is a cell reference inside a range given by `rng`.
+Checks wether `ref` is a cell reference inside a range given by `rng`.
 """
-function Base.in(cell::CellRef, rng::CellRange) :: Bool
+function Base.in(ref::CellRef, rng::CellRange) :: Bool
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
-    r = row_number(cell)
+    r = row_number(ref)
 
     if top <= r && r <= bottom
         left = column_number(rng.start)
         right = column_number(rng.stop)
-        c = column_number(cell)
+        c = column_number(ref)
 
         if left <= c && c <= right
             return true

@@ -1,4 +1,7 @@
+
 #=
+https://docs.julialang.org/en/stable/manual/interfaces/#man-interface-iteration-1
+
 for i = I   # or  "for i in I"
     # body
 end
@@ -36,10 +39,9 @@ SheetRow(ws::Worksheet, row::Int, xml_element::LightXML.XMLElement) = SheetRow(w
 function populate_row_cells!(r::SheetRow)
     if !r.is_rowcells_populated
         for c in r.row_xml_element["c"]
-            ref = CellRef(LightXML.attribute(c, "r"))
             cell = Cell(c)
-            @assert row_number(cell.ref) == r.row "Malformed Excel file. range_row = $(r.row), cell.ref = $(cell.ref)"
-            r.rowcells[column_number(ref)] = cell
+            @assert row_number(cell) == r.row "Malformed Excel file. range_row = $(r.row), cell.ref = $(cell.ref)"
+            r.rowcells[column_number(cell)] = cell
         end
         r.is_rowcells_populated = true
     end

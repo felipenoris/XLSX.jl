@@ -3,6 +3,10 @@ Base.isempty(::EmptyCell) = true
 Base.isempty(::AbstractCell) = false
 iserror(c::Cell) = c.datatype == "e"
 iserror(::AbstractCell) = false
+row_number(::EmptyCell) = error("Cannot query row_number for an empty cell.")
+column_number(::EmptyCell) = error("Cannot query column number for an empty cell.")
+row_number(c::Cell) = row_number(c.ref)
+column_number(c::Cell) = column_number(c.ref)
 
 function Cell(c::LightXML.XMLElement)
     # c (Cell) element is defined at section 18.3.1.4
@@ -48,7 +52,7 @@ function Cell(c::LightXML.XMLElement)
 end
 
 """
-	celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+    celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 Returns a Julia representation of a given cell value.
 The result data type is chosen based on the value of the cell as well as its style.
@@ -78,9 +82,9 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
         str = sst_unformatted_string(ws, cell.value)
 
         if isempty(str)
-        	return Missings.missing
+            return Missings.missing
         else
-        	return str
+            return str
         end
 
     elseif (isempty(cell.datatype) || cell.datatype == "n")
@@ -124,7 +128,7 @@ end
 
 function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}
 
-	# does not allow empty string
+    # does not allow empty string
     @assert !isempty(v) "Cannot convert an empty string into a datetime value."
 
     if contains(v, ".")
