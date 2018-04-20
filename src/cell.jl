@@ -120,6 +120,9 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
         else
             error("Unknown boolean value: $(cell.value).")
         end
+    elseif cell.datatype == "str"
+        # plain string
+        return cell.value
     end
 
     error("Couldn't parse celldata for $cell.")
