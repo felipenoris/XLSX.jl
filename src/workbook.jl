@@ -1,5 +1,5 @@
 
-EmptyWorkbook() = Workbook(NullPackage(), Vector{Worksheet}(), false, Vector{Relationship}(), Vector{LightXML.XMLElement}(), LightXML.XMLDocument())
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), Vector{LightXML.XMLElement}(), LightXML.XMLDocument())
 
 """
 Lists internal files from the XLSX package.

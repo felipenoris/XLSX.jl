@@ -63,10 +63,8 @@ end
 
 abstract type MSOfficePackage end
 
-struct NullPackage <: MSOfficePackage end
-
-#struct EmptyMSOfficePackage <: MSOfficePackage
-#end
+struct EmptyMSOfficePackage <: MSOfficePackage
+end
 
 """
 Relationships are defined in ECMA-376-1 Section 9.2.
