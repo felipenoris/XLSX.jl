@@ -26,7 +26,6 @@ println( string(cn) ) # will print out AB1
 """
 struct CellRef
     name::String
-    column_name::SubString{String}
     row_number::Int
     column_number::Int
 end
@@ -42,6 +41,7 @@ struct Cell <: AbstractCell
 end
 
 struct EmptyCell <: AbstractCell
+    ref::CellRef
 end
 
 """
@@ -59,6 +59,28 @@ cr = XLSX.range"A1:C4"
 struct CellRange
     start::CellRef
     stop::CellRef
+
+    function CellRange(a::CellRef, b::CellRef)
+
+        top = row_number(a)
+        bottom = row_number(b)
+        left = column_number(a)
+        right = column_number(b)
+
+        @assert left <= right && top <= bottom "Invalid CellRange. Start cell should be at the top left corner of the range."
+
+        return new(a, b)
+    end
+end
+
+struct ColumnRange
+    start::Int # column number
+    stop::Int  # column number
+
+    function ColumnRange(a::Int, b::Int)
+        @assert a <= b "Invalid ColumnRange. Start column must be located before end column."
+        new(a, b)
+    end
 end
 
 abstract type MSOfficePackage end
@@ -117,4 +139,55 @@ mutable struct XLSXFile <: MSOfficePackage
     data::Dict{String, LightXML.XMLDocument} # maps filename => XMLDocument
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
+end
+
+# Iterators
+
+"""
+    SheetRowIterator(sheet)
+
+Iterates over Worksheet cells. See `eachrow` method docs.
+"""
+struct SheetRowIterator
+    sheet::Worksheet
+    xml_rows_iterator::LightXML.XMLElementIter
+end
+
+mutable struct SheetRow
+    sheet::Worksheet
+    row::Int
+    row_xml_element::LightXML.XMLElement
+    rowcells::Dict{Int, Cell} # column -> value
+    is_rowcells_populated::Bool # indicates wether row_xml_element has been decoded into rowcells
+end
+
+mutable struct Index # based on DataFrames.jl
+    lookup::Dict{Symbol, Int} # name -> table column index
+    column_labels::Vector{Symbol}
+    column_map::Dict{Int, Int} # table column index (1-based) -> sheet column index (cellref based)
+
+    function Index(column_range::ColumnRange, column_labels::Vector{Symbol})
+        lookup = Dict{Symbol, Int}()
+        for (i, n) in enumerate(column_labels)
+            lookup[n] = i
+        end
+
+        column_map = Dict{Int, Int}()
+        for (i, n) in enumerate(column_range)
+            column_map[i] = decode_column_number(n)
+        end
+        return new(lookup, column_labels, column_map)
+    end
+end
+
+struct TableRowIterator
+    itr::SheetRowIterator
+    index::Index
+    first_data_row::Int
+end
+
+struct TableRow
+    itr::TableRowIterator
+    sheet_row::SheetRow
+    table_row_index::Int # Index of the row in the table. This is not relative to the worksheet cell row.
 end

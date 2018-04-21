@@ -21,15 +21,7 @@ function dimension(ws::Worksheet) :: CellRange
     end
 end
 
-function getdata(ws::Worksheet, single::CellRef) :: Any
-    cell = getcell(ws, single)
-
-    if isempty(cell)
-        return Missings.missing
-    else
-        return celldata(ws, cell)
-    end
-end
+getdata(ws::Worksheet, single::CellRef) = celldata(ws, getcell(ws, single))
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     result = Array{Any, 2}(size(rng))
@@ -80,7 +72,7 @@ function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
         end
     end
 
-    return EmptyCell()
+    return EmptyCell(single)
 end
 
 function getcell(ws::Worksheet, ref::AbstractString)
@@ -93,7 +85,10 @@ end
 
 function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
     result = Array{AbstractCell, 2}(size(rng))
-    fill!(result, EmptyCell())
+    for cellref in rng
+        (r, c) = relative_cell_position(cellref, rng)
+        result[r, c] = EmptyCell(cellref)
+    end
 
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
@@ -121,4 +116,14 @@ function getcellrange(ws::Worksheet, rng::AbstractString)
     else
         error("$rng is not a valid cell range.")
     end
+end
+
+function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false)
+    itr = TableRowIterator(sheet, cols; first_row=first_row, column_labels=column_labels, header=header)
+    return gettable(itr; infer_eltypes=infer_eltypes)
+end
+
+function gettable(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false)
+    itr = TableRowIterator(sheet; first_row=first_row, column_labels=column_labels, header=header)
+    return gettable(itr; infer_eltypes=infer_eltypes)
 end
