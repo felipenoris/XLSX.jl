@@ -407,7 +407,7 @@ end
 
 function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
     column_labels = get_column_labels(itr)
-    columns_count = length(column_labels)
+    columns_count = table_columns_count(itr)
     data = Vector{Any}(columns_count)
     for c in 1:columns_count
         data[c] = Vector{Any}()
