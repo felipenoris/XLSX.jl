@@ -52,6 +52,7 @@ function Cell(c::LightXML.XMLElement)
 end
 
 celldata(ws::Worksheet, empty::EmptyCell) = Missings.missing
+getdata(ws::Worksheet, cell::AbstractCell) = celldata(ws, cell)
 
 """
     celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}

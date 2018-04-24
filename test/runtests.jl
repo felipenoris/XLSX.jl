@@ -213,6 +213,11 @@ error_sheet = f["error"]
 @test ismissing(error_sheet["A2"])
 @test ismissing(error_sheet["A3"])
 @test ismissing(error_sheet["A4"])
+emptycell = XLSX.getcell(error_sheet, "B1")
+@test !XLSX.iserror(emptycell)
+@test ismissing(XLSX.getdata(error_sheet, emptycell))
+@test XLSX.row_number(emptycell) == 1
+@test XLSX.column_number(emptycell) == 2
 
 # Column Range
 
@@ -311,6 +316,7 @@ check_test_data(data, test_data)
 @test XLSX.infer_eltype(data[5]) == Float64
 @test XLSX.infer_eltype(data[6]) == Any
 @test XLSX.infer_eltype([1, "1", 10.2]) == Any
+@test XLSX.infer_eltype(Vector{Int}()) == Int
 
 data_inferred, col_names = XLSX.gettable(s, infer_eltypes=true)
 @test eltype(data_inferred[1]) == Int
@@ -330,6 +336,14 @@ data, col_names = XLSX.gettable(s)
 
 @test col_names == [:HA, :HB, :HC]
 check_test_data(data, test_data)
+
+for (ri, rowdata) in enumerate(XLSX.TableRowIterator(s))
+    if ismissing(test_data[1][ri])
+        @test ismissing(rowdata[:HA])
+    else
+        @test rowdata[:HA] == test_data[1][ri]
+    end
+end
 
 override_col_names = [:ColumnA, :ColumnB, :ColumnC]
 data, col_names = XLSX.gettable(s, column_labels=override_col_names)
@@ -376,15 +390,51 @@ test_data[3] = [ missing, "D4", missing ]
 data, col_names = XLSX.gettable(s)
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
+@test_throws ErrorException XLSX.find_row(XLSX.SheetRowIterator(s), 20)
 
 s = f["table4"]
 data, col_names = XLSX.gettable(s)
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
 
+empty_sheet = XLSX.getsheet("general.xlsx", "empty")
+@test_throws ErrorException XLSX.gettable(empty_sheet)
+itr = XLSX.SheetRowIterator(empty_sheet)
+@test_throws ErrorException XLSX.find_row(itr, 1)
+
+f = XLSX.read("general.xlsx")
+tb5 = f["table5"]
+test_data = Vector{Any}(1)
+test_data[1] = [1, 2, 3, 4, 5]
+data, col_names = XLSX.gettable(tb5)
+@test col_names == [ :HEADER ]
+check_test_data(data, test_data)
+tb6 = f["table6"]
+data, col_names = XLSX.gettable(tb6, first_row=3)
+@test col_names == [ :HEADER ]
+check_test_data(data, test_data)
+tb7 = f["table7"]
+data, col_names = XLSX.gettable(tb7, first_row=3)
+@test col_names == [ :HEADER ]
+check_test_data(data, test_data)
+
+sheet_lookup = f["lookup"]
+test_data = Vector{Any}(3)
+test_data[1] = [ 10, 20, 30]
+test_data[2] = [ "name1", "name2", "name3" ]
+test_data[3] = [ 100, 200, 300 ]
+data, col_names = XLSX.gettable(sheet_lookup)
+@test col_names == [:ID, :NAME, :VALUE]
+check_test_data(data, test_data)
+
 #
 # Helper functions
 #
+
+test_data = Vector{Any}(3)
+test_data[1] = [ missing, missing, "B5" ]
+test_data[2] = [ "C3", missing, missing ]
+test_data[3] = [ missing, "D4", missing ]
 
 data, col_names = XLSX.gettable("general.xlsx", "table4")
 @test col_names == [:H1, :H2, :H3]

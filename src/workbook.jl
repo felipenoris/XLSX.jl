@@ -58,7 +58,7 @@ function Worksheet(xf::XLSXFile, sheet_element::LightXML.XMLElement)
     return Worksheet(xf, sheetId, relationship_id, name, sheet_data)
 end
 
-function Base.getindex(xl::XLSXFile, sheetname::String) :: Worksheet
+function getsheet(xl::XLSXFile, sheetname::String) :: Worksheet
     for ws in xl.workbook.sheets
         if ws.name == sheetname
             return ws
@@ -67,6 +67,9 @@ function Base.getindex(xl::XLSXFile, sheetname::String) :: Worksheet
     error("$(xl.filepath) does not have a Worksheet named $sheetname.")
 end
 
-Base.getindex(xl::XLSXFile, sheet_index::Int) :: Worksheet = xl.workbook.sheets[sheet_index]
+getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = xl.workbook.sheets[sheet_index]
+getsheet(filepath::AbstractString, s) = getsheet(read(filepath), s)
+
+Base.getindex(xl::XLSXFile, s) = getsheet(xl, s)
 
 Base.show(io::IO, xf::XLSXFile) = print(io, "XLSXFile(\"$(xf.filepath)\")")

@@ -374,7 +374,7 @@ function Base.done(itr::TableRowIterator, state::TableRowIteratorState)
     return true
 end
 
-function infer_eltype(v::Vector)
+function infer_eltype(v::Vector{Any})
     local hasmissing::Bool = false
     local t::DataType = Any
 
@@ -404,6 +404,8 @@ function infer_eltype(v::Vector)
         end
     end
 end
+
+infer_eltype(v::Vector{T}) where T = T
 
 function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
     column_labels = get_column_labels(itr)
