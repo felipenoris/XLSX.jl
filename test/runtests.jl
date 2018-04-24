@@ -381,3 +381,17 @@ s = f["table4"]
 data, col_names = XLSX.gettable(s)
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
+
+#
+# Helper functions
+#
+
+data, col_names = XLSX.gettable("general.xlsx", "table4")
+@test col_names == [:H1, :H2, :H3]
+check_test_data(data, test_data)
+
+@test XLSX.getdata("general.xlsx", "table4", "E12") == "H1"
+test_data = Array{Any, 2}(2, 1)
+test_data[1, 1] = "H2"
+test_data[2, 1] = "C3"
+@test XLSX.getdata("general.xlsx", "table4", "F12:F13") == test_data
