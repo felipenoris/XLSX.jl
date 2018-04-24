@@ -413,9 +413,9 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
         data[c] = Vector{Any}()
     end
 
-    for r in itr
-        for c in 1:columns_count
-            push!(data[c], getdata(r, c))
+    for r in itr # r is a TableRow
+        for (ci, cv) in enumerate(r) # iterate a TableRow to get column data
+            push!(data[ci], cv)
         end
     end
 
