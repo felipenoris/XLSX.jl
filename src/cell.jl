@@ -3,8 +3,8 @@ Base.isempty(::EmptyCell) = true
 Base.isempty(::AbstractCell) = false
 iserror(c::Cell) = c.datatype == "e"
 iserror(::AbstractCell) = false
-row_number(::EmptyCell) = error("Cannot query row_number for an empty cell.")
-column_number(::EmptyCell) = error("Cannot query column number for an empty cell.")
+row_number(c::EmptyCell) = row_number(c.ref)
+column_number(c::EmptyCell) = column_number(c.ref)
 row_number(c::Cell) = row_number(c.ref)
 column_number(c::Cell) = column_number(c.ref)
 
@@ -50,6 +50,8 @@ function Cell(c::LightXML.XMLElement)
 
     return Cell(ref, t, s, v, f)
 end
+
+celldata(ws::Worksheet, empty::EmptyCell) = Missings.missing
 
 """
     celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}

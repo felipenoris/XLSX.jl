@@ -6,7 +6,7 @@ function CellRef(n::AbstractString)
     row_number = parse(Int, m_row.match)
     m_column_name = match(r"^[A-X]?[A-Z]?[A-Z]", n)
 
-    return CellRef(n, m_column_name.match, row_number, decode_column_number(m_column_name.match))
+    return CellRef(n, row_number, decode_column_number(m_column_name.match))
 end
 
 CellRef(row::Int, col::Int) = CellRef(encode_column_number(col) * string(row))
@@ -137,16 +137,6 @@ function is_valid_cellrange(n::AbstractString) :: Bool
         return false
     end
 
-    rng = CellRange(n)
-    top = row_number(rng.start)
-    bottom = row_number(rng.stop)
-    left = column_number(rng.start)
-    right = column_number(rng.stop)
-
-    if right < left || bottom < top
-        return false
-    end
-
     return true
 end
 
@@ -229,6 +219,8 @@ Returns the column number of a given cell reference.
 """
 column_number(c::CellRef) :: Int = c.column_number
 
+column_name(c::CellRef) :: String = encode_column_number(column_number(c))
+
 """
 Returns (row, column) representing a `ref` position relative to `rng`.
 
@@ -252,4 +244,77 @@ function relative_cell_position(ref::CellRef, rng::CellRange)
     r, c = row_number(ref), column_number(ref)
 
     return ( r - top + 1 , c - left + 1 )
+end
+
+#
+# ColumnRange
+#
+
+const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+
+function is_valid_column_range(r::AbstractString) :: Bool
+    if !ismatch(RGX_COLUMN_RANGE, r)
+        return false
+    end
+
+    start_name = match(r"^[A-Z]+", r).match
+    stop_name = match(r"[A-Z]+$", r).match
+
+    if !is_valid_column_name(start_name)
+        return false
+    end
+
+    if !is_valid_column_name(stop_name)
+        return false
+    end
+
+    return true
+end
+
+function ColumnRange(r::AbstractString)
+    @assert is_valid_column_range(r) "Invalid column range: $r."
+
+    start_name = match(r"^[A-Z]+", r).match
+    stop_name = match(r"[A-Z]+$", r).match
+
+    return ColumnRange(decode_column_number(start_name), decode_column_number(stop_name))
+end
+
+convert(::Type{ColumnRange}, str::AbstractString) = ColumnRange(str)
+convert(::Type{ColumnRange}, column_range::ColumnRange) = column_range
+
+column_bounds(r::ColumnRange) = (r.start, r.stop)
+Base.length(r::ColumnRange) = r.stop - r.start + 1
+
+# ColumnRange iterator
+Base.start(itr::ColumnRange) = itr.start
+Base.done(itr::ColumnRange, column_index::Int) = column_index > itr.stop
+Base.next(itr::ColumnRange, column_index::Int) = (encode_column_number(column_index), column_index + 1)
+
+# CellRange iterator
+struct CellRefIteratorState
+    row::Int
+    col::Int
+end
+
+Base.start(rng::CellRange) = CellRefIteratorState(row_number(rng.start), column_number(rng.start))
+Base.done(rng::CellRange, state::CellRefIteratorState) = state.row > row_number(rng.stop)
+
+function Base.length(rng::CellRange)
+    (r, c) = size(rng)
+    return r * c
+end
+
+# (i, state) = next(I, state)
+function Base.next(rng::CellRange, state::CellRefIteratorState)
+    local next_state::CellRefIteratorState
+    if state.col == column_number(rng.stop)
+        # reached last column. Go to the next row.
+        next_state = CellRefIteratorState(state.row + 1, column_number(rng.start))
+    else
+        # go to the next column
+        next_state = CellRefIteratorState(state.row, state.col + 1)
+    end
+
+    return CellRef(state.row, state.col), next_state
 end

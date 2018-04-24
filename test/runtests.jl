@@ -46,29 +46,25 @@ ef_book_sparse_2 = XLSX.read("book_sparse_2.xlsx")
 
 cn = XLSX.CellRef("A1")
 @test string(cn) == "A1"
-@test cn.column_name == "A"
-@test cn.row_number == 1
+@test XLSX.column_name(cn) == "A"
 @test XLSX.row_number(cn) == 1
 @test XLSX.column_number(cn) == 1
 
 cn = XLSX.CellRef("AB1")
 @test string(cn) == "AB1"
-@test cn.column_name == "AB"
-@test cn.row_number == 1
+@test XLSX.column_name(cn) == "AB"
 @test XLSX.row_number(cn) == 1
 @test XLSX.column_number(cn) == 28
 
 cn = XLSX.CellRef("AMI1")
 @test string(cn) == "AMI1"
-@test cn.column_name == "AMI"
-@test cn.row_number == 1
+@test XLSX.column_name(cn) == "AMI"
 @test XLSX.row_number(cn) == 1
 @test XLSX.column_number(cn) == 1023
 
 cn = XLSX.CellRef("XFD1048576")
 @test string(cn) == "XFD1048576"
-@test cn.column_name == "XFD"
-@test cn.row_number == 1048576
+@test XLSX.column_name(cn) == "XFD"
 @test XLSX.row_number(cn) == 1048576
 @test XLSX.column_number(cn) == 16384
 
@@ -104,9 +100,9 @@ fullrng = XLSX.range"B2:E5"
 @test !issubset(XLSX.range"A1:E5", fullrng)
 
 @test XLSX.is_valid_cellrange("B2:C8")
-@test !XLSX.is_valid_cellrange("Z10:A1") # start cell should be at the top left corner of the range
-@test !XLSX.is_valid_cellrange("A10:A1")
-@test !XLSX.is_valid_cellrange("Z1:A1")
+@test !XLSX.is_valid_cellrange("A:B")
+@test_throws AssertionError XLSX.CellRange("Z10:A1")
+@test_throws AssertionError XLSX.CellRange("Z1:A1")
 
 # hashing and equality
 @test XLSX.CellRef("AMI1") == XLSX.CellRef("AMI1")
@@ -217,3 +213,171 @@ error_sheet = f["error"]
 @test ismissing(error_sheet["A2"])
 @test ismissing(error_sheet["A3"])
 @test ismissing(error_sheet["A4"])
+
+# Column Range
+
+cr = XLSX.ColumnRange("B:D")
+@test cr.start == 2
+@test cr.stop == 4
+@test length(cr) == 3
+@test_throws AssertionError XLSX.ColumnRange("B1:D3")
+@test_throws AssertionError XLSX.ColumnRange("D:A")
+@test collect(cr) == [ "B", "C", "D" ]
+
+# CellRange iterator
+rng = XLSX.CellRange("A2:C4")
+@test collect(rng) == [ XLSX.CellRef("A2"), XLSX.CellRef("B2"), XLSX.CellRef("C2"), XLSX.CellRef("A3"), XLSX.CellRef("B3"), XLSX.CellRef("C3"), XLSX.CellRef("A4"), XLSX.CellRef("B4"), XLSX.CellRef("C4") ]
+
+# Table
+
+f = XLSX.read("book_sparse.xlsx")
+s = f["Sheet1"]
+
+report = Vector{String}()
+for r in XLSX.eachrow(s)
+    if !isempty(r)
+        push!(report, string(XLSX.row_number(r), " - ", XLSX.column_bounds(r)))
+
+        if XLSX.row_number(r) == 2
+            @test XLSX.last_column_index(r, 2) == 2
+        elseif XLSX.row_number(r) == 3
+            @test XLSX.last_column_index(r, 3) == 4
+        elseif XLSX.row_number(r) == 6
+            @test XLSX.last_column_index(r, 1) == 4
+            @test XLSX.last_column_index(r, 2) == 4
+            @test XLSX.last_column_index(r, 3) == 4
+            @test XLSX.last_column_index(r, 4) == 4
+            @test_throws AssertionError XLSX.last_column_index(r, 5)
+        elseif XLSX.row_number(r) == 9
+            @test XLSX.last_column_index(r, 2) == 3
+            @test XLSX.last_column_index(r, 3) == 3
+            @test XLSX.last_column_index(r, 5) == 5
+        end
+    end
+end
+@test report == [ "2 - (2, 2)", "3 - (3, 4)", "6 - (1, 4)", "9 - (2, 5)"]
+
+f = XLSX.read("general.xlsx")
+s = f["table"]
+data, col_names = XLSX.gettable(s)
+@test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+
+test_data = Vector{Any}(6)
+test_data[1] = collect(1:8)
+test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
+test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing ]
+test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
+test_data[6] = [ missing for i in 1:8 ]
+
+function check_test_data(data::Vector{Any}, test_data::Vector{Any})
+
+    @test length(data) == length(test_data)
+
+    function size_of_data(d::Vector{Any})
+        isempty(d) && return (0, 0)
+        return length(d[1]), length(d)
+    end
+
+    rows, cols = size_of_data(test_data)
+
+    for col in 1:cols
+        @test length(data[col]) == length(test_data[col])
+    end
+
+    for row in 1:rows, col in 1:cols
+        test_value = test_data[col][row]
+        value = data[col][row]
+        if ismissing(test_value)
+            @test ismissing(value)
+        else
+            if isa(test_value, Float64)
+                @test isapprox(value, test_value)
+            else
+                @test value == test_value
+            end
+        end
+    end
+
+    nothing
+end
+
+check_test_data(data, test_data)
+
+@test XLSX.infer_eltype(data[1]) == Int
+@test XLSX.infer_eltype(data[2]) == Union{Missing, String}
+@test XLSX.infer_eltype(data[3]) == Date
+@test XLSX.infer_eltype(data[4]) == Union{Missing, String}
+@test XLSX.infer_eltype(data[5]) == Float64
+@test XLSX.infer_eltype(data[6]) == Any
+@test XLSX.infer_eltype([1, "1", 10.2]) == Any
+
+data_inferred, col_names = XLSX.gettable(s, infer_eltypes=true)
+@test eltype(data_inferred[1]) == Int
+@test eltype(data_inferred[2]) == Union{Missing, String}
+@test eltype(data_inferred[3]) == Date
+@test eltype(data_inferred[4]) == Union{Missing, String}
+@test eltype(data_inferred[5]) == Float64
+@test eltype(data_inferred[6]) == Any
+
+s = f["table2"]
+test_data = Vector{Any}(3)
+test_data[1] = [ "A1", "A2", "A3", missing ]
+test_data[2] = [ "B1", "B2", missing, "B4"]
+test_data[3] = [ missing, missing, missing, missing ]
+
+data, col_names = XLSX.gettable(s)
+
+@test col_names == [:HA, :HB, :HC]
+check_test_data(data, test_data)
+
+override_col_names = [:ColumnA, :ColumnB, :ColumnC]
+data, col_names = XLSX.gettable(s, column_labels=override_col_names)
+
+@test col_names == override_col_names
+check_test_data(data, test_data)
+
+data, col_names = XLSX.gettable(s, "A:B", first_row=1)
+test_data_AB_cols = Vector{Any}(2)
+test_data_AB_cols[1] = test_data[1]
+test_data_AB_cols[2] = test_data[2]
+@test col_names == [:HA, :HB]
+check_test_data(data, test_data_AB_cols)
+
+data, col_names = XLSX.gettable(s, "A:B")
+test_data_AB_cols = Vector{Any}(2)
+test_data_AB_cols[1] = test_data[1]
+test_data_AB_cols[2] = test_data[2]
+@test col_names == [:HA, :HB]
+check_test_data(data, test_data_AB_cols)
+
+data, col_names = XLSX.gettable(s, "B:B", first_row=2)
+@test col_names == [:B1]
+@test length(data) == 1
+@test length(data[1]) == 1
+@test data[1][1] == "B2"
+
+data, col_names = XLSX.gettable(s, "B:C")
+@test col_names == [ :HB, :HC ]
+test_data_BC_cols = Vector{Any}(2)
+test_data_BC_cols[1] = ["B1", "B2"]
+test_data_BC_cols[2] = [ missing, missing]
+check_test_data(data, test_data_BC_cols)
+
+data, col_names = XLSX.gettable(s, "B:C", first_row=2, header=false)
+@test col_names == [ :B, :C ]
+check_test_data(data, test_data_BC_cols)
+
+s = f["table3"]
+test_data = Vector{Any}(3)
+test_data[1] = [ missing, missing, "B5" ]
+test_data[2] = [ "C3", missing, missing ]
+test_data[3] = [ missing, "D4", missing ]
+data, col_names = XLSX.gettable(s)
+@test col_names == [:H1, :H2, :H3]
+check_test_data(data, test_data)
+
+s = f["table4"]
+data, col_names = XLSX.gettable(s)
+@test col_names == [:H1, :H2, :H3]
+check_test_data(data, test_data)
