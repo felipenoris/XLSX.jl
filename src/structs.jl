@@ -7,7 +7,6 @@ A `CellRef` represents a cell location given by row and column identifiers.
 Example:
 
 ```julia
-import XLSX
 cn = XLSX.CellRef("AB1")
 println( XLSX.row_number(cn) ) # will print 1
 println( XLSX.column_number(cn) ) # will print 28
@@ -17,7 +16,6 @@ println( string(cn) ) # will print out AB1
 As a convenience, `@ref_str` macro is provided.
 
 ```julia
-import XLSX
 cn = XLSX.ref"AB1"
 println( XLSX.row_number(cn) ) # will print 1
 println( XLSX.column_number(cn) ) # will print 28
@@ -52,7 +50,6 @@ A `CellRange` represents a rectangular range of cells in a spreadsheet.
 As a convenience, `@range_str` macro is provided.
 
 ```julia
-import XLSX
 cr = XLSX.range"A1:C4"
 ```
 """

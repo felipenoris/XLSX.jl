@@ -16,48 +16,69 @@ julia> Pkg.add("XLSX")
 
 ## Usage
 
+The basic usage is to read an Excel file and read values.
+
 ```julia
 julia> import XLSX
 
-julia> xf = XLSX.read("Book1.xlsx")
-XLSXFile("Book1.xlsx")
+julia> xf = XLSX.read("myfile.xlsx")
+XLSXFile("myfile.xlsx")
 
 julia> XLSX.sheetnames(xf)
 2-element Array{String,1}:
- "Sheet1"
- "Sheet2"
+ "mysheet"   
+ "othersheet"
 
-julia> sh = xf["Sheet1"]
-XLSX.Worksheet: "Sheet1". Dimension: "B2:C8".
+julia> sh = xf["mysheet"]
+XLSX.Worksheet: "mysheet". Dimension: A1:B4.
 
-julia> sh["C3"] # access a cell value
-21.2
+julia> sh["B2"] # access a cell value
+"first"
 
-julia> sh["B3:C4"] # access a range
-2×2 Array{Any,2}:
- 10.5          21.2
-   2018-03-21    2018-03-22
+julia> sh["A2:B4"] # access a range
+3×2 Array{Any,2}:
+ 1  "first" 
+ 2  "second"
+ 3  "third"
+
+julia> XLSX.getdata("myfile.xlsx", "mysheet", "A2:B4") # shorthand for all above
+3×2 Array{Any,2}:
+ 1  "first" 
+ 2  "second"
+ 3  "third"
 
 julia> sh[:] # all data inside worksheet's dimension
-7×2 Array{Any,2}:
-     "B2"             "C2"
-   10.5             21.2
-     2018-03-21       2018-03-22
-     2018-03-21       2018-03-22
- true            false
-    1                2
-     "palavra1"       "palavra2"
+4×2 Array{Any,2}:
+  "HeaderA"  "HeaderB"
+ 1           "first"  
+ 2           "second" 
+ 3           "third"
 
 julia> XLSX.getdata(sh) # same as sh[:]
-7×2 Array{Any,2}:
-     "B2"             "C2"
-   10.5             21.2
-     2018-03-21       2018-03-22
-     2018-03-21       2018-03-22
- true            false
-    1                2
-     "palavra1"       "palavra2"
+4×2 Array{Any,2}:
+  "HeaderA"  "HeaderB"
+ 1           "first"  
+ 2           "second" 
+ 3           "third"
 ```
+
+The `gettable` method returns tabular data from a spreadsheet as a tuple (data, column_labels).
+You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
+Check the docstring for `gettable` method for more advanced options.
+
+```julia
+julia> using DataFrames, XLSX
+
+julia> df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
+3×2 DataFrames.DataFrame
+│ Row │ HeaderA │ HeaderB  │
+├─────┼─────────┼──────────┤
+│ 1   │ 1       │ "first"  │
+│ 2   │ 2       │ "second" │
+│ 3   │ 3       │ "third"  │
+```
+
+To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.
 
 ## References
 

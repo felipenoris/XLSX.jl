@@ -164,7 +164,7 @@ function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
 end
 
 """
-    TableRowIterator(sheet, [column_range], [first_row]; [names], [header])
+    TableRowIterator(sheet, [columns]; [first_row], [column_labels], [header])
 
 `header` is a boolean indicating wether the first row of the table is a table header.
 
@@ -172,6 +172,8 @@ If `header == false` and no `names` were supplied, column names will be generate
 Also, the column range will be inferred by the non-empty contiguous cells in the first row of the table.
 
 The user can replace column names by assigning the optional `names` input variable with a `Vector{Symbol}`.
+
+See also `gettable`.
 """
 function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true)
     itr = SheetRowIterator(sheet)
