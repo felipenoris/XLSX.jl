@@ -62,7 +62,7 @@ julia> XLSX.getdata(sh) # same as sh[:]
  3           "third"
 ```
 
-The `gettable` method returns tabular data from a spreadsheet as a tuple (data, column_labels).
+The `gettable` method returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
