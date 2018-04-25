@@ -30,6 +30,10 @@ ef_book_sparse_2 = XLSX.read("book_sparse_2.xlsx")
 @test XLSX.sst_unformatted_string(ef_Book1, 0) == "B2"
 @test XLSX.sst_unformatted_string(ef_Book1, "0") == "B2"
 
+@test_throws ErrorException XLSX.get_relationship_target_by_id(ef_Book1.workbook, "indalid_id")
+@test_throws ErrorException XLSX.get_relationship_target_by_type(ef_Book1.workbook, "indalid_type")
+@test !XLSX.has_relationship_by_type(ef_Book1.workbook, "invalid_type")
+
 # Cell names
 @test !XLSX.is_valid_cellname("A0")
 @test XLSX.is_valid_cellname("A1")
