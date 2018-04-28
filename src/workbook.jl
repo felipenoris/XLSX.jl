@@ -1,5 +1,5 @@
 
-EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), Vector{LightXML.XMLElement}(), LightXML.XMLDocument())
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), EzXML.XMLDocument())
 
 """
 Lists internal files from the XLSX package.
@@ -27,36 +27,23 @@ isdate1904(wb::Workbook) :: Bool = wb.date1904
 isdate1904(xf::XLSXFile) :: Bool = isdate1904(xf.workbook)
 
 """
-    xmldocument(xl::XLSXFile, filename::String) :: LightXML.XMLDocument
+    xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document
 
 Utility method to find the XMLDocument associated with a given package filename.
 Returns xl.data[filename] if it exists. Throws an error if it doesn't.
 """
-function xmldocument(xl::XLSXFile, filename::String) :: LightXML.XMLDocument
+function xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document
     @assert in(filename, filenames(xl)) "$filename not found in XLSX package."
     return xl.data[filename]
 end
 
 """
-    xmlroot(xl::XLSXFile, filename::String) :: LightXML.XMLElement
+    xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node
 
 Utility method to return the root element of a given XMLDocument from the package.
-Returns LightXML.root(xl.data[filename]) if it exists.
+Returns EzXML.root(xl.data[filename]) if it exists.
 """
-xmlroot(xl::XLSXFile, filename::String) :: LightXML.XMLElement = LightXML.root(xmldocument(xl, filename))
-
-function Worksheet(xf::XLSXFile, sheet_element::LightXML.XMLElement)
-    @assert LightXML.name(sheet_element) == "sheet"
-
-    sheetId = parse(Int, LightXML.attribute(sheet_element, "sheetId"))
-    relationship_id = LightXML.attribute(sheet_element, "id")
-    name = LightXML.attribute(sheet_element, "name")
-
-    target = "xl/" * get_relationship_target_by_id(xf.workbook, relationship_id)
-    sheet_data = xf.data[target]
-
-    return Worksheet(xf, sheetId, relationship_id, name, sheet_data)
-end
+xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
 
 function getsheet(xl::XLSXFile, sheetname::String) :: Worksheet
     for ws in xl.workbook.sheets

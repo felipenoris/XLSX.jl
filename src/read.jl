@@ -1,11 +1,10 @@
 
-function XLSXFile(filepath::AbstractString)
-    if isfile(filepath)
-        return read(filepath)
-    else
-        error("XLSXFile write not supported yet...")
-    end
-end
+"""
+    XLSXFile(filepath)
+
+Creates an empty instance of XLSXFile.
+"""
+XLSXFile(filepath::AbstractString) = XLSXFile(filepath, Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
 
 """
     read(filepath) :: XLSXFile
@@ -14,7 +13,7 @@ Main function for reading an Excel file.
 """
 function read(filepath::AbstractString) :: XLSXFile
     @assert isfile(filepath) "File $filepath not found."
-    xf = XLSXFile(filepath, Dict{String, LightXML.XMLDocument}(), EmptyWorkbook(), Vector{Relationship}())
+    xf = XLSXFile(filepath)
 
     xlfile = ZipFile.Reader(filepath)
     try
@@ -26,7 +25,8 @@ function read(filepath::AbstractString) :: XLSXFile
                 continue
             end
 
-            xf.data[f.name] = LightXML.parse_string(readstring(f))
+            doc = EzXML.readxml(f)
+            xf.data[f.name] = doc
         end
 
         # Check for minimum package requirements
@@ -36,11 +36,22 @@ function read(filepath::AbstractString) :: XLSXFile
         parse_workbook!(xf)
 
         return xf
-    catch e
-        error("Error parsing $filepath. $e. $(catch_stacktrace()).")
+
     finally
         close(xlfile)
     end
+end
+
+get_default_namespace(d::EzXML.Document) = get_default_namespace(EzXML.root(d))
+
+function get_default_namespace(r::EzXML.Node) :: String
+    for (prefix, ns) in EzXML.namespaces(r)
+        if prefix == ""
+            return ns
+        end
+    end
+
+    error("No default namespace found.")
 end
 
 # See section 12.2 - Package Structure
@@ -64,19 +75,33 @@ Prases workbook level relationships defined in `xl/_rels/workbook.xml.rels`.
 """
 function parse_relationships!(xf::XLSXFile)
     xroot = xmlroot(xf, "_rels/.rels")
-    @assert LightXML.name(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). _rels/.rels root node name should be `Relationships`. Found $(LightXML.name(xroot))."
-    #@assert LightXML.attribute(xroot, "xmlns") == "http://schemas.openxmlformats.org/package/2006/relationships" "Unsupported schema for Relationships: $(LightXML.attribute(xroot, "xmlns"))."
+    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). _rels/.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
+    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
 
-    for el in xroot["Relationship"]
+    for el in EzXML.eachelement(xroot)
         push!(xf.relationships, Relationship(el))
     end
+    @assert !isempty(xf.relationships) "Relationships not found in _rels/.rels!"
 
     xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
-    @assert LightXML.name(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(LightXML.name(xroot))."
-    #@assert LightXML.attribute(xroot, "xmlns") == "http://schemas.openxmlformats.org/package/2006/relationships" "Unsupported schema for Relationships: $(LightXML.attribute(xroot, "xmlns"))."
+    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
+    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
 
-    for el in xroot["Relationship"]
+    for el in EzXML.eachelement(xroot)
         push!(xf.workbook.relationships, Relationship(el))
+    end
+    @assert !isempty(xf.workbook.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
+
+    nothing
+end
+
+function parse_shared_strings!(xf::XLSXFile)
+    workbook = xf.workbook
+
+    relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
+    if has_relationship_by_type(workbook, relationship_type)
+        sst_root = xmlroot(xf, "xl/" * get_relationship_target_by_type(workbook, relationship_type))
+        workbook.sst = SharedStrings(sst_root)
     end
 
     nothing
@@ -89,57 +114,57 @@ Updates xf.workbook from xf.data[\"xl/workbook.xml\"]
 """
 function parse_workbook!(xf::XLSXFile)
     xroot = xmlroot(xf, "xl/workbook.xml")
-    @assert LightXML.name(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(LightXML.name(xroot))'."
+    @assert EzXML.nodename(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(EzXML.nodename(xroot))'."
 
     # workbook to be parsed
     workbook = xf.workbook
 
     # workbookPr
-    vec_workbookPr = xroot["workbookPr"]
-    if length(vec_workbookPr) > 0
-        @assert length(vec_workbookPr) == 1 "Malformed workbook. $xf has more than 1 workbookPr nodes in xl/workbook.xml."
+    local foundworkbookPr::Bool = false
+    for node in EzXML.elements(xroot)
 
-        workbookPr_element = vec_workbookPr[1]
-        if LightXML.has_attribute(workbookPr_element, "date1904")
-            attribute_value_date1904 = LightXML.attribute(workbookPr_element, "date1904")
+        if EzXML.nodename(node) == "workbookPr"
+            foundworkbookPr = true
 
-            if attribute_value_date1904 == "1" || attribute_value_date1904 == "true"
-                workbook.date1904 = true
-            elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
-                workbook.date1904 = false
+            # read date1904 attribute
+            if haskey(node, "date1904")
+                attribute_value_date1904 = node["date1904"]
+
+                if attribute_value_date1904 == "1" || attribute_value_date1904 == "true"
+                    workbook.date1904 = true
+                elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
+                    workbook.date1904 = false
+                else
+                    error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
+                end
             else
-                error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
+                # does not have attribute => is not date1904
+                workbook.date1904 = false
             end
-        else
-            # does not have attribute => is not date1904
-            workbook.date1904 = false
+
+            break
         end
     end
+    @assert foundworkbookPr "Malformed: couldn't find workbookPr node element in 'xl/workbook.xml'."
 
     # shared string table
-    SHARED_STRINGS_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
-    if has_relationship_by_type(workbook, SHARED_STRINGS_RELATIONSHIP_TYPE)
-        sst_root = xmlroot(xf, "xl/" * get_relationship_target_by_type(workbook, SHARED_STRINGS_RELATIONSHIP_TYPE))
-        @assert LightXML.name(sst_root) == "sst" "Malformed workbook. sst file should have sst root."
-        workbook.sst = sst_root["si"]
-    end
+    parse_shared_strings!(xf)
 
     # sheets
-    vec_sheets = xroot["sheets"]
-    if length(vec_sheets) > 0
-        @assert length(vec_sheets) == 1 "Malformed workbook. $xf has more than 1 sheet node in xl/workbook.xml."
+    sheets = Vector{Worksheet}()
+    for node in EzXML.elements(xroot)
+        if EzXML.nodename(node) == "sheets"
 
-        sheets_element = vec_sheets[1]
+            for sheet_node in EzXML.elements(node)
+                @assert EzXML.nodename(sheet_node) == "sheet" "Unsupported node $(EzXML.nodename(sheet_node)) in 'xl/workbook.xml'."
+                worksheet = Worksheet(xf, sheet_node)
+                push!(sheets, worksheet)
+            end
 
-        vec_sheet = sheets_element["sheet"]
-        num_sheets = length(vec_sheet)
-        workbook.sheets = Vector{Worksheet}(num_sheets)
-
-        for (index, sheet_element) in enumerate(vec_sheet)
-            worksheet = Worksheet(xf, sheet_element)
-            workbook.sheets[index] = worksheet
+            break
         end
     end
+    workbook.sheets = sheets
 
     # styles
     STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
@@ -148,8 +173,9 @@ function parse_workbook!(xf::XLSXFile)
         workbook.styles = xmldocument(xf, "xl/" * styles_target)
 
         # check root node name for styles.xml
-        styles_root = LightXML.root(workbook.styles)
-        @assert LightXML.name(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
+        styles_root = EzXML.root(workbook.styles)
+        @assert get_default_namespace(styles_root) == STYLES_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
+        @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
     end
 
     nothing

@@ -19,14 +19,19 @@ end
 @inline worksheet(itr::SheetRowIterator) = itr.sheet
 
 # creates SheetRow with unpopulated rowcells
-SheetRow(ws::Worksheet, row::Int, xml_element::LightXML.XMLElement) = SheetRow(ws, row, xml_element, Dict{Int, Cell}(), false)
+function SheetRow(ws::Worksheet, row::Int, xml_element::EzXML.Node)
+    @assert EzXML.nodename(xml_element) == "row"
+    return SheetRow(ws, row, xml_element, Dict{Int, Cell}(), false)
+end
 
 function populate_row_cells!(r::SheetRow)
     if !r.is_rowcells_populated
-        for c in r.row_xml_element["c"]
-            cell = Cell(c)
-            @assert row_number(cell) == r.row "Malformed Excel file. range_row = $(r.row), cell.ref = $(cell.ref)"
-            r.rowcells[column_number(cell)] = cell
+        for c in EzXML.elements(r.row_xml_element)
+            if EzXML.nodename(c) == "c"
+                cell = Cell(c)
+                @assert row_number(cell) == r.row "Malformed Excel file. range_row = $(r.row), cell.ref = $(cell.ref)"
+                r.rowcells[column_number(cell)] = cell
+            end
         end
         r.is_rowcells_populated = true
     end
@@ -39,7 +44,7 @@ Base.done(itr::SheetRowIterator, state) = done(itr.xml_rows_iterator, state)
 #(i, state) = next(I, state)
 function Base.next(itr::SheetRowIterator, state)
     xml_element, next_state = next(itr.xml_rows_iterator, state)
-    row = parse(Int, LightXML.attribute(xml_element, "r"))
+    row = parse(Int, xml_element["r"])
     return SheetRow(worksheet(itr), row, xml_element), next_state
 end
 
@@ -53,11 +58,17 @@ function find_row(itr::SheetRowIterator, row::Int) :: SheetRow
 end
 
 function SheetRowIterator(ws::Worksheet)
-    xroot = LightXML.root(ws.data)
-    @assert LightXML.name(xroot) == "worksheet" "Malformed sheet $(ws.name)."
-    vec_sheetdata = xroot["sheetData"]
-    @assert length(vec_sheetdata) <= 1 "Malformed sheet $(ws.name)."
-    return SheetRowIterator(ws, LightXML.child_elements(vec_sheetdata[1]))
+    xroot = EzXML.root(ws.data)
+    @assert EzXML.nodename(xroot) == "worksheet" "Malformed sheet $(ws.name)."
+
+    # finds sheetData element
+    for sheet_data_element in EzXML.elements(xroot)
+        if EzXML.nodename(sheet_data_element) == "sheetData"
+            return SheetRowIterator(ws, EzXML.eachelement(sheet_data_element))
+        end
+    end
+
+    error("Malformed sheet $(ws.name): couldn't find sheetData element.")
 end
 
 row_number(sr::SheetRow) = sr.row
@@ -312,14 +323,6 @@ function getdata(r::TableRow, column_label::Symbol)
 end
 
 Base.getindex(r::TableRow, x) = getdata(r, x)
-
-struct TableRowIteratorState
-    state::Any
-    sheet_row::SheetRow
-    table_row_index::Int
-    last_sheet_row_number::Int
-    is_done::Bool
-end
 
 function Base.start(itr::TableRowIterator)
     last_state = start(itr.itr)

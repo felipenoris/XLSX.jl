@@ -12,15 +12,18 @@
 #
 # 18.8.10 cellXfs (Cell Formats)
 
-_styles_root(wb::Workbook) = LightXML.root(wb.styles)
+const STYLES_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]
+
+_styles_root(wb::Workbook) = EzXML.root(wb.styles)
 
 """
-Returns the xf XMLElement for style `index`.
+Returns the xf XML node element for style `index`.
 `index` is 0-based.
 """
-function styles_cell_xf(wb::Workbook, index::Int) :: LightXML.XMLElement
+function styles_cell_xf(wb::Workbook, index::Int) :: EzXML.Node
     xroot = _styles_root(wb)
-    return xroot["cellXfs"][1]["xf"][index+1]
+    xf_elements = find(xroot, "/xpath:styleSheet/xpath:cellXfs/xpath:xf", STYLES_NAMESPACE_XPATH_ARG)
+    return xf_elements[index+1]
 end
 
 styles_cell_xf(wb::Workbook, index::AbstractString) = styles_cell_xf(wb, parse(Int, index))
@@ -34,7 +37,7 @@ end
 "Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
     el = styles_cell_xf(wb, index)
-    return parse(Int, LightXML.attribute(el, "numFmtId"))
+    return parse(Int, el["numFmtId"])
 end
 
 """
@@ -42,14 +45,9 @@ Queries numFmt formatCode field by numFmtId.
 """
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = _styles_root(wb)
-
-    for el in xroot["numFmts"][1]["numFmt"]
-        if numFmtId == LightXML.attribute(el, "numFmtId")
-            return LightXML.attribute(el, "formatCode")
-        end
-    end
-
-    error("numFmtId $numFmtId not found.")
+    elements_found = find(xroot, "/xpath:styleSheet/xpath:numFmts/xpath:numFmt[@numFmtId='$(numFmtId)']", STYLES_NAMESPACE_XPATH_ARG)
+    @assert length(elements_found) == 1 "numFmtId $numFmtId not found."
+    return elements_found[1]["formatCode"]
 end
 
 styles_numFmt_formatCode(wb::Workbook, numFmtId::Int) = styles_numFmt_formatCode(wb, string(numFmtId))

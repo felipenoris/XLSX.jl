@@ -109,7 +109,20 @@ mutable struct Worksheet
     sheetId::Int
     relationship_id::String # r:id="rId1"
     name::String
-    data::LightXML.XMLDocument # a copy of the reference xf.data[worksheet_file], xf :: XLSFile
+    data::EzXML.Document # a copy of the reference xf.data[worksheet_file], xf :: XLSFile
+end
+
+"""
+Shared String Table
+"""
+mutable struct SharedStrings
+    root::EzXML.Node 
+    unformatted_strings::Vector{String}
+
+    function SharedStrings(root::EzXML.Node, unformatted_strings::Vector{String})
+        @assert EzXML.nodename(root) == "sst"
+        new(root, unformatted_strings)
+    end
 end
 
 """
@@ -120,8 +133,8 @@ mutable struct Workbook
     sheets::Vector{Worksheet} # workbook -> sheets -> <sheet name="Sheet1" r:id="rId1" sheetId="1"/>. sheetId determines the index of the WorkSheet in this vector.
     date1904::Bool              # workbook -> workbookPr -> attribute date1904 = "1" or absent
     relationships::Vector{Relationship} # contains workbook level relationships
-    sst::Vector{LightXML.XMLElement} # shared string table ("si" elements)
-    styles::LightXML.XMLDocument # a copy of the reference xf.data[styles_file]
+    sst::SharedStrings # shared string table
+    styles::EzXML.Document # a copy of the reference xf.data[styles_file]
 end
 
 """
@@ -133,7 +146,7 @@ end
 """
 mutable struct XLSXFile <: MSOfficePackage
     filepath::AbstractString
-    data::Dict{String, LightXML.XMLDocument} # maps filename => XMLDocument
+    data::Dict{String, EzXML.Document} # maps filename => XMLDocument
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
 end
@@ -147,13 +160,13 @@ Iterates over Worksheet cells. See `eachrow` method docs.
 """
 struct SheetRowIterator
     sheet::Worksheet
-    xml_rows_iterator::LightXML.XMLElementIter
+    xml_rows_iterator::EzXML.ChildElementIterator
 end
 
 mutable struct SheetRow
     sheet::Worksheet
     row::Int
-    row_xml_element::LightXML.XMLElement
+    row_xml_element::EzXML.Node
     rowcells::Dict{Int, Cell} # column -> value
     is_rowcells_populated::Bool # indicates wether row_xml_element has been decoded into rowcells
 end
@@ -187,4 +200,12 @@ struct TableRow
     itr::TableRowIterator
     sheet_row::SheetRow
     table_row_index::Int # Index of the row in the table. This is not relative to the worksheet cell row.
+end
+
+struct TableRowIteratorState
+    state::Any
+    sheet_row::SheetRow
+    table_row_index::Int
+    last_sheet_row_number::Int
+    is_done::Bool
 end

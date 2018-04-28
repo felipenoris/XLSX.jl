@@ -1,24 +1,38 @@
 
+function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
+    @assert EzXML.nodename(sheet_element) == "sheet"
+
+    sheetId = parse(Int, sheet_element["sheetId"])
+    relationship_id = sheet_element["r:id"]
+    name = sheet_element["name"]
+
+    target = "xl/" * get_relationship_target_by_id(xf.workbook, relationship_id)
+    sheet_data = xf.data[target]
+
+    return Worksheet(xf, sheetId, relationship_id, name, sheet_data)
+end
+
 isdate1904(ws::Worksheet) = isdate1904(ws.package)
 
 """
 Retuns the dimension of this worksheet as a CellRange.
 """
 function dimension(ws::Worksheet) :: CellRange
-    xroot = LightXML.root(ws.data)
-    @assert LightXML.name(xroot) == "worksheet" "Unicorn!"
+    xroot = EzXML.root(ws.data)
+    @assert EzXML.nodename(xroot) == "worksheet" "Unicorn!"
 
-    vec_dimension = xroot["dimension"]
-    @assert length(vec_dimension) == 1 "Malformed Worksheet $(ws.name): only one `dimension` tag is allowed in worksheet data file."
-
-    dimension_element = vec_dimension[1]
-    ref_str = LightXML.attribute(dimension_element, "ref")
-
-    if is_valid_cellname(ref_str)
-        return CellRange("$(ref_str):$(ref_str)")
-    else
-        return CellRange(ref_str)
+    for dimension_element in EzXML.elements(xroot)
+        if EzXML.nodename(dimension_element) == "dimension"
+            ref_str = dimension_element["ref"]
+            if is_valid_cellname(ref_str)
+                return CellRange("$(ref_str):$(ref_str)")
+            else
+                return CellRange(ref_str)
+            end
+        end
     end
+
+    error("Malformed Worksheet $(ws.name): dimension not found.")
 end
 
 """
