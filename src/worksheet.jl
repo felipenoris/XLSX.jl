@@ -21,7 +21,7 @@ function dimension(ws::Worksheet) :: CellRange
     xroot = EzXML.root(ws.data)
     @assert EzXML.nodename(xroot) == "worksheet" "Unicorn!"
 
-    for dimension_element in EzXML.elements(xroot)
+    for dimension_element in EzXML.eachelement(xroot)
         if EzXML.nodename(dimension_element) == "dimension"
             ref_str = dimension_element["ref"]
             if is_valid_cellname(ref_str)

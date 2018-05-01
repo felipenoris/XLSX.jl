@@ -36,7 +36,7 @@ function Cell(c::EzXML.Node)
     local f::String = ""
     local found_v::Bool = false
     local found_f::Bool = false
-    for c_child_element in EzXML.elements(c)
+    for c_child_element in EzXML.eachelement(c)
         if EzXML.nodename(c_child_element) == "v"
 
             # we should have only one v element

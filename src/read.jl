@@ -121,7 +121,7 @@ function parse_workbook!(xf::XLSXFile)
 
     # workbookPr
     local foundworkbookPr::Bool = false
-    for node in EzXML.elements(xroot)
+    for node in EzXML.eachelement(xroot)
 
         if EzXML.nodename(node) == "workbookPr"
             foundworkbookPr = true
@@ -152,10 +152,10 @@ function parse_workbook!(xf::XLSXFile)
 
     # sheets
     sheets = Vector{Worksheet}()
-    for node in EzXML.elements(xroot)
+    for node in EzXML.eachelement(xroot)
         if EzXML.nodename(node) == "sheets"
 
-            for sheet_node in EzXML.elements(node)
+            for sheet_node in EzXML.eachelement(node)
                 @assert EzXML.nodename(sheet_node) == "sheet" "Unsupported node $(EzXML.nodename(sheet_node)) in 'xl/workbook.xml'."
                 worksheet = Worksheet(xf, sheet_node)
                 push!(sheets, worksheet)

@@ -26,7 +26,7 @@ end
 
 function populate_row_cells!(r::SheetRow)
     if !r.is_rowcells_populated
-        for c in EzXML.elements(r.row_xml_element)
+        for c in EzXML.eachelement(r.row_xml_element)
             if EzXML.nodename(c) == "c"
                 cell = Cell(c)
                 @assert row_number(cell) == r.row "Malformed Excel file. range_row = $(r.row), cell.ref = $(cell.ref)"
@@ -62,7 +62,7 @@ function SheetRowIterator(ws::Worksheet)
     @assert EzXML.nodename(xroot) == "worksheet" "Malformed sheet $(ws.name)."
 
     # finds sheetData element
-    for sheet_data_element in EzXML.elements(xroot)
+    for sheet_data_element in EzXML.eachelement(xroot)
         if EzXML.nodename(sheet_data_element) == "sheetData"
             return SheetRowIterator(ws, EzXML.eachelement(sheet_data_element))
         end

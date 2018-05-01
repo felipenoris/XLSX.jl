@@ -5,7 +5,7 @@ function SharedStrings(root::EzXML.Node)
     @assert EzXML.nodename(root) == "sst"
 
     unformatted_strings = Vector{String}()
-    for el in EzXML.elements(root)
+    for el in EzXML.eachelement(root)
         @assert EzXML.nodename(el) == "si" "Unsupported node $(EzXML.nodename(el)) in sst table."
         push!(unformatted_strings, unformatted_text(el))
     end
@@ -27,7 +27,7 @@ function unformatted_text(el::EzXML.Node) :: String
             push!(v, EzXML.nodecontent(e))
         end
 
-        for ch in EzXML.elements(e)
+        for ch in EzXML.eachelement(e)
             gather_strings!(v, ch)
         end
 
