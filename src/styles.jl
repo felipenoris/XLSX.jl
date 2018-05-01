@@ -53,20 +53,24 @@ end
 styles_numFmt_formatCode(wb::Workbook, numFmtId::Int) = styles_numFmt_formatCode(wb, string(numFmtId))
 
 function styles_is_datetime(wb::Workbook, index::Int) :: Bool
-    numFmtId = styles_cell_xf_numFmtId(wb, index)
+    if !haskey(wb.buffer_styles_is_datetime, index)
+        isdatetime = false
 
-    if (14 <= numFmtId && numFmtId <= 22) || (45 <= numFmtId && numFmtId <= 47)
-        return true
-    end
+        numFmtId = styles_cell_xf_numFmtId(wb, index)
 
-    if numFmtId > 81
-        code = styles_numFmt_formatCode(wb, numFmtId)
-        if contains(code, "dd") || contains(code, "mm") || contains(code, "yy") || contains(code, "hh") || contains(code, "ss")
-            return true
+        if (14 <= numFmtId && numFmtId <= 22) || (45 <= numFmtId && numFmtId <= 47)
+            isdatetime = true
+        elseif numFmtId > 81
+            code = styles_numFmt_formatCode(wb, numFmtId)
+            if contains(code, "dd") || contains(code, "mm") || contains(code, "yy") || contains(code, "hh") || contains(code, "ss")
+                isdatetime = true
+            end
         end
+
+        wb.buffer_styles_is_datetime[index] = isdatetime
     end
 
-    return false
+    return wb.buffer_styles_is_datetime[index]
 end
 
 function styles_is_datetime(wb::Workbook, index::AbstractString)
@@ -77,20 +81,24 @@ end
 styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(ws.package.workbook, index)
 
 function styles_is_float(wb::Workbook, index::Int) :: Bool
-    numFmtId = styles_cell_xf_numFmtId(wb, index)
+    if !haskey(wb.buffer_styles_is_float, index)
+        isfloat = false
 
-    if numFmtId == 2 || numFmtId == 4 || (7 <= numFmtId && numFmtId <= 11) || numFmtId == 39 || numFmtId == 40 || numFmtId == 44 || numFmtId == 48
-        return true
-    end
+        numFmtId = styles_cell_xf_numFmtId(wb, index)
 
-    if numFmtId > 81
-        code = styles_numFmt_formatCode(wb, numFmtId)
-        if contains(code, ".0")
-            return true
+        if numFmtId == 2 || numFmtId == 4 || (7 <= numFmtId && numFmtId <= 11) || numFmtId == 39 || numFmtId == 40 || numFmtId == 44 || numFmtId == 48
+            isfloat = true
+        elseif numFmtId > 81
+            code = styles_numFmt_formatCode(wb, numFmtId)
+            if contains(code, ".0")
+                isfloat = true
+            end
         end
+
+        wb.buffer_styles_is_float[index] = isfloat
     end
 
-    return false
+    return wb.buffer_styles_is_float[index]
 end
 
 function styles_is_float(wb::Workbook, index::AbstractString)

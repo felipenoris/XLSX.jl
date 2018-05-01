@@ -135,6 +135,8 @@ mutable struct Workbook
     relationships::Vector{Relationship} # contains workbook level relationships
     sst::SharedStrings # shared string table
     styles::EzXML.Document # a copy of the reference xf.data[styles_file]
+    buffer_styles_is_float::Dict{Int, Bool}      # cell style -> true if is float
+    buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
 end
 
 """
