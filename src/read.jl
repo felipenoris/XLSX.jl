@@ -35,11 +35,11 @@ function read(filepath::AbstractString) :: XLSXFile
         parse_relationships!(xf)
         parse_workbook!(xf)
 
-        return xf
-
     finally
         close(xlfile)
     end
+
+    return xf
 end
 
 get_default_namespace(d::EzXML.Document) = get_default_namespace(EzXML.root(d))
