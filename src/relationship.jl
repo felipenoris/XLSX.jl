@@ -1,11 +1,11 @@
 
-function Relationship(e::LightXML.XMLElement) :: Relationship
-    @assert LightXML.name(e) == "Relationship" "Unexpected XMLElement: $(LightXML.name(e)). Expected: \"Relationship\"."
+function Relationship(e::EzXML.Node) :: Relationship
+    @assert EzXML.nodename(e) == "Relationship" "Unexpected XMLElement: $(EzXML.nodename(e)). Expected: \"Relationship\"."
 
     return Relationship(
-        LightXML.attribute(e, "Id"),
-        LightXML.attribute(e, "Type"),
-        LightXML.attribute(e, "Target")
+        e["Id"],
+        e["Type"],
+        e["Target"]
     )
 end
 

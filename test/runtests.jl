@@ -25,7 +25,6 @@ ef_book_sparse_2 = XLSX.read("book_sparse_2.xlsx")
 @test ef_Book1["Sheet1"].name == "Sheet1"
 @test ef_Book1[1].name == "Sheet1"
 
-@test XLSX.unformatted_text(ef_Book1.workbook.sst[1]) == "B2"
 @test XLSX.sst_unformatted_string(ef_Book1.workbook, 0) == "B2" # index is 0-based
 @test XLSX.sst_unformatted_string(ef_Book1, 0) == "B2"
 @test XLSX.sst_unformatted_string(ef_Book1, "0") == "B2"
@@ -182,7 +181,7 @@ sheet = f["Sheet1"]
 @test sheet["C8"] == "palavra2"
 
 # book_1904_ptbr.xlsx
-f = XLSX.XLSXFile("book_1904_ptbr.xlsx")
+f = XLSX.read("book_1904_ptbr.xlsx")
 
 @test f["Plan1"][:] == Any[ "Coluna A" "Coluna B" "Coluna C" "Coluna D";
                             10 10.5 Date(2018, 3, 22) "linha 2";
@@ -430,6 +429,9 @@ test_data[3] = [ 100, 200, 300 ]
 data, col_names = XLSX.gettable(sheet_lookup)
 @test col_names == [:ID, :NAME, :VALUE]
 check_test_data(data, test_data)
+
+header_error_sheet = f["header_error"]
+@test_throws AssertionError XLSX.gettable(header_error_sheet)
 
 #
 # Helper functions

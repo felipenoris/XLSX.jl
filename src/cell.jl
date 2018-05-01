@@ -8,44 +8,56 @@ column_number(c::EmptyCell) = column_number(c.ref)
 row_number(c::Cell) = row_number(c.ref)
 column_number(c::Cell) = column_number(c.ref)
 
-function Cell(c::LightXML.XMLElement)
+function Cell(c::EzXML.Node)
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert LightXML.name(c) == "c" "`Cell` Expects a `c` (cell) XMLElement."
+    @assert EzXML.nodename(c) == "c" "`Cell` Expects a `c` (cell) XMLElement."
 
-    ref = CellRef(LightXML.attribute(c, "r"))
+    ref = CellRef(c["r"])
 
     # type
-    if LightXML.has_attribute(c, "t")
-        t = LightXML.attribute(c, "t")
+    if haskey(c, "t")
+        t = c["t"]
     else
         t = ""
     end
 
     # style
-    if LightXML.has_attribute(c, "s")
-        s = LightXML.attribute(c, "s")
+    if haskey(c, "s")
+        s = c["s"]
     else
         s = ""
     end
 
-    vs = c["v"] # Vector{LightXML.XMLElement}
-    @assert length(vs) <= 1 "Unsupported: cell $(ref) has $(length(vs)) `v` tags."
+    # iterate v and f elements
+    local v::String = ""
+    local f::String = ""
+    local found_v::Bool = false
+    local found_f::Bool = false
+    for c_child_element in EzXML.eachelement(c)
+        if EzXML.nodename(c_child_element) == "v"
 
-    if length(vs) == 0
-        v = ""
-    else
-        v = LightXML.content(vs[1])
-    end
+            # we should have only one v element
+            if found_v
+                error("Unsupported: cell $(ref) has more than 1 `v` elements.")
+            else
+                found_v = true
+            end
 
-    fs = c["f"]
-    if length(fs) == 0
-        f = ""
-    else
-        @assert length(fs) == 1 "Unsupported..."
-        f = LightXML.content(fs[1])
+            v = EzXML.nodecontent(c_child_element)
+        elseif EzXML.nodename(c_child_element) == "f"
+
+            # we should have only one f element
+            if found_f
+                error("Unsupported: cell $(ref) has more than 1 `f` elements.")
+            else
+                found_f = true
+            end
+
+            f = EzXML.nodecontent(c_child_element)
+        end
     end
 
     return Cell(ref, t, s, v, f)
