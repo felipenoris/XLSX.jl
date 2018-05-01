@@ -177,6 +177,8 @@ mutable struct Index # based on DataFrames.jl
     column_map::Dict{Int, Int} # table column index (1-based) -> sheet column index (cellref based)
 
     function Index(column_range::ColumnRange, column_labels::Vector{Symbol})
+        @assert length(unique(column_labels)) == length(column_labels) "Column labels must be unique."
+
         lookup = Dict{Symbol, Int}()
         for (i, n) in enumerate(column_labels)
             lookup[n] = i

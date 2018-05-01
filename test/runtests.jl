@@ -430,6 +430,9 @@ data, col_names = XLSX.gettable(sheet_lookup)
 @test col_names == [:ID, :NAME, :VALUE]
 check_test_data(data, test_data)
 
+header_error_sheet = f["header_error"]
+@test_throws AssertionError XLSX.gettable(header_error_sheet)
+
 #
 # Helper functions
 #
