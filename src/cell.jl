@@ -13,7 +13,7 @@ function Cell(c::EzXML.Node)
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert EzXML.nodename(c) == "c" "`Cell` Expects a `c` (cell) XMLElement."
+    @assert EzXML.nodename(c) == "c" "`Cell` Expects a `c` (cell) XML node."
 
     ref = CellRef(c["r"])
 
