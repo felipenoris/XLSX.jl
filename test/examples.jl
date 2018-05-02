@@ -5,13 +5,15 @@ import XLSX
 # examples from docstrings
 #
 
-v = XLSX.getdata("myfile.xlsx", "mysheet", "A1:B4")
+data_directory = joinpath(dirname(@__FILE__), "..", "data")
 
-f = XLSX.read("myfile.xlsx")
+v = XLSX.getdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
+
+f = XLSX.read(joinpath(data_directory, "myfile.xlsx"))
 
 sheet = f["mysheet"]
 
-sheet = XLSX.getsheet("myfile.xlsx", "mysheet")
+sheet = XLSX.getsheet(joinpath(data_directory, "myfile.xlsx"), "mysheet")
 
 cell = XLSX.getcell(sheet, "A1")
 
@@ -27,7 +29,7 @@ end
 
 using DataFrames, XLSX
 
-df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
+df = DataFrame(XLSX.gettable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
 
 XLSX.decode_column_number("D")
 XLSX.encode_column_number(4)
@@ -43,21 +45,21 @@ println( XLSX.column_number(cn) ) # will print 28
 println( string(cn) ) # will print out AB1
 cr = XLSX.range"A1:C4"
 
-XLSX.getcellrange("myfile.xlsx", "mysheet", "A1:B4")
+XLSX.getcellrange(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 
 #
 # examples from README.md
 #
 
-xf = XLSX.read("myfile.xlsx")
+xf = XLSX.read(joinpath(data_directory, "myfile.xlsx"))
 XLSX.sheetnames(xf)
 sh = xf["mysheet"]
 sh["B2"] # access a cell value
 sh["A2:B4"] # access a range
-XLSX.getdata("myfile.xlsx", "mysheet", "A2:B4") # shorthand for all above
+XLSX.getdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A2:B4") # shorthand for all above
 sh[:] # all data inside worksheet's dimension
 XLSX.getdata(sh) # same as sh[:]
 
 using DataFrames, XLSX
 
-df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
+df = DataFrame(XLSX.gettable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
