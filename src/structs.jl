@@ -80,6 +80,21 @@ struct ColumnRange
     end
 end
 
+struct SheetCellRef
+    sheet::String
+    cellref::CellRef
+end
+
+struct SheetCellRange
+   sheet::String
+   rng::CellRange
+end
+
+struct SheetColumnRange
+    sheet::String
+    colrng::ColumnRange
+end
+
 abstract type MSOfficePackage end
 
 struct EmptyMSOfficePackage <: MSOfficePackage

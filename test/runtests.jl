@@ -38,6 +38,8 @@ ef_book_sparse_2 = XLSX.read(joinpath(data_directory, "book_sparse_2.xlsx"))
 # Cell names
 @test !XLSX.is_valid_cellname("A0")
 @test XLSX.is_valid_cellname("A1")
+@test !XLSX.is_valid_cellname("A")
+@test !XLSX.is_valid_cellname("1")
 @test XLSX.is_valid_cellname("XFD1048576")
 @test !XLSX.is_valid_cellname("XFD1048577")
 @test XLSX.is_valid_cellname("XFD1")
@@ -48,6 +50,31 @@ ef_book_sparse_2 = XLSX.read(joinpath(data_directory, "book_sparse_2.xlsx"))
 @test !XLSX.is_valid_column_name("AAAZ")
 @test !XLSX.is_valid_column_name(":")
 @test !XLSX.is_valid_column_name("É")
+
+@test XLSX.is_valid_sheet_cellname("Sheet1!A2")
+@test !XLSX.is_valid_sheet_cellname("Sheet1!A2:B3")
+@test !XLSX.is_valid_sheet_cellname("Sheet1!A0")
+@test !XLSX.is_valid_sheet_cellname("A1")
+@test !XLSX.is_valid_sheet_cellname("Sheet1!")
+@test !XLSX.is_valid_sheet_cellname("Sheet1")
+@test !XLSX.is_valid_sheet_cellname("Sheet1!A")
+@test !XLSX.is_valid_sheet_cellname("Sheet1!1")
+
+@test XLSX.is_valid_sheet_cellrange("Sheet1!A1:B4")
+@test !XLSX.is_valid_sheet_cellrange("Sheet1!:B4")
+@test !XLSX.is_valid_sheet_cellrange("Sheet1!A1:")
+@test !XLSX.is_valid_sheet_cellrange("Sheet1!:")
+@test !XLSX.is_valid_sheet_cellrange("A1:B4")
+@test !XLSX.is_valid_sheet_cellrange("Sheet1!")
+@test !XLSX.is_valid_sheet_cellrange("Sheet1")
+@test !XLSX.is_valid_sheet_cellrange("mysheet!A1")
+@test XLSX.is_valid_sheet_cellrange("mysheet!A1:A4")
+
+@test XLSX.is_valid_sheet_column_range("Sheet1!A:B")
+@test XLSX.is_valid_sheet_column_range("Sheet1!AB:BC")
+@test !XLSX.is_valid_sheet_column_range("A:B")
+@test !XLSX.is_valid_sheet_column_range("Sheet1!")
+@test !XLSX.is_valid_sheet_column_range("Sheet1")
 
 cn = XLSX.CellRef("A1")
 @test string(cn) == "A1"
@@ -126,6 +153,27 @@ rng = XLSX.range"B2:D4"
 @test XLSX.relative_cell_position(XLSX.ref"C4", rng) == (3, 2)
 @test XLSX.relative_cell_position(XLSX.ref"D4", rng) == (3, 3)
 
+# SheetCellRef, SheetCellRange, SheetColumnRange
+ref = XLSX.SheetCellRef("Sheet1!A2")
+@test string(ref) == "Sheet1!A2"
+@test ref.sheet == "Sheet1"
+@test ref.cellref == XLSX.CellRef("A2")
+@test XLSX.SheetCellRef("Sheet1!A2") == XLSX.SheetCellRef("Sheet1!A2")
+@test hash(XLSX.SheetCellRef("Sheet1!A2")) == hash(XLSX.SheetCellRef("Sheet1!A2"))
+
+ref = XLSX.SheetCellRange("Sheet1!A1:B4")
+@test ref.sheet == "Sheet1"
+@test ref.rng == XLSX.CellRange("A1:B4")
+@test_throws AssertionError XLSX.SheetCellRange("Sheet1!B4:A1")
+@test XLSX.SheetCellRange("Sheet1!A1:B4") == XLSX.SheetCellRange("Sheet1!A1:B4")
+@test hash(XLSX.SheetCellRange("Sheet1!A1:B4")) == hash(XLSX.SheetCellRange("Sheet1!A1:B4"))
+
+ref = XLSX.SheetColumnRange("Sheet1!A:B")
+@test ref.sheet == "Sheet1"
+@test ref.colrng == XLSX.ColumnRange("A:B")
+@test XLSX.SheetColumnRange("Sheet1!A:B") == XLSX.SheetColumnRange("Sheet1!A:B")
+@test hash(XLSX.SheetColumnRange("Sheet1!A:B")) == hash(XLSX.SheetColumnRange("Sheet1!A:B"))
+
 # getindex
 f = XLSX.read(joinpath(data_directory, "Book1.xlsx"))
 sheet1 = f["Sheet1"]
@@ -134,8 +182,9 @@ sheet1 = f["Sheet1"]
 @test sheet1["B5"] == Date(2018, 3, 21)
 @test sheet1["B8"] == "palavra1"
 
-XLSX.getcell(sheet1, "B2")
+XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 XLSX.getcellrange(sheet1, "B2:C3")
+XLSX.getcellrange(f, "Sheet1!B2:C3")
 
 sheet2 = f[2]
 sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
@@ -182,6 +231,14 @@ sheet = f["Sheet1"]
 @test sheet["B8"] == "palavra1"
 @test sheet["C8"] == "palavra2"
 
+@test XLSX.getdata(f, XLSX.SheetCellRef("Sheet1!B2")) == "B2"
+@test XLSX.getdata(f, XLSX.SheetCellRange("Sheet1!B2:B3"))[1] == "B2"
+@test XLSX.getdata(f, XLSX.SheetCellRange("Sheet1!B2:B3"))[2] == 10.5
+@test f["Sheet1!B2"] == "B2"
+@test f["Sheet1!B2:B3"][1] == "B2"
+@test f["Sheet1!B2:B3"][2] == 10.5
+
+
 # book_1904_ptbr.xlsx
 f = XLSX.read(joinpath(data_directory, "book_1904_ptbr.xlsx"))
 
@@ -215,6 +272,7 @@ error_sheet = f["error"]
 @test error_sheet["A1"] == "errors"
 @test !XLSX.iserror(XLSX.getcell(error_sheet, "A1"))
 @test XLSX.iserror(XLSX.getcell(error_sheet, "A2"))
+@test XLSX.iserror(XLSX.getcell(f, "error!A2"))
 @test ismissing(error_sheet["A2"])
 @test ismissing(error_sheet["A3"])
 @test ismissing(error_sheet["A4"])
@@ -227,12 +285,15 @@ emptycell = XLSX.getcell(error_sheet, "B1")
 # Column Range
 
 cr = XLSX.ColumnRange("B:D")
+@test string(cr) == "B:D"
 @test cr.start == 2
 @test cr.stop == 4
 @test length(cr) == 3
 @test_throws AssertionError XLSX.ColumnRange("B1:D3")
 @test_throws AssertionError XLSX.ColumnRange("D:A")
 @test collect(cr) == [ "B", "C", "D" ]
+@test XLSX.ColumnRange("B:D") == XLSX.ColumnRange("B:D")
+@test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
 
 # CellRange iterator
 rng = XLSX.CellRange("A2:C4")
