@@ -215,6 +215,8 @@ sheet = f["general"]
 # named ranges
 @test f["SINGLE_CELL"] == "single cell A2"
 @test f["RANGE_B4C5"] == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
+@test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
+@test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
 
 # Book1.xlsx
 f = XLSX.read(joinpath(data_directory, "Book1.xlsx"))

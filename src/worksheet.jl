@@ -234,7 +234,10 @@ end
 # Helper functions
 #
 getcell(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref) = getcell( read(filepath)[sheet], ref )
+getcell(filepath::AbstractString, sheetref::AbstractString) = getcell(read(filepath), sheetref)
 getcellrange(filepath::AbstractString, sheet::Union{AbstractString, Int}, rng) = getcellrange( read(filepath)[sheet], rng )
+getcellrange(filepath::AbstractString, sheetref::AbstractString) = getcellrange(read(filepath), sheetref)
 getdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref) = getdata( read(filepath)[sheet], ref )
+getdata(filepath::AbstractString, sheetref::AbstractString) = getdata(read(filepath), sheetref)
 gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false) = gettable( read(filepath)[sheet], cols; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes )
 gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false) = gettable( read(filepath)[sheet]; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes )
