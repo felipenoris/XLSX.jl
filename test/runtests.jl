@@ -183,7 +183,9 @@ sheet1 = f["Sheet1"]
 @test sheet1["B5"] == Date(2018, 3, 21)
 @test sheet1["B8"] == "palavra1"
 
-XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+@test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+@test XLSX.getcell(joinpath(data_directory, "Book1.xlsx"), "Sheet1!B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+@test XLSX.getcell(joinpath(data_directory, "Book1.xlsx"), "Sheet1", "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 XLSX.getcellrange(sheet1, "B2:C3")
 XLSX.getcellrange(f, "Sheet1!B2:C3")
 
