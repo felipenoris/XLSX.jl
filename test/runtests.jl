@@ -169,6 +169,7 @@ ref = XLSX.SheetCellRange("Sheet1!A1:B4")
 @test hash(XLSX.SheetCellRange("Sheet1!A1:B4")) == hash(XLSX.SheetCellRange("Sheet1!A1:B4"))
 
 ref = XLSX.SheetColumnRange("Sheet1!A:B")
+@test string(ref) == "Sheet1!A:B"
 @test ref.sheet == "Sheet1"
 @test ref.colrng == XLSX.ColumnRange("A:B")
 @test XLSX.SheetColumnRange("Sheet1!A:B") == XLSX.SheetColumnRange("Sheet1!A:B")
@@ -243,7 +244,7 @@ sheet = f["Sheet1"]
 @test f["Sheet1!B2"] == "B2"
 @test f["Sheet1!B2:B3"][1] == "B2"
 @test f["Sheet1!B2:B3"][2] == 10.5
-
+@test string(XLSX.SheetCellRange("Sheet1!B2:B3")) == "Sheet1!B2:B3"
 
 # book_1904_ptbr.xlsx
 f = XLSX.read(joinpath(data_directory, "book_1904_ptbr.xlsx"))
