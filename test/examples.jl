@@ -57,6 +57,8 @@ sh = xf["mysheet"]
 sh["B2"] # access a cell value
 sh["A2:B4"] # access a range
 XLSX.getdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A2:B4") # shorthand for all above
+xf["mysheet!A2:B4"] # you can also query values from a file reference
+xf["NAMED_CELL"] # you can even read named ranges
 sh[:] # all data inside worksheet's dimension
 XLSX.getdata(sh) # same as sh[:]
 
