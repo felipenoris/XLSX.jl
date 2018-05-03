@@ -1,5 +1,5 @@
 
-EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), EzXML.XMLDocument(), Dict{Int, Bool}(), Dict{Int, Bool}())
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), EzXML.XMLDocument(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, Union{SheetCellRef, SheetCellRange}}())
 
 """
 Lists internal files from the XLSX package.
@@ -75,13 +75,9 @@ Base.getindex(xl::XLSXFile, i::Integer) = getsheet(xl, i)
 function Base.getindex(xl::XLSXFile, s::AbstractString)
     if hassheet(xl, s)
         return getsheet(xl, s)
-    elseif is_valid_sheet_cellname(s)
-        return getdata(xl, SheetCellRef(s))
-    elseif is_valid_sheet_cellrange(s)
-        return getdata(xl, SheetCellRange(s))
+    else
+        return getdata(xl, s)
     end
-
-    error("$s is not a valid sheetname or cell/range reference.")
 end
 
 function getdata(xl::XLSXFile, ref::SheetCellRef)
@@ -92,6 +88,18 @@ end
 function getdata(xl::XLSXFile, rng::SheetCellRange)
     @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
     return getdata(getsheet(xl, rng.sheet), rng.rng)
+end
+
+function getdata(xl::XLSXFile, s::AbstractString)
+    if is_valid_sheet_cellname(s)
+        return getdata(xl, SheetCellRef(s))
+    elseif is_valid_sheet_cellrange(s)
+        return getdata(xl, SheetCellRange(s))
+    elseif is_defined_name(xl, s)
+        return getdata(xl, get_defined_name_reference(xl, s))
+    end
+
+    error("$s is not a valid sheetname or cell/range reference.")
 end
 
 function getcell(xl::XLSXFile, ref::SheetCellRef)
@@ -107,3 +115,8 @@ function getcellrange(xl::XLSXFile, rng::SheetCellRange)
 end
 
 getcellrange(xl::XLSXFile, rng_str::AbstractString) = getcellrange(xl, SheetCellRange(rng_str))
+
+@inline is_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.defined_names, name)
+@inline is_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_defined_name(xl.workbook, name)
+@inline get_defined_name_reference(wb::Workbook, name::AbstractString) = wb.defined_names[name]
+@inline get_defined_name_reference(xl::XLSXFile, name::AbstractString) = get_defined_name_reference(xl.workbook, name)

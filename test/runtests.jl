@@ -212,6 +212,10 @@ sheet = f["general"]
 @test sheet["A6"] == "datetime"
 @test sheet["B6"] == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
 
+# named ranges
+@test f["SINGLE_CELL"] == "single cell A2"
+@test f["RANGE_B4C5"] == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
+
 # Book1.xlsx
 f = XLSX.read(joinpath(data_directory, "Book1.xlsx"))
 sheet = f["Sheet1"]
@@ -495,6 +499,13 @@ check_test_data(data, test_data)
 
 header_error_sheet = f["header_error"]
 @test_throws AssertionError XLSX.gettable(header_error_sheet)
+
+@test XLSX.is_valid_fixed_sheet_cellname("named_ranges!\$A\$2")
+@test XLSX.is_valid_fixed_sheet_cellrange("named_ranges!\$B\$4:\$C\$5")
+@test !XLSX.is_valid_fixed_sheet_cellname("named_ranges!A2")
+@test !XLSX.is_valid_fixed_sheet_cellrange("named_ranges!B4:C5")
+@test XLSX.SheetCellRef("named_ranges!\$A\$2") == XLSX.SheetCellRef("named_ranges!A2")
+@test XLSX.SheetCellRange("named_ranges!\$B\$4:\$C\$5") == XLSX.SheetCellRange("named_ranges!B4:C5")
 
 #
 # Helper functions

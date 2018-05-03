@@ -385,21 +385,31 @@ function is_valid_sheet_column_range(n::AbstractString) :: Bool
 end
 
 function SheetCellRef(n::AbstractString)
-    @assert is_valid_sheet_cellname(n) "$n is not a valid SheetCellRef."
-
-    cellname = match(r"[A-Z]+[0-9]+$", n).match
-    sheetname = n[1:(length(n) - length(cellname) - 1)]
-
-    return SheetCellRef(sheetname, CellRef(cellname))
+    if is_valid_fixed_sheet_cellname(n)
+        fixed_cellname = match(r"\$[A-Z]+\$[0-9]+$", n).match
+        cellname = replace(fixed_cellname, "\$", "")
+        sheetname = n[1:(length(n) - length(fixed_cellname) - 1)]
+        return SheetCellRef(sheetname, CellRef(cellname))
+    else
+        @assert is_valid_sheet_cellname(n) "$n is not a valid SheetCellRef."
+        cellname = match(r"[A-Z]+[0-9]+$", n).match
+        sheetname = n[1:(length(n) - length(cellname) - 1)]
+        return SheetCellRef(sheetname, CellRef(cellname))
+    end
 end
 
 function SheetCellRange(n::AbstractString)
-    @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
-
-    cellrange = match(r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$", n).match
-    sheetname = n[1:(length(n) - length(cellrange) - 1)]
-
-    return SheetCellRange(sheetname, CellRange(cellrange))
+    if is_valid_fixed_sheet_cellrange(n)
+        fixed_cellrange = match(r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$", n).match
+        cellrange = replace(fixed_cellrange, "\$", "")
+        sheetname = n[1:(length(n) - length(fixed_cellrange) - 1)]
+        return SheetCellRange(sheetname, CellRange(cellrange))
+    else
+        @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
+        cellrange = match(r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$", n).match
+        sheetname = n[1:(length(n) - length(cellrange) - 1)]
+        return SheetCellRange(sheetname, CellRange(cellrange))
+    end
 end
 
 function SheetColumnRange(n::AbstractString)
@@ -410,3 +420,10 @@ function SheetColumnRange(n::AbstractString)
 
     return SheetColumnRange(sheetname, ColumnRange(column_range))
 end
+
+# Named ranges
+const RGX_FIXED_SHEET_CELLNAME = r"^.+!\$[A-Z]+\$[0-9]+$"
+const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
+
+is_valid_fixed_sheet_cellname(s::AbstractString) = ismatch(RGX_FIXED_SHEET_CELLNAME, s)
+is_valid_fixed_sheet_cellrange(s::AbstractString) = ismatch(RGX_FIXED_SHEET_CELLRANGE, s)
