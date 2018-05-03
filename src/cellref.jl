@@ -77,7 +77,6 @@ end
 
 Base.string(c::CellRef) = c.name
 Base.show(io::IO, c::CellRef) = print(io, string(c))
-
 Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
 
@@ -158,7 +157,6 @@ end
 
 Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
 Base.show(io::IO, cr::CellRange) = print(io, string(cr))
-
 Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::CellRange) = hash(cr.start) + hash(cr.stop)
 
@@ -250,6 +248,11 @@ end
 # ColumnRange
 #
 
+Base.string(cr::ColumnRange) = "$(encode_column_number(cr.start)):$(encode_column_number(cr.stop))"
+Base.show(io::IO, cr::ColumnRange) = print(io, string(cr))
+Base.:(==)(cr1::ColumnRange, cr2::ColumnRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
+Base.hash(cr::ColumnRange) = hash(cr.start) + hash(cr.stop)
+
 const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 
 function is_valid_column_range(r::AbstractString) :: Bool
@@ -318,3 +321,109 @@ function Base.next(rng::CellRange, state::CellRefIteratorState)
 
     return CellRef(state.row, state.col), next_state
 end
+
+#
+# SheetCellRef, SheetCellRange, SheetColumnRange
+#
+
+Base.string(cr::SheetCellRef) = string(cr.sheet, "!", cr.cellref)
+Base.show(io::IO, cr::SheetCellRef) = print(io, string(cr))
+Base.:(==)(cr1::SheetCellRef, cr2::SheetCellRef) = cr1.sheet == cr2.sheet && cr2.cellref == cr2.cellref
+Base.hash(cr::SheetCellRef) = hash(cr.sheet) + hash(cr.cellref)
+
+Base.string(cr::SheetCellRange) = string(cr.sheet, "!", cr.rng)
+Base.show(io::IO, cr::SheetCellRange) = print(io, string(cr))
+Base.:(==)(cr1::SheetCellRange, cr2::SheetCellRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
+Base.hash(cr::SheetCellRange) = hash(cr.sheet) + hash(cr.rng)
+
+Base.string(cr::SheetColumnRange) = string(cr.sheet, "!", cr.colrng)
+Base.show(io::IO, cr::SheetColumnRange) = print(io, string(cr))
+Base.:(==)(cr1::SheetColumnRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.colrng == cr2.colrng
+Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
+
+const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"
+const RGX_SHEET_CELLRANGE = r"^.+![A-Z]+[0-9]+:[A-Z]+[0-9]+$"
+const RGX_SHEET_COLUMN_RANGE = r"^.+![A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+
+function is_valid_sheet_cellname(n::AbstractString) :: Bool
+    if !ismatch(RGX_SHEET_CELLNAME, n)
+        return false
+    end
+
+    cellname = match(r"[A-Z]+[0-9]+$", n).match
+    if !is_valid_cellname(cellname)
+        return false
+    end
+
+    return true
+end
+
+function is_valid_sheet_cellrange(n::AbstractString) :: Bool
+    if !ismatch(RGX_SHEET_CELLRANGE, n)
+        return false
+    end
+
+    cellrange = match(r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$", n).match
+    if !is_valid_cellrange(cellrange)
+        return false
+    end
+
+    return true
+end
+
+function is_valid_sheet_column_range(n::AbstractString) :: Bool
+    if !ismatch(RGX_SHEET_COLUMN_RANGE, n)
+        return false
+    end
+
+    column_range = match(r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$", n).match
+    if !is_valid_column_range(column_range)
+        return false
+    end
+
+    return true
+end
+
+function SheetCellRef(n::AbstractString)
+    if is_valid_fixed_sheet_cellname(n)
+        fixed_cellname = match(r"\$[A-Z]+\$[0-9]+$", n).match
+        cellname = replace(fixed_cellname, "\$", "")
+        sheetname = n[1:(length(n) - length(fixed_cellname) - 1)]
+        return SheetCellRef(sheetname, CellRef(cellname))
+    else
+        @assert is_valid_sheet_cellname(n) "$n is not a valid SheetCellRef."
+        cellname = match(r"[A-Z]+[0-9]+$", n).match
+        sheetname = n[1:(length(n) - length(cellname) - 1)]
+        return SheetCellRef(sheetname, CellRef(cellname))
+    end
+end
+
+function SheetCellRange(n::AbstractString)
+    if is_valid_fixed_sheet_cellrange(n)
+        fixed_cellrange = match(r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$", n).match
+        cellrange = replace(fixed_cellrange, "\$", "")
+        sheetname = n[1:(length(n) - length(fixed_cellrange) - 1)]
+        return SheetCellRange(sheetname, CellRange(cellrange))
+    else
+        @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
+        cellrange = match(r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$", n).match
+        sheetname = n[1:(length(n) - length(cellrange) - 1)]
+        return SheetCellRange(sheetname, CellRange(cellrange))
+    end
+end
+
+function SheetColumnRange(n::AbstractString)
+    @assert is_valid_sheet_column_range(n) "$n is not a valid SheetColumnRange."
+
+    column_range = match(r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$", n).match
+    sheetname = n[1:(length(n) - length(column_range) - 1)]
+
+    return SheetColumnRange(sheetname, ColumnRange(column_range))
+end
+
+# Named ranges
+const RGX_FIXED_SHEET_CELLNAME = r"^.+!\$[A-Z]+\$[0-9]+$"
+const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
+
+is_valid_fixed_sheet_cellname(s::AbstractString) = ismatch(RGX_FIXED_SHEET_CELLNAME, s)
+is_valid_fixed_sheet_cellrange(s::AbstractString) = ismatch(RGX_FIXED_SHEET_CELLRANGE, s)

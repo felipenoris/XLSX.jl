@@ -80,6 +80,21 @@ struct ColumnRange
     end
 end
 
+struct SheetCellRef
+    sheet::String
+    cellref::CellRef
+end
+
+struct SheetCellRange
+   sheet::String
+   rng::CellRange
+end
+
+struct SheetColumnRange
+    sheet::String
+    colrng::ColumnRange
+end
+
 abstract type MSOfficePackage end
 
 struct EmptyMSOfficePackage <: MSOfficePackage
@@ -137,6 +152,7 @@ mutable struct Workbook
     styles::EzXML.Document # a copy of the reference xf.data[styles_file]
     buffer_styles_is_float::Dict{Int, Bool}      # cell style -> true if is float
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
+    defined_names::Dict{String, Union{SheetCellRef, SheetCellRange}} # named ranges
 end
 
 """

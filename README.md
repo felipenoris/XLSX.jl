@@ -14,7 +14,7 @@ Excel file parser written in pure Julia.
 julia> Pkg.add("XLSX")
 ```
 
-## Usage
+## Basic Usage
 
 The basic usage is to read an Excel file and read values.
 
@@ -25,17 +25,18 @@ julia> xf = XLSX.read("myfile.xlsx")
 XLSXFile("myfile.xlsx")
 
 julia> XLSX.sheetnames(xf)
-2-element Array{String,1}:
- "mysheet"   
+3-element Array{String,1}:
+ "mysheet"
  "othersheet"
+ "named"
 
-julia> sh = xf["mysheet"]
+julia> sh = xf["mysheet"] # get a reference to a Worksheet
 XLSX.Worksheet: "mysheet". Dimension: A1:B4.
 
-julia> sh["B2"] # access a cell value
+julia> sh["B2"] # From a sheet, you can access a cell value
 "first"
 
-julia> sh["A2:B4"] # access a range
+julia> sh["A2:B4"] # or a cell range
 3×2 Array{Any,2}:
  1  "first" 
  2  "second"
@@ -54,13 +55,19 @@ julia> sh[:] # all data inside worksheet's dimension
  2           "second" 
  3           "third"
 
-julia> XLSX.getdata(sh) # same as sh[:]
-4×2 Array{Any,2}:
-  "HeaderA"  "HeaderB"
- 1           "first"  
- 2           "second" 
- 3           "third"
+julia> xf["mysheet!A2:B4"] # you can also query values from a file reference
+3×2 Array{Any,2}:
+ 1  "first" 
+ 2  "second"
+ 3  "third"
+
+julia> xf["NAMED_CELL"] # you can even read named ranges
+"B4 is a named cell from sheet \"named\""
 ```
+
+To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.
+
+## Read Tabular Data
 
 The `gettable` method returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
@@ -77,8 +84,6 @@ julia> df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
 │ 2   │ 2       │ "second" │
 │ 3   │ 3       │ "third"  │
 ```
-
-To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.
 
 ## References
 

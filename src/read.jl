@@ -178,5 +178,25 @@ function parse_workbook!(xf::XLSXFile)
         @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
     end
 
+    # named ranges
+    for node in EzXML.eachelement(xroot)
+        if EzXML.nodename(node) == "definedNames"
+            for defined_name_node in EzXML.eachelement(node)
+                @assert EzXML.nodename(defined_name_node) == "definedName"
+                ref_or_range_str = EzXML.nodecontent(defined_name_node)
+
+                if is_valid_fixed_sheet_cellname(ref_or_range_str) || is_valid_sheet_cellname(ref_or_range_str)
+                    workbook.defined_names[defined_name_node["name"]] = SheetCellRef(ref_or_range_str)
+                elseif is_valid_fixed_sheet_cellrange(ref_or_range_str) || is_valid_sheet_cellrange(ref_or_range_str)
+                    workbook.defined_names[defined_name_node["name"]] = SheetCellRange(ref_or_range_str)
+                else
+                    error("Could not parse named range $(ref_or_range_str).")
+                end
+            end
+
+            break
+        end
+    end
+
     nothing
 end
