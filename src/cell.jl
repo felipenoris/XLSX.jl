@@ -8,14 +8,6 @@ column_number(c::EmptyCell) = column_number(c.ref)
 row_number(c::Cell) = row_number(c.ref)
 column_number(c::Cell) = column_number(c.ref)
 
-#=
-    ref::CellRef
-    datatype::String
-    style::String
-    value::String
-    formula::String
-=#
-
 Base.:(==)(c1::Cell, c2::Cell) = c1.ref == c2.ref && c1.datatype == c2.datatype && c1.style == c2.style && c1.value == c2.value && c1.formula == c2.formula
 Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.value) + hash(c.formula)
 
