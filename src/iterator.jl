@@ -175,7 +175,7 @@ function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
 end
 
 """
-    TableRowIterator(sheet, [columns]; [first_row], [column_labels], [header])
+    TableRowIterator(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row])
 
 `header` is a boolean indicating wether the first row of the table is a table header.
 
@@ -184,9 +184,13 @@ Also, the column range will be inferred by the non-empty contiguous cells in the
 
 The user can replace column names by assigning the optional `names` input variable with a `Vector{Symbol}`.
 
+`stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
+If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
+The default behavior is `stop_in_empty_row=true`. Empty rows may be returned by the `TableRowIterator` when `stop_in_empty_row=false`.
+
 See also `gettable`.
 """
-function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true)
+function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true)
     itr = SheetRowIterator(sheet)
     column_range = convert(ColumnRange, cols)
 
@@ -211,10 +215,10 @@ function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractStr
     end
 
     first_data_row = header ? first_row + 1 : first_row
-    return TableRowIterator(itr, Index(column_range, column_labels), first_data_row)
+    return TableRowIterator(itr, Index(column_range, column_labels), first_data_row, stop_in_empty_row)
 end
 
-function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true)
+function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true)
     for r in eachrow(sheet)
 
         # skip rows until we reach first_row
@@ -234,14 +238,14 @@ function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::V
                     if length(columns_ordered) == 1
                         # there's only one column
                         column_range = ColumnRange(column_start, column_stop)
-                        return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header)
+                        return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
                     else
                         # will figure out the column range
                         for ci_stop in (ci+1):length(columns_ordered)
                             cn_stop = columns_ordered[ci_stop]
                             if cn_stop - 1 != column_stop
                                 column_range = ColumnRange(column_start, column_stop)
-                                return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header)
+                                return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
                             end
                             column_stop = cn_stop
                         end
@@ -249,7 +253,7 @@ function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::V
 
                     # if got here, it's because all columns are non-empty
                     column_range = ColumnRange(column_start, column_stop)
-                    return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header)
+                    return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
                 end
             end
         end
@@ -357,6 +361,8 @@ function Base.done(itr::TableRowIterator, state::TableRowIteratorState)
     # empty table case
     if state.is_done
         return true
+    elseif !itr.stop_in_empty_row
+        return false
     end
 
     # check skipping rows
@@ -421,8 +427,20 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
     end
 
     for r in itr # r is a TableRow
+        is_empty_row = true
+
         for (ci, cv) in enumerate(r) # iterate a TableRow to get column data
             push!(data[ci], cv)
+            if !Missings.ismissing(cv)
+                is_empty_row = false
+            end
+        end
+
+        # undo insert row in case of empty rows
+        if is_empty_row
+            for c in 1:columns_count
+                pop!(data[c])
+            end
         end
     end
 

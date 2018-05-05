@@ -401,6 +401,21 @@ data_inferred, col_names = XLSX.gettable(s, infer_eltypes=true)
 @test eltype(data_inferred[5]) == Float64
 @test eltype(data_inferred[6]) == Any
 
+data, col_names = XLSX.gettable(s, stop_in_empty_row=false)
+@test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+
+test_data = Vector{Any}(6)
+test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash" ]
+test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2", missing ]
+test_data[3] = Any[ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+push!(test_data[3], "trash")
+test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing, missing ]
+test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883, "trash" ]
+test_data[6] = Any[ missing for i in 1:8 ]
+push!(test_data[6], "trash")
+
+check_test_data(data, test_data)
+
 # queries based on ColumnRange
 x = XLSX.getcellrange(s, XLSX.ColumnRange("B:D"))
 @test size(x) == (11, 3)

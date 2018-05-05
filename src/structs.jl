@@ -214,6 +214,7 @@ struct TableRowIterator
     itr::SheetRowIterator
     index::Index
     first_data_row::Int
+    stop_in_empty_row::Bool
 end
 
 struct TableRow
