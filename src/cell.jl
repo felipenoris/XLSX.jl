@@ -1,15 +1,22 @@
 
-Base.isempty(::EmptyCell) = true
-Base.isempty(::AbstractCell) = false
-iserror(c::Cell) = c.datatype == "e"
-iserror(::AbstractCell) = false
-row_number(c::EmptyCell) = row_number(c.ref)
-column_number(c::EmptyCell) = column_number(c.ref)
-row_number(c::Cell) = row_number(c.ref)
-column_number(c::Cell) = column_number(c.ref)
+@inline Base.isempty(::EmptyCell) = true
+@inline Base.isempty(::AbstractCell) = false
+@inline iserror(c::Cell) = c.datatype == "e"
+@inline iserror(::AbstractCell) = false
+@inline row_number(c::EmptyCell) = row_number(c.ref)
+@inline column_number(c::EmptyCell) = column_number(c.ref)
+@inline row_number(c::Cell) = row_number(c.ref)
+@inline column_number(c::Cell) = column_number(c.ref)
+@inline relative_cell_position(c::Cell, rng::CellRange) = relative_cell_position(c.ref, rng)
+@inline relative_cell_position(c::EmptyCell, rng::CellRange) = relative_cell_position(c.ref, rng)
+@inline relative_column_position(c::Cell, rng::ColumnRange) = relative_column_position(c.ref, rng)
+@inline relative_column_position(c::EmptyCell, rng::ColumnRange) = relative_column_position(c.ref, rng)
 
 Base.:(==)(c1::Cell, c2::Cell) = c1.ref == c2.ref && c1.datatype == c2.datatype && c1.style == c2.style && c1.value == c2.value && c1.formula == c2.formula
 Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.value) + hash(c.formula)
+
+Base.:(==)(c1::EmptyCell, c2::EmptyCell) = c1.ref == c2.ref
+Base.hash(c::EmptyCell) = hash(c.ref) + 10
 
 function Cell(c::EzXML.Node)
     # c (Cell) element is defined at section 18.3.1.4
