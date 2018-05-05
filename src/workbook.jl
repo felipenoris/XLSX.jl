@@ -121,7 +121,20 @@ function getcellrange(xl::XLSXFile, rng::SheetCellRange)
     return getcellrange(getsheet(xl, rng.sheet), rng.rng)
 end
 
-getcellrange(xl::XLSXFile, rng_str::AbstractString) = getcellrange(xl, SheetCellRange(rng_str))
+function getcellrange(xl::XLSXFile, rng::SheetColumnRange)
+    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    return getcellrange(getsheet(xl, rng.sheet), rng.colrng)
+end
+
+function getcellrange(xl::XLSXFile, rng_str::AbstractString)
+    if is_valid_sheet_cellrange(rng_str)
+        return getcellrange(xl, SheetCellRange(rng_str))
+    elseif is_valid_sheet_column_range(rng_str)
+        return getcellrange(xl, SheetColumnRange(rng_str))
+    end
+
+    error("$rng_str is not a valid range reference.")
+end
 
 @inline is_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.defined_names, name)
 @inline is_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_defined_name(xl.workbook, name)

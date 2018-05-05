@@ -152,6 +152,7 @@ rng = XLSX.range"B2:D4"
 @test XLSX.relative_cell_position(XLSX.ref"B2", rng) == (1, 1)
 @test XLSX.relative_cell_position(XLSX.ref"C4", rng) == (3, 2)
 @test XLSX.relative_cell_position(XLSX.ref"D4", rng) == (3, 3)
+@test XLSX.relative_cell_position(XLSX.EmptyCell(XLSX.ref"D4"), rng) == (3, 3)
 
 # SheetCellRef, SheetCellRange, SheetColumnRange
 ref = XLSX.SheetCellRef("Sheet1!A2")
@@ -425,6 +426,9 @@ y = XLSX.getcellrange(s, "B:D")
 @test_throws AssertionError XLSX.getcellrange(s, "D:B")
 @test_throws ErrorException XLSX.getcellrange(s, "A:C1")
 
+@test XLSX.getcellrange(joinpath(data_directory, "general.xlsx"), "table!B:D") == x
+@test XLSX.getcellrange(joinpath(data_directory, "general.xlsx"), "table", "B:D") == x
+
 d = XLSX.getdata(s, "B:D")
 @test size(d) == (11, 3)
 @test_throws ErrorException XLSX.getdata(s, "A:C1")
@@ -465,6 +469,15 @@ for (ri, rowdata) in enumerate(XLSX.TableRowIterator(s))
     else
         @test rowdata[:HA] == test_data[1][ri]
     end
+
+    @test XLSX.table_columns_count(rowdata) == 3
+    @test XLSX.sheet_row_number(rowdata) == ri + 1
+    @test XLSX.get_column_labels(rowdata) == col_names
+    @test XLSX.get_column_label(rowdata, 1) == :HA
+    @test XLSX.get_column_label(rowdata, 2) == :HB
+    @test XLSX.get_column_label(rowdata, 3) == :HC
+
+    @test_throws ErrorException XLSX.getdata(rowdata, :INVALID_COLUMN)
 end
 
 override_col_names = [:ColumnA, :ColumnB, :ColumnC]
@@ -513,6 +526,17 @@ data, col_names = XLSX.gettable(s)
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
 @test_throws ErrorException XLSX.find_row(XLSX.SheetRowIterator(s), 20)
+
+for r in XLSX.eachrow(s)
+    @test isempty(XLSX.getcell(r, "A"))
+    @test XLSX.getdata(s, XLSX.getcell(r, "B")) == "H1"
+    @test r[2] == "H1"
+    @test r["B"] == "H1"
+    break
+end
+
+@test XLSX._find_first_row_with_data(s, 5) == 5
+@test_throws ErrorException XLSX._find_first_row_with_data(s, 7)
 
 s = f["table4"]
 data, col_names = XLSX.gettable(s)
