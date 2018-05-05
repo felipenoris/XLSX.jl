@@ -26,14 +26,6 @@ function styles_cell_xf(wb::Workbook, index::Int) :: EzXML.Node
     return xf_elements[index+1]
 end
 
-styles_cell_xf(wb::Workbook, index::AbstractString) = styles_cell_xf(wb, parse(Int, index))
-styles_cell_xf(ws::Worksheet, cell::Cell) = styles_cell_xf(ws.package.workbook, cell)
-
-function styles_cell_xf(wb::Workbook, cell::Cell)
-    @assert !isempty(cell.style) "Cell $(cell.ref.name) has empty style."
-    styles_cell_xf(wb, cell.style)
-end
-
 "Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
     el = styles_cell_xf(wb, index)
