@@ -189,6 +189,7 @@ sheet1 = f["Sheet1"]
 @test XLSX.getcell(joinpath(data_directory, "Book1.xlsx"), "Sheet1", "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 XLSX.getcellrange(sheet1, "B2:C3")
 XLSX.getcellrange(f, "Sheet1!B2:C3")
+@test_throws ErrorException XLSX.getcellrange(f, "B2:C3")
 
 sheet2 = f[2]
 sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
@@ -472,6 +473,7 @@ for (ri, rowdata) in enumerate(XLSX.TableRowIterator(s))
 
     @test XLSX.table_columns_count(rowdata) == 3
     @test XLSX.sheet_row_number(rowdata) == ri + 1
+    @test XLSX.table_row_number(rowdata) == ri
     @test XLSX.get_column_labels(rowdata) == col_names
     @test XLSX.get_column_label(rowdata, 1) == :HA
     @test XLSX.get_column_label(rowdata, 2) == :HB
@@ -547,6 +549,7 @@ empty_sheet = XLSX.getsheet(joinpath(data_directory, "general.xlsx"), "empty")
 @test_throws ErrorException XLSX.gettable(empty_sheet)
 itr = XLSX.SheetRowIterator(empty_sheet)
 @test_throws ErrorException XLSX.find_row(itr, 1)
+@test_throws ErrorException XLSX.getsheet(joinpath(data_directory, "general.xlsx"), "invalid_sheet")
 
 f = XLSX.read(joinpath(data_directory,"general.xlsx"))
 tb5 = f["table5"]

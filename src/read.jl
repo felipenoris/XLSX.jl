@@ -42,8 +42,6 @@ function read(filepath::AbstractString) :: XLSXFile
     return xf
 end
 
-get_default_namespace(d::EzXML.Document) = get_default_namespace(EzXML.root(d))
-
 function get_default_namespace(r::EzXML.Node) :: String
     for (prefix, ns) in EzXML.namespaces(r)
         if prefix == ""
