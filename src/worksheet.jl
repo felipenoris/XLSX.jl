@@ -238,8 +238,8 @@ function getcellrange(ws::Worksheet, rng::AbstractString)
 end
 
 """
-    gettable(sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes]) -> data, column_labels
-    gettable(filepath, sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes]) -> data, column_labels
+    gettable(sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row]) -> data, column_labels
+    gettable(filepath, sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row]) -> data, column_labels
 
 Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 `data` is a vector of columns. `column_labels` is a vector of symbols.
@@ -266,6 +266,12 @@ Use `column_labels` as a vector of symbols to specify names for the header of th
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
 The default value is `infer_eltypes=false`.
 
+`stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
+If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
+The default behavior is `stop_in_empty_row=true`.
+
+Rows where all column values are equal to `Missing.missing` are dropped.
+
 Example:
 
 ```julia
@@ -274,13 +280,13 @@ julia> using DataFrames, XLSX
 julia> df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
 ```
 """
-function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false)
-    itr = TableRowIterator(sheet, cols; first_row=first_row, column_labels=column_labels, header=header)
+function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true)
+    itr = TableRowIterator(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
 
-function gettable(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false)
-    itr = TableRowIterator(sheet; first_row=first_row, column_labels=column_labels, header=header)
+function gettable(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true)
+    itr = TableRowIterator(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
 
@@ -293,4 +299,4 @@ getcellrange(filepath::AbstractString, sheet::Union{AbstractString, Int}, rng) =
 getcellrange(filepath::AbstractString, sheetref::AbstractString) = getcellrange(read(filepath), sheetref)
 getdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref) = getdata( read(filepath)[sheet], ref )
 getdata(filepath::AbstractString, sheetref::AbstractString) = getdata(read(filepath), sheetref)
-gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false) = gettable( read(filepath)[sheet]; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes )
+gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true) = gettable( read(filepath)[sheet]; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row)
