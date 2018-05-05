@@ -90,11 +90,18 @@ function getdata(xl::XLSXFile, rng::SheetCellRange)
     return getdata(getsheet(xl, rng.sheet), rng.rng)
 end
 
+function getdata(xl::XLSXFile, rng::SheetColumnRange)
+    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    return getdata(getsheet(xl, rng.sheet), rng.colrng)
+end
+
 function getdata(xl::XLSXFile, s::AbstractString)
     if is_valid_sheet_cellname(s)
         return getdata(xl, SheetCellRef(s))
     elseif is_valid_sheet_cellrange(s)
         return getdata(xl, SheetCellRange(s))
+    elseif is_valid_sheet_column_range(s)
+        return getdata(xl, SheetColumnRange(s))
     elseif is_defined_name(xl, s)
         return getdata(xl, get_defined_name_reference(xl, s))
     end

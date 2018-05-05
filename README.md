@@ -63,6 +63,13 @@ julia> xf["mysheet!A2:B4"] # you can also query values from a file reference
 
 julia> xf["NAMED_CELL"] # you can even read named ranges
 "B4 is a named cell from sheet \"named\""
+
+julia> xf["mysheet!A:B"] # Column ranges are also supported
+4×2 Array{Any,2}:
+  "HeaderA"  "HeaderB"
+ 1           "first"
+ 2           "second"
+ 3           "third"
 ```
 
 To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.

@@ -75,7 +75,7 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
             for column in left:right
                 cell = getcell(sheetrow, column)
                 if !isempty(cell)
-                    (r, c) = relative_cell_position(cell.ref, rng)
+                    (r, c) = relative_cell_position(cell, rng)
                     result[r, c] = celldata(ws, cell)
                 end
             end
@@ -85,11 +85,38 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     return result
 end
 
+function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
+    columns_count = length(rng)
+    columns = Vector{Vector{Any}}(columns_count)
+    for i in 1:columns_count
+        columns[i] = Vector{Any}()
+    end
+
+    left, right = column_bounds(rng)
+
+    for sheetrow in eachrow(ws)
+        for column in left:right
+            cell = getcell(sheetrow, column)
+            c = relative_column_position(cell, rng) # r will be ignored
+            push!(columns[c], celldata(ws, cell))
+        end
+    end
+
+    rows = length(columns[1])
+    for i in 1:columns_count
+        @assert length(columns[i]) == rows "Inconsistent state: Each column should have the same number of rows."
+    end
+
+    return hcat(columns...)
+end
+
 function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     if is_valid_cellname(ref)
         return getdata(ws, CellRef(ref))
     elseif is_valid_cellrange(ref)
         return getdata(ws, CellRange(ref))
+    elseif is_valid_column_range(ref)
+        return getdata(ws, ColumnRange(ref))
     else
         error("$ref is not a valid cell or range reference.")
     end
@@ -165,7 +192,7 @@ function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
             for column in left:right
                 cell = getcell(sheetrow, column)
                 if !isempty(cell)
-                    (r, c) = relative_cell_position(cell.ref, rng)
+                    (r, c) = relative_cell_position(cell, rng)
                     result[r, c] = cell
                 end
             end
@@ -175,9 +202,36 @@ function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
     return result
 end
 
+function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
+    columns_count = length(rng)
+    columns = Vector{Vector{AbstractCell}}(columns_count)
+    for i in 1:columns_count
+        columns[i] = Vector{AbstractCell}()
+    end
+
+    left, right = column_bounds(rng)
+
+    for sheetrow in eachrow(ws)
+        for column in left:right
+            cell = getcell(sheetrow, column)
+            c = relative_column_position(cell, rng) # r will be ignored
+            push!(columns[c], cell)
+        end
+    end
+
+    rows = length(columns[1])
+    for i in 1:columns_count
+        @assert length(columns[i]) == rows "Inconsistent state: Each column should have the same number of rows."
+    end
+
+    return hcat(columns...)
+end
+
 function getcellrange(ws::Worksheet, rng::AbstractString)
     if is_valid_cellrange(rng)
         return getcellrange(ws, CellRange(rng))
+    elseif is_valid_column_range(rng)
+        return getcellrange(ws, ColumnRange(rng))
     else
         error("$rng is not a valid cell range.")
     end

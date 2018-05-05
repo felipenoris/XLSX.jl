@@ -401,6 +401,38 @@ data_inferred, col_names = XLSX.gettable(s, infer_eltypes=true)
 @test eltype(data_inferred[5]) == Float64
 @test eltype(data_inferred[6]) == Any
 
+# queries based on ColumnRange
+x = XLSX.getcellrange(s, XLSX.ColumnRange("B:D"))
+@test size(x) == (11, 3)
+y = XLSX.getcellrange(s, "B:D")
+@test size(y) == (11, 3)
+@test x == y
+@test_throws AssertionError XLSX.getcellrange(s, "D:B")
+@test_throws ErrorException XLSX.getcellrange(s, "A:C1")
+
+d = XLSX.getdata(s, "B:D")
+@test size(d) == (11, 3)
+@test_throws ErrorException XLSX.getdata(s, "A:C1")
+@test d[1, 1] == "Column B"
+@test d[1, 2] == "Column C"
+@test d[1, 3] == "Column D"
+@test d[9, 1] == 8
+@test d[9, 2] == "Str2"
+@test d[9, 3] == Date(2018, 4, 28)
+@test d[10, 1] == "trash"
+@test ismissing(d[10, 2])
+@test d[10, 3] == "trash"
+@test ismissing(d[11, 1])
+@test ismissing(d[11, 2])
+@test ismissing(d[11, 3])
+
+d2 = f["table!B:D"]
+@test size(d) == size(d2)
+@test all(d .=== d2)
+
+@test_throws ErrorException f["table!B1:D"]
+@test_throws AssertionError f["table!D:B"]
+
 s = f["table2"]
 test_data = Vector{Any}(3)
 test_data[1] = [ "A1", "A2", "A3", missing ]

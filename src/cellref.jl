@@ -252,6 +252,14 @@ Base.string(cr::ColumnRange) = "$(encode_column_number(cr.start)):$(encode_colum
 Base.show(io::IO, cr::ColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::ColumnRange, cr2::ColumnRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::ColumnRange) = hash(cr.start) + hash(cr.stop)
+Base.in(column_number::Integer, rng::ColumnRange) = rng.start <= column_number && column_number <= rng.stop
+
+function relative_column_position(column_number::Integer, rng::ColumnRange)
+    @assert column_number ∈ rng "Column $column_number is outside range $rng."
+    return column_number - rng.start + 1
+end
+
+@inline relative_column_position(ref::CellRef, rng::ColumnRange) = relative_column_position(column_number(ref), rng)
 
 const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 
