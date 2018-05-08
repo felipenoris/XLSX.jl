@@ -216,10 +216,27 @@ sheet = f["general"]
 @test sheet["B5"] == Dates.Time(Dates.Hour(19), Dates.Minute(45))
 @test sheet["A6"] == "datetime"
 @test sheet["B6"] == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+@test f["general!B7"] == -220.0
 
-# named ranges
+# Defined Names
+@test XLSX.is_defined_name_value_a_reference(XLSX.SheetCellRef("Sheet1!A1"))
+@test XLSX.is_defined_name_value_a_reference(XLSX.SheetCellRange("Sheet1!A1:B2"))
+@test !XLSX.is_defined_name_value_a_reference(1)
+@test !XLSX.is_defined_name_value_a_reference(1.2)
+@test !XLSX.is_defined_name_value_a_reference("Hey")
+@test !XLSX.is_defined_name_value_a_reference(Missings.missing)
+
 @test f["SINGLE_CELL"] == "single cell A2"
 @test f["RANGE_B4C5"] == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
+@test f["CONST_DATE"] == 43383
+@test isapprox(f["CONST_FLOAT"], 10.2)
+@test f["CONST_INT"] == 100
+@test f["LOCAL_INT"] == 2000
+@test f["named_ranges_2"]["LOCAL_INT"] == 2000
+@test f["named_ranges"]["LOCAL_INT"] == 1000
+@test f["named_ranges"]["LOCAL_NAME"] == "Hey You"
+@test f["named_ranges_2"]["LOCAL_NAME"] == "out there in the cold"
+
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
 

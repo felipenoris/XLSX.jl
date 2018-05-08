@@ -117,6 +117,25 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         return getdata(ws, CellRange(ref))
     elseif is_valid_column_range(ref)
         return getdata(ws, ColumnRange(ref))
+    elseif is_worksheet_defined_name(ws, ref)
+        v = get_defined_name_value(ws, ref)
+        if is_defined_name_value_a_constant(v)
+            return v
+        elseif is_defined_name_value_a_reference(v)
+            return getdata(ws, v)
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    elseif is_workbook_defined_name(ws.package.workbook, ref)
+        wb = ws.package.workbook
+        v = get_defined_name_value(wb, ref)
+        if is_defined_name_value_a_constant(v)
+            return v
+        elseif is_defined_name_value_a_reference(v)
+            return getdata(wb, v)
+        else
+            error("Unexpected defined name value: $v.")
+        end
     else
         error("$ref is not a valid cell or range reference.")
     end
