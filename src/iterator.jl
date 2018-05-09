@@ -175,7 +175,7 @@ function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
 end
 
 """
-    TableRowIterator(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row])
+    TableRowIterator(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row], [stop_in_row_function])
 
 `header` is a boolean indicating wether the first row of the table is a table header.
 
@@ -187,6 +187,17 @@ The user can replace column names by assigning the optional `names` input variab
 `stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
 If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
 The default behavior is `stop_in_empty_row=true`. Empty rows may be returned by the `TableRowIterator` when `stop_in_empty_row=false`.
+
+`stop_in_row_function` is a Function that receives a `TableRow` and returns a `Bool` indicating if the end of the table was reached.
+
+Example for `stop_in_row_function`:
+
+```
+function stop_function(r)
+    v = r[:col_label]
+    return !Missings.ismissing(v) && v == "unwanted value"
+end
+```
 
 See also `gettable`.
 """

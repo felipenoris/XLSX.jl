@@ -289,9 +289,20 @@ The default value is `infer_eltypes=false`.
 If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
 The default behavior is `stop_in_empty_row=true`.
 
+`stop_in_row_function` is a Function that receives a `TableRow` and returns a `Bool` indicating if the end of the table was reached.
+
+Example for `stop_in_row_function`:
+
+```
+function stop_function(r)
+    v = r[:col_label]
+    return !Missings.ismissing(v) && v == "unwanted value"
+end
+```
+
 Rows where all column values are equal to `Missing.missing` are dropped.
 
-Example:
+Example code for `gettable`:
 
 ```julia
 julia> using DataFrames, XLSX
