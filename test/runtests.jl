@@ -425,6 +425,14 @@ function stop_function(r::XLSX.TableRow)
     return !Missings.ismissing(v) && v == "Str2"
 end
 
+function never_reaches_stop(r::XLSX.TableRow)
+    v = r[Symbol("Column C")]
+    return !Missings.ismissing(v) && v == "never was found"
+end
+
+data, col_names = XLSX.gettable(s, stop_in_row_function=never_reaches_stop)
+check_test_data(data, test_data)
+
 data, col_names = XLSX.gettable(s, stop_in_row_function=stop_function)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
