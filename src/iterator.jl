@@ -190,7 +190,7 @@ The default behavior is `stop_in_empty_row=true`. Empty rows may be returned by 
 
 See also `gettable`.
 """
-function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true)
+function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Function=x->false)
     itr = SheetRowIterator(sheet)
     column_range = convert(ColumnRange, cols)
 
@@ -215,10 +215,10 @@ function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractStr
     end
 
     first_data_row = header ? first_row + 1 : first_row
-    return TableRowIterator(itr, Index(column_range, column_labels), first_data_row, stop_in_empty_row)
+    return TableRowIterator(itr, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
 end
 
-function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true)
+function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Function=x->false)
     for r in eachrow(sheet)
 
         # skip rows until we reach first_row
@@ -238,14 +238,14 @@ function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::V
                     if length(columns_ordered) == 1
                         # there's only one column
                         column_range = ColumnRange(column_start, column_stop)
-                        return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
+                        return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
                     else
                         # will figure out the column range
                         for ci_stop in (ci+1):length(columns_ordered)
                             cn_stop = columns_ordered[ci_stop]
                             if cn_stop - 1 != column_stop
                                 column_range = ColumnRange(column_start, column_stop)
-                                return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
+                                return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
                             end
                             column_stop = cn_stop
                         end
@@ -253,7 +253,7 @@ function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::V
 
                     # if got here, it's because all columns are non-empty
                     column_range = ColumnRange(column_start, column_stop)
-                    return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row)
+                    return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
                 end
             end
         end
@@ -358,6 +358,12 @@ function Base.next(itr::TableRowIterator, state::TableRowIteratorState)
 end
 
 function Base.done(itr::TableRowIterator, state::TableRowIteratorState)
+
+    # user asked to stop
+    if itr.stop_in_row_function(TableRow(itr, state.sheet_row, state.table_row_index))
+        return true
+    end
+
     # empty table case
     if state.is_done
         return true
