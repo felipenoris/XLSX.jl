@@ -228,6 +228,7 @@ function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::V
 
         if !isempty(r)
             columns_ordered = sort(collect(keys(r.rowcells)))
+
             for (ci, cn) in enumerate(columns_ordered)
                 if !Missings.ismissing(getdata(r, cn))
                     # found a row with data. Will get ColumnRange from non-empty consecutive cells
@@ -243,7 +244,9 @@ function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::V
                         # will figure out the column range
                         for ci_stop in (ci+1):length(columns_ordered)
                             cn_stop = columns_ordered[ci_stop]
-                            if cn_stop - 1 != column_stop
+
+                            # Will stop if finds an empty cell or a skipped column
+                            if Missings.ismissing(getdata(r, cn_stop)) || (cn_stop - 1 != column_stop)
                                 column_range = ColumnRange(column_start, column_stop)
                                 return TableRowIterator(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
                             end
