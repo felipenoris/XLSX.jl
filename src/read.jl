@@ -181,14 +181,37 @@ function parse_workbook!(xf::XLSXFile)
         if EzXML.nodename(node) == "definedNames"
             for defined_name_node in EzXML.eachelement(node)
                 @assert EzXML.nodename(defined_name_node) == "definedName"
-                ref_or_range_str = EzXML.nodecontent(defined_name_node)
+                defined_value_string = EzXML.nodecontent(defined_name_node)
+                name = defined_name_node["name"]
 
-                if is_valid_fixed_sheet_cellname(ref_or_range_str) || is_valid_sheet_cellname(ref_or_range_str)
-                    workbook.defined_names[defined_name_node["name"]] = SheetCellRef(ref_or_range_str)
-                elseif is_valid_fixed_sheet_cellrange(ref_or_range_str) || is_valid_sheet_cellrange(ref_or_range_str)
-                    workbook.defined_names[defined_name_node["name"]] = SheetCellRange(ref_or_range_str)
+                local defined_value::DefinedNameValueTypes
+
+                if is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
+                    defined_value = SheetCellRef(defined_value_string)
+                elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
+                    defined_value = SheetCellRange(defined_value_string)
+                elseif ismatch(r"^\".*\"$", defined_value_string) # is enclosed by quotes
+                    defined_value = defined_value_string[2:end-1] # remove enclosing quotes
+                    if isempty(defined_value)
+                        defined_value = Missings.missing
+                    end
+                elseif tryparse(Int, defined_value_string)
+                    defined_value = parse(Int, defined_value_string)
+                elseif tryparse(Float64, defined_value_string)
+                    defined_value = parse(Float64, defined_value_string)
+                elseif isempty(defined_value_string)
+                    defined_value = Missings.missing
                 else
-                    error("Could not parse named range $(ref_or_range_str).")
+                    error("Could not parse value $(defined_value_string) for definedName node $name.")
+                end
+
+                if haskey(defined_name_node, "localSheetId")
+                    # is a Worksheet level name
+                    sheetId = parse(Int, defined_name_node["localSheetId"])
+                    workbook.worksheet_names[(sheetId, name)] = defined_value
+                else
+                    # is a Workbook level name
+                    workbook.workbook_names[name] = defined_value
                 end
             end
 
@@ -197,4 +220,13 @@ function parse_workbook!(xf::XLSXFile)
     end
 
     nothing
+end
+
+function tryparse(t::Type, s::String)
+    try
+        parse(t, s)
+        return true
+    catch
+        return false
+    end
 end

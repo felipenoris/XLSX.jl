@@ -1,5 +1,5 @@
 
-EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), EzXML.XMLDocument(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, Union{SheetCellRef, SheetCellRange}}())
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), EzXML.XMLDocument(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}())
 
 """
 Lists internal files from the XLSX package.
@@ -56,21 +56,23 @@ Returns EzXML.root(xl.data[filename]) if it exists.
 """
 @inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
 
-function getsheet(xl::XLSXFile, sheetname::String) :: Worksheet
-    for ws in xl.workbook.sheets
+function getsheet(wb::Workbook, sheetname::String) :: Worksheet
+    for ws in wb.sheets
         if ws.name == sheetname
             return ws
         end
     end
-    error("$(xl.filepath) does not have a Worksheet named $sheetname.")
+    error("$(wb.package.filepath) does not have a Worksheet named $sheetname.")
 end
 
-getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = xl.workbook.sheets[sheet_index]
-getsheet(filepath::AbstractString, s) = getsheet(read(filepath), s)
+@inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]
+@inline getsheet(xl::XLSXFile, sheetname::String) :: Worksheet = getsheet(xl.workbook, sheetname)
+@inline getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = getsheet(xl.workbook, sheet_index)
+@inline getsheet(filepath::AbstractString, s) :: Worksheet = getsheet(read(filepath), s)
 
 Base.show(io::IO, xf::XLSXFile) = print(io, "XLSXFile(\"$(xf.filepath)\")")
 
-Base.getindex(xl::XLSXFile, i::Integer) = getsheet(xl, i)
+@inline Base.getindex(xl::XLSXFile, i::Integer) = getsheet(xl, i)
 
 function Base.getindex(xl::XLSXFile, s::AbstractString)
     if hassheet(xl, s)
@@ -102,8 +104,15 @@ function getdata(xl::XLSXFile, s::AbstractString)
         return getdata(xl, SheetCellRange(s))
     elseif is_valid_sheet_column_range(s)
         return getdata(xl, SheetColumnRange(s))
-    elseif is_defined_name(xl, s)
-        return getdata(xl, get_defined_name_reference(xl, s))
+    elseif is_workbook_defined_name(xl, s)
+        v = get_defined_name_value(xl.workbook, s)
+        if is_defined_name_value_a_constant(v)
+            return v
+        elseif is_defined_name_value_a_reference(v)
+            return getdata(xl, v)
+        else
+            error("Unexpected defined name value: $v.")
+        end
     end
 
     error("$s is not a valid sheetname or cell/range reference.")
@@ -136,7 +145,19 @@ function getcellrange(xl::XLSXFile, rng_str::AbstractString)
     error("$rng_str is not a valid range reference.")
 end
 
-@inline is_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.defined_names, name)
-@inline is_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_defined_name(xl.workbook, name)
-@inline get_defined_name_reference(wb::Workbook, name::AbstractString) = wb.defined_names[name]
-@inline get_defined_name_reference(xl::XLSXFile, name::AbstractString) = get_defined_name_reference(xl.workbook, name)
+@inline is_workbook_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.workbook_names, name)
+@inline is_workbook_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_workbook_defined_name(xl.workbook, name)
+@inline is_worksheet_defined_name(ws::Worksheet, name::AbstractString) :: Bool = is_worksheet_defined_name(ws.package.workbook, ws.sheetId, name)
+@inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString) :: Bool = haskey(wb.worksheet_names, (sheetId, name))
+@inline is_worksheet_defined_name(wb::Workbook, sheet_name::AbstractString, name::AbstractString) :: Bool = is_worksheet_defined_name(wb, getsheet(wb, sheet_name).sheetId, name)
+
+@inline get_defined_name_value(wb::Workbook, name::AbstractString) :: DefinedNameValueTypes = wb.workbook_names[name]
+
+function get_defined_name_value(ws::Worksheet, name::AbstractString) :: DefinedNameValueTypes
+    wb = ws.package.workbook
+    sheetId = ws.sheetId
+    return wb.worksheet_names[(sheetId, name)]
+end
+
+@inline is_defined_name_value_a_reference(v::DefinedNameValueTypes) = isa(v, SheetCellRef) || isa(v, SheetCellRange)
+@inline is_defined_name_value_a_constant(v::DefinedNameValueTypes) = !is_defined_name_value_a_reference(v)

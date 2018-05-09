@@ -140,6 +140,8 @@ mutable struct SharedStrings
     end
 end
 
+const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missings.Missing}
+
 """
 Workbook is the result of parsing file `xl/workbook.xml`.
 """
@@ -152,7 +154,8 @@ mutable struct Workbook
     styles::EzXML.Document # a copy of the reference xf.data[styles_file]
     buffer_styles_is_float::Dict{Int, Bool}      # cell style -> true if is float
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
-    defined_names::Dict{String, Union{SheetCellRef, SheetCellRange}} # named ranges
+    workbook_names::Dict{String, DefinedNameValueTypes} # definedName
+    worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
 end
 
 """
