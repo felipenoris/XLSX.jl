@@ -53,10 +53,10 @@ See also: `decode_column_number`.
 function encode_column_number(column_number::Int) :: String
     @assert column_number > 0 && column_number <= 16384 "Column number should be in the range from 1 to 16384."
 
-    third_letter_sequence = div(column_number, 26^2)
-    column_number = column_number - third_letter_sequence*(26^2)
+    third_letter_sequence = div(column_number - 26 - 1, 26*26)
+    column_number = column_number - third_letter_sequence*(26*26)
 
-    second_letter_sequence = div(column_number, 26) # 26^1
+    second_letter_sequence = div(column_number - 1, 26) # 26^1
     column_number = column_number - second_letter_sequence*(26)
 
     first_letter_sequence = column_number # 26^0
