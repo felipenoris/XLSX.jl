@@ -25,6 +25,11 @@ function read(filepath::AbstractString) :: XLSXFile
                 continue
             end
 
+            # ignore xl/calcChain.xml for now
+            if f.name == "xl/calcChain.xml"
+                continue
+            end
+
             doc = EzXML.readxml(f)
             xf.data[f.name] = doc
         end
