@@ -443,6 +443,12 @@ sheet = f["general"]
 @test f["named_ranges"]["LOCAL_NAME"] == "Hey You"
 @test f["named_ranges_2"]["LOCAL_NAME"] == "out there in the cold"
 
+@test_throws ErrorException f["header_error"]["LOCAL_REF"]
+@test f["named_ranges"]["LOCAL_REF"][1] == 10
+@test f["named_ranges"]["LOCAL_REF"][2] == 20
+@test f["named_ranges_2"]["LOCAL_REF"][1] == "local"
+@test f["named_ranges_2"]["LOCAL_REF"][2] == "reference"
+
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
 

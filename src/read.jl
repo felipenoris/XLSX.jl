@@ -207,7 +207,12 @@ function parse_workbook!(xf::XLSXFile)
 
                 if haskey(defined_name_node, "localSheetId")
                     # is a Worksheet level name
-                    sheetId = parse(Int, defined_name_node["localSheetId"])
+
+                    # localSheetId is the 0-based index of the Worksheet in the order
+                    # that it is displayed on screen.
+                    # Which is the order of the elements under <sheets> element in workbook.xml .
+                    localSheetId = parse(Int, defined_name_node["localSheetId"]) + 1
+                    sheetId = workbook.sheets[localSheetId].sheetId
                     workbook.worksheet_names[(sheetId, name)] = defined_value
                 else
                     # is a Workbook level name

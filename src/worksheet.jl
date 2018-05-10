@@ -141,6 +141,7 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     end
 end
 
+getdata(ws::Worksheet, rng::SheetCellRange) = getdata(ws.package, rng)
 getdata(ws::Worksheet) = getdata(ws, dimension(ws))
 
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
