@@ -1,10 +1,5 @@
 
-EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), EzXML.XMLDocument(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}())
-
-"""
-Lists internal files from the XLSX package.
-"""
-@inline filenames(xl::XLSXFile) = keys(xl.data)
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}())
 
 """
 Lists Worksheet names for this Workbook.
@@ -37,25 +32,6 @@ Returns true if workbook follows date1904 convention.
 @inline isdate1904(wb::Workbook) :: Bool = wb.date1904
 @inline isdate1904(xf::XLSXFile) :: Bool = isdate1904(xf.workbook)
 
-"""
-    xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document
-
-Utility method to find the XMLDocument associated with a given package filename.
-Returns xl.data[filename] if it exists. Throws an error if it doesn't.
-"""
-function xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document
-    @assert in(filename, filenames(xl)) "$filename not found in XLSX package."
-    return xl.data[filename]
-end
-
-"""
-    xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node
-
-Utility method to return the root element of a given XMLDocument from the package.
-Returns EzXML.root(xl.data[filename]) if it exists.
-"""
-@inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
-
 function getsheet(wb::Workbook, sheetname::String) :: Worksheet
     for ws in wb.sheets
         if ws.name == sheetname
@@ -68,7 +44,6 @@ end
 @inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]
 @inline getsheet(xl::XLSXFile, sheetname::String) :: Worksheet = getsheet(xl.workbook, sheetname)
 @inline getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = getsheet(xl.workbook, sheet_index)
-@inline getsheet(filepath::AbstractString, s) :: Worksheet = getsheet(read(filepath), s)
 
 Base.show(io::IO, xf::XLSXFile) = print(io, "XLSXFile(\"$(xf.filepath)\")")
 

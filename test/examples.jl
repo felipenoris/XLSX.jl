@@ -9,13 +9,15 @@ data_directory = joinpath(dirname(@__FILE__), "..", "data")
 
 v = XLSX.getdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 
-f = XLSX.read(joinpath(data_directory, "myfile.xlsx"))
-
+f = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"))
 sheet = f["mysheet"]
+v = sheet["A1:B4"]
+close(f)
 
-sheet = XLSX.getsheet(joinpath(data_directory, "myfile.xlsx"), "mysheet")
-
+xf = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"))
+sheet = xf["mysheet"]
 cell = XLSX.getcell(sheet, "A1")
+close(xf)
 
 left = 1  # 1st column
 right = 4 # 4th column
@@ -51,7 +53,7 @@ XLSX.getcellrange(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 # examples from README.md
 #
 
-xf = XLSX.read(joinpath(data_directory, "myfile.xlsx"))
+xf = XLSX.readxlsx(joinpath(data_directory, "myfile.xlsx"))
 XLSX.sheetnames(xf)
 sh = xf["mysheet"]
 sh["B2"] # access a cell value

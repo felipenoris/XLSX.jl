@@ -124,7 +124,6 @@ mutable struct Worksheet
     sheetId::Int
     relationship_id::String # r:id="rId1"
     name::String
-    data::EzXML.Document # a copy of the reference xf.data[worksheet_file], xf :: XLSFile
 end
 
 """
@@ -151,7 +150,6 @@ mutable struct Workbook
     date1904::Bool              # workbook -> workbookPr -> attribute date1904 = "1" or absent
     relationships::Vector{Relationship} # contains workbook level relationships
     sst::SharedStrings # shared string table
-    styles::EzXML.Document # a copy of the reference xf.data[styles_file]
     buffer_styles_is_float::Dict{Int, Bool}      # cell style -> true if is float
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
     workbook_names::Dict{String, DefinedNameValueTypes} # definedName
@@ -167,6 +165,9 @@ end
 """
 mutable struct XLSXFile <: MSOfficePackage
     filepath::AbstractString
+    io::ZipFile.Reader
+    io_is_open::Bool
+    files::Dict{String, Bool} # maps filename => isread bool
     data::Dict{String, EzXML.Document} # maps filename => XMLDocument
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
