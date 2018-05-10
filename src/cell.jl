@@ -128,10 +128,10 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
 
         else
             # fallback to unformatted number
-            if contains(cell.value, ".")
-                v_num = parse(Float64, cell.value)
-            else
+            if ismatch(r"^[0-9]+$", cell.value)  # if contains only numbers
                 v_num = parse(Int64, cell.value)
+            else
+                v_num = parse(Float64, cell.value)
             end
 
             return v_num
