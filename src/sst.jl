@@ -15,6 +15,7 @@ function sst_load!(workbook::Workbook)
                 push!(workbook.sst.unformatted_strings, unformatted_text(el))
             end
 
+            workbook.sst.is_loaded=true
             return
         end
 
