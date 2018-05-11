@@ -4,12 +4,12 @@ using Base.Test, Missings
 
 data_directory = joinpath(dirname(@__FILE__), "..", "data")
 
-ef_blank_ptbr_1904 = XLSX.read(joinpath(data_directory, "blank_ptbr_1904.xlsx"))
-ef_Book1 = XLSX.read(joinpath(data_directory, "Book1.xlsx"))
-ef_Book_1904 = XLSX.read(joinpath(data_directory, "Book_1904.xlsx"))
-ef_book_1904_ptbr = XLSX.read(joinpath(data_directory, "book_1904_ptbr.xlsx"))
-ef_book_sparse = XLSX.read(joinpath(data_directory, "book_sparse.xlsx"))
-ef_book_sparse_2 = XLSX.read(joinpath(data_directory, "book_sparse_2.xlsx"))
+ef_blank_ptbr_1904 = XLSX.readxlsx(joinpath(data_directory, "blank_ptbr_1904.xlsx"))
+ef_Book1 = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
+ef_Book_1904 = XLSX.readxlsx(joinpath(data_directory, "Book_1904.xlsx"))
+ef_book_1904_ptbr = XLSX.readxlsx(joinpath(data_directory, "book_1904_ptbr.xlsx"))
+ef_book_sparse = XLSX.readxlsx(joinpath(data_directory, "book_sparse.xlsx"))
+ef_book_sparse_2 = XLSX.readxlsx(joinpath(data_directory, "book_sparse_2.xlsx"))
 
 @test ef_Book1.filepath == joinpath(data_directory, "Book1.xlsx")
 @test length(keys(ef_Book1.data)) > 0
@@ -383,7 +383,7 @@ ref = XLSX.SheetColumnRange("Sheet1!A:B")
 @test hash(XLSX.SheetColumnRange("Sheet1!A:B")) == hash(XLSX.SheetColumnRange("Sheet1!A:B"))
 
 # getindex
-f = XLSX.read(joinpath(data_directory, "Book1.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
 sheet1 = f["Sheet1"]
 @test sheet1["B2"] == "B2"
 @test isapprox(sheet1["C3"], 21.2)
@@ -408,7 +408,7 @@ sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 @test XLSX._datetime(43206.805447106482, false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
 
 # General number formats
-f = XLSX.read(joinpath(data_directory, "general.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
 sheet = f["general"]
 @test sheet["A1"] == "text"
 @test sheet["B1"] == "regular text"
@@ -453,7 +453,7 @@ sheet = f["general"]
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
 
 # Book1.xlsx
-f = XLSX.read(joinpath(data_directory, "Book1.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
 sheet = f["Sheet1"]
 @test ismissing(sheet["A1"])
 @test sheet["B2"] == "B2"
@@ -480,7 +480,7 @@ sheet = f["Sheet1"]
 @test string(XLSX.SheetCellRange("Sheet1!B2:B3")) == "Sheet1!B2:B3"
 
 # book_1904_ptbr.xlsx
-f = XLSX.read(joinpath(data_directory, "book_1904_ptbr.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "book_1904_ptbr.xlsx"))
 
 @test f["Plan1"][:] == Any[ "Coluna A" "Coluna B" "Coluna C" "Coluna D";
                             10 10.5 Date(2018, 3, 22) "linha 2";
@@ -493,7 +493,7 @@ f = XLSX.read(joinpath(data_directory, "book_1904_ptbr.xlsx"))
 @test f["Plan2"]["D3"] == "D3"
 
 # numbers.xlsx
-f = XLSX.read(joinpath(data_directory, "numbers.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "numbers.xlsx"))
 floats = f["float"][:]
 for n in floats
     if !ismissing(n)
@@ -541,7 +541,7 @@ rng = XLSX.CellRange("A2:C4")
 
 # Table
 
-f = XLSX.read(joinpath(data_directory, "book_sparse.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "book_sparse.xlsx"))
 s = f["Sheet1"]
 
 report = Vector{String}()
@@ -568,7 +568,7 @@ for r in XLSX.eachrow(s)
 end
 @test report == [ "2 - (2, 2)", "3 - (3, 4)", "6 - (1, 4)", "9 - (2, 5)"]
 
-f = XLSX.read(joinpath(data_directory, "general.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
 s = f["table"]
 data, col_names = XLSX.gettable(s)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
@@ -800,13 +800,15 @@ data, col_names = XLSX.gettable(s)
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
 
-empty_sheet = XLSX.getsheet(joinpath(data_directory, "general.xlsx"), "empty")
+xf = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
+empty_sheet = XLSX.getsheet(xf, "empty")
 @test_throws ErrorException XLSX.gettable(empty_sheet)
 itr = XLSX.SheetRowIterator(empty_sheet)
 @test_throws ErrorException XLSX.find_row(itr, 1)
-@test_throws ErrorException XLSX.getsheet(joinpath(data_directory, "general.xlsx"), "invalid_sheet")
+@test_throws ErrorException XLSX.getsheet(xf, "invalid_sheet")
+close(xf)
 
-f = XLSX.read(joinpath(data_directory,"general.xlsx"))
+f = XLSX.readxlsx(joinpath(data_directory,"general.xlsx"))
 tb5 = f["table5"]
 test_data = Vector{Any}(1)
 test_data[1] = [1, 2, 3, 4, 5]

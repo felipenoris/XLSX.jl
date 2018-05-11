@@ -14,14 +14,12 @@
 
 const STYLES_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]
 
-_styles_root(wb::Workbook) = EzXML.root(wb.styles)
-
 """
 Returns the xf XML node element for style `index`.
 `index` is 0-based.
 """
 function styles_cell_xf(wb::Workbook, index::Int) :: EzXML.Node
-    xroot = _styles_root(wb)
+    xroot = styles_xmlroot(wb)
     xf_elements = find(xroot, "/xpath:styleSheet/xpath:cellXfs/xpath:xf", STYLES_NAMESPACE_XPATH_ARG)
     return xf_elements[index+1]
 end
@@ -36,7 +34,7 @@ end
 Queries numFmt formatCode field by numFmtId.
 """
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
-    xroot = _styles_root(wb)
+    xroot = styles_xmlroot(wb)
     elements_found = find(xroot, "/xpath:styleSheet/xpath:numFmts/xpath:numFmt[@numFmtId='$(numFmtId)']", STYLES_NAMESPACE_XPATH_ARG)
     @assert length(elements_found) == 1 "numFmtId $numFmtId not found."
     return elements_found[1]["formatCode"]

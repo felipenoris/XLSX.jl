@@ -1,15 +1,11 @@
 
 function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     @assert EzXML.nodename(sheet_element) == "sheet"
-
     sheetId = parse(Int, sheet_element["sheetId"])
     relationship_id = sheet_element["r:id"]
     name = sheet_element["name"]
 
-    target = "xl/" * get_relationship_target_by_id(xf.workbook, relationship_id)
-    sheet_data = xf.data[target]
-
-    return Worksheet(xf, sheetId, relationship_id, name, sheet_data)
+    return Worksheet(xf, sheetId, relationship_id, name)
 end
 
 isdate1904(ws::Worksheet) = isdate1904(ws.package)
@@ -18,8 +14,7 @@ isdate1904(ws::Worksheet) = isdate1904(ws.package)
 Retuns the dimension of this worksheet as a CellRange.
 """
 function dimension(ws::Worksheet) :: CellRange
-    xroot = EzXML.root(ws.data)
-    @assert EzXML.nodename(xroot) == "worksheet" "Unicorn!"
+    xroot = xmlroot(ws)
 
     for dimension_element in EzXML.eachelement(xroot)
         if EzXML.nodename(dimension_element) == "dimension"
@@ -52,11 +47,13 @@ Indexing in a `Worksheet` will dispatch to `getdata` method.
 So the following example will have the same effect as the first example.
 
 ```julia
-julia> f = XLSX.read("myfile.xlsx")
+julia> f = XLSX.openxlsx("myfile.xlsx")
 
 julia> sheet = f["mysheet"]
 
 julia> v = sheet["A1:B4"]
+
+julia> close(f)
 ```
 """
 getdata(ws::Worksheet, single::CellRef) = celldata(ws, getcell(ws, single))
@@ -158,9 +155,13 @@ Returns an `AbstractCell` that represents a cell in the spreadsheet.
 Example:
 
 ```julia
-julia> sheet = XLSX.getsheet("myfile.xlsx", "mysheet")
+julia> xf = XLSX.openxlsx("myfile.xlsx")
+
+julia> sheet = xf["mysheet"]
 
 julia> cell = XLSX.getcell(sheet, "A1")
+
+julia> close(xf)
 ```
 """
 function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
@@ -320,14 +321,3 @@ function gettable(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Sy
     itr = TableRowIterator(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
-
-#
-# Helper functions
-#
-getcell(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref) = getcell( read(filepath)[sheet], ref )
-getcell(filepath::AbstractString, sheetref::AbstractString) = getcell(read(filepath), sheetref)
-getcellrange(filepath::AbstractString, sheet::Union{AbstractString, Int}, rng) = getcellrange( read(filepath)[sheet], rng )
-getcellrange(filepath::AbstractString, sheetref::AbstractString) = getcellrange(read(filepath), sheetref)
-getdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref) = getdata( read(filepath)[sheet], ref )
-getdata(filepath::AbstractString, sheetref::AbstractString) = getdata(read(filepath), sheetref)
-gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Function=x->false) = gettable( read(filepath)[sheet]; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)

@@ -21,7 +21,7 @@ The basic usage is to read an Excel file and read values.
 ```julia
 julia> import XLSX
 
-julia> xf = XLSX.read("myfile.xlsx")
+julia> xf = XLSX.readxlsx("myfile.xlsx")
 XLSXFile("myfile.xlsx")
 
 julia> XLSX.sheetnames(xf)

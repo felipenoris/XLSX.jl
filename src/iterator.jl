@@ -58,8 +58,7 @@ function find_row(itr::SheetRowIterator, row::Int) :: SheetRow
 end
 
 function SheetRowIterator(ws::Worksheet)
-    xroot = EzXML.root(ws.data)
-    @assert EzXML.nodename(xroot) == "worksheet" "Malformed sheet $(ws.name)."
+    xroot = xmlroot(ws)
 
     # finds sheetData element
     for sheet_data_element in EzXML.eachelement(xroot)

@@ -1,16 +1,25 @@
 
-SharedStrings() = SharedStrings(EzXML.ElementNode("sst"))
+SharedStrings() = SharedStrings(Vector{String}(), false)
 
-function SharedStrings(root::EzXML.Node)
-    @assert EzXML.nodename(root) == "sst"
+function sst_load!(workbook::Workbook)
+    if !workbook.sst.is_loaded
 
-    unformatted_strings = Vector{String}()
-    for el in EzXML.eachelement(root)
-        @assert EzXML.nodename(el) == "si" "Unsupported node $(EzXML.nodename(el)) in sst table."
-        push!(unformatted_strings, unformatted_text(el))
+        relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
+        if has_relationship_by_type(workbook, relationship_type)
+            sst_root = xmlroot(workbook.package, "xl/" * get_relationship_target_by_type(workbook, relationship_type))
+
+            @assert EzXML.nodename(sst_root) == "sst"
+
+            for el in EzXML.eachelement(sst_root)
+                @assert EzXML.nodename(el) == "si" "Unsupported node $(EzXML.nodename(el)) in sst table."
+                push!(workbook.sst.unformatted_strings, unformatted_text(el))
+            end
+
+            return
+        end
+
+        error("Shared Strings Table not found for this workbook.")
     end
-
-    return SharedStrings(root, unformatted_strings)
 end
 
 """
@@ -45,8 +54,11 @@ end
 Looks for a string inside the Shared Strings Table (sst).
 `index` starts at 0.
 """
-@inline sst_unformatted_string(sst::SharedStrings, index::Int) = sst.unformatted_strings[index+1]
-@inline sst_unformatted_string(wb::Workbook, index::Int) :: String = sst_unformatted_string(wb.sst, index)
+@inline function sst_unformatted_string(wb::Workbook, index::Int)
+    sst_load!(wb)
+    return wb.sst.unformatted_strings[index+1]
+end
+
 @inline sst_unformatted_string(xl::XLSXFile, index::Int) :: String = sst_unformatted_string(xl.workbook, index)
 @inline sst_unformatted_string(ws::Worksheet, index::Int) :: String = sst_unformatted_string(ws.package, index)
 sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) :: String = sst_unformatted_string(target, parse(Int, index_str))

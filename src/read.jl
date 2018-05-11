@@ -4,20 +4,26 @@
 
 Creates an empty instance of XLSXFile.
 """
-XLSXFile(filepath::AbstractString) = XLSXFile(filepath, Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
+function XLSXFile(filepath::AbstractString)
+    @assert isfile(filepath) "File $filepath not found."
+    io = ZipFile.Reader(filepath)
+
+    xl = XLSXFile(filepath, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
+    xl.workbook.package = xl
+    return xl
+end
 
 """
-    read(filepath) :: XLSXFile
+    readxlsx(filepath) :: XLSXFile
 
 Main function for reading an Excel file.
 """
-function read(filepath::AbstractString) :: XLSXFile
-    @assert isfile(filepath) "File $filepath not found."
+function readxlsx(filepath::AbstractString) :: XLSXFile
+
     xf = XLSXFile(filepath)
 
-    xlfile = ZipFile.Reader(filepath)
     try
-        for f in xlfile.files
+        for f in xf.io.files
 
             # parse only XML files
             if !ismatch(r".xml", f.name) && !ismatch(r".rels", f.name)
@@ -30,19 +36,45 @@ function read(filepath::AbstractString) :: XLSXFile
                 continue
             end
 
-            doc = EzXML.readxml(f)
-            xf.data[f.name] = doc
+            internal_file_add!(xf, f.name)
+            internal_file_read(xf, f.name)
         end
 
-        # Check for minimum package requirements
         check_minimum_requirements(xf)
-
         parse_relationships!(xf)
         parse_workbook!(xf)
 
     finally
-        close(xlfile)
+        close(xf)
     end
+
+    return xf
+end
+
+"""
+    openxlsx(filepath) :: XLSXFile
+
+Open a XLSX file for reading. The user must close this file after using it.
+XML data will be fetched from disk as needed.
+"""
+function openxlsx(filepath::AbstractString) :: XLSXFile
+
+    xf = XLSXFile(filepath)
+
+    for f in xf.io.files
+
+        # parse only XML files
+        if !ismatch(r".xml", f.name) && !ismatch(r".rels", f.name)
+            #warn("Ignoring non-XML file $(f.name).") # debug
+            continue
+        end
+
+        internal_file_add!(xf, f.name)
+    end
+
+    check_minimum_requirements(xf)
+    parse_relationships!(xf)
+    parse_workbook!(xf)
 
     return xf
 end
@@ -98,18 +130,6 @@ function parse_relationships!(xf::XLSXFile)
     nothing
 end
 
-function parse_shared_strings!(xf::XLSXFile)
-    workbook = xf.workbook
-
-    relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
-    if has_relationship_by_type(workbook, relationship_type)
-        sst_root = xmlroot(xf, "xl/" * get_relationship_target_by_type(workbook, relationship_type))
-        workbook.sst = SharedStrings(sst_root)
-    end
-
-    nothing
-end
-
 """
   parse_workbook!(xf::XLSXFile)
 
@@ -150,9 +170,6 @@ function parse_workbook!(xf::XLSXFile)
     end
     @assert foundworkbookPr "Malformed: couldn't find workbookPr node element in 'xl/workbook.xml'."
 
-    # shared string table
-    parse_shared_strings!(xf)
-
     # sheets
     sheets = Vector{Worksheet}()
     for node in EzXML.eachelement(xroot)
@@ -168,18 +185,6 @@ function parse_workbook!(xf::XLSXFile)
         end
     end
     workbook.sheets = sheets
-
-    # styles
-    STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
-    if has_relationship_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
-        styles_target = get_relationship_target_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
-        workbook.styles = xmldocument(xf, "xl/" * styles_target)
-
-        # check root node name for styles.xml
-        styles_root = EzXML.root(workbook.styles)
-        @assert get_default_namespace(styles_root) == STYLES_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
-        @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
-    end
 
     # named ranges
     for node in EzXML.eachelement(xroot)
@@ -239,4 +244,100 @@ function tryparse(t::Type, s::String)
     catch
         return false
     end
+end
+
+#EzXML.Document
+
+# Lazy loading of XML files
+
+"""
+Lists internal files from the XLSX package.
+"""
+@inline filenames(xl::XLSXFile) = keys(xl.files)
+
+"""
+Returns true if the file data was read into xl.data.
+"""
+internal_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
+internal_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
+
+function internal_file_add!(xl::XLSXFile, filename::String)
+    xl.files[filename] = false
+    nothing
+end
+
+function internal_file_read(xf::XLSXFile, filename::String) :: EzXML.Document
+    @assert internal_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
+
+    if !internal_file_isread(xf, filename)
+        @assert isopen(xf) "Can't read from a closed XLSXFile."
+        file_not_found = true
+        for f in xf.io.files
+            if f.name == filename
+                xf.files[filename] = true # set file as read
+                xf.data[filename] = EzXML.readxml(f)
+                file_not_found = false
+                break
+            end
+        end
+
+        if file_not_found
+            # shouldn't happen
+            error("$filename not found in XLSX package.")
+        end
+    end
+
+    return xf.data[filename]
+end
+
+function Base.close(xl::XLSXFile)
+    xl.io_is_open = false
+    close(xl.io)
+end
+
+Base.isopen(xl::XLSXFile) = xl.io_is_open
+
+"""
+    xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document
+
+Utility method to find the XMLDocument associated with a given package filename.
+Returns xl.data[filename] if it exists. Throws an error if it doesn't.
+"""
+@inline xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document = internal_file_read(xl, filename)
+
+"""
+    xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node
+
+Utility method to return the root element of a given XMLDocument from the package.
+Returns EzXML.root(xl.data[filename]) if it exists.
+"""
+@inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
+
+@inline function xmldocument(ws::Worksheet)
+    wb = ws.package.workbook
+    target_file = "xl/" * get_relationship_target_by_id(wb, ws.relationship_id)
+    return xmldocument(ws.package, target_file)
+end
+
+@inline function xmlroot(ws::Worksheet)
+    xroot = EzXML.root(xmldocument(ws))
+    @assert EzXML.nodename(xroot) == "worksheet" "Malformed sheet $(ws.name)."
+    return xroot
+end
+
+# get styles document for workbook
+function styles_xmlroot(workbook::Workbook)
+    # styles
+    STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+    if has_relationship_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
+        styles_target = get_relationship_target_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
+        styles_root = xmlroot(workbook.package, "xl/" * styles_target)
+
+        # check root node name for styles.xml
+        @assert get_default_namespace(styles_root) == STYLES_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
+        @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
+        return styles_root
+    end
+
+    error("Styles not found for this workbook.")
 end
