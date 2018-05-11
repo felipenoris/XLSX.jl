@@ -130,13 +130,8 @@ end
 Shared String Table
 """
 mutable struct SharedStrings
-    root::EzXML.Node 
     unformatted_strings::Vector{String}
-
-    function SharedStrings(root::EzXML.Node, unformatted_strings::Vector{String})
-        @assert EzXML.nodename(root) == "sst"
-        new(root, unformatted_strings)
-    end
+    is_loaded::Bool # for lazy-loading of sst XML file
 end
 
 const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missings.Missing}

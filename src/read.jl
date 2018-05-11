@@ -130,18 +130,6 @@ function parse_relationships!(xf::XLSXFile)
     nothing
 end
 
-function parse_shared_strings!(xf::XLSXFile)
-    workbook = xf.workbook
-
-    relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
-    if has_relationship_by_type(workbook, relationship_type)
-        sst_root = xmlroot(xf, "xl/" * get_relationship_target_by_type(workbook, relationship_type))
-        workbook.sst = SharedStrings(sst_root)
-    end
-
-    nothing
-end
-
 """
   parse_workbook!(xf::XLSXFile)
 
@@ -181,9 +169,6 @@ function parse_workbook!(xf::XLSXFile)
         end
     end
     @assert foundworkbookPr "Malformed: couldn't find workbookPr node element in 'xl/workbook.xml'."
-
-    # shared string table
-    parse_shared_strings!(xf)
 
     # sheets
     sheets = Vector{Worksheet}()
