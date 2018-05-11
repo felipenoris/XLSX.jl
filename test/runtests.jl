@@ -408,7 +408,7 @@ sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 @test XLSX._datetime(43206.805447106482, false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
 
 # General number formats
-f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
+f = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
 sheet = f["general"]
 @test sheet["A1"] == "text"
 @test sheet["B1"] == "regular text"
@@ -451,6 +451,8 @@ sheet = f["general"]
 
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
 @test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
+
+close(f)
 
 # Book1.xlsx
 f = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
