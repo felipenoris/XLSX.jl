@@ -200,7 +200,7 @@ end
 
 See also `gettable`.
 """
-function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Function=x->false)
+function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)
     itr = SheetRowIterator(sheet)
     column_range = convert(ColumnRange, cols)
 
@@ -228,7 +228,7 @@ function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractStr
     return TableRowIterator(itr, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
 end
 
-function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Function=x->false)
+function TableRowIterator(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)
     for r in eachrow(sheet)
 
         # skip rows until we reach first_row
@@ -373,7 +373,7 @@ end
 function Base.done(itr::TableRowIterator, state::TableRowIteratorState)
 
     # user asked to stop
-    if itr.stop_in_row_function(TableRow(itr, state.sheet_row, state.table_row_index))
+    if isa(itr.stop_in_row_function, Function) && itr.stop_in_row_function(TableRow(itr, state.sheet_row, state.table_row_index))
         return true
     end
 

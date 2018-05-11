@@ -215,7 +215,7 @@ struct TableRowIterator
     index::Index
     first_data_row::Int
     stop_in_empty_row::Bool
-    stop_in_row_function::Function
+    stop_in_row_function::Union{Function, Void}
 end
 
 struct TableRow
