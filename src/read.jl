@@ -17,6 +17,10 @@ end
     readxlsx(filepath) :: XLSXFile
 
 Main function for reading an Excel file.
+This function will read the whole Excel file into memory
+and return a closed XLSXFile.
+
+Consider using `openxlsx` for lazy loading of Excel file contents.
 """
 function readxlsx(filepath::AbstractString) :: XLSXFile
 
@@ -54,8 +58,10 @@ end
 """
     openxlsx(filepath) :: XLSXFile
 
-Open a XLSX file for reading. The user must close this file after using it.
+Open a XLSX file for reading. The user must close this file after using it with `close(xf)`.
 XML data will be fetched from disk as needed.
+
+See also `readxlsx` method.
 """
 function openxlsx(filepath::AbstractString) :: XLSXFile
 

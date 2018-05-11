@@ -53,7 +53,7 @@ XLSX.getcellrange(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 # examples from README.md
 #
 
-xf = XLSX.readxlsx(joinpath(data_directory, "myfile.xlsx"))
+xf = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"))
 XLSX.sheetnames(xf)
 sh = xf["mysheet"]
 sh["B2"] # access a cell value
@@ -64,6 +64,7 @@ xf["NAMED_CELL"] # you can even read named ranges
 xf["mysheet!A:B"] # Column ranges are also supported
 sh[:] # all data inside worksheet's dimension
 XLSX.getdata(sh) # same as sh[:]
+close(xf)
 
 using DataFrames, XLSX
 

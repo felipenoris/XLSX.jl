@@ -21,7 +21,7 @@ The basic usage is to read an Excel file and read values.
 ```julia
 julia> import XLSX
 
-julia> xf = XLSX.readxlsx("myfile.xlsx")
+julia> xf = XLSX.openxlsx("myfile.xlsx")
 XLSXFile("myfile.xlsx")
 
 julia> XLSX.sheetnames(xf)
@@ -70,9 +70,16 @@ julia> xf["mysheet!A:B"] # Column ranges are also supported
  1           "first"
  2           "second"
  3           "third"
+
+julia> close(xf) # close the file when done reading
 ```
 
 To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.
+
+The example above used `xf = XLSX.openxlsx(filename)` to open a file, so the contents will be fetched from disk as needed
+but you need to close the file when done reading with `close(xf)`.
+
+You can also use `XLSX.readxlsx(filename)` to read the whole file and return a closed `XLSXFile`.
 
 ## Read Tabular Data
 
