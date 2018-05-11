@@ -129,7 +129,7 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         if is_defined_name_value_a_constant(v)
             return v
         elseif is_defined_name_value_a_reference(v)
-            return getdata(wb, v)
+            return getdata(ws.package, v)
         else
             error("Unexpected defined name value: $v.")
         end

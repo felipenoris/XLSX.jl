@@ -397,6 +397,11 @@ XLSX.getcellrange(sheet1, "B2:C3")
 XLSX.getcellrange(f, "Sheet1!B2:C3")
 @test_throws ErrorException XLSX.getcellrange(f, "B2:C3")
 
+# a cell can be put in a dict
+c = XLSX.getcell(sheet1, "B2")
+dct = Dict("a" => c)
+@test dct["a"] == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+
 sheet2 = f[2]
 sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 @test sheet2_data == sheet2["A1:C3"]
@@ -442,6 +447,7 @@ sheet = f["general"]
 @test f["named_ranges"]["LOCAL_INT"] == 1000
 @test f["named_ranges"]["LOCAL_NAME"] == "Hey You"
 @test f["named_ranges_2"]["LOCAL_NAME"] == "out there in the cold"
+@test f["named_ranges"]["SINGLE_CELL"] == "single cell A2"
 
 @test_throws ErrorException f["header_error"]["LOCAL_REF"]
 @test f["named_ranges"]["LOCAL_REF"][1] == 10
