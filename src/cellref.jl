@@ -1,12 +1,8 @@
 
 function CellRef(n::AbstractString)
     @assert is_valid_cellname(n) "$n is not a valid CellRef."
-
-    m_row = match(r"[0-9]+$", n)
-    row_number = parse(Int, m_row.match)
-    m_column_name = match(r"^[A-X]?[A-Z]?[A-Z]", n)
-
-    return CellRef(n, row_number, decode_column_number(m_column_name.match))
+    column_name, row_number = split_cellname(n)
+    return CellRef(n, row_number, decode_column_number(column_name))
 end
 
 CellRef(row::Int, col::Int) = CellRef(encode_column_number(col) * string(row))
@@ -97,6 +93,25 @@ function is_valid_column_name(n::AbstractString) :: Bool
     return true
 end
 
+const RGX_CELLNAME_LEFT = r"^[A-Z]+"
+const RGX_CELLNAME_RIGHT = r"[0-9]+$"
+
+"""
+Returns tuple (column_name, row_number).
+"""
+@inline function split_cellname(n::AbstractString)
+    for (i, c) in enumerate(n)
+        if isdigit(c)
+            column_name = SubString(n, 1, i-1)
+            row = parse(Int, SubString(n, i, length(n)))
+
+            return column_name, row
+        end
+    end
+
+    error("Couldn't split (column_name, row) for cellname $n.")
+end
+
 # Cellname is bounded by A1 : XFD1048576
 function is_valid_cellname(n::AbstractString) :: Bool
 
@@ -104,34 +119,42 @@ function is_valid_cellname(n::AbstractString) :: Bool
         return false
     end
 
-    m_row = match(r"[0-9]+$", n)
-    row = parse(Int, m_row.match)
+    column_name, row = split_cellname(n)
 
     if row < 1 || row > 1048576
         return false
     end
 
-    m_column = match(r"^[A-Z]+", n)
-    if !is_valid_column_name(m_column.match)
+    if !is_valid_column_name(column_name)
         return false
     end
 
     return true
 end
 
+const RGX_CELLRANGE_START = r"^[A-Z]+[0-9]+"
+const RGX_CELLRANGE_STOP = r"[A-Z]+[0-9]+$"
+
+"""
+Returns tuple (start_name, stop_name).
+"""
+@inline function split_cellrange(n::AbstractString)
+    s = split(n, ":")
+    return s[1], s[2]
+end
+
 function is_valid_cellrange(n::AbstractString) :: Bool
+
     if !ismatch(RGX_CELLRANGE, n)
         return false
     end
-    
-    m_start = match(r"^[A-Z]+[0-9]+", n)
-    start_name = m_start.match
+
+    start_name, stop_name = split_cellrange(n)
+
     if !is_valid_cellname(start_name)
         return false
     end
 
-    m_stop = match(r"[A-Z]+[0-9]+$", n)
-    stop_name = m_stop.match
     if !is_valid_cellname(stop_name)
         return false
     end
@@ -145,14 +168,8 @@ end
 
 function CellRange(r::AbstractString)
     @assert ismatch(RGX_CELLRANGE, r) "Invalid cell range: $r."
-    
-    m_start = match(r"^[A-Z]+[0-9]+", r)
-    start_name = CellRef(m_start.match)
-
-    m_stop = match(r"[A-Z]+[0-9]+$", r)
-    stop_name = CellRef(m_stop.match)
-
-    return CellRange(start_name, stop_name)
+    start_name, stop_name = split_cellrange(r)
+    return CellRange(CellRef(start_name), CellRef(stop_name))
 end
 
 Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
@@ -262,20 +279,25 @@ end
 @inline relative_column_position(ref::CellRef, rng::ColumnRange) = relative_column_position(column_number(ref), rng)
 
 const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+const RGX_COLUMN_RANGE_START = r"^[A-Z]+"
+const RGX_COLUMN_RANGE_STOP = r"[A-Z]+$"
+
+"""
+Returns tuple (column_name_start, column_name_stop).
+"""
+@inline function split_column_range(n::AbstractString)
+    s = split(n, ":")
+    return s[1], s[2]
+end
 
 function is_valid_column_range(r::AbstractString) :: Bool
     if !ismatch(RGX_COLUMN_RANGE, r)
         return false
     end
 
-    start_name = match(r"^[A-Z]+", r).match
-    stop_name = match(r"[A-Z]+$", r).match
+    start_name, stop_name = split_column_range(r)
 
-    if !is_valid_column_name(start_name)
-        return false
-    end
-
-    if !is_valid_column_name(stop_name)
+    if !is_valid_column_name(start_name) || !is_valid_column_name(stop_name)
         return false
     end
 
@@ -284,10 +306,7 @@ end
 
 function ColumnRange(r::AbstractString)
     @assert is_valid_column_range(r) "Invalid column range: $r."
-
-    start_name = match(r"^[A-Z]+", r).match
-    stop_name = match(r"[A-Z]+$", r).match
-
+    start_name, stop_name = split_column_range(r)
     return ColumnRange(decode_column_number(start_name), decode_column_number(stop_name))
 end
 
@@ -353,12 +372,16 @@ const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE = r"^.+![A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE = r"^.+![A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 
+const RGX_SHEET_CELLNAME_RIGHT = r"[A-Z]+[0-9]+$"
+const RGX_SHEET_CELLRANGE_RIGHT = r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
+const RGX_SHEET_COLUMN_RANGE_RIGHT = r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+
 function is_valid_sheet_cellname(n::AbstractString) :: Bool
     if !ismatch(RGX_SHEET_CELLNAME, n)
         return false
     end
 
-    cellname = match(r"[A-Z]+[0-9]+$", n).match
+    cellname = match(RGX_SHEET_CELLNAME_RIGHT, n).match
     if !is_valid_cellname(cellname)
         return false
     end
@@ -371,7 +394,7 @@ function is_valid_sheet_cellrange(n::AbstractString) :: Bool
         return false
     end
 
-    cellrange = match(r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$", n).match
+    cellrange = match(RGX_SHEET_CELLRANGE_RIGHT, n).match
     if !is_valid_cellrange(cellrange)
         return false
     end
@@ -384,7 +407,7 @@ function is_valid_sheet_column_range(n::AbstractString) :: Bool
         return false
     end
 
-    column_range = match(r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$", n).match
+    column_range = match(RGX_SHEET_COLUMN_RANGE_RIGHT, n).match
     if !is_valid_column_range(column_range)
         return false
     end
@@ -392,40 +415,41 @@ function is_valid_sheet_column_range(n::AbstractString) :: Bool
     return true
 end
 
+const RGX_CELLNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+$"
+const RGX_SHEET_CELNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
+
 function SheetCellRef(n::AbstractString)
     if is_valid_fixed_sheet_cellname(n)
-        fixed_cellname = match(r"\$[A-Z]+\$[0-9]+$", n).match
+        fixed_cellname = match(RGX_CELLNAME_RIGHT_FIXED, n).match
         cellname = replace(fixed_cellname, "\$", "")
-        sheetname = n[1:(length(n) - length(fixed_cellname) - 1)]
+        sheetname = SubString(n, 1, length(n) - length(fixed_cellname) - 1)
         return SheetCellRef(sheetname, CellRef(cellname))
     else
         @assert is_valid_sheet_cellname(n) "$n is not a valid SheetCellRef."
-        cellname = match(r"[A-Z]+[0-9]+$", n).match
-        sheetname = n[1:(length(n) - length(cellname) - 1)]
+        cellname = match(RGX_SHEET_CELLNAME_RIGHT, n).match
+        sheetname = SubString(n, 1, length(n) - length(cellname) - 1)
         return SheetCellRef(sheetname, CellRef(cellname))
     end
 end
 
 function SheetCellRange(n::AbstractString)
     if is_valid_fixed_sheet_cellrange(n)
-        fixed_cellrange = match(r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$", n).match
+        fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
         cellrange = replace(fixed_cellrange, "\$", "")
-        sheetname = n[1:(length(n) - length(fixed_cellrange) - 1)]
+        sheetname = SubString(n, 1, length(n) - length(fixed_cellrange) - 1)
         return SheetCellRange(sheetname, CellRange(cellrange))
     else
         @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
-        cellrange = match(r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$", n).match
-        sheetname = n[1:(length(n) - length(cellrange) - 1)]
+        cellrange = match(RGX_SHEET_CELLRANGE_RIGHT, n).match
+        sheetname = SubString(n, 1, length(n) - length(cellrange) - 1)
         return SheetCellRange(sheetname, CellRange(cellrange))
     end
 end
 
 function SheetColumnRange(n::AbstractString)
     @assert is_valid_sheet_column_range(n) "$n is not a valid SheetColumnRange."
-
-    column_range = match(r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$", n).match
-    sheetname = n[1:(length(n) - length(column_range) - 1)]
-
+    column_range = match(RGX_SHEET_COLUMN_RANGE_RIGHT, n).match
+    sheetname = SubString(n, 1, length(n) - length(column_range) - 1)
     return SheetColumnRange(sheetname, ColumnRange(column_range))
 end
 
