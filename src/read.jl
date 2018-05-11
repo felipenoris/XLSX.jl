@@ -22,38 +22,7 @@ and return a closed XLSXFile.
 
 Consider using `openxlsx` for lazy loading of Excel file contents.
 """
-function readxlsx(filepath::AbstractString) :: XLSXFile
-
-    xf = XLSXFile(filepath)
-
-    try
-        for f in xf.io.files
-
-            # parse only XML files
-            if !ismatch(r".xml", f.name) && !ismatch(r".rels", f.name)
-                #warn("Ignoring non-XML file $(f.name).") # debug
-                continue
-            end
-
-            # ignore xl/calcChain.xml for now
-            if f.name == "xl/calcChain.xml"
-                continue
-            end
-
-            internal_file_add!(xf, f.name)
-            internal_file_read(xf, f.name)
-        end
-
-        check_minimum_requirements(xf)
-        parse_relationships!(xf)
-        parse_workbook!(xf)
-
-    finally
-        close(xf)
-    end
-
-    return xf
-end
+readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true)
 
 """
     openxlsx(filepath) :: XLSXFile
@@ -63,24 +32,40 @@ XML data will be fetched from disk as needed.
 
 See also `readxlsx` method.
 """
-function openxlsx(filepath::AbstractString) :: XLSXFile
+openxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, false)
 
+function open_or_read_xlsx(filepath::AbstractString, read_files::Bool) :: XLSXFile
     xf = XLSXFile(filepath)
 
-    for f in xf.io.files
+    try
+        for f in xf.io.files
+            internal_file_add!(xf, f.name)
 
-        # parse only XML files
-        if !ismatch(r".xml", f.name) && !ismatch(r".rels", f.name)
-            #warn("Ignoring non-XML file $(f.name).") # debug
-            continue
+            if read_files
+                # parse only XML files
+                if !ismatch(r".xml", f.name) && !ismatch(r".rels", f.name)
+                    #warn("Ignoring non-XML file $(f.name).") # debug
+                    continue
+                end
+
+                # ignore xl/calcChain.xml for now
+                if f.name == "xl/calcChain.xml"
+                    continue
+                end
+
+                internal_file_read(xf, f.name)
+            end
         end
 
-        internal_file_add!(xf, f.name)
-    end
+        check_minimum_requirements(xf)
+        parse_relationships!(xf)
+        parse_workbook!(xf)
 
-    check_minimum_requirements(xf)
-    parse_relationships!(xf)
-    parse_workbook!(xf)
+    finally
+        if read_files
+            close(xf)
+        end
+    end
 
     return xf
 end
@@ -251,8 +236,6 @@ function tryparse(t::Type, s::String)
         return false
     end
 end
-
-#EzXML.Document
 
 # Lazy loading of XML files
 
