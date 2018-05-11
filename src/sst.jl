@@ -6,7 +6,7 @@ function sst_load!(workbook::Workbook)
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            sst_root = xmlroot(workbook.package, "xl/" * get_relationship_target_by_type(workbook, relationship_type))
+            sst_root = xmlroot(get_xlsxfile(workbook), "xl/" * get_relationship_target_by_type(workbook, relationship_type))
 
             @assert EzXML.nodename(sst_root) == "sst"
 
@@ -59,6 +59,6 @@ Looks for a string inside the Shared Strings Table (sst).
     return wb.sst.unformatted_strings[index+1]
 end
 
-@inline sst_unformatted_string(xl::XLSXFile, index::Int) :: String = sst_unformatted_string(xl.workbook, index)
-@inline sst_unformatted_string(ws::Worksheet, index::Int) :: String = sst_unformatted_string(ws.package, index)
-sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) :: String = sst_unformatted_string(target, parse(Int, index_str))
+@inline sst_unformatted_string(xl::XLSXFile, index::Int) :: String = sst_unformatted_string(get_workbook(xl), index)
+@inline sst_unformatted_string(ws::Worksheet, index::Int) :: String = sst_unformatted_string(get_xlsxfile(ws), index)
+@inline sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) :: String = sst_unformatted_string(target, parse(Int, index_str))

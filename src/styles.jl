@@ -14,6 +14,26 @@
 
 const STYLES_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]
 
+# get styles document for workbook
+function styles_xmlroot(workbook::Workbook)
+    if isnull(workbook.styles_xroot)
+        STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+        if has_relationship_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
+            styles_target = get_relationship_target_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
+            styles_root = xmlroot(get_xlsxfile(workbook), "xl/" * styles_target)
+
+            # check root node name for styles.xml
+            @assert get_default_namespace(styles_root) == STYLES_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
+            @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
+            workbook.styles_xroot = Nullable(styles_root)
+        else
+            error("Styles not found for this workbook.")
+        end
+    end
+
+    return get(workbook.styles_xroot)
+end
+
 """
 Returns the xf XML node element for style `index`.
 `index` is 0-based.
@@ -68,7 +88,7 @@ function styles_is_datetime(wb::Workbook, index::AbstractString)
     styles_is_datetime(wb, parse(Int, index))
 end
 
-styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(ws.package.workbook, index)
+styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(get_workbook(ws), index)
 
 function styles_is_float(wb::Workbook, index::Int) :: Bool
     if !haskey(wb.buffer_styles_is_float, index)
@@ -96,4 +116,4 @@ function styles_is_float(wb::Workbook, index::AbstractString)
     styles_is_float(wb, parse(Int, index))
 end
 
-styles_is_float(ws::Worksheet, index) = styles_is_float(ws.package.workbook, index)
+styles_is_float(ws::Worksheet, index) = styles_is_float(get_workbook(ws), index)

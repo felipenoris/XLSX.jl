@@ -8,7 +8,7 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     return Worksheet(xf, sheetId, relationship_id, name)
 end
 
-isdate1904(ws::Worksheet) = isdate1904(ws.package)
+@inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
 
 """
 Retuns the dimension of this worksheet as a CellRange.
@@ -123,13 +123,13 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         else
             error("Unexpected defined name value: $v.")
         end
-    elseif is_workbook_defined_name(ws.package.workbook, ref)
-        wb = ws.package.workbook
+    elseif is_workbook_defined_name(get_workbook(ws), ref)
+        wb = get_workbook(ws)
         v = get_defined_name_value(wb, ref)
         if is_defined_name_value_a_constant(v)
             return v
         elseif is_defined_name_value_a_reference(v)
-            return getdata(ws.package, v)
+            return getdata(get_xlsxfile(ws), v)
         else
             error("Unexpected defined name value: $v.")
         end
@@ -138,7 +138,7 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     end
 end
 
-getdata(ws::Worksheet, rng::SheetCellRange) = getdata(ws.package, rng)
+getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
 getdata(ws::Worksheet) = getdata(ws, dimension(ws))
 
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)

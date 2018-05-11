@@ -1,5 +1,5 @@
 
-EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}())
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), Nullable{EzXML.Node}())
 
 """
 Lists Worksheet names for this Workbook.
@@ -30,7 +30,7 @@ Counts the number of sheets in the Workbook.
 Returns true if workbook follows date1904 convention.
 """
 @inline isdate1904(wb::Workbook) :: Bool = wb.date1904
-@inline isdate1904(xf::XLSXFile) :: Bool = isdate1904(xf.workbook)
+@inline isdate1904(xf::XLSXFile) :: Bool = isdate1904(get_workbook(xf))
 
 function getsheet(wb::Workbook, sheetname::String) :: Worksheet
     for ws in wb.sheets
@@ -38,7 +38,7 @@ function getsheet(wb::Workbook, sheetname::String) :: Worksheet
             return ws
         end
     end
-    error("$(wb.package.filepath) does not have a Worksheet named $sheetname.")
+    error("$(get_xlsxfile(wb).filepath) does not have a Worksheet named $sheetname.")
 end
 
 @inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]
@@ -121,15 +121,15 @@ function getcellrange(xl::XLSXFile, rng_str::AbstractString)
 end
 
 @inline is_workbook_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.workbook_names, name)
-@inline is_workbook_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_workbook_defined_name(xl.workbook, name)
-@inline is_worksheet_defined_name(ws::Worksheet, name::AbstractString) :: Bool = is_worksheet_defined_name(ws.package.workbook, ws.sheetId, name)
+@inline is_workbook_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_workbook_defined_name(get_workbook(xl), name)
+@inline is_worksheet_defined_name(ws::Worksheet, name::AbstractString) :: Bool = is_worksheet_defined_name(get_workbook(ws), ws.sheetId, name)
 @inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString) :: Bool = haskey(wb.worksheet_names, (sheetId, name))
 @inline is_worksheet_defined_name(wb::Workbook, sheet_name::AbstractString, name::AbstractString) :: Bool = is_worksheet_defined_name(wb, getsheet(wb, sheet_name).sheetId, name)
 
 @inline get_defined_name_value(wb::Workbook, name::AbstractString) :: DefinedNameValueTypes = wb.workbook_names[name]
 
 function get_defined_name_value(ws::Worksheet, name::AbstractString) :: DefinedNameValueTypes
-    wb = ws.package.workbook
+    wb = get_workbook(ws)
     sheetId = ws.sheetId
     return wb.worksheet_names[(sheetId, name)]
 end

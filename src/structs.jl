@@ -149,6 +149,7 @@ mutable struct Workbook
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
     workbook_names::Dict{String, DefinedNameValueTypes} # definedName
     worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
+    styles_xroot::Nullable{EzXML.Node}
 end
 
 """

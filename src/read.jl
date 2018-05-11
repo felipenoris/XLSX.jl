@@ -7,11 +7,15 @@ Creates an empty instance of XLSXFile.
 function XLSXFile(filepath::AbstractString)
     @assert isfile(filepath) "File $filepath not found."
     io = ZipFile.Reader(filepath)
-
     xl = XLSXFile(filepath, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
     xl.workbook.package = xl
     return xl
 end
+
+@inline get_xlsxfile(wb::Workbook) :: XLSXFile = wb.package
+@inline get_xlsxfile(ws::Worksheet) :: XLSXFile = ws.package
+@inline get_workbook(ws::Worksheet) :: Workbook = get_xlsxfile(ws).workbook
+@inline get_workbook(xl::XLSXFile) :: Workbook = xl.workbook
 
 """
     readxlsx(filepath) :: XLSXFile
@@ -22,7 +26,7 @@ and return a closed XLSXFile.
 
 Consider using `openxlsx` for lazy loading of Excel file contents.
 """
-readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true)
+@inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true)
 
 """
     openxlsx(filepath) :: XLSXFile
@@ -32,7 +36,7 @@ XML data will be fetched from disk as needed.
 
 See also `readxlsx` method.
 """
-openxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, false)
+@inline openxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, false)
 
 function open_or_read_xlsx(filepath::AbstractString, read_files::Bool) :: XLSXFile
     xf = XLSXFile(filepath)
@@ -114,9 +118,9 @@ function parse_relationships!(xf::XLSXFile)
     @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
 
     for el in EzXML.eachelement(xroot)
-        push!(xf.workbook.relationships, Relationship(el))
+        push!(get_workbook(xf).relationships, Relationship(el))
     end
-    @assert !isempty(xf.workbook.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
+    @assert !isempty(get_workbook(xf).relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
 
     nothing
 end
@@ -131,7 +135,7 @@ function parse_workbook!(xf::XLSXFile)
     @assert EzXML.nodename(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(EzXML.nodename(xroot))'."
 
     # workbook to be parsed
-    workbook = xf.workbook
+    workbook = get_workbook(xf)
 
     # workbookPr
     local foundworkbookPr::Bool = false
@@ -247,8 +251,8 @@ Lists internal files from the XLSX package.
 """
 Returns true if the file data was read into xl.data.
 """
-internal_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
-internal_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
+@inline internal_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
+@inline internal_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
 
 function internal_file_add!(xl::XLSXFile, filename::String)
     xl.files[filename] = false
@@ -303,30 +307,13 @@ Returns EzXML.root(xl.data[filename]) if it exists.
 @inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
 
 @inline function xmldocument(ws::Worksheet)
-    wb = ws.package.workbook
+    wb = get_workbook(ws)
     target_file = "xl/" * get_relationship_target_by_id(wb, ws.relationship_id)
-    return xmldocument(ws.package, target_file)
+    return xmldocument(get_xlsxfile(ws), target_file)
 end
 
 @inline function xmlroot(ws::Worksheet)
     xroot = EzXML.root(xmldocument(ws))
     @assert EzXML.nodename(xroot) == "worksheet" "Malformed sheet $(ws.name)."
     return xroot
-end
-
-# get styles document for workbook
-function styles_xmlroot(workbook::Workbook)
-    # styles
-    STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
-    if has_relationship_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
-        styles_target = get_relationship_target_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
-        styles_root = xmlroot(workbook.package, "xl/" * styles_target)
-
-        # check root node name for styles.xml
-        @assert get_default_namespace(styles_root) == STYLES_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
-        @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
-        return styles_root
-    end
-
-    error("Styles not found for this workbook.")
 end
