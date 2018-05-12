@@ -73,8 +73,10 @@ function Cell(c::EzXML.Node)
     return Cell(ref, t, s, v, f)
 end
 
-celldata(ws::Worksheet, empty::EmptyCell) = Missings.missing
-getdata(ws::Worksheet, cell::AbstractCell) = celldata(ws, cell)
+@inline celldata(ws::Worksheet, empty::EmptyCell) = Missings.missing
+@inline getdata(ws::Worksheet, cell::AbstractCell) = celldata(ws, cell)
+
+const RGX_ONLY_NUMBERS = r"^[0-9]+$"
 
 """
     celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
@@ -128,7 +130,7 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
 
         else
             # fallback to unformatted number
-            if ismatch(r"^[0-9]+$", cell.value)  # if contains only numbers
+            if ismatch(RGX_ONLY_NUMBERS, cell.value)  # if contains only numbers
                 v_num = parse(Int64, cell.value)
             else
                 v_num = parse(Float64, cell.value)
