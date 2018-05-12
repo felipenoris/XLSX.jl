@@ -11,8 +11,9 @@ end
 
 include("structs.jl")
 include("cellref.jl")
-include("iterator.jl")
 include("sst.jl")
+include("stream.jl")
+include("table.jl")
 include("relationship.jl")
 include("read.jl")
 include("workbook.jl")

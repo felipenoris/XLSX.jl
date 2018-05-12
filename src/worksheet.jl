@@ -14,20 +14,9 @@ end
 Retuns the dimension of this worksheet as a CellRange.
 """
 function dimension(ws::Worksheet) :: CellRange
-    xroot = xmlroot(ws)
-
-    for dimension_element in EzXML.eachelement(xroot)
-        if EzXML.nodename(dimension_element) == "dimension"
-            ref_str = dimension_element["ref"]
-            if is_valid_cellname(ref_str)
-                return CellRange("$(ref_str):$(ref_str)")
-            else
-                return CellRange(ref_str)
-            end
-        end
-    end
-
-    error("Malformed Worksheet $(ws.name): dimension not found.")
+    # TODO : review this assertion in context with ws[:]
+    @assert !isnull(ws.cache.dimension) "Open worksheet $(ws.name) stream before reading it's dimension: `XLSX.open_worksheet_stream!(worksheet)`."
+    return get(ws.cache.dimension)
 end
 
 """
@@ -76,6 +65,11 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
                     result[r, c] = celldata(ws, cell)
                 end
             end
+        end
+
+        # don't need to read new rows
+        if sheetrow.row > bottom
+            break
         end
     end
 
@@ -144,7 +138,7 @@ getdata(ws::Worksheet) = getdata(ws, dimension(ws))
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
-Base.show(io::IO, ws::Worksheet) = print(io, "XLSX.Worksheet: \"$(ws.name)\". Dimension: $(dimension(ws)).")
+Base.show(io::IO, ws::Worksheet) = print(io, "XLSX.Worksheet: \"$(ws.name)\"")
 
 """
     getcell(sheet, ref)
@@ -217,6 +211,11 @@ function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
                     result[r, c] = cell
                 end
             end
+        end
+
+        # don't need to read new rows
+        if sheetrow.row > bottom
+            break
         end
     end
 
