@@ -1,17 +1,4 @@
 
-"""
-    XLSXFile(filepath)
-
-Creates an empty instance of XLSXFile.
-"""
-function XLSXFile(filepath::AbstractString)
-    @assert isfile(filepath) "File $filepath not found."
-    io = ZipFile.Reader(filepath)
-    xl = XLSXFile(filepath, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
-    xl.workbook.package = xl
-    return xl
-end
-
 @inline get_xlsxfile(wb::Workbook) :: XLSXFile = wb.package
 @inline get_xlsxfile(ws::Worksheet) :: XLSXFile = ws.package
 @inline get_workbook(ws::Worksheet) :: Workbook = get_xlsxfile(ws).workbook
@@ -47,13 +34,20 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool) :: XLSXFi
 
             if read_files
                 # parse only XML files
-                if !ismatch(r".xml", f.name) && !ismatch(r".rels", f.name)
+                if !endswith(f.name, ".xml") && !endswith(f.name, ".rels")
                     #warn("Ignoring non-XML file $(f.name).") # debug
                     continue
                 end
 
                 # ignore xl/calcChain.xml for now
                 if f.name == "xl/calcChain.xml"
+                    #warn("Ignoring calculation chain file: $(f.name).")
+                    continue
+                end
+
+                # ignore worksheet files because they'll be read thru streaming
+                if startswith(f.name, "xl/worksheets") && endswith(f.name, ".xml")
+                    #info("ignoring worksheet file $(f.name). It will be read thru streaming.")
                     continue
                 end
 
@@ -64,6 +58,18 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool) :: XLSXFi
         check_minimum_requirements(xf)
         parse_relationships!(xf)
         parse_workbook!(xf)
+
+        # read data from Worksheet streams
+        if read_files
+            for sheet_name in sheetnames(xf)
+                sheet = getsheet(xf, sheet_name)
+
+                # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
+                for r in eachrow(sheet)
+                    nothing
+                end
+            end
+        end
 
     finally
         if read_files
@@ -286,6 +292,11 @@ end
 function Base.close(xl::XLSXFile)
     xl.io_is_open = false
     close(xl.io)
+
+    # close all internal file streams from worksheet caches
+    for sheet in xl.workbook.sheets
+        close(sheet.cache.internal_file_stream)
+    end
 end
 
 Base.isopen(xl::XLSXFile) = xl.io_is_open
@@ -305,15 +316,3 @@ Utility method to return the root element of a given XMLDocument from the packag
 Returns EzXML.root(xl.data[filename]) if it exists.
 """
 @inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
-
-@inline function xmldocument(ws::Worksheet)
-    wb = get_workbook(ws)
-    target_file = "xl/" * get_relationship_target_by_id(wb, ws.relationship_id)
-    return xmldocument(get_xlsxfile(ws), target_file)
-end
-
-@inline function xmlroot(ws::Worksheet)
-    xroot = EzXML.root(xmldocument(ws))
-    @assert EzXML.nodename(xroot) == "worksheet" "Malformed sheet $(ws.name)."
-    return xroot
-end

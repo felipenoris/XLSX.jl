@@ -119,11 +119,40 @@ struct Relationship
     Target::String
 end
 
+mutable struct InternalFileStream
+    io::Nullable{ZipFile.Reader}
+    stream_reader::Nullable{EzXML.StreamReader}
+
+    function InternalFileStream()
+        i = new(Nullable{ZipFile.Reader}(), Nullable{EzXML.StreamReader}())
+        finalizer(i, close)
+        return i
+    end
+end
+
+const CellCache = Dict{Int, Dict{Int, Cell}} # row -> ( column -> cell )
+
+mutable struct WorksheetCache
+    dimension::Nullable{CellRange}
+    cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
+    rows_in_cache::Vector{Int}
+    row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
+    done_reading::Bool # true when internal_file_stream was read entirely
+    internal_file_stream::InternalFileStream
+
+    WorksheetCache() = new(Nullable{CellRange}(), CellCache(), Vector{Int}(), Dict{Int, Int}(), false, InternalFileStream())
+end
+
 mutable struct Worksheet
     package::MSOfficePackage # parent XLSXFile
     sheetId::Int
     relationship_id::String # r:id="rId1"
     name::String
+    cache::WorksheetCache
+
+    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String)
+        new(package, sheetId, relationship_id, name, WorksheetCache())
+    end
 end
 
 """
@@ -167,6 +196,15 @@ mutable struct XLSXFile <: MSOfficePackage
     data::Dict{String, EzXML.Document} # maps filename => XMLDocument
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
+
+    function XLSXFile(filepath::AbstractString)
+        @assert isfile(filepath) "File $filepath not found."
+        io = ZipFile.Reader(filepath)
+        xl = new(filepath, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
+        xl.workbook.package = xl
+        finalizer(xl, close)
+        return xl
+    end
 end
 
 # Iterators
@@ -178,15 +216,12 @@ Iterates over Worksheet cells. See `eachrow` method docs.
 """
 struct SheetRowIterator
     sheet::Worksheet
-    xml_rows_iterator::EzXML.ChildElementIterator
 end
 
 mutable struct SheetRow
     sheet::Worksheet
     row::Int
-    row_xml_element::EzXML.Node
     rowcells::Dict{Int, Cell} # column -> value
-    is_rowcells_populated::Bool # indicates wether row_xml_element has been decoded into rowcells
 end
 
 mutable struct Index # based on DataFrames.jl
