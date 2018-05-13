@@ -322,11 +322,6 @@ Base.done(itr::ColumnRange, column_index::Int) = column_index > itr.stop
 Base.next(itr::ColumnRange, column_index::Int) = (encode_column_number(column_index), column_index + 1)
 
 # CellRange iterator
-struct CellRefIteratorState
-    row::Int
-    col::Int
-end
-
 Base.start(rng::CellRange) = CellRefIteratorState(row_number(rng.start), column_number(rng.start))
 Base.done(rng::CellRange, state::CellRefIteratorState) = state.row > row_number(rng.stop)
 

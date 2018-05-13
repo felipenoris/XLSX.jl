@@ -266,3 +266,8 @@ struct TableRowIteratorState
     last_sheet_row_number::Int
     is_done::Bool
 end
+
+struct CellRefIteratorState
+    row::Int
+    col::Int
+end
