@@ -93,17 +93,19 @@ Detects a closing sheetData element
 """
 is_end_of_sheet_data(r::EzXML.StreamReader) = EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && EzXML.nodename(r) == "sheetData"
 
-# Add cell to cache
-function Base.push!(wc::WorksheetCache, cell::Cell)
-    r, c = row_number(cell), column_number(cell)
-
-    if !haskey(wc.cells, r)
+function push_row!(wc::WorksheetCache, row::Int)
+    if !haskey(wc.cells, row)
         # add new row to the cache
-        wc.cells[r] = Dict{Int, Cell}()
-        push!(wc.rows_in_cache, r)
-        wc.row_index[r] = length(wc.rows_in_cache)
+        wc.cells[row] = Dict{Int, Cell}()
+        push!(wc.rows_in_cache, row)
+        wc.row_index[row] = length(wc.rows_in_cache)
     end
+    nothing
+end
 
+# Add cell to cache
+function push_cell!(wc::WorksheetCache, cell::Cell)
+    r, c = row_number(cell), column_number(cell)
     wc.cells[r][c] = cell
     nothing
 end
@@ -158,6 +160,7 @@ function Base.next(itr::SheetRowIterator, row_from_last_iteration::Int)
         reader = get_stream_reader(worksheet(itr))
         @assert EzXML.nodename(reader) == "row"
         current_row = parse(Int, reader["r"])
+        push_row!(ws_cache, current_row)
 
         # iterate thru row cells
         while !done(reader)
@@ -178,7 +181,10 @@ function Base.next(itr::SheetRowIterator, row_from_last_iteration::Int)
                 cell = Cell( EzXML.expandtree(reader) )
 
                 # let's put this cell in the cache
-                push!(ws_cache, cell)
+                push_cell!(ws_cache, cell)
+            elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
+                # last row has no child elements, so we're already pointing to the next row
+                break
             end
         end
     end
