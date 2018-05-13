@@ -127,7 +127,7 @@ function Base.done(itr::SheetRowIterator, row_from_last_iteration::Int)
     ws_cache = worksheet(itr).cache
 
     if ws_cache.done_reading
-        # if cache is done reading from stream, we're done if the sheetData is empty, or if there's no more rows in cache
+        # if cache is done reading from stream, we're done if the sheetData is empty, or if there are no more rows in cache
         if row_from_last_iteration == 0 && isempty(ws_cache.rows_in_cache)
             # sheetData is empty (no rows in worksheet)
             return true
@@ -179,6 +179,7 @@ function Base.next(itr::SheetRowIterator, row_from_last_iteration::Int)
                 break
             elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "c"
                 cell = Cell( EzXML.expandtree(reader) )
+                @assert row_number(cell) == current_row "Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
 
                 # let's put this cell in the cache
                 push_cell!(ws_cache, cell)
