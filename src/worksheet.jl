@@ -46,7 +46,7 @@ julia> v = sheet["A1:B4"]
 julia> close(f)
 ```
 """
-getdata(ws::Worksheet, single::CellRef) = celldata(ws, getcell(ws, single))
+getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     result = Array{Any, 2}(size(rng))
@@ -63,7 +63,7 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
                 cell = getcell(sheetrow, column)
                 if !isempty(cell)
                     (r, c) = relative_cell_position(cell, rng)
-                    result[r, c] = celldata(ws, cell)
+                    result[r, c] = getdata(ws, cell)
                 end
             end
         end
@@ -90,7 +90,7 @@ function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
         for column in left:right
             cell = getcell(sheetrow, column)
             c = relative_column_position(cell, rng) # r will be ignored
-            push!(columns[c], celldata(ws, cell))
+            push!(columns[c], getdata(ws, cell))
         end
     end
 

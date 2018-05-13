@@ -73,13 +73,12 @@ function Cell(c::EzXML.Node)
     return Cell(ref, t, s, v, f)
 end
 
-@inline celldata(ws::Worksheet, empty::EmptyCell) = Missings.missing
-@inline getdata(ws::Worksheet, cell::AbstractCell) = celldata(ws, cell)
+@inline getdata(ws::Worksheet, empty::EmptyCell) = Missings.missing
 
 const RGX_ONLY_NUMBERS = r"^[0-9]+$"
 
 """
-    celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+    getdata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 Returns a Julia representation of a given cell value.
 The result data type is chosen based on the value of the cell as well as its style.
@@ -93,7 +92,7 @@ as an integer inside the spreadsheet XML.
 
 If `cell` has empty value or empty `String`, this function will return `Missings.missing`.
 """
-function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+function getdata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
     if iserror(cell)
         return Missings.missing
@@ -155,7 +154,7 @@ function celldata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, 
         end
     end
 
-    error("Couldn't parse celldata for $cell.")
+    error("Couldn't parse data for $cell.")
 end
 
 

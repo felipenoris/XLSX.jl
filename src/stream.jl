@@ -216,8 +216,7 @@ function getcell(r::SheetRow, column_name::AbstractString)
     return getcell(r, decode_column_number(column_name))
 end
 
-getdata(r::SheetRow, column) = celldata(worksheet(r), getcell(r, column))
-
+getdata(r::SheetRow, column) = getdata(worksheet(r), getcell(r, column))
 Base.getindex(r::SheetRow, x) = getdata(r, x)
 
 """

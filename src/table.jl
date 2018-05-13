@@ -104,12 +104,12 @@ function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractStr
 
     if isempty(column_labels)
         if header
-            # will use celldata to get column names
+            # will use getdata to get column names
             for column_index in column_range.start:column_range.stop
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
                 @assert !isempty(cell) "Header cell can't be empty."
-                push!(column_labels, Symbol(celldata(sheet, cell)))
+                push!(column_labels, Symbol(getdata(sheet, cell)))
             end
         else
             # generate column_labels if there's no header information anywhere
@@ -226,7 +226,7 @@ function getcell(r::TableRow, table_column_number::Int)
     return getcell(sheet_row, sheet_column)
 end
 
-getdata(r::TableRow, table_column_number::Int) = celldata(worksheet(r), getcell(r, table_column_number))
+getdata(r::TableRow, table_column_number::Int) = getdata(worksheet(r), getcell(r, table_column_number))
 
 function getdata(r::TableRow, column_label::Symbol)
     index = r.itr.index
@@ -294,7 +294,7 @@ function Base.done(itr::TableRowIterator, state::TableRowIteratorState)
 
     # check if there are any data inside column range
     for c in sheet_column_numbers(itr.index)
-        if !Missings.ismissing(celldata(worksheet(itr), getcell(state.sheet_row, c)))
+        if !Missings.ismissing(getdata(worksheet(itr), getcell(state.sheet_row, c)))
             return false
         end
     end
