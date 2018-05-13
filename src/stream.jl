@@ -72,7 +72,7 @@ function open_worksheet_stream!(ws::Worksheet; force_reopen::Bool=false)
         while !EzXML.done(reader) # go next node
             if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
                 break
-            elseif is_end_of_sheet_data(reader) || EzXML.nodedepth(reader) <= 1
+            elseif is_end_of_sheet_data(reader)
                 ws.cache.done_reading = true
                 close(cache.internal_file_stream)
                 break
@@ -83,7 +83,7 @@ function open_worksheet_stream!(ws::Worksheet; force_reopen::Bool=false)
     nothing
 end
 
-function get_stream_reader(ws::Worksheet) :: EzXML.StreamReader
+@inline function get_stream_reader(ws::Worksheet) :: EzXML.StreamReader
     open_worksheet_stream!(ws)
     return get(ws.cache.internal_file_stream.stream_reader)
 end
@@ -91,9 +91,9 @@ end
 """
 Detects a closing sheetData element
 """
-is_end_of_sheet_data(r::EzXML.StreamReader) = EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && EzXML.nodename(r) == "sheetData"
+@inline is_end_of_sheet_data(r::EzXML.StreamReader) = (EzXML.nodedepth(r) <= 1) || (EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && EzXML.nodename(r) == "sheetData")
 
-function push_row!(wc::WorksheetCache, row::Int)
+@inline function push_row!(wc::WorksheetCache, row::Int)
     if !haskey(wc.cells, row)
         # add new row to the cache
         wc.cells[row] = Dict{Int, Cell}()
@@ -104,7 +104,7 @@ function push_row!(wc::WorksheetCache, row::Int)
 end
 
 # Add cell to cache
-function push_cell!(wc::WorksheetCache, cell::Cell)
+@inline function push_cell!(wc::WorksheetCache, cell::Cell)
     r, c = row_number(cell), column_number(cell)
     wc.cells[r][c] = cell
     nothing
