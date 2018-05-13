@@ -14,8 +14,9 @@ end
 Retuns the dimension of this worksheet as a CellRange.
 """
 function dimension(ws::Worksheet) :: CellRange
-    # TODO : review this assertion in context with ws[:]
-    @assert !isnull(ws.cache.dimension) "Open worksheet $(ws.name) stream before reading it's dimension: `XLSX.open_worksheet_stream!(worksheet)`."
+    if isnull(ws.cache.dimension)
+        open_worksheet_stream!(ws)
+    end
     return get(ws.cache.dimension)
 end
 

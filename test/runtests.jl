@@ -576,8 +576,13 @@ for r in XLSX.eachrow(s)
 end
 @test report == [ "2 - (2, 2)", "3 - (3, 4)", "6 - (1, 4)", "9 - (2, 5)"]
 
+f = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
+f["general"][:];
+close(f)
+
 f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
 s = f["table"]
+s[:];
 data, col_names = XLSX.gettable(s)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
