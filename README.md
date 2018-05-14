@@ -99,6 +99,42 @@ julia> df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
 │ 3   │ 3       │ "third"  │
 ```
 
+## Streaming Large Excel Files and Caching
+
+The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cells caching.
+
+Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk
+in the second time.
+
+If `enable_cache=false`, worksheet cells will always be read from disk.
+This is useful when you want to read a spreadsheet that doesn't fit into memory.
+
+The following example shows how you would read worksheet cells, one row at a time,
+where `filename.xlsx` is a spreadsheet that doesn't fit into memory.
+
+```julia
+julia> f = XLSX.openxlsx("filename.xlsx", enable_cache=false)
+
+julia> sheet = f["sheetname"]
+
+julia for r in XLSX.eachrow(sheet)
+          # r is a `SheetRow`. Values are read using column references.
+          v1 = r[1]    # will read value at column 1
+          v2 = r["B"]  # will read value at column 2
+      end
+```
+
+You could also stream tabular data using `TableRowIterator`, which is the underlying iterator in `gettable` method.
+Check docstrings for `TableRowIterator` for more advanced options.
+
+```julia
+julia> for r in XLSX.TableRowIterator(sheet)
+           # r is a `TableRow`. Values are read using column labels or numbers.
+           v1 = r[1] # will read value at table column 1
+           v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`.
+       end
+```
+
 ## References
 
 * [ECMA Open XML White Paper](https://www.ecma-international.org/news/TC45_current_work/OpenXML%20White%20Paper.pdf)

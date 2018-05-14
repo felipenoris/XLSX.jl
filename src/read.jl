@@ -13,20 +13,40 @@ and return a closed XLSXFile.
 
 Consider using `openxlsx` for lazy loading of Excel file contents.
 """
-@inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true)
+@inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true)
 
 """
-    openxlsx(filepath) :: XLSXFile
+    openxlsx(filepath; [enable_cache]) :: XLSXFile
 
 Open a XLSX file for reading. The user must close this file after using it with `close(xf)`.
 XML data will be fetched from disk as needed.
 
+If `enable_cache=true`, all read worksheet cells will be cached.
+If you read a worksheet cell twice it will use the cached value instead of reading from disk
+in the second time.
+
+If `enable_cache=false`, worksheet cells will always be read from disk.
+This is useful when you want to read a spreadsheet that doesn't fit into memory.
+
+The default value is `enable_cache=true`.
+
+The following example shows how you would read worksheet cells, one row at a time,
+where `filename.xlsx` is a spreadsheet that doesn't fit into memory.
+
+```julia
+julia> f = XLSX.openxlsx("filename.xlsx", enable_cache=false)
+
+julia for r in XLSX.eachrow(f["sheetname"])
+        # do something with r
+      end
+```
+
 See also `readxlsx` method.
 """
-@inline openxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, false)
+@inline openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile = open_or_read_xlsx(filepath, false, enable_cache)
 
-function open_or_read_xlsx(filepath::AbstractString, read_files::Bool) :: XLSXFile
-    xf = XLSXFile(filepath)
+function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_cache::Bool) :: XLSXFile
+    xf = XLSXFile(filepath, enable_cache)
 
     try
         for f in xf.io.files
@@ -295,7 +315,11 @@ function Base.close(xl::XLSXFile)
 
     # close all internal file streams from worksheet caches
     for sheet in xl.workbook.sheets
-        close(sheet.cache.internal_file_stream)
+        if !isnull(sheet.cache)
+            cache = get(sheet.cache)
+            close(cache.stream_state.xml_stream_reader)
+            close(cache.stream_state.zip_io)
+        end
     end
 end
 

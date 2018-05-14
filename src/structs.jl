@@ -119,28 +119,29 @@ struct Relationship
     Target::String
 end
 
-mutable struct InternalFileStream
-    io::Nullable{ZipFile.Reader}
-    stream_reader::Nullable{EzXML.StreamReader}
-
-    function InternalFileStream()
-        i = new(Nullable{ZipFile.Reader}(), Nullable{EzXML.StreamReader}())
-        finalizer(i, close)
-        return i
-    end
-end
-
 const CellCache = Dict{Int, Dict{Int, Cell}} # row -> ( column -> cell )
 
-mutable struct WorksheetCache
-    dimension::Nullable{CellRange}
-    cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
-    rows_in_cache::Vector{Int}
-    row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
-    done_reading::Bool # true when internal_file_stream was read entirely
-    internal_file_stream::InternalFileStream
+"""
+Iterates over Worksheet cells. See `eachrow` method docs.
+Each element is a `SheetRow`.
 
-    WorksheetCache() = new(Nullable{CellRange}(), CellCache(), Vector{Int}(), Dict{Int, Int}(), false, InternalFileStream())
+Implementations: SheetRowStreamIterator, WorksheetCache.
+"""
+abstract type SheetRowIterator end
+
+struct SheetRowStreamIteratorState
+    zip_io::ZipFile.Reader
+    xml_stream_reader::EzXML.StreamReader
+    done_reading::Bool # true when we reach the end of sheetData XML element
+    row::Int # number of current row. It´s set to 0 in the start state.
+end
+
+mutable struct WorksheetCache <: SheetRowIterator
+    cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
+    rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
+    row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
+    stream_iterator::SheetRowIterator
+    stream_state::SheetRowStreamIteratorState
 end
 
 mutable struct Worksheet
@@ -148,11 +149,16 @@ mutable struct Worksheet
     sheetId::Int
     relationship_id::String # r:id="rId1"
     name::String
-    cache::WorksheetCache
+    dimension::CellRange
+    cache::Nullable{WorksheetCache}
 
-    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String)
-        new(package, sheetId, relationship_id, name, WorksheetCache())
+    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::CellRange)
+        new(package, sheetId, relationship_id, name, dimension, Nullable{WorksheetCache}())
     end
+end
+
+struct SheetRowStreamIterator <: SheetRowIterator
+    sheet::Worksheet
 end
 
 """
@@ -190,6 +196,7 @@ end
 """
 mutable struct XLSXFile <: MSOfficePackage
     filepath::AbstractString
+    use_cache_for_sheet_data::Bool # indicates wether Worksheet.cache will be fed while reading worksheet cells.
     io::ZipFile.Reader
     io_is_open::Bool
     files::Dict{String, Bool} # maps filename => isread bool
@@ -197,28 +204,21 @@ mutable struct XLSXFile <: MSOfficePackage
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
 
-    function XLSXFile(filepath::AbstractString)
+    function XLSXFile(filepath::AbstractString, use_cache::Bool)
         @assert isfile(filepath) "File $filepath not found."
         io = ZipFile.Reader(filepath)
-        xl = new(filepath, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
+        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
         xl.workbook.package = xl
         finalizer(xl, close)
         return xl
     end
 end
 
+#
 # Iterators
+#
 
-"""
-    SheetRowIterator(sheet)
-
-Iterates over Worksheet cells. See `eachrow` method docs.
-"""
-struct SheetRowIterator
-    sheet::Worksheet
-end
-
-mutable struct SheetRow
+struct SheetRow
     sheet::Worksheet
     row::Int
     rowcells::Dict{Int, Cell} # column -> value
