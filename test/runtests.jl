@@ -856,6 +856,17 @@ header_error_sheet = f["header_error"]
 @test XLSX.SheetCellRef("named_ranges!\$A\$2") == XLSX.SheetCellRef("named_ranges!A2")
 @test XLSX.SheetCellRange("named_ranges!\$B\$4:\$C\$5") == XLSX.SheetCellRange("named_ranges!B4:C5")
 
+# Consecutive passes should yield the same results
+f = XLSX.openxlsx(joinpath(data_directory,"general.xlsx"))
+sl = f["lookup"]
+data, col_names = XLSX.gettable(sl)
+@test col_names == [:ID, :NAME, :VALUE]
+check_test_data(data, test_data)
+
+data, col_names = XLSX.gettable(sl)
+@test col_names == [:ID, :NAME, :VALUE]
+check_test_data(data, test_data)
+
 #
 # Helper functions
 #
