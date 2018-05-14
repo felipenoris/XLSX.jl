@@ -402,6 +402,10 @@ c = XLSX.getcell(sheet1, "B2")
 dct = Dict("a" => c)
 @test dct["a"] == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 
+# equality and hash
+@test XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+@test hash(dct["a"]) == hash(XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", ""))
+
 sheet2 = f[2]
 sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 @test sheet2_data == sheet2["A1:C3"]
