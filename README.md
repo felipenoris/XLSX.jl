@@ -117,12 +117,12 @@ julia> f = XLSX.openxlsx("filename.xlsx", enable_cache=false)
 
 julia> sheet = f["sheetname"]
 
-julia for r in XLSX.eachrow(sheet)
+julia> for r in XLSX.eachrow(sheet)
           # r is a `SheetRow`, values are read using column references
           rn = XLSX.row_number(r) # `SheetRow` row number
           v1 = r[1]    # will read value at column 1
           v2 = r["B"]  # will read value at column 2
-      end
+       end
 ```
 
 You could also stream tabular data using `XLSX.eachtablerow(sheet)`, which is the underlying iterator in `gettable` method.
