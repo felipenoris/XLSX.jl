@@ -55,6 +55,18 @@ Open a file for streaming.
     error("Couldn't find $filename in $(xf.filepath).")
 end
 
+@inline Base.isopen(s::SheetRowStreamIteratorState) = s.is_open
+
+@inline function Base.close(s::SheetRowStreamIteratorState)
+    if isopen(s)
+        s.is_open = false
+        close(s.xml_stream_reader)
+        close(s.zip_io)
+    end
+    nothing
+end
+
+
 """
     SheetRowStreamIterator(ws::Worksheet)
 
@@ -93,10 +105,9 @@ function Base.start(itr::SheetRowStreamIterator)
     end
 
     # row number is set to 0 in the first state
-    result = SheetRowStreamIteratorState(zip_io, reader, done_reading, 0)
+    result = SheetRowStreamIteratorState(zip_io, reader, done_reading, true, 0)
     if done_reading
-        close(zip_io)
-        close(reader)
+        close(result)
     end
 
     return result
@@ -105,6 +116,7 @@ end
 @inline Base.done(itr::SheetRowStreamIterator, state::SheetRowStreamIteratorState) = state.done_reading
 
 function Base.next(itr::SheetRowStreamIterator, state::SheetRowStreamIteratorState)
+    @assert isopen(state) "Can't fetch rows from a closed workbook."
     # will read next row from stream.
     # The stream should be already positioned in the next row
     reader = state.xml_stream_reader
@@ -123,8 +135,7 @@ function Base.next(itr::SheetRowStreamIterator, state::SheetRowStreamIteratorSta
             if is_end_of_sheet_data(reader)
                 # mark end of stream
                 done_reading = true
-                close(state.zip_io)
-                close(reader)
+                close(state)
             else
                 # make sure we're pointing to the next row node
                 @assert EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
@@ -143,9 +154,12 @@ function Base.next(itr::SheetRowStreamIterator, state::SheetRowStreamIteratorSta
     end
 
     sheet_row = SheetRow(get_worksheet(itr), current_row, rowcells)
-    next_state = SheetRowStreamIteratorState(state.zip_io, state.xml_stream_reader, done_reading, current_row)
 
-    return sheet_row, next_state
+    # update state
+    state.done_reading = done_reading
+    state.row = current_row
+
+    return sheet_row, state
 end
 
 """

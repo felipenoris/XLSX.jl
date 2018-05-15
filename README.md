@@ -118,7 +118,7 @@ julia> f = XLSX.openxlsx("filename.xlsx", enable_cache=false)
 julia> sheet = f["sheetname"]
 
 julia for r in XLSX.eachrow(sheet)
-          # r is a `SheetRow`. Values are read using column references.
+          # r is a `SheetRow`, values are read using column references
           rn = XLSX.row_number(r) # `SheetRow` row number
           v1 = r[1]    # will read value at column 1
           v2 = r["B"]  # will read value at column 2
@@ -130,10 +130,10 @@ Check docstrings for `XLSX.eachtablerow` for more advanced options.
 
 ```julia
 julia> for r in XLSX.eachtablerow(sheet)
-           # r is a `TableRow`. Values are read using column labels or numbers.
+           # r is a `TableRow`, values are read using column labels or numbers
            rn = XLSX.row_number(r) # `TableRow` row number
            v1 = r[1] # will read value at table column 1
-           v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`.
+           v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`
        end
 ```
 

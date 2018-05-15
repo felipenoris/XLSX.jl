@@ -82,6 +82,16 @@ function stop_function(r)
 end
 ```
 
+Example code:
+```
+for r in XLSX.eachtablerow(sheet)
+    # r is a `TableRow`. Values are read using column labels or numbers.
+    rn = XLSX.row_number(r) # `TableRow` row number.
+    v1 = r[1] # will read value at table column 1.
+    v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`.
+end
+```
+
 See also `gettable`.
 """
 function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)

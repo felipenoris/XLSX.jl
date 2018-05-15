@@ -6,7 +6,7 @@ import ZipFile, EzXML, Missings
 
 # https://github.com/fhs/ZipFile.jl/issues/39
 if !method_exists(Base.nb_available, Tuple{ZipFile.ReadableFile})
-	Base.nb_available(f::ZipFile.ReadableFile) = f.uncompressedsize - f._pos
+    Base.nb_available(f::ZipFile.ReadableFile) = f.uncompressedsize - f._pos
 end
 
 include("structs.jl")

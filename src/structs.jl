@@ -129,10 +129,11 @@ Implementations: SheetRowStreamIterator, WorksheetCache.
 """
 abstract type SheetRowIterator end
 
-struct SheetRowStreamIteratorState
+mutable struct SheetRowStreamIteratorState
     zip_io::ZipFile.Reader
     xml_stream_reader::EzXML.StreamReader
     done_reading::Bool # true when we reach the end of sheetData XML element
+    is_open::Bool # indicated if zip_io and xml_stream_reader are opened
     row::Int # number of current row. It´s set to 0 in the start state.
 end
 

@@ -317,8 +317,7 @@ function Base.close(xl::XLSXFile)
     for sheet in xl.workbook.sheets
         if !isnull(sheet.cache)
             cache = get(sheet.cache)
-            close(cache.stream_state.xml_stream_reader)
-            close(cache.stream_state.zip_io)
+            close(cache.stream_state)
         end
     end
 end

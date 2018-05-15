@@ -19,6 +19,8 @@ sheet = xf["mysheet"]
 cell = XLSX.getcell(sheet, "A1")
 close(xf)
 
+xf = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"))
+sheet = xf["mysheet"]
 left = 1  # 1st column
 right = 4 # 4th column
 for sheetrow in XLSX.eachrow(sheet)
