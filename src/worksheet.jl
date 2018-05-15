@@ -4,8 +4,41 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     sheetId = parse(Int, sheet_element["sheetId"])
     relationship_id = sheet_element["r:id"]
     name = sheet_element["name"]
+    dim = read_worksheet_dimension(xf, relationship_id, name)
 
-    return Worksheet(xf, sheetId, relationship_id, name)
+    return Worksheet(xf, sheetId, relationship_id, name, dim)
+end
+
+function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRange
+    wb = get_workbook(xf)
+    target_file = "xl/" * get_relationship_target_by_id(wb, relationship_id)
+    zip_io, reader = open_internal_file_stream(xf, target_file)
+
+    local result::Nullable{CellRange} = Nullable{CellRange}()
+
+    # read Worksheet dimension
+    while !EzXML.done(reader)
+        if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "dimension"
+            @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(EzXML.nodedepth(reader))."
+            ref_str = reader["ref"]
+            if is_valid_cellname(ref_str)
+                result = CellRange("$(ref_str):$(ref_str)")
+            else
+                result = CellRange(ref_str)
+            end
+
+            break
+        end
+    end
+
+    close(reader)
+    close(zip_io)
+
+    if isnull(result)
+        error("Couldn't parse worksheet $name dimension.")
+    else
+        return get(result)
+    end
 end
 
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
@@ -13,12 +46,7 @@ end
 """
 Retuns the dimension of this worksheet as a CellRange.
 """
-function dimension(ws::Worksheet) :: CellRange
-    if isnull(ws.cache.dimension)
-        open_worksheet_stream!(ws)
-    end
-    return get(ws.cache.dimension)
-end
+@inline dimension(ws::Worksheet) :: CellRange = ws.dimension
 
 """
     getdata(sheet, ref)

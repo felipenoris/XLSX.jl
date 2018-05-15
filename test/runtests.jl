@@ -799,7 +799,7 @@ test_data[3] = [ missing, "D4", missing ]
 data, col_names = XLSX.gettable(s)
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
-@test_throws ErrorException XLSX.find_row(XLSX.SheetRowIterator(s), 20)
+@test_throws ErrorException XLSX.find_row(XLSX.eachrow(s), 20)
 
 for r in XLSX.eachrow(s)
     @test isempty(XLSX.getcell(r, "A"))
@@ -820,7 +820,7 @@ check_test_data(data, test_data)
 xf = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
 empty_sheet = XLSX.getsheet(xf, "empty")
 @test_throws ErrorException XLSX.gettable(empty_sheet)
-itr = XLSX.SheetRowIterator(empty_sheet)
+itr = XLSX.eachrow(empty_sheet)
 @test_throws ErrorException XLSX.find_row(itr, 1)
 @test_throws ErrorException XLSX.getsheet(xf, "invalid_sheet")
 close(xf)

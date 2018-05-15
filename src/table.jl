@@ -1,20 +1,4 @@
 
-#=
-https://docs.julialang.org/en/stable/manual/interfaces/#man-interface-iteration-1
-
-for i = I   # or  "for i in I"
-    # body
-end
-
-is translated into:
-
-state = start(I)
-while !done(I, state)
-    (i, state) = next(I, state)
-    # body
-end
-=#
-
 #
 # Table
 #
@@ -99,7 +83,7 @@ end
 See also `gettable`.
 """
 function TableRowIterator(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)
-    itr = SheetRowIterator(sheet)
+    itr = eachrow(sheet)
     column_range = convert(ColumnRange, cols)
 
     if isempty(column_labels)
@@ -183,8 +167,8 @@ function _find_first_row_with_data(sheet::Worksheet, column_number::Int)
     error("Column $(encode_column_number(column_number)) has no data.")
 end
 
-@inline worksheet(tri::TableRowIterator) = tri.itr.sheet
-@inline worksheet(r::TableRow) = worksheet(r.itr)
+@inline get_worksheet(tri::TableRowIterator) = get_worksheet(tri.itr)
+@inline get_worksheet(r::TableRow) = get_worksheet(r.itr)
 
 """
 Returns real sheet column numbers (based on cellref)
@@ -220,13 +204,13 @@ function getcell(r::TableRow, table_column_number::Int)
     table_row_iterator = r.itr
     index = table_row_iterator.index
     sheet_row_iterator = table_row_iterator.itr
-    sheet = worksheet(r)
+    sheet = get_worksheet(r)
     sheet_column = table_column_to_sheet_column_number(index, table_column_number)
     sheet_row = r.sheet_row
     return getcell(sheet_row, sheet_column)
 end
 
-getdata(r::TableRow, table_column_number::Int) = getdata(worksheet(r), getcell(r, table_column_number))
+getdata(r::TableRow, table_column_number::Int) = getdata(get_worksheet(r), getcell(r, table_column_number))
 
 function getdata(r::TableRow, column_label::Symbol)
     index = r.itr.index
@@ -294,7 +278,7 @@ function Base.done(itr::TableRowIterator, state::TableRowIteratorState)
 
     # check if there are any data inside column range
     for c in sheet_column_numbers(itr.index)
-        if !Missings.ismissing(getdata(worksheet(itr), getcell(state.sheet_row, c)))
+        if !Missings.ismissing(getdata(get_worksheet(itr), getcell(state.sheet_row, c)))
             return false
         end
     end
