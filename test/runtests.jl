@@ -736,7 +736,7 @@ data, col_names = XLSX.gettable(s)
 @test col_names == [:HA, :HB, :HC]
 check_test_data(data, test_data)
 
-for (ri, rowdata) in enumerate(XLSX.TableRowIterator(s))
+for (ri, rowdata) in enumerate(XLSX.eachtablerow(s))
     if ismissing(test_data[1][ri])
         @test ismissing(rowdata[:HA])
     else

@@ -124,11 +124,11 @@ julia for r in XLSX.eachrow(sheet)
       end
 ```
 
-You could also stream tabular data using `TableRowIterator`, which is the underlying iterator in `gettable` method.
-Check docstrings for `TableRowIterator` for more advanced options.
+You could also stream tabular data using `XLSX.eachtablerow(sheet)`, which is the underlying iterator in `gettable` method.
+Check docstrings for `XLSX.eachtablerow` for more advanced options.
 
 ```julia
-julia> for r in XLSX.TableRowIterator(sheet)
+julia> for r in XLSX.eachtablerow(sheet)
            # r is a `TableRow`. Values are read using column labels or numbers.
            v1 = r[1] # will read value at table column 1
            v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`.
