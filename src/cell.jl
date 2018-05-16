@@ -75,7 +75,7 @@ end
 
 @inline getdata(ws::Worksheet, empty::EmptyCell) = Missings.missing
 
-const RGX_ONLY_NUMBERS = r"^[0-9]+$"
+const RGX_ONLY_NUMBERS = r"^\-?[0-9]+$"
 
 """
     getdata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}

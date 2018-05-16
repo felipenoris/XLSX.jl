@@ -432,6 +432,9 @@ sheet = f["general"]
 @test sheet["A6"] == "datetime"
 @test sheet["B6"] == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
 @test f["general!B7"] == -220.0
+@test f["general!B8"] == -2000
+@test f["general!B9"] == 100000000000000
+@test f["general!B10"] == -100000000000000
 
 # Defined Names
 @test XLSX.is_defined_name_value_a_reference(XLSX.SheetCellRef("Sheet1!A1"))
