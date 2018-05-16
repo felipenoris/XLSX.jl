@@ -172,6 +172,8 @@ function CellRange(r::AbstractString)
     return CellRange(CellRef(start_name), CellRef(stop_name))
 end
 
+CellRange(start_row::Integer, start_column::Integer, stop_row::Integer, stop_column::Integer) = CellRange(CellRef(start_row, start_column), CellRef(stop_row, stop_column))
+
 Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
 Base.show(io::IO, cr::CellRange) = print(io, string(cr))
 Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop

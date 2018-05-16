@@ -101,6 +101,25 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 │ 3   │ 3       │ "third"  │
 ```
 
+## Writing Excel Files
+
+You can export tabular data to Excel using `XLSX.writetable` method.
+
+```julia
+julia> import DataFrames, XLSX
+
+julia> df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out", "There"], :floats=>[10.2, 20.3, 30.4, 40.5], :dates=>[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], :times=>[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], :datetimes=>[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)]):floats=>[10.2, 20.3, 30.4, 40.5])
+4×6 DataFrames.DataFrame
+│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │
+├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤
+│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │
+│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │
+│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
+│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
+
+julia> XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
+```
+
 ## Streaming Large Excel Files and Caching
 
 The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cells caching.

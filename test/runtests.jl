@@ -349,7 +349,7 @@ fullrng = XLSX.range"B2:E5"
 @test hash(XLSX.CellRange("A1:C4")) == hash(XLSX.CellRange("A1:C4"))
 
 # worksheet for book1
-@test XLSX.dimension(ef_Book1["Sheet1"]) == XLSX.range"B2:C8"
+@test XLSX.get_dimension(ef_Book1["Sheet1"]) == XLSX.range"B2:C8"
 @test XLSX.isdate1904(ef_Book1["Sheet1"]) == false
 
 # relative cell position
@@ -411,8 +411,15 @@ sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 @test sheet2[:] == XLSX.getdata(sheet2)
 
 # Time and DateTime
-@test XLSX._time(0.82291666666666663) == Dates.Time(Dates.Hour(19), Dates.Minute(45))
-@test XLSX._datetime(43206.805447106482, false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+@test XLSX.excel_value_to_time(0.82291666666666663) == Dates.Time(Dates.Hour(19), Dates.Minute(45))
+@test XLSX.time_to_excel_value( XLSX.excel_value_to_time(0.2) ) == 0.2
+@test XLSX.excel_value_to_datetime(43206.805447106482, false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+@test XLSX.excel_value_to_datetime(XLSX.datetime_to_excel_value(Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51)),false ), false ) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+
+
+dt = Date(2018,4,1)
+@test XLSX.excel_value_to_date(XLSX.date_to_excel_value( dt, false), false) == dt
+@test XLSX.excel_value_to_date(XLSX.date_to_excel_value( dt, true), true) == dt
 
 # General number formats
 f = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
@@ -858,7 +865,7 @@ header_error_sheet = f["header_error"]
 @test XLSX.SheetCellRange("named_ranges!\$B\$4:\$C\$5") == XLSX.SheetCellRange("named_ranges!B4:C5")
 
 # Consecutive passes should yield the same results
-f = XLSX.openxlsx(joinpath(data_directory,"general.xlsx"))
+f = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
 sl = f["lookup"]
 data, col_names = XLSX.gettable(sl)
 @test col_names == [:ID, :NAME, :VALUE]
@@ -885,4 +892,67 @@ check_test_data(data, test_data)
 test_data = Array{Any, 2}(2, 1)
 test_data[1, 1] = "H2"
 test_data[2, 1] = "C3"
+
 @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "F12:F13") == test_data
+
+#
+# Write
+#
+
+f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
+filename_copy = "general_copy.xlsx"
+XLSX.writexlsx(filename_copy, f)
+@test isfile(filename_copy)
+
+f_copy = XLSX.readxlsx(filename_copy)
+
+s = f_copy["table"]
+s[:];
+data, col_names = XLSX.gettable(s)
+@test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+
+test_data = Vector{Any}(6)
+test_data[1] = collect(1:8)
+test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
+test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing ]
+test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
+test_data[6] = [ missing for i in 1:8 ]
+check_test_data(data, test_data)
+rm(filename_copy)
+
+# Edit cells
+f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
+s = f["general"]
+s["A1"] = "Hey You!"
+s["B1"] = "Out there in the cold..."
+s["A2"] = "Getting lonely getting old..."
+s["B2"] = "Can you feel me?"
+s["A3"] = 1000
+s["B3"] = 99.99
+XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
+@test isfile("general_copy_2.xlsx") 
+rm("general_copy_2.xlsx")
+# TODO error opening general_copy_2.xlsx related to calcChain
+
+# export table from template
+col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
+data = Vector{Any}(7)
+data[1] = [1, 2, Missings.missing, 4]
+data[2] = ["Hey", "You", "Out", "There"]
+data[3] = [101.5, 102.5, Missings.missing, 104.5]
+data[4] = [ true, false, Missings.missing, true]
+data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
+data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
+data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+
+XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true)
+@test isfile("output_table.xlsx")
+
+read_data, read_column_names = XLSX.readtable("output_table.xlsx", 1)
+@test length(read_column_names) == length(col_names)
+for c in 1:length(col_names)
+    @test Symbol(col_names[c]) == read_column_names[c]
+end
+check_test_data(read_data, data)
+rm("output_table.xlsx")

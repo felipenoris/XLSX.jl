@@ -30,7 +30,7 @@ end
 
 abstract type AbstractCell end
 
-struct Cell <: AbstractCell
+mutable struct Cell <: AbstractCell
     ref::CellRef
     datatype::String
     style::String
@@ -172,6 +172,8 @@ Shared String Table
 """
 mutable struct SharedStrings
     unformatted_strings::Vector{String}
+    formatted_strings::Vector{String}
+    hashmap::Dict{UInt64, Int} # shared string hash -> index in strings vector.
     is_loaded::Bool # for lazy-loading of sst XML file
 end
 
@@ -207,13 +209,14 @@ mutable struct XLSXFile <: MSOfficePackage
     io_is_open::Bool
     files::Dict{String, Bool} # maps filename => isread bool
     data::Dict{String, EzXML.Document} # maps filename => XMLDocument
+    binary_data::Dict{String, Vector{UInt8}} # maps filename => file content in bytes
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
 
     function XLSXFile(filepath::AbstractString, use_cache::Bool)
         @assert isfile(filepath) "File $filepath not found."
         io = ZipFile.Reader(filepath)
-        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), EmptyWorkbook(), Vector{Relationship}())
+        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}())
         xl.workbook.package = xl
         finalizer(xl, close)
         return xl

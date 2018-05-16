@@ -50,3 +50,8 @@ function gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; f
 	warn("`XLSX.gettable(filepath, sheet, ...)` is deprecated. Use `XLSX.readtable(filepath, sheet, ...)` instead.")
 	return readtable(filepath, sheet, first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, enable_cache=enable_cache)
 end
+
+function dimension(ws::Worksheet)
+    warn("`XLSX.dimension(sheet)` is deprecated. Use `XLSX.get_dimension(sheet)` instead.")
+    return get_dimension(ws)
+end

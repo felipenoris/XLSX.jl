@@ -46,7 +46,11 @@ end
 """
 Retuns the dimension of this worksheet as a CellRange.
 """
-@inline dimension(ws::Worksheet) :: CellRange = ws.dimension
+@inline get_dimension(ws::Worksheet) :: CellRange = ws.dimension
+
+function set_dimension!(ws::Worksheet, rng::CellRange)
+    ws.dimension = rng
+end
 
 """
     getdata(sheet, ref)
@@ -162,7 +166,7 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
 end
 
 getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
-getdata(ws::Worksheet) = getdata(ws, dimension(ws))
+getdata(ws::Worksheet) = getdata(ws, get_dimension(ws))
 
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
