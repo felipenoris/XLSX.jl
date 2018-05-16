@@ -233,7 +233,12 @@ function parse_workbook!(xf::XLSXFile)
                 elseif isempty(defined_value_string)
                     defined_value = Missings.missing
                 else
-                    error("Could not parse value $(defined_value_string) for definedName node $name.")
+
+                    # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
+                    continue
+
+                    # debug
+                    #error("Could not parse value $(defined_value_string) for definedName $name.")
                 end
 
                 if haskey(defined_name_node, "localSheetId")
