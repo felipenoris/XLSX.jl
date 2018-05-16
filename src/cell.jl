@@ -75,10 +75,12 @@ end
 
 @inline getdata(ws::Worksheet, empty::EmptyCell) = Missings.missing
 
-const RGX_ONLY_NUMBERS = r"^\-?[0-9]+$"
+const RGX_INTEGER = r"^\-?[0-9]+$"
+
+const CellValue = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 """
-    getdata(ws::Worksheet, cell::Cell) :: Union{String, Missings.missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+    getdata(ws::Worksheet, cell::Cell) :: CellValue
 
 Returns a Julia representation of a given cell value.
 The result data type is chosen based on the value of the cell as well as its style.
@@ -92,7 +94,7 @@ as an integer inside the spreadsheet XML.
 
 If `cell` has empty value or empty `String`, this function will return `Missings.missing`.
 """
-function getdata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+function getdata(ws::Worksheet, cell::Cell) :: CellValue
 
     if iserror(cell)
         return Missings.missing
@@ -129,7 +131,7 @@ function getdata(ws::Worksheet, cell::Cell) :: Union{String, Missings.Missing, F
 
         else
             # fallback to unformatted number
-            if ismatch(RGX_ONLY_NUMBERS, cell.value)  # if contains only numbers
+            if ismatch(RGX_INTEGER, cell.value)  # if contains only numbers
                 v_num = parse(Int64, cell.value)
             else
                 v_num = parse(Float64, cell.value)
