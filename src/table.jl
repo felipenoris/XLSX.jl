@@ -94,7 +94,7 @@ end
 
 See also `gettable`.
 """
-function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)
+function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing) :: TableRowIterator
     itr = eachrow(sheet)
     column_range = convert(ColumnRange, cols)
 
@@ -122,7 +122,7 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
     return TableRowIterator(itr, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
 end
 
-function eachtablerow(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)
+function eachtablerow(sheet::Worksheet; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing) :: TableRowIterator
     for r in eachrow(sheet)
 
         # skip rows until we reach first_row
@@ -180,14 +180,17 @@ function _find_first_row_with_data(sheet::Worksheet, column_number::Int)
 end
 
 @inline get_worksheet(tri::TableRowIterator) = get_worksheet(tri.itr)
-@inline get_worksheet(r::TableRow) = get_worksheet(r.itr)
 
 """
 Returns real sheet column numbers (based on cellref)
 """
 @inline sheet_column_numbers(i::Index) = values(i.column_map)
+
+"""
+Returns an iterator for table column numbers.
+"""
 @inline table_column_numbers(i::Index) = eachindex(i.column_labels)
-@inline table_column_numbers(r::TableRow) = table_column_numbers(r.itr.index)
+@inline table_column_numbers(r::TableRow) = table_column_numbers(r.index)
 
 """
 Maps table column index (1-based) -> sheet column index (cellref based)
@@ -195,12 +198,11 @@ Maps table column index (1-based) -> sheet column index (cellref based)
 @inline table_column_to_sheet_column_number(index::Index, table_column_number::Int) = index.column_map[table_column_number]
 @inline table_columns_count(i::Index) = length(i.column_labels)
 @inline table_columns_count(itr::TableRowIterator) = table_columns_count(itr.index)
-@inline table_columns_count(r::TableRow) = table_columns_count(r.itr)
-@inline table_row_number(r::TableRow) = r.table_row_index
-@inline sheet_row_number(r::TableRow) = row_number(r.sheet_row)
+@inline table_columns_count(r::TableRow) = table_columns_count(r.index)
+@inline row_number(r::TableRow) = r.row
 @inline get_column_labels(index::Index) = index.column_labels
 @inline get_column_labels(itr::TableRowIterator) = get_column_labels(itr.index)
-@inline get_column_labels(r::TableRow) = get_column_labels(r.itr)
+@inline get_column_labels(r::TableRow) = get_column_labels(r.index)
 @inline get_column_label(r::TableRow, table_column_number::Int) = get_column_labels(r)[table_column_number]
 
 # iterate into TableRow to get each column value
@@ -212,28 +214,34 @@ function Base.next(r::TableRow, state)
     return (r[next_column_number], next_state)
 end
 
-function getcell(r::TableRow, table_column_number::Int)
-    table_row_iterator = r.itr
-    index = table_row_iterator.index
-    sheet_row_iterator = table_row_iterator.itr
-    sheet = get_worksheet(r)
-    sheet_column = table_column_to_sheet_column_number(index, table_column_number)
-    sheet_row = r.sheet_row
-    return getcell(sheet_row, sheet_column)
+Base.getindex(r::TableRow, x) = getdata(r, x)
+
+function TableRow(itr::TableRowIterator, sheet_row::SheetRow, row::Int)
+
+    ws = get_worksheet(itr)
+    index = itr.index
+    cell_values = Vector{CellValue}()
+
+    for table_column_number in table_column_numbers(index)
+        sheet_column = table_column_to_sheet_column_number(index, table_column_number)
+        cell = getcell(sheet_row, sheet_column)
+        push!(cell_values, getdata(ws, cell))
+    end
+
+    return TableRow(row, index, cell_values)
 end
 
-getdata(r::TableRow, table_column_number::Int) = getdata(get_worksheet(r), getcell(r, table_column_number))
+getdata(r::TableRow, table_column_number::Int) = r.cell_values[table_column_number]
 
 function getdata(r::TableRow, column_label::Symbol)
-    index = r.itr.index
+    index = r.index
     if haskey(index.lookup, column_label)
-        return getindex(r, index.lookup[column_label])
+        return getdata(r, index.lookup[column_label])
     else
         error("Invalid column label: $column_label.")
     end
 end
 
-Base.getindex(r::TableRow, x) = getdata(r, x)
 
 function Base.start(itr::TableRowIterator)
     last_state = start(itr.itr)
