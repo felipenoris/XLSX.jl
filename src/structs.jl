@@ -43,6 +43,11 @@ struct EmptyCell <: AbstractCell
 end
 
 """
+CellValue is a Julia type of a value read from a Spreadsheet.
+"""
+const CellValue = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+
+"""
 A `CellRange` represents a rectangular range of cells in a spreadsheet.
 
 `CellRange("A1:C4")` denotes cells ranging from `A1` (upper left corner) to `C4` (bottom right corner).
@@ -255,9 +260,9 @@ struct TableRowIterator
 end
 
 struct TableRow
-    itr::TableRowIterator
-    sheet_row::SheetRow
-    table_row_index::Int # Index of the row in the table. This is not relative to the worksheet cell row.
+    row::Int # Index of the row in the table. This is not relative to the worksheet cell row.
+    index::Index
+    cell_values::Vector{CellValue}
 end
 
 struct TableRowIteratorState

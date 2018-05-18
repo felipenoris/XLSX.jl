@@ -747,8 +747,7 @@ for (ri, rowdata) in enumerate(XLSX.eachtablerow(s))
     end
 
     @test XLSX.table_columns_count(rowdata) == 3
-    @test XLSX.sheet_row_number(rowdata) == ri + 1
-    @test XLSX.table_row_number(rowdata) == ri
+    @test XLSX.row_number(rowdata) == ri
     @test XLSX.get_column_labels(rowdata) == col_names
     @test XLSX.get_column_label(rowdata, 1) == :HA
     @test XLSX.get_column_label(rowdata, 2) == :HB

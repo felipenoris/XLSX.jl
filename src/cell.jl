@@ -77,8 +77,6 @@ end
 
 const RGX_INTEGER = r"^\-?[0-9]+$"
 
-const CellValue = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
-
 """
     getdata(ws::Worksheet, cell::Cell) :: CellValue
 
