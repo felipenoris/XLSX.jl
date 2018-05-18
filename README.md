@@ -110,12 +110,12 @@ If `enable_cache=false`, worksheet cells will always be read from disk.
 This is useful when you want to read a spreadsheet that doesn't fit into memory.
 
 The following example shows how you would read worksheet cells, one row at a time,
-where `filename.xlsx` is a spreadsheet that doesn't fit into memory.
+where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 
 ```julia
-julia> f = XLSX.openxlsx("filename.xlsx", enable_cache=false)
+julia> f = XLSX.openxlsx("myfile.xlsx", enable_cache=false)
 
-julia> sheet = f["sheetname"]
+julia> sheet = f["mysheet"]
 
 julia> for r in XLSX.eachrow(sheet)
           # r is a `SheetRow`, values are read using column references
@@ -133,7 +133,7 @@ julia> for r in XLSX.eachtablerow(sheet)
            # r is a `TableRow`, values are read using column labels or numbers
            rn = XLSX.row_number(r) # `TableRow` row number
            v1 = r[1] # will read value at table column 1
-           v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`
+           v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
        end
 ```
 

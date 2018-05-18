@@ -71,3 +71,19 @@ close(xf)
 using DataFrames, XLSX
 
 df = DataFrame(XLSX.gettable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
+
+f = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"), enable_cache=false)
+sheet = f["mysheet"]
+for r in XLSX.eachrow(sheet)
+    # r is a `SheetRow`, values are read using column references
+    rn = XLSX.row_number(r) # `SheetRow` row number
+    v1 = r[1]    # will read value at column 1
+    v2 = r["B"]  # will read value at column 2
+end
+
+for r in XLSX.eachtablerow(sheet)
+	# r is a `TableRow`, values are read using column labels or numbers
+	rn = XLSX.row_number(r) # `TableRow` row number
+	v1 = r[1] # will read value at table column 1
+	v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
+end
