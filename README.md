@@ -87,6 +87,8 @@ The `gettable` method returns tabular data from a spreadsheet as a tuple `(data,
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
+There's also a helper method `readtable` to read from file directly, as shown in the following example.
+
 ```julia
 julia> using DataFrames, XLSX
 
