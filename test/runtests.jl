@@ -886,8 +886,3 @@ test_data = Array{Any, 2}(2, 1)
 test_data[1, 1] = "H2"
 test_data[2, 1] = "C3"
 @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "F12:F13") == test_data
-
-#
-# Test examples given in documentation.
-#
-include("examples.jl")
