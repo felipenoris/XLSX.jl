@@ -3,34 +3,6 @@
 # Helper Functions
 #
 
-function getcell(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getcell(getsheet(xf, sheet), ref )
-    close(xf)
-    return c
-end
-
-function getcell(filepath::AbstractString, sheetref::AbstractString)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getcell(xf, sheetref)
-    close(xf)
-    return c
-end
-
-function getcellrange(filepath::AbstractString, sheet::Union{AbstractString, Int}, rng)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getcellrange(getsheet(xf, sheet), rng )
-    close(xf)
-    return c
-end
-
-function getcellrange(filepath::AbstractString, sheetref::AbstractString)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getcellrange(xf, sheetref)
-    close(xf)
-    return c
-end
-
 function getdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
     xf = openxlsx(filepath, enable_cache=false)
     c = getdata(getsheet(xf, sheet), ref )

@@ -391,8 +391,6 @@ sheet1 = f["Sheet1"]
 @test sheet1["B8"] == "palavra1"
 
 @test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
-@test XLSX.getcell(joinpath(data_directory, "Book1.xlsx"), "Sheet1!B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
-@test XLSX.getcell(joinpath(data_directory, "Book1.xlsx"), "Sheet1", "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 XLSX.getcellrange(sheet1, "B2:C3")
 XLSX.getcellrange(f, "Sheet1!B2:C3")
 @test_throws ErrorException XLSX.getcellrange(f, "B2:C3")
@@ -701,9 +699,6 @@ y = XLSX.getcellrange(s, "B:D")
 @test x == y
 @test_throws AssertionError XLSX.getcellrange(s, "D:B")
 @test_throws ErrorException XLSX.getcellrange(s, "A:C1")
-
-@test XLSX.getcellrange(joinpath(data_directory, "general.xlsx"), "table!B:D") == x
-@test XLSX.getcellrange(joinpath(data_directory, "general.xlsx"), "table", "B:D") == x
 
 d = XLSX.getdata(s, "B:D")
 @test size(d) == (11, 3)
