@@ -42,7 +42,7 @@ julia> sh["A2:B4"] # or a cell range
  2  "second"
  3  "third"
 
-julia> XLSX.getdata("myfile.xlsx", "mysheet", "A2:B4") # shorthand for all above
+julia> XLSX.readdata("myfile.xlsx", "mysheet", "A2:B4") # shorthand for all above
 3×2 Array{Any,2}:
  1  "first" 
  2  "second"
@@ -90,7 +90,7 @@ Check the docstring for `gettable` method for more advanced options.
 ```julia
 julia> using DataFrames, XLSX
 
-julia> df = DataFrame(XLSX.gettable("myfile.xlsx", "mysheet")...)
+julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 3×2 DataFrames.DataFrame
 │ Row │ HeaderA │ HeaderB  │
 ├─────┼─────────┼──────────┤

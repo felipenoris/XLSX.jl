@@ -7,7 +7,7 @@ import XLSX
 
 data_directory = joinpath(dirname(@__FILE__), "..", "data")
 
-v = XLSX.getdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
+v = XLSX.readdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 
 f = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"))
 sheet = f["mysheet"]
@@ -32,24 +32,23 @@ for sheetrow in XLSX.eachrow(sheet)
 end
 
 using DataFrames, XLSX
-
-df = DataFrame(XLSX.gettable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
+xf = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"))
+df = DataFrame(XLSX.gettable(xf["mysheet"])...)
+close(xf)
 
 XLSX.decode_column_number("D")
 XLSX.encode_column_number(4)
 
 cn = XLSX.CellRef("AB1")
-println( XLSX.row_number(cn) ) # will print 1
-println( XLSX.column_number(cn) ) # will print 28
-println( string(cn) ) # will print out AB1
+XLSX.row_number(cn); # will print 1
+XLSX.column_number(cn); # will print 28
+string(cn); # will print out AB1
 
 cn = XLSX.ref"AB1"
-println( XLSX.row_number(cn) ) # will print 1
-println( XLSX.column_number(cn) ) # will print 28
-println( string(cn) ) # will print out AB1
+XLSX.row_number(cn); # will print 1
+XLSX.column_number(cn); # will print 28
+string(cn); # will print out AB1
 cr = XLSX.range"A1:C4"
-
-XLSX.getcellrange(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 
 #
 # examples from README.md
@@ -60,7 +59,7 @@ XLSX.sheetnames(xf)
 sh = xf["mysheet"]
 sh["B2"] # access a cell value
 sh["A2:B4"] # access a range
-XLSX.getdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A2:B4") # shorthand for all above
+XLSX.readdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A2:B4") # shorthand for all above
 xf["mysheet!A2:B4"] # you can also query values from a file reference
 xf["NAMED_CELL"] # you can even read named ranges
 xf["mysheet!A:B"] # Column ranges are also supported
@@ -70,7 +69,11 @@ close(xf)
 
 using DataFrames, XLSX
 
-df = DataFrame(XLSX.gettable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
+df = DataFrame(XLSX.readtable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
+
+using DataFrames, XLSX
+
+df = DataFrame(XLSX.readtable(joinpath(data_directory, "myfile.xlsx"), "mysheet")...)
 
 f = XLSX.openxlsx(joinpath(data_directory, "myfile.xlsx"), enable_cache=false)
 sheet = f["mysheet"]

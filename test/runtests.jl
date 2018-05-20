@@ -460,10 +460,10 @@ sheet = f["general"]
 @test f["named_ranges_2"]["LOCAL_REF"][1] == "local"
 @test f["named_ranges_2"]["LOCAL_REF"][2] == "reference"
 
-@test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
-@test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
-
 close(f)
+
+@test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
+@test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
 
 # Book1.xlsx
 f = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
@@ -877,12 +877,17 @@ test_data[1] = [ missing, missing, "B5" ]
 test_data[2] = [ "C3", missing, missing ]
 test_data[3] = [ missing, "D4", missing ]
 
-data, col_names = XLSX.gettable(joinpath(data_directory, "general.xlsx"), "table4")
+data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4")
 @test col_names == [:H1, :H2, :H3]
 check_test_data(data, test_data)
 
-@test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "table4", "E12") == "H1"
+@test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "E12") == "H1"
 test_data = Array{Any, 2}(2, 1)
 test_data[1, 1] = "H2"
 test_data[2, 1] = "C3"
-@test XLSX.getdata(joinpath(data_directory, "general.xlsx"), "table4", "F12:F13") == test_data
+@test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "F12:F13") == test_data
+
+#
+# Test examples given in documentation.
+#
+include("examples.jl")
