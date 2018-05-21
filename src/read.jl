@@ -13,7 +13,7 @@ and return a closed XLSXFile.
 
 Consider using `openxlsx` for lazy loading of Excel file contents.
 """
-@inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true)
+@inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, false)
 
 """
     openxlsx(filepath; [enable_cache]) :: XLSXFile
@@ -43,35 +43,38 @@ julia for r in XLSX.eachrow(f["sheetname"])
 
 See also `readxlsx` method.
 """
-@inline openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile = open_or_read_xlsx(filepath, false, enable_cache)
+@inline openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile = open_or_read_xlsx(filepath, false, enable_cache, false)
 
-function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_cache::Bool) :: XLSXFile
+function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
     xf = XLSXFile(filepath, enable_cache)
 
     try
         for f in xf.io.files
-            internal_file_add!(xf, f.name)
 
-            if read_files
-                # parse only XML files
-                if !endswith(f.name, ".xml") && !endswith(f.name, ".rels")
-                    #warn("Ignoring non-XML file $(f.name).") # debug
-                    continue
+            if endswith(f.name, ".xml") || endswith(f.name, ".rels")
+                # XML file
+                internal_xml_file_add!(xf, f.name)
+                if read_files
+                    # ignore xl/calcChain.xml for now
+                    if !read_as_template && f.name == "xl/calcChain.xml"
+                        #warn("Ignoring calculation chain file: $(f.name).")
+                        continue
+                    end
+
+                    # ignore worksheet files because they'll be read thru streaming
+                    # If reading as template, it will be loaded in two places: here and WorksheetCache.
+                    if !read_as_template && startswith(f.name, "xl/worksheets") && endswith(f.name, ".xml")
+                        #info("ignoring worksheet file $(f.name). It will be read thru streaming.")
+                        continue
+                    end
+
+                    internal_xml_file_read(xf, f.name)
                 end
+            elseif read_as_template
 
-                # ignore xl/calcChain.xml for now
-                if f.name == "xl/calcChain.xml"
-                    #warn("Ignoring calculation chain file: $(f.name).")
-                    continue
-                end
-
-                # ignore worksheet files because they'll be read thru streaming
-                if startswith(f.name, "xl/worksheets") && endswith(f.name, ".xml")
-                    #info("ignoring worksheet file $(f.name). It will be read thru streaming.")
-                    continue
-                end
-
-                internal_file_read(xf, f.name)
+                # Binary file
+                # we only read binary files to save the Excel file later
+                xf.binary_data[f.name] = ZipFile.read(f, UInt8, f.uncompressedsize)
             end
         end
 
@@ -89,6 +92,10 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
                     nothing
                 end
             end
+        end
+
+        if read_as_template
+            sst_load!(get_workbook(xf))
         end
 
     finally
@@ -282,18 +289,19 @@ Lists internal files from the XLSX package.
 """
 Returns true if the file data was read into xl.data.
 """
-@inline internal_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
-@inline internal_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
+@inline internal_xml_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
+@inline internal_xml_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
 
-function internal_file_add!(xl::XLSXFile, filename::String)
+function internal_xml_file_add!(xl::XLSXFile, filename::String)
+    @assert endswith(filename, ".xml") || endswith(filename, ".rels")
     xl.files[filename] = false
     nothing
 end
 
-function internal_file_read(xf::XLSXFile, filename::String) :: EzXML.Document
-    @assert internal_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
+function internal_xml_file_read(xf::XLSXFile, filename::String) :: EzXML.Document
+    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
 
-    if !internal_file_isread(xf, filename)
+    if !internal_xml_file_isread(xf, filename)
         @assert isopen(xf) "Can't read from a closed XLSXFile."
         file_not_found = true
         for f in xf.io.files
@@ -335,7 +343,7 @@ Base.isopen(xl::XLSXFile) = xl.io_is_open
 Utility method to find the XMLDocument associated with a given package filename.
 Returns xl.data[filename] if it exists. Throws an error if it doesn't.
 """
-@inline xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document = internal_file_read(xl, filename)
+@inline xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document = internal_xml_file_read(xl, filename)
 
 """
     xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node

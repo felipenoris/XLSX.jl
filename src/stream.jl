@@ -42,7 +42,7 @@ The iterator element is a SheetRow.
 Open a file for streaming.
 """
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipFile.Reader, EzXML.StreamReader}
-    @assert internal_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
+    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
     @assert isfile(xf.filepath) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
     io = ZipFile.Reader(xf.filepath)
 

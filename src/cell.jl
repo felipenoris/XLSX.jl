@@ -169,14 +169,14 @@ function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dat
 
         if time_value <= 1
             # Time
-            return _time(time_value)
+            return excel_value_to_time(time_value)
         else
             # DateTime
-            return _datetime(time_value, _is_date_1904)
+            return excel_value_to_datetime(time_value, _is_date_1904)
         end
     else
         # Date
-        return _date(parse(Int, v), _is_date_1904)
+        return excel_value_to_date(parse(Int, v), _is_date_1904)
     end
 end
 
@@ -187,21 +187,31 @@ Converts Excel number to Time.
 To represent Time, Excel uses the decimal part
 of a floating point number. `1` equals one day.
 """
-function _time(x::Float64) :: Dates.Time
+function excel_value_to_time(x::Float64) :: Dates.Time
     @assert x >= 0 && x <= 1
     return Dates.Time(Dates.Nanosecond(round(Int, x * 86400) * 1E9 ))
 end
+
+time_to_excel_value(x::Dates.Time) :: Float64 = Dates.value(x) / ( 86400 * 1E9 )
 
 """
 Converts Excel number to Date.
 
 See also: `isdate1904` function.
 """
-function _date(x::Int, _is_date_1904::Bool) :: Dates.Date
+function excel_value_to_date(x::Int, _is_date_1904::Bool) :: Dates.Date
     if _is_date_1904
         return Date(Dates.rata2datetime(x + 695056))
     else
         return Date(Dates.rata2datetime(x + 693594))
+    end
+end
+
+function date_to_excel_value(date::Date, _is_date_1904::Bool) :: Int
+    if _is_date_1904
+        return Dates.datetime2rata(date) - 695056
+    else
+        return Dates.datetime2rata(date) - 693594
     end
 end
 
@@ -213,7 +223,7 @@ The integer part represents the Date.
 
 See also: `isdate1904` function.
 """
-function _datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
+function excel_value_to_datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
     @assert x >= 0
 
     local dt::Dates.Date
@@ -222,8 +232,12 @@ function _datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
     dt_part = trunc(Int, x)
     hr_part = x - dt_part
 
-    dt = _date(dt_part, _is_date_1904)
-    hr = _time(hr_part)
+    dt = excel_value_to_date(dt_part, _is_date_1904)
+    hr = excel_value_to_time(hr_part)
 
     return dt + hr
+end
+
+function datetime_to_excel_value(dt::Dates.DateTime, _is_date_1904::Bool) :: Float64
+    return date_to_excel_value(Dates.Date(dt), _is_date_1904) + time_to_excel_value(Dates.Time(dt))
 end
