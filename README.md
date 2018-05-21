@@ -6,7 +6,7 @@
 [![codecov.io](http://codecov.io/github/felipenoris/XLSX.jl/coverage.svg?branch=master)](http://codecov.io/github/felipenoris/XLSX.jl?branch=master)
 [![XLSX](http://pkg.julialang.org/badges/XLSX_0.6.svg)](http://pkg.julialang.org/?pkg=XLSX&ver=0.6)
 
-Excel file parser written in pure Julia.
+Excel file reader/writer coded in pure Julia.
 
 ## Installation
 
