@@ -108,7 +108,7 @@ You can export tabular data to Excel using `XLSX.writetable` method.
 ```julia
 julia> import DataFrames, XLSX
 
-julia> df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out", "There"], :floats=>[10.2, 20.3, 30.4, 40.5], :dates=>[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], :times=>[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], :datetimes=>[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)]):floats=>[10.2, 20.3, 30.4, 40.5])
+julia> df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out", "There"], :floats=>[10.2, 20.3, 30.4, 40.5], :dates=>[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], :times=>[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], :datetimes=>[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
 4×6 DataFrames.DataFrame
 │ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │
 ├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤
