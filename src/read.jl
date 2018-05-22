@@ -51,7 +51,7 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
         @assert read_files && enable_cache
     end
 
-    xf = XLSXFile(filepath, enable_cache)
+    xf = XLSXFile(filepath, enable_cache, read_as_template)
 
     try
         for f in xf.io.files

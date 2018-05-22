@@ -10,6 +10,7 @@ Open an Excel file as template for editing and saving to another file with `XLSX
     writexlsx(output_filepath, xlsx_file; [rewrite])
 """
 function writexlsx(output_filepath::AbstractString, xf::XLSXFile; rewrite::Bool=false)
+    @assert is_writable(xf) "XLSXFile instance is not writable."
     @assert !isopen(xf) "Can't save an open XLSXFile."
     @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.openxlsxtemplate` to open this file?"
     if !rewrite
@@ -150,6 +151,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 end
 
 function setdata!(ws::Worksheet, cell::Cell)
+    @assert is_writable(get_xlsxfile(ws)) "XLSXFile instance is not writable."
     @assert !isnull(ws.cache) "Can't write data to a Worksheet with empty cache."
     cache = get(ws.cache)
 

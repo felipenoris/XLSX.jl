@@ -2,6 +2,15 @@
 EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), Nullable{EzXML.Node}())
 
 """
+    is_writable(xl::XLSXFile)
+
+Indicates wether this XLSX file can be edited.
+This controls if assignment to worksheet cells is allowed.
+Writable XLSXFile instances are opened with `XLSX.openxlsxtemplate` method.
+"""
+is_writable(xl::XLSXFile) = xl.is_writable
+
+"""
 Lists Worksheet names for this Workbook.
 """
 sheetnames(wb::Workbook) = [ s.name for s in wb.sheets ]

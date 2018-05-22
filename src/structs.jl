@@ -212,11 +212,12 @@ mutable struct XLSXFile <: MSOfficePackage
     binary_data::Dict{String, Vector{UInt8}} # maps filename => file content in bytes
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
+    is_writable::Bool # indicates wether this XLSX file can be edited
 
-    function XLSXFile(filepath::AbstractString, use_cache::Bool)
+    function XLSXFile(filepath::AbstractString, use_cache::Bool, is_writable::Bool)
         @assert isfile(filepath) "File $filepath not found."
         io = ZipFile.Reader(filepath)
-        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}())
+        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         finalizer(xl, close)
         return xl
