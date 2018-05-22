@@ -99,7 +99,10 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
         end
 
         if read_as_template
-            sst_load!(get_workbook(xf))
+            wb = get_workbook(xf)
+            if has_sst(wb)
+                sst_load!(wb)
+            end
         end
 
     finally
@@ -141,23 +144,21 @@ Parses package level relationships defined in `_rels/.rels`.
 Prases workbook level relationships defined in `xl/_rels/workbook.xml.rels`.
 """
 function parse_relationships!(xf::XLSXFile)
-    xroot = xmlroot(xf, "_rels/.rels")
-    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). _rels/.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
 
+    # package level relationships
+    xroot = get_package_relationship_root(xf)
     for el in EzXML.eachelement(xroot)
         push!(xf.relationships, Relationship(el))
     end
     @assert !isempty(xf.relationships) "Relationships not found in _rels/.rels!"
 
-    xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
-    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
-
+    # workbook level relationships
+    wb = get_workbook(xf)
+    xroot = get_workbook_relationship_root(xf)
     for el in EzXML.eachelement(xroot)
-        push!(get_workbook(xf).relationships, Relationship(el))
+        push!(wb.relationships, Relationship(el))
     end
-    @assert !isempty(get_workbook(xf).relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
+    @assert !isempty(wb.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
 
     nothing
 end

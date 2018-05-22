@@ -30,9 +30,26 @@ end
 Add string to shared string table. Returns the 0-based index of the shared string in the shared string table.
 """
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
+    @assert is_writable(get_xlsxfile(wb)) "XLSXFile instance is not writable."
     @assert !(isempty(str_unformatted) || isempty(str_formatted)) "Can't add empty string to Shared String Table."
     sst = get_sst(wb)
-    @assert sst.is_loaded "Can't query shared string table because it's not loaded into memory."
+
+    if !sst.is_loaded
+        # if got to this point, the file was opened as template but doesn't have a Shared String Table.
+        # Will create a new one.
+        sst.is_loaded = true
+
+        # add relationship
+        #<Relationship Id="rId16" Target="sharedStrings.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"/>
+        add_relationship!(wb, "sharedStrings.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings")
+
+        # add Content Type <Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" PartName="/xl/sharedStrings.xml"/>
+        ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")
+        @assert EzXML.nodename(ctype_root) == "Types"
+        override_node = EzXML.addelement!(ctype_root, "Override")
+        override_node["ContentType"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"
+        override_node["PartName"] = "/xl/sharedStrings.xml"
+    end
 
     i = get_shared_string_index(sst, str_formatted)
     if i != -1
@@ -76,6 +93,16 @@ function sst_load!(workbook::Workbook)
 
         error("Shared Strings Table not found for this workbook.")
     end
+end
+
+"""
+    has_sst(workbook::Workbook)
+
+Checks wether this workbook has a Shared String Table.
+"""
+function has_sst(workbook::Workbook) :: Bool
+    relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
+    return has_relationship_by_type(workbook, relationship_type)
 end
 
 """

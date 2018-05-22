@@ -38,7 +38,6 @@ function writexlsx(output_filepath::AbstractString, xf::XLSXFile; rewrite::Bool=
         ZipFile.write(io, xf.binary_data[f])
     end
 
-    # TODO check relationship if it was emty before
     if !isempty(get_sst(xf))
         io = ZipFile.addfile(xlsx, "xl/sharedStrings.xml")
         print(io, generate_sst_xml_string(get_sst(xf)))
