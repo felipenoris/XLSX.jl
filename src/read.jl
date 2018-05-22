@@ -46,25 +46,29 @@ See also `readxlsx` method.
 @inline openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile = open_or_read_xlsx(filepath, false, enable_cache, false)
 
 function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
+    # sanity check
+    if read_as_template
+        @assert read_files && enable_cache
+    end
+
     xf = XLSXFile(filepath, enable_cache)
 
     try
         for f in xf.io.files
 
+            # ignore xl/calcChain.xml in any case (#31)
+            if f.name == "xl/calcChain.xml"
+                continue
+            end
+
             if endswith(f.name, ".xml") || endswith(f.name, ".rels")
                 # XML file
                 internal_xml_file_add!(xf, f.name)
                 if read_files
-                    # ignore xl/calcChain.xml for now
-                    if !read_as_template && f.name == "xl/calcChain.xml"
-                        #warn("Ignoring calculation chain file: $(f.name).")
-                        continue
-                    end
 
                     # ignore worksheet files because they'll be read thru streaming
                     # If reading as template, it will be loaded in two places: here and WorksheetCache.
                     if !read_as_template && startswith(f.name, "xl/worksheets") && endswith(f.name, ".xml")
-                        #info("ignoring worksheet file $(f.name). It will be read thru streaming.")
                         continue
                     end
 

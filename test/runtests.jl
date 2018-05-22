@@ -931,9 +931,18 @@ s["B2"] = "Can you feel me?"
 s["A3"] = 1000
 s["B3"] = 99.99
 XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
-@test isfile("general_copy_2.xlsx") 
+@test isfile("general_copy_2.xlsx")
+
+f = XLSX.openxlsx("general_copy_2.xlsx")
+s = f["general"]
+@test s["A1"] == "Hey You!"
+@test s["B1"] == "Out there in the cold..."
+@test s["A2"] == "Getting lonely getting old..."
+@test s["B2"] == "Can you feel me?"
+@test s["A3"] == 1000
+@test s["B3"] == 99.99
+close(f)
 rm("general_copy_2.xlsx")
-# TODO error opening general_copy_2.xlsx related to calcChain
 
 # export table from template
 col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
