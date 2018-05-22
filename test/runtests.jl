@@ -924,6 +924,7 @@ rm(filename_copy)
 # Edit cells
 f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
 s = f["general"]
+XLSX.rename!(s, "new_sheet")
 s["A1"] = "Hey You!"
 s["B1"] = "Out there in the cold..."
 s["A2"] = "Getting lonely getting old..."
@@ -934,7 +935,7 @@ XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
 @test isfile("general_copy_2.xlsx")
 
 f = XLSX.openxlsx("general_copy_2.xlsx")
-s = f["general"]
+s = f["new_sheet"]
 @test s["A1"] == "Hey You!"
 @test s["B1"] == "Out there in the cold..."
 @test s["A2"] == "Getting lonely getting old..."
@@ -955,10 +956,10 @@ data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2
 data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
 data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
 
-XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true)
+XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true, sheetname="report")
 @test isfile("output_table.xlsx")
 
-read_data, read_column_names = XLSX.readtable("output_table.xlsx", 1)
+read_data, read_column_names = XLSX.readtable("output_table.xlsx", "report")
 @test length(read_column_names) == length(col_names)
 for c in 1:length(col_names)
     @test Symbol(col_names[c]) == read_column_names[c]

@@ -269,10 +269,12 @@ function open_default_template() :: XLSXFile
 end
 
 """
-    writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false)
+    writetable(filename, data, columnnames; [rewrite], [sheetname])
 
 `data` is a vector of columns.
-`columnames` is a verctor of column labels.
+`columnames` is a vector of column labels.
+`rewrite` is a `Bool` to control if `filename` should be rewrited if already exists.
+`sheetname` is the name for the worksheet.
 
 Example using `DataFrames.jl`:
 
@@ -282,7 +284,7 @@ df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
 ```
 """
-function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false)
+function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false, sheetname::AbstractString="")
 
     # read dimensions
     col_count = length(data)
@@ -302,6 +304,10 @@ function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=f
     xf = open_default_template()
     sheet = xf[1]
 
+    if sheetname != ""
+        rename!(sheet, sheetname)
+    end
+
     # write table header
     for c in 1:col_count
         target_cell_ref = CellRef(1, c)
@@ -317,5 +323,31 @@ function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=f
     # write output file
     writexlsx(filename, xf, rewrite=rewrite)
 
+    nothing
+end
+
+function rename!(ws::Worksheet, name::AbstractString)
+    xf = get_xlsxfile(ws)
+    @assert is_writable(xf) "XLSXFile instance is not writable."
+
+    # updates XML
+    xroot = xmlroot(xf, "xl/workbook.xml")
+    for node in EzXML.eachelement(xroot)
+        if EzXML.nodename(node) == "sheets"
+
+            for sheet_node in EzXML.eachelement(node)
+                if sheet_node["name"] == ws.name
+                    # assign new name
+                    sheet_node["name"] = name
+                    break
+                end
+            end
+
+            break
+        end
+    end
+
+    # updates the new name in the worksheet instance
+    ws.name = name
     nothing
 end
