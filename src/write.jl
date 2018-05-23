@@ -351,3 +351,90 @@ function rename!(ws::Worksheet, name::AbstractString)
     ws.name = name
     nothing
 end
+
+const FILEPATH_SHEET_TEMPLATE = joinpath(dirname(@__FILE__), "..", "data", "sheet_template.xml")
+
+addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_workbook(xl), name)
+
+"""
+    addsheet!(workbook, [name]) :: Worksheet
+
+Create a new worksheet with named `name`.
+If `name` is not provided, a unique name is created.
+
+"""
+function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
+
+    xf = get_xlsxfile(wb)
+    @assert is_writable(xf) "XLSXFile instance is not writable."
+
+    @assert isfile(FILEPATH_SHEET_TEMPLATE) "Couldn't find template file $FILEPATH_SHEET_TEMPLATE."
+
+    if name == ""
+        # name was not provided. Will find a unique name.
+        i = 1
+        current_sheet_names = sheetnames(wb)
+        while true
+            name = "Sheet$i"
+            if !in(name, current_sheet_names)
+                # found a unique name
+                break
+            end
+            i += 1
+        end
+    end
+
+    # generate sheetId
+    current_sheet_ids = [ ws.sheetId for ws in wb.sheets ]
+    sheetId = max(current_sheet_ids...) + 1
+
+    xdoc = EzXML.readxml(FILEPATH_SHEET_TEMPLATE)
+
+    # generate a unique name for the XML
+    local xml_filename::String
+    i = 1
+    while true
+        xml_filename = "xl/worksheets/sheet$i.xml"
+        if !in(xml_filename, keys(xf.files))
+            break
+        end
+        i += 1
+    end
+
+    # adds doc do XLSXFile
+    xf.files[xml_filename] = true # is read
+    xf.data[xml_filename] = xdoc
+
+    # adds workbook-level relationship
+    # <Relationship Id="rId1" Target="worksheets/sheet1.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/>
+    rId = add_relationship!(wb, xml_filename[4:end], "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet")
+
+    # creates Worksheet instance
+    ws = Worksheet(xf, sheetId, rId, name, CellRange("A1:A1"))
+
+    # creates a mock WorksheetCache
+    itr = SheetRowStreamIterator(ws)
+    zip_io, reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
+    state = SheetRowStreamIteratorState(zip_io, reader, true, true, 0)
+    close(state)
+    ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state)
+
+    push!(wb.sheets, ws)
+
+    # updates workbook xml
+    xroot = xmlroot(xf, "xl/workbook.xml")
+    for node in EzXML.eachelement(xroot)
+        if EzXML.nodename(node) == "sheets"
+
+            #<sheet name="Sheet1" r:id="rId1" sheetId="1"/>
+            sheet_element = EzXML.addelement!(node, "sheet")
+            sheet_element["name"] = name
+            sheet_element["r:id"] = rId
+            sheet_element["sheetId"] = string(sheetId)
+
+            break
+        end
+    end
+
+    return ws
+end

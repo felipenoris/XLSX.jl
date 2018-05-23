@@ -924,24 +924,34 @@ rm(filename_copy)
 # Edit cells
 f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
 s = f["general"]
-XLSX.rename!(s, "new_sheet")
+XLSX.rename!(s, "renamed_sheet")
 s["A1"] = "Hey You!"
 s["B1"] = "Out there in the cold..."
 s["A2"] = "Getting lonely getting old..."
 s["B2"] = "Can you feel me?"
 s["A3"] = 1000
 s["B3"] = 99.99
+
+# create a new sheet
+s = XLSX.addsheet!(f, "my_new_sheet_1")
+s = XLSX.addsheet!(f, "my_new_sheet_2")
+s["B1"] = "This is a new sheet"
+s["B2"] = "This is a new sheet"
+
 XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
 @test isfile("general_copy_2.xlsx")
 
 f = XLSX.openxlsx("general_copy_2.xlsx")
-s = f["new_sheet"]
+s = f["renamed_sheet"]
 @test s["A1"] == "Hey You!"
 @test s["B1"] == "Out there in the cold..."
 @test s["A2"] == "Getting lonely getting old..."
 @test s["B2"] == "Can you feel me?"
 @test s["A3"] == 1000
 @test s["B3"] == 99.99
+f["my_new_sheet_1"];
+@test f["my_new_sheet_2"]["B1"] == "This is a new sheet"
+@test f["my_new_sheet_2"]["B2"] == "This is a new sheet"
 close(f)
 rm("general_copy_2.xlsx")
 
