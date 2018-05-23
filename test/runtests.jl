@@ -966,7 +966,7 @@ data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2
 data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
 data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
 
-XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true, sheetname="report")
+XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true, sheetname="report", anchor_cell="B2")
 @test isfile("output_table.xlsx")
 
 read_data, read_column_names = XLSX.readtable("output_table.xlsx", "report")

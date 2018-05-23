@@ -268,6 +268,35 @@ function open_default_template() :: XLSXFile
     return openxlsxtemplate(DEFAULT_EXCEL_TEMPLATE)
 end
 
+function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+
+    # read dimensions
+    col_count = length(data)
+    @assert col_count == length(columnnames) "Column count mismatch between `data` ($col_count columns) and `columnnames` ($(length(columnnames)) columns)."
+    @assert col_count > 0 "Can't write table with no columns."
+    row_count = length(data[1])
+    if col_count > 1
+        for c in 2:col_count
+            @assert length(data[c]) == row_count "Row count mismatch between column 1 ($row_count rows) and column $c ($(length(data[c])) rows)."
+        end
+    end
+
+    anchor_row = row_number(anchor_cell)
+    anchor_col = column_number(anchor_cell)
+
+    # write table header
+    for c in 1:col_count
+        target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
+        sheet[target_cell_ref] = string(columnnames[c])
+    end
+
+    # write table data
+    for r in 1:row_count, c in 1:col_count
+        target_cell_ref = CellRef(r + anchor_row, c + anchor_col - 1)
+        sheet[target_cell_ref] = data[c][r]
+    end
+end
+
 """
     writetable(filename, data, columnnames; [rewrite], [sheetname])
 
@@ -284,18 +313,7 @@ df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
 ```
 """
-function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false, sheetname::AbstractString="")
-
-    # read dimensions
-    col_count = length(data)
-    @assert col_count == length(columnnames) "Column count mismatch between `data` ($col_count columns) and `columnnames` ($(length(columnnames)) columns)."
-    @assert col_count > 0 "Can't write table with no columns."
-    row_count = length(data[1])
-    if col_count > 1
-        for c in 2:col_count
-            @assert length(data[c]) == row_count "Row count mismatch between column 1 ($row_count rows) and column $c ($(length(data[c])) rows)."
-        end
-    end
+function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
 
     if !rewrite
         @assert !isfile(filename) "$filename already exists."
@@ -308,17 +326,11 @@ function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=f
         rename!(sheet, sheetname)
     end
 
-    # write table header
-    for c in 1:col_count
-        target_cell_ref = CellRef(1, c)
-        sheet[target_cell_ref] = string(columnnames[c])
+    if isa(anchor_cell, String)
+        anchor_cell = CellRef(anchor_cell)
     end
 
-    # write table data
-    for r in 1:row_count, c in 1:col_count
-        target_cell_ref = CellRef(r + 1, c)
-        sheet[target_cell_ref] = data[c][r]
-    end
+    writetable!(sheet, data, columnnames; anchor_cell=anchor_cell)
 
     # write output file
     writexlsx(filename, xf, rewrite=rewrite)
