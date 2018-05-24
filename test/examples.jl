@@ -94,3 +94,8 @@ end
 import DataFrames, XLSX
 df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5])
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
+
+df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
+df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+
+XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))

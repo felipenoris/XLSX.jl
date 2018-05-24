@@ -135,7 +135,7 @@ import DataFrames, XLSX
 df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
 df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 
-XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ),  REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) )  )
+XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
 ```
 """
 function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
