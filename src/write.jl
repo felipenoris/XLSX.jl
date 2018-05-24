@@ -297,47 +297,6 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     end
 end
 
-"""
-    writetable(filename, data, columnnames; [rewrite], [sheetname])
-
-`data` is a vector of columns.
-`columnames` is a vector of column labels.
-`rewrite` is a `Bool` to control if `filename` should be rewrited if already exists.
-`sheetname` is the name for the worksheet.
-
-Example using `DataFrames.jl`:
-
-```julia
-import DataFrames, XLSX
-df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out", "There"], :floats=>[10.2, 20.3, 30.4, 40.5])
-XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
-```
-"""
-function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
-
-    if !rewrite
-        @assert !isfile(filename) "$filename already exists."
-    end
-
-    xf = open_default_template()
-    sheet = xf[1]
-
-    if sheetname != ""
-        rename!(sheet, sheetname)
-    end
-
-    if isa(anchor_cell, String)
-        anchor_cell = CellRef(anchor_cell)
-    end
-
-    writetable!(sheet, data, columnnames; anchor_cell=anchor_cell)
-
-    # write output file
-    writexlsx(filename, xf, rewrite=rewrite)
-
-    nothing
-end
-
 function rename!(ws::Worksheet, name::AbstractString)
     xf = get_xlsxfile(ws)
     @assert is_writable(xf) "XLSXFile instance is not writable."

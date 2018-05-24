@@ -976,3 +976,28 @@ for c in 1:length(col_names)
 end
 check_test_data(read_data, data)
 rm("output_table.xlsx")
+
+report_1_column_names = ["HEADER_A", "HEADER_B"]
+report_1_data = Vector{Any}(2)
+report_1_data[1] = [1, 2, 3]
+report_1_data[2] = ["A", "B", "C"]
+
+report_2_column_names = ["COLUMN_A", "COLUMN_B"]
+report_2_data = Vector{Any}(2)
+report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
+report_2_data[2] = [10.2, 10.3]
+
+XLSX.writetable("output_tables.xlsx", rewrite=true, REPORT_A=(report_1_data, report_1_column_names), REPORT_B=(report_2_data, report_2_column_names))
+@test isfile("output_tables.xlsx")
+
+data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+@test labels[1] == :HEADER_A
+@test labels[2] == :HEADER_B
+check_test_data(data, report_1_data)
+
+data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+@test labels[1] == :COLUMN_A
+@test labels[2] == :COLUMN_B
+check_test_data(data, report_2_data)
+
+rm("output_tables.xlsx")
