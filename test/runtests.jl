@@ -937,6 +937,8 @@ s = XLSX.addsheet!(f, "my_new_sheet_1")
 s = XLSX.addsheet!(f, "my_new_sheet_2")
 s["B1"] = "This is a new sheet"
 s["B2"] = "This is a new sheet"
+s = XLSX.addsheet!(f)
+s["B1"] = "unnamed sheet"
 
 XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
 @test isfile("general_copy_2.xlsx")
@@ -952,6 +954,7 @@ s = f["renamed_sheet"]
 f["my_new_sheet_1"];
 @test f["my_new_sheet_2"]["B1"] == "This is a new sheet"
 @test f["my_new_sheet_2"]["B2"] == "This is a new sheet"
+@test f["Sheet1"]["B1"] == "unnamed sheet"
 close(f)
 rm("general_copy_2.xlsx")
 
