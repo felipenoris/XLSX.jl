@@ -103,12 +103,12 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 
 ## Writing Excel Files
 
-You can export tabular data to Excel using `XLSX.writetable` method.
+To export tabular data to Excel, use `XLSX.writetable` method.
 
 ```julia
 julia> import DataFrames, XLSX
 
-julia> df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You", "Out", "There"], :floats=>[10.2, 20.3, 30.4, 40.5], :dates=>[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], :times=>[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], :datetimes=>[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
+julia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
 4×6 DataFrames.DataFrame
 │ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │
 ├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤
@@ -118,6 +118,29 @@ julia> df = DataFrames.DataFrame(:integers=>[1, 2, 3, 4], :strings=>["Hey", "You
 │ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
 
 julia> XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
+```
+
+You can also export multiple tables to Excel, each table in a separate worksheet.
+
+```julia
+julia> import DataFrames, XLSX
+
+julia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
+3×2 DataFrames.DataFrame
+│ Row │ COL1 │ COL2  │
+├─────┼──────┼───────┤
+│ 1   │ 10   │ Fist  │
+│ 2   │ 20   │ Sec   │
+│ 3   │ 30   │ Third │
+
+julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+2×2 DataFrames.DataFrame
+│ Row │ AA │ AB   │
+├─────┼────┼──────┤
+│ 1   │ aa │ 10.1 │
+│ 2   │ bb │ 10.2 │
+
+julia> XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
 ```
 
 ## Streaming Large Excel Files and Caching

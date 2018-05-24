@@ -924,16 +924,36 @@ rm(filename_copy)
 # Edit cells
 f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
 s = f["general"]
+XLSX.rename!(s, "renamed_sheet")
 s["A1"] = "Hey You!"
 s["B1"] = "Out there in the cold..."
 s["A2"] = "Getting lonely getting old..."
 s["B2"] = "Can you feel me?"
 s["A3"] = 1000
 s["B3"] = 99.99
+
+# create a new sheet
+s = XLSX.addsheet!(f, "my_new_sheet_1")
+s = XLSX.addsheet!(f, "my_new_sheet_2")
+s["B1"] = "This is a new sheet"
+s["B2"] = "This is a new sheet"
+
 XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
-@test isfile("general_copy_2.xlsx") 
+@test isfile("general_copy_2.xlsx")
+
+f = XLSX.openxlsx("general_copy_2.xlsx")
+s = f["renamed_sheet"]
+@test s["A1"] == "Hey You!"
+@test s["B1"] == "Out there in the cold..."
+@test s["A2"] == "Getting lonely getting old..."
+@test s["B2"] == "Can you feel me?"
+@test s["A3"] == 1000
+@test s["B3"] == 99.99
+f["my_new_sheet_1"];
+@test f["my_new_sheet_2"]["B1"] == "This is a new sheet"
+@test f["my_new_sheet_2"]["B2"] == "This is a new sheet"
+close(f)
 rm("general_copy_2.xlsx")
-# TODO error opening general_copy_2.xlsx related to calcChain
 
 # export table from template
 col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
@@ -946,13 +966,38 @@ data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2
 data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
 data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
 
-XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true)
+XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true, sheetname="report", anchor_cell="B2")
 @test isfile("output_table.xlsx")
 
-read_data, read_column_names = XLSX.readtable("output_table.xlsx", 1)
+read_data, read_column_names = XLSX.readtable("output_table.xlsx", "report")
 @test length(read_column_names) == length(col_names)
 for c in 1:length(col_names)
     @test Symbol(col_names[c]) == read_column_names[c]
 end
 check_test_data(read_data, data)
 rm("output_table.xlsx")
+
+report_1_column_names = ["HEADER_A", "HEADER_B"]
+report_1_data = Vector{Any}(2)
+report_1_data[1] = [1, 2, 3]
+report_1_data[2] = ["A", "B", "C"]
+
+report_2_column_names = ["COLUMN_A", "COLUMN_B"]
+report_2_data = Vector{Any}(2)
+report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
+report_2_data[2] = [10.2, 10.3]
+
+XLSX.writetable("output_tables.xlsx", rewrite=true, REPORT_A=(report_1_data, report_1_column_names), REPORT_B=(report_2_data, report_2_column_names))
+@test isfile("output_tables.xlsx")
+
+data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+@test labels[1] == :HEADER_A
+@test labels[2] == :HEADER_B
+check_test_data(data, report_1_data)
+
+data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+@test labels[1] == :COLUMN_A
+@test labels[2] == :COLUMN_B
+check_test_data(data, report_2_data)
+
+rm("output_tables.xlsx")

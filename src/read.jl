@@ -46,25 +46,29 @@ See also `readxlsx` method.
 @inline openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile = open_or_read_xlsx(filepath, false, enable_cache, false)
 
 function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
-    xf = XLSXFile(filepath, enable_cache)
+    # sanity check
+    if read_as_template
+        @assert read_files && enable_cache
+    end
+
+    xf = XLSXFile(filepath, enable_cache, read_as_template)
 
     try
         for f in xf.io.files
+
+            # ignore xl/calcChain.xml in any case (#31)
+            if f.name == "xl/calcChain.xml"
+                continue
+            end
 
             if endswith(f.name, ".xml") || endswith(f.name, ".rels")
                 # XML file
                 internal_xml_file_add!(xf, f.name)
                 if read_files
-                    # ignore xl/calcChain.xml for now
-                    if !read_as_template && f.name == "xl/calcChain.xml"
-                        #warn("Ignoring calculation chain file: $(f.name).")
-                        continue
-                    end
 
                     # ignore worksheet files because they'll be read thru streaming
                     # If reading as template, it will be loaded in two places: here and WorksheetCache.
                     if !read_as_template && startswith(f.name, "xl/worksheets") && endswith(f.name, ".xml")
-                        #info("ignoring worksheet file $(f.name). It will be read thru streaming.")
                         continue
                     end
 
@@ -95,7 +99,10 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
         end
 
         if read_as_template
-            sst_load!(get_workbook(xf))
+            wb = get_workbook(xf)
+            if has_sst(wb)
+                sst_load!(wb)
+            end
         end
 
     finally
@@ -137,23 +144,21 @@ Parses package level relationships defined in `_rels/.rels`.
 Prases workbook level relationships defined in `xl/_rels/workbook.xml.rels`.
 """
 function parse_relationships!(xf::XLSXFile)
-    xroot = xmlroot(xf, "_rels/.rels")
-    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). _rels/.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
 
+    # package level relationships
+    xroot = get_package_relationship_root(xf)
     for el in EzXML.eachelement(xroot)
         push!(xf.relationships, Relationship(el))
     end
     @assert !isempty(xf.relationships) "Relationships not found in _rels/.rels!"
 
-    xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
-    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
-
+    # workbook level relationships
+    wb = get_workbook(xf)
+    xroot = get_workbook_relationship_root(xf)
     for el in EzXML.eachelement(xroot)
-        push!(get_workbook(xf).relationships, Relationship(el))
+        push!(wb.relationships, Relationship(el))
     end
-    @assert !isempty(get_workbook(xf).relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
+    @assert !isempty(wb.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
 
     nothing
 end

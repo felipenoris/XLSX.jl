@@ -35,3 +35,53 @@ function has_relationship_by_type(wb::Workbook, _type_::String) :: Bool
     end
     false
 end
+
+function get_package_relationship_root(xf::XLSXFile) :: EzXML.Node
+    xroot = xmlroot(xf, "_rels/.rels")
+    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). _rels/.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
+    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
+    return xroot
+end
+
+function get_workbook_relationship_root(xf::XLSXFile) :: EzXML.Node
+    xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
+    @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.filepath). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
+    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
+    return xroot
+end
+
+"""
+Adds new relationship. Returns new generated rId.
+"""
+function add_relationship!(wb::Workbook, target::String, _type::String) :: String
+    xf = get_xlsxfile(wb)
+    @assert is_writable(xf) "XLSXFile instance is not writable."
+    got_unique_id = false
+    id = 1
+    local rId :: String
+
+    while !got_unique_id
+        got_unique_id = true
+        rId = string("rId", id)
+        for r in wb.relationships
+            if r.Id == rId
+                got_unique_id = false
+                id += 1
+                break
+            end
+        end
+    end
+
+    # adds to relationship vector
+    new_relationship = Relationship(rId, _type, target)
+    push!(wb.relationships, new_relationship)
+
+    # adds to XML tree
+    xroot = get_workbook_relationship_root(xf)
+    el = EzXML.addelement!(xroot, "Relationship")
+    el["Id"] = rId
+    el["Target"] = target
+    el["Type"] = _type
+
+    return rId
+end
