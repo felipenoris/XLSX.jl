@@ -149,7 +149,7 @@ function update_worksheets_xml!(xl::XLSXFile)
     nothing
 end
 
-function setdata!(ws::Worksheet, cell::Cell; template_cell_ref::CellRef=cell.ref)
+function setdata!(ws::Worksheet, cell::Cell)
     @assert is_writable(get_xlsxfile(ws)) "XLSXFile instance is not writable."
     @assert !isnull(ws.cache) "Can't write data to a Worksheet with empty cache."
     cache = get(ws.cache)
@@ -168,16 +168,7 @@ function setdata!(ws::Worksheet, cell::Cell; template_cell_ref::CellRef=cell.ref
             end
         end
     end
-
-    cells_row = cache.cells[r]
-    if template_cell_ref != cell.ref && haskey(cells_row, c)
-        # copies style from template cell
-        template_cell = cells_row[c]
-        cell.datatype = template_cell.datatype
-        cell.style = template_cell.style
-    end
-
-    cells_row[c] = cell
+    cache.cells[r][c] = cell
 
     # update worksheet dimension
     ws_dimension = get_dimension(ws)
@@ -201,38 +192,33 @@ function setdata!(ws::Worksheet, cell::Cell; template_cell_ref::CellRef=cell.ref
     nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64}; template_cell_ref::CellRef=ref)
+function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64})
     cell = Cell(ref, "", "", string(v), "")
-    setdata!(ws, cell, template_cell_ref=template_cell_ref)
+    setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString; template_cell_ref::CellRef=ref)
+function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
     sst_ind = add_shared_string!(get_workbook(ws), str)
     cell = Cell(ref, "s", "", string(sst_ind), "")
-    setdata!(ws, cell, template_cell_ref=template_cell_ref)
+    setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing; template_cell_ref::CellRef=ref)
-    if template_cell_ref == ref
-        # no-op
-        return
-    else
-        # add empty string with style
-        setdata!(ws, ref, "", template_cell_ref=template_cell_ref)
-    end
+function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing)
+    # no-op
+    nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, b::Bool; template_cell_ref::CellRef=ref)
+function setdata!(ws::Worksheet, ref::CellRef, b::Bool)
     value_str = b ? "1" : "0"
     cell = Cell(ref, "b", "", value_str, "")
-    setdata!(ws, cell, template_cell_ref=template_cell_ref)
+    setdata!(ws, cell)
 end
 
 const DEFAULT_DATE_numFmtId = 14
 const DEFAULT_TIME_numFmtId = 20
 const DEFAULT_DATETIME_numFmtId = 22
 
-function setdata!(ws::Worksheet, ref::CellRef, date::Date; template_cell_ref::CellRef=ref)
+function setdata!(ws::Worksheet, ref::CellRef, date::Date)
     wb = get_workbook(ws)
     date_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATE_numFmtId)
     if date_style_index == -1
@@ -242,10 +228,10 @@ function setdata!(ws::Worksheet, ref::CellRef, date::Date; template_cell_ref::Ce
 
     value_str = string(date_to_excel_value(date, isdate1904(get_xlsxfile(ws))))
     cell = Cell(ref, "", string(date_style_index), value_str, "")
-    setdata!(ws, cell, template_cell_ref=template_cell_ref)
+    setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time; template_cell_ref::CellRef=ref)
+function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time)
     wb = get_workbook(ws)
     time_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_TIME_numFmtId)
     if time_style_index == -1
@@ -255,10 +241,10 @@ function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time; template_cell_ref:
 
     value_str = string(time_to_excel_value(t))
     cell = Cell(ref, "", string(time_style_index), value_str, "")
-    setdata!(ws, cell, template_cell_ref=template_cell_ref)
+    setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime; template_cell_ref::CellRef=ref)
+function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime)
     wb = get_workbook(ws)
     datetime_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATETIME_numFmtId)
     if datetime_style_index == -1
@@ -268,10 +254,10 @@ function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime; template_cell_
 
     value_str = string(datetime_to_excel_value(t, isdate1904(get_xlsxfile(ws))))
     cell = Cell(ref, "", string(datetime_style_index), value_str, "")
-    setdata!(ws, cell, template_cell_ref=template_cell_ref)
+    setdata!(ws, cell)
 end
 
-setdata!(ws::Worksheet, ref_str::AbstractString, value::CellValue; template_cell_ref::CellRef=CellRef(ref_str)) = setdata!(ws, CellRef(ref_str), value, template_cell_ref=template_cell_ref)
+setdata!(ws::Worksheet, ref_str::AbstractString, value::CellValue) = setdata!(ws, CellRef(ref_str), value)
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 
