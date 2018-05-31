@@ -215,7 +215,7 @@ mutable struct XLSXFile <: MSOfficePackage
     is_writable::Bool # indicates wether this XLSX file can be edited
 
     function XLSXFile(filepath::AbstractString, use_cache::Bool, is_writable::Bool)
-        @assert isfile(filepath) "File $filepath not found."
+        check_for_xlsx_file_format(filepath)
         io = ZipFile.Reader(filepath)
         xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
