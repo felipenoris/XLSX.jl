@@ -4,6 +4,21 @@
 @inline get_workbook(ws::Worksheet) :: Workbook = get_xlsxfile(ws).workbook
 @inline get_workbook(xl::XLSXFile) :: Workbook = xl.workbook
 
+function check_for_xlsx_file_format(filepath::AbstractString)
+    @assert isfile(filepath) "File $filepath not found."
+    io = open(filepath, "r")
+    header = Base.read(io, 4)
+    close(io)
+
+    if header == [ 0x50, 0x4b, 0x03, 0x04 ] # valid Zip file header
+        return
+    elseif header == [ 0xd0, 0xcf, 0x11, 0xe0 ] # old XLS file
+        error("$filepath looks like an old XLS file (not XLSX). This package does not support XLS file format.")
+    else
+        error("$filepath is not a valid XLSX file.")
+    end
+end
+
 """
     readxlsx(filepath) :: XLSXFile
 
