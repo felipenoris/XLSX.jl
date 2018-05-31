@@ -258,6 +258,7 @@ function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime)
 end
 
 setdata!(ws::Worksheet, ref_str::AbstractString, value::CellValue) = setdata!(ws, CellRef(ref_str), value)
+setdata!(ws::Worksheet, ref_str::AbstractString, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValue).")
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 

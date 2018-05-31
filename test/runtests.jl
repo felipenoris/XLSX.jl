@@ -924,6 +924,7 @@ rm(filename_copy)
 # Edit cells
 f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
 s = f["general"]
+@test_throws ErrorException s["A1"] = :sym
 XLSX.rename!(s, "renamed_sheet")
 s["A1"] = "Hey You!"
 s["B1"] = "Out there in the cold..."
