@@ -624,8 +624,8 @@ function check_test_data(data::Vector{Any}, test_data::Vector{Any})
     for row in 1:rows, col in 1:cols
         test_value = test_data[col][row]
         value = data[col][row]
-        if ismissing(test_value)
-            @test ismissing(value)
+        if ismissing(test_value) || ( isa(test_value, AbstractString) && isempty(test_value) )
+            @test ismissing(value) || ( isa(value, AbstractString) && isempty(value) )
         else
             if isa(test_value, Float64)
                 @test isapprox(value, test_value)
@@ -984,7 +984,7 @@ rm("output_table.xlsx")
 report_1_column_names = ["HEADER_A", "HEADER_B"]
 report_1_data = Vector{Any}(2)
 report_1_data[1] = [1, 2, 3]
-report_1_data[2] = ["A", "B", "C"]
+report_1_data[2] = ["A", "B", ""]
 
 report_2_column_names = ["COLUMN_A", "COLUMN_B"]
 report_2_data = Vector{Any}(2)

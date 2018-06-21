@@ -198,6 +198,11 @@ function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64})
 end
 
 function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
+    if isempty(str)
+        # no-op
+        return
+    end
+
     sst_ind = add_shared_string!(get_workbook(ws), str)
     cell = Cell(ref, "s", "", string(sst_ind), "")
     setdata!(ws, cell)
