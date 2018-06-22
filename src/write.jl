@@ -268,6 +268,18 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     end
 end
 
+function writerow!(sheet::Worksheet, data; anchor_cell::CellRef=CellRef("A1"))
+
+    col_count = length(data)
+    anchor_row = row_number(anchor_cell)
+    anchor_col = column_number(anchor_cell)
+
+    for c in 1:col_count
+        target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
+        sheet[target_cell_ref] = data[c]
+    end
+end
+
 function rename!(ws::Worksheet, name::AbstractString)
     xf = get_xlsxfile(ws)
     @assert is_writable(xf) "XLSXFile instance is not writable."

@@ -1242,3 +1242,46 @@ style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 @test !XLSX.styles_is_float(wb, style)
 
 close(xfile)
+
+#
+# Write one row at a time
+#
+
+column_names = ["COLUMN_A", "COLUMN_B", "COLUMN_C"]
+data = [
+    1 "a" Date(2018, 1, 1);
+    2 "b" Date(2018, 1, 2);
+    3 "c" Date(2018, 1, 3);
+]
+
+sheetname = "New Sheet"
+xf = XLSX.emptyfile(sheetname)
+@test XLSX.hassheet(xf, sheetname)
+
+# writerow(xf::XLSXFile, data, row, start_column::String, sheet_num::Int=1)
+XLSX.writerow(xf, column_names, 1, "A", 1)
+# writerow(xf::XLSXFile, data, row, start_column::Int, sheet_num::Int=1)
+XLSX.writerow(xf, data[1, :], 2, 1, 1)
+# writerow(xf::XLSXFile, data, row, start_column::String, sheetname::String)
+XLSX.writerow(xf, data[2, :], 3, "A", sheetname)
+# writerow(xf::XLSXFile, data, row, start_column::Int, sheetname::String)
+XLSX.writerow(xf, data[3, :], 4, 1, sheetname)
+
+filename = "test_file.xlsx"
+if isfile(filename)
+    rm(filename)
+end
+
+XLSX.closefile(xf, filename)
+@test isfile(filename)
+
+read_data, labels = XLSX.readtable(filename, sheetname)
+
+data_vector = Vector{Any}(3)
+data_vector[1] = data[:, 1]
+data_vector[2] = data[:, 2]
+data_vector[3] = data[:, 3]
+
+@test labels == [Symbol(name) for name in column_names]
+check_test_data(data_vector, read_data)
+rm(filename)
