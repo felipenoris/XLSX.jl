@@ -268,6 +268,31 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     end
 end
 
+function Base.setindex!(sheet::Worksheet, value, row::Int, col::Int)
+    target_cell_ref = CellRef(row, col)
+    sheet[target_cell_ref] = value
+end
+
+function Base.setindex!(sheet::Worksheet, data::Array, row::Int, cols::UnitRange{Int})
+    col_count = length(data)
+
+    @assert col_count == length(cols) "Column count mismatch between `data` ($col_count columns) and column range $cols ($(length(cols)) columns)."
+
+    for c in 1:col_count
+        target_cell_ref = CellRef(row, c + first(cols) - 1)
+        sheet[target_cell_ref] = data[c]
+    end
+end
+
+function Base.setindex!(sheet::Worksheet, data::Array, row::Int, c::Colon)
+    col_count = length(data)
+
+    for c in 1:col_count
+        target_cell_ref = CellRef(row, c)
+        sheet[target_cell_ref] = data[c]
+    end
+end
+
 function writerow!(sheet::Worksheet, data; anchor_cell::CellRef=CellRef("A1"))
 
     col_count = length(data)

@@ -211,6 +211,20 @@ function emptyfile(sheetname::AbstractString="")
     return xf
 end
 
+function Base.open(f::Function, filename::AbstractString, sheetname::AbstractString="")
+    xf = open_default_template()
+
+    if sheetname != ""
+        rename!(xf[1], sheetname)
+    end
+
+    try
+        f(xf)
+    finally
+        closefile(xf, filename)
+    end
+end
+
 """
     writerow(xf::XLSXFile, data, row, start_column::String, sheet_num::Int=1)
 

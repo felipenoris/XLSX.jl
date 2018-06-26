@@ -1285,3 +1285,27 @@ data_vector[3] = data[:, 3]
 @test labels == [Symbol(name) for name in column_names]
 check_test_data(data_vector, read_data)
 rm(filename)
+
+data = [
+    1 "a" Date(2018, 1, 1);
+    2 missing Date(2018, 1, 2);
+    missing "c" Date(2018, 1, 3);
+]
+
+open(filename, sheetname) do xf
+    sheet = xf[sheetname]
+
+    sheet[1, :] = data[1, :]
+    sheet[2, :] = data[2, :]
+    sheet[2, 1] = "test overwrite"
+    sheet[3, 2:3] = data[3, 2:3]
+end
+
+@test isfile(filename)
+read_data = XLSX.readdata(filename, sheetname, "A1:C3")
+
+@test isequal(read_data[1, :], data[1, :])
+@test isequal(read_data[2, :], vcat(["test overwrite"], data[2, 2:end]))
+@test isequal(read_data[3, :], data[3, :])
+
+rm(filename)
