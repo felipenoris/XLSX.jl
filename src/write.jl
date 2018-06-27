@@ -273,7 +273,7 @@ function Base.setindex!(sheet::Worksheet, value, row::Integer, col::Integer)
     sheet[target_cell_ref] = value
 end
 
-function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, cols::UnitRange{Int})
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, cols::UnitRange{<:Integer})
     col_count = length(data)
 
     @assert col_count == length(cols) "Column count mismatch between `data` ($col_count columns) and column range $cols ($(length(cols)) columns)."
