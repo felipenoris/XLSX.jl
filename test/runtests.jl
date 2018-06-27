@@ -1292,7 +1292,7 @@ data = [
     missing "c" Date(2018, 1, 3);
 ]
 
-open(filename, sheetname) do xf
+XLSX.openxlsx(filename, sheetname) do xf
     sheet = xf[sheetname]
 
     sheet[1, :] = data[1, :]
@@ -1302,10 +1302,28 @@ open(filename, sheetname) do xf
 end
 
 @test isfile(filename)
-read_data = XLSX.readdata(filename, sheetname, "A1:C3")
+XLSX.openxlsx(filename) do xf
+    sheet = xf[sheetname]
+    read_data = sheet[:]
 
-@test isequal(read_data[1, :], data[1, :])
-@test isequal(read_data[2, :], vcat(["test overwrite"], data[2, 2:end]))
-@test isequal(read_data[3, :], data[3, :])
+    @test isequal(read_data[1, :], data[1, :])
+    @test isequal(read_data[2, :], vcat(["test overwrite"], data[2, 2:end]))
+    @test isequal(read_data[3, :], data[3, :])
+end
+
+# test overwrite file
+@test isfile(filename)
+new_data = [1 2 3;]
+XLSX.openxlsx(filename, sheetname, rewrite=true) do xf
+    sheet = xf[sheetname]
+    sheet[1, :] = new_data
+end
+
+XLSX.openxlsx(filename) do xf
+    sheet = xf[sheetname]
+    read_data = sheet[:]
+
+    @test isequal(read_data, new_data)
+end
 
 rm(filename)

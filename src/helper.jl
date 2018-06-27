@@ -211,17 +211,66 @@ function emptyfile(sheetname::AbstractString="")
     return xf
 end
 
-function Base.open(f::Function, filename::AbstractString, sheetname::AbstractString="")
-    xf = open_default_template()
+"""
+    openxlsx(f::Function, filename::AbstractString, sheetname::AbstractString=""; kw...)
 
-    if sheetname != ""
-        rename!(xf[1], sheetname)
+Open XLSX file for reading and/or writing.
+
+`filename` is the name of the file.
+`sheetname` is the name of the worksheet for a new file.
+
+If `rewrite=true` the file `filename` will overwritten is it exists.
+
+If `enable_cache=true`, all read worksheet cells will be cached.
+If you read a worksheet cell twice it will use the cached value instead of reading from disk
+in the second time.
+
+If `enable_cache=false`, worksheet cells will always be read from disk.
+This is useful when you want to read a spreadsheet that doesn't fit into memory.
+
+The default value is `enable_cache=true`.
+
+Example:
+
+```julia
+XLSX.openxlsx("new.xlsx", "New Sheet") do xf
+    sheet = xf["New Sheet"]
+    sheet[1, :] = [1, Date(2018, 1, 1), "test"]
+end
+
+XLSX.openxlsx("new.xlsx") do xf
+    sheet = xf["New Sheet"]
+    data = sheet[:]
+end
+
+XLSX.openxlsx("new.xlsx", "New Sheet 2", rewrite=true) do xf
+    sheet = xf["New Sheet"]
+    sheet[1, 1] = "New data"
+end
+```
+"""
+function openxlsx(f::Function, filename::AbstractString, sheetname::AbstractString=""; rewrite::Bool=false, enable_cache::Bool=true)
+    writefile = false
+
+    if isfile(filename) && !rewrite
+        xf = open_or_read_xlsx(filename, false, enable_cache, false)
+    else
+        writefile = true
+        xf = open_default_template()
+
+        if sheetname != ""
+            rename!(xf[1], sheetname)
+        end
     end
 
     try
         f(xf)
     finally
-        closefile(xf, filename)
+        if writefile
+            closefile(xf, filename, rewrite=rewrite)
+        else
+            close(xf)
+        end
     end
 end
 
