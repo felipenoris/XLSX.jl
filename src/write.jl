@@ -268,12 +268,12 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     end
 end
 
-function Base.setindex!(sheet::Worksheet, value, row::Int, col::Int)
+function Base.setindex!(sheet::Worksheet, value, row::Integer, col::Integer)
     target_cell_ref = CellRef(row, col)
     sheet[target_cell_ref] = value
 end
 
-function Base.setindex!(sheet::Worksheet, data::Array, row::Int, cols::UnitRange{Int})
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, cols::UnitRange{Int})
     col_count = length(data)
 
     @assert col_count == length(cols) "Column count mismatch between `data` ($col_count columns) and column range $cols ($(length(cols)) columns)."
@@ -284,7 +284,7 @@ function Base.setindex!(sheet::Worksheet, data::Array, row::Int, cols::UnitRange
     end
 end
 
-function Base.setindex!(sheet::Worksheet, data::Array, row::Int, c::Colon)
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, c::Colon)
     col_count = length(data)
 
     for c in 1:col_count
@@ -293,11 +293,12 @@ function Base.setindex!(sheet::Worksheet, data::Array, row::Int, c::Colon)
     end
 end
 
-function writerow!(sheet::Worksheet, data; anchor_cell::CellRef=CellRef("A1"))
+Base.setindex!(sheet::Worksheet, data::AbstractVector, ref_str::AbstractString) = setindex!(sheet, data, CellRef(ref_str))
 
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, index::CellRef)
     col_count = length(data)
-    anchor_row = row_number(anchor_cell)
-    anchor_col = column_number(anchor_cell)
+    anchor_row = row_number(index)
+    anchor_col = column_number(index)
 
     for c in 1:col_count
         target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)

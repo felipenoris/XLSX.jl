@@ -217,7 +217,6 @@ end
 Open XLSX file for reading and/or writing.
 
 `filename` is the name of the file.
-`sheetname` is the name of the worksheet for a new file.
 
 If `rewrite=true` the file `filename` will overwritten is it exists.
 
@@ -233,23 +232,23 @@ The default value is `enable_cache=true`.
 Example:
 
 ```julia
-XLSX.openxlsx("new.xlsx", "New Sheet") do xf
-    sheet = xf["New Sheet"]
+XLSX.openxlsx("new.xlsx") do xf
+    sheet = xf[1]
     sheet[1, :] = [1, Date(2018, 1, 1), "test"]
 end
 
-XLSX.openxlsx("new.xlsx") do xf
-    sheet = xf["New Sheet"]
+XLSX.openxlsx("new.xlsx", enable_cache=false) do xf
+    sheet = xf[1]
     data = sheet[:]
 end
 
-XLSX.openxlsx("new.xlsx", "New Sheet 2", rewrite=true) do xf
-    sheet = xf["New Sheet"]
+XLSX.openxlsx("new.xlsx", rewrite=true) do xf
+    sheet = xf[1]
     sheet[1, 1] = "New data"
 end
 ```
 """
-function openxlsx(f::Function, filename::AbstractString, sheetname::AbstractString=""; rewrite::Bool=false, enable_cache::Bool=true)
+function openxlsx(f::Function, filename::AbstractString; rewrite::Bool=false, enable_cache::Bool=true)
     writefile = false
 
     if isfile(filename) && !rewrite
@@ -257,166 +256,15 @@ function openxlsx(f::Function, filename::AbstractString, sheetname::AbstractStri
     else
         writefile = true
         xf = open_default_template()
-
-        if sheetname != ""
-            rename!(xf[1], sheetname)
-        end
     end
 
     try
         f(xf)
     finally
         if writefile
-            closefile(xf, filename, rewrite=rewrite)
+            writexlsx(filename, xf, rewrite=rewrite)
         else
             close(xf)
         end
     end
-end
-
-"""
-    writerow(xf::XLSXFile, data, row, start_column::String, sheet_num::Int=1)
-
-Write one row to `XLSXFile`.
-
-`data` is a vector.
-`row` is the row index.
-`start_column` is the `String` representation of the first column index to write.
-`sheet_num` is the `Integer` representation of the target worksheet.
-
-Example:
-
-```julia
-using XLSX
-
-data = 1, 2, 3]
-xf = XLSX.emptyfile()
-
-XLSX.writerow(xf, data, 1, "A", 1)
-```
-"""
-function writerow(xf::XLSXFile, data, row, start_column::String, sheet_num::Int=1)
-    @assert sheetcount(xf) >= sheet_num "Sheet number $sheet_num not found."
-
-    sheet = xf[sheet_num]
-    anchor_cell = "$start_column$row"
-
-    writerow(sheet, data; anchor_cell=CellRef(anchor_cell))
-end
-
-"""
-    writerow(xf::XLSXFile, data, row, start_column::Int, sheet_num::Int=1)
-
-Write one row to `XLSXFile`.
-
-`data` is a vector.
-`row` is the row index.
-`start_column` is the `Integer` representation of the first column index to write.
-`sheet_num` is the `Integer` representation of the target worksheet.
-
-Example:
-
-```julia
-using XLSX
-
-data = [1, 2, 3]
-xf = XLSX.emptyfile()
-
-XLSX.writerow(xf, data, 1, 1, 1)
-```
-"""
-function writerow(xf::XLSXFile, data, row, start_column::Int, sheet_num::Int=1)
-    writerow(xf, data, row, encode_column_number(start_column), sheet_num)
-end
-
-"""
-    writerow(xf::XLSXFile, data, row, start_column::String, sheetname::String)
-
-Write one row to `XLSXFile`.
-
-`data` is a vector.
-`row` is the row index.
-`start_column` is the `String` representation of the first column index to write.
-`sheetname` is the name of the target worksheet.
-
-Example:
-
-```julia
-using XLSX
-
-data = [1, 2, 3]
-xf = XLSX.emptyfile("New Sheet")
-
-XLSX.writerow(xf, data, 1, "A", "New Sheet")
-```
-"""
-function writerow(xf::XLSXFile, data, row, start_column::String, sheetname::String)
-    @assert hassheet(xf, sheetname) "Sheet name \"$sheetname\" not found."
-
-    sheet = xf[sheetname]
-    anchor_cell = "$start_column$row"
-
-    writerow(sheet, data; anchor_cell=CellRef(anchor_cell))
-end
-
-"""
-    writerow(xf::XLSXFile, data, row, start_column::Int, sheetname::String)
-
-Write one row to `XLSXFile`.
-
-`data` is a vector.
-`row` is the row index.
-`start_column` is the `Integer` representation of the first column index to write.
-`sheetname` is the name of the target worksheet.
-
-Example:
-
-```julia
-using XLSX
-
-data = [1, 2, 3]
-xf = XLSX.emptyfile("New Sheet")
-
-XLSX.writerow(xf, data, 1, 1, "New Sheet")
-```
-"""
-function writerow(xf::XLSXFile, data, row, start_column::Int, sheetname::String,)
-    writerow(xf, data, row, encode_column_number(start_column), sheetname)
-end
-
-"""
-    writerow(sheet::Worksheet, data; anchor_cell::CellRef=CellRef("A1"))
-
-Write one row to `Worksheet`.
-
-`data` is a vector.
-`anchor_cell` is the first cell of the row to write, defaults to "A1".
-
-Example:
-
-```julia
-using XLSX
-
-data = [1, 2, 3]
-xf = XLSX.emptyfile("New Sheet")
-sheet = xf["New Sheet"]
-
-# write the second row starting at the second column
-XLSX.writerow(sheet, data, anchor_cell=XLSX(CellRef("B2")))
-```
-"""
-function writerow(sheet::Worksheet, data; anchor_cell::CellRef=CellRef("A1"))
-    @assert is_writable(get_xlsxfile(sheet)) "XLSXFile instance is not writable."
-    writerow!(sheet, data; anchor_cell=CellRef(anchor_cell))
-
-end
-
-"""
-    closefile(xf::XLSXFile, filepath::AbstractString; rewrite::Bool=false)
-
-Writes content and closes `XLSXFile`.
-"""
-function closefile(xf::XLSXFile, filepath::AbstractString; rewrite::Bool=false)
-    writexlsx(filepath, xf, rewrite=rewrite)
-    nothing
 end

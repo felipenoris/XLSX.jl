@@ -1247,44 +1247,11 @@ close(xfile)
 # Write one row at a time
 #
 
-column_names = ["COLUMN_A", "COLUMN_B", "COLUMN_C"]
-data = [
-    1 "a" Date(2018, 1, 1);
-    2 "b" Date(2018, 1, 2);
-    3 "c" Date(2018, 1, 3);
-]
-
 sheetname = "New Sheet"
-xf = XLSX.emptyfile(sheetname)
-@test XLSX.hassheet(xf, sheetname)
-
-# writerow(xf::XLSXFile, data, row, start_column::String, sheet_num::Int=1)
-XLSX.writerow(xf, column_names, 1, "A", 1)
-# writerow(xf::XLSXFile, data, row, start_column::Int, sheet_num::Int=1)
-XLSX.writerow(xf, data[1, :], 2, 1, 1)
-# writerow(xf::XLSXFile, data, row, start_column::String, sheetname::String)
-XLSX.writerow(xf, data[2, :], 3, "A", sheetname)
-# writerow(xf::XLSXFile, data, row, start_column::Int, sheetname::String)
-XLSX.writerow(xf, data[3, :], 4, 1, sheetname)
-
 filename = "test_file.xlsx"
 if isfile(filename)
     rm(filename)
 end
-
-XLSX.closefile(xf, filename)
-@test isfile(filename)
-
-read_data, labels = XLSX.readtable(filename, sheetname)
-
-data_vector = Vector{Any}(3)
-data_vector[1] = data[:, 1]
-data_vector[2] = data[:, 2]
-data_vector[3] = data[:, 3]
-
-@test labels == [Symbol(name) for name in column_names]
-check_test_data(data_vector, read_data)
-rm(filename)
 
 data = [
     1 "a" Date(2018, 1, 1);
@@ -1292,10 +1259,11 @@ data = [
     missing "c" Date(2018, 1, 3);
 ]
 
-XLSX.openxlsx(filename, sheetname) do xf
-    sheet = xf[sheetname]
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    XLSX.rename!(sheet, sheetname)
 
-    sheet[1, :] = data[1, :]
+    sheet["A1"] = data[1, :]
     sheet[2, :] = data[2, :]
     sheet[2, 1] = "test overwrite"
     sheet[3, 2:3] = data[3, 2:3]
@@ -1314,13 +1282,13 @@ end
 # test overwrite file
 @test isfile(filename)
 new_data = [1 2 3;]
-XLSX.openxlsx(filename, sheetname, rewrite=true) do xf
-    sheet = xf[sheetname]
-    sheet[1, :] = new_data
+XLSX.openxlsx(filename, rewrite=true) do xf
+    sheet = xf[1]
+    sheet[1, :] = new_data[1,:]
 end
 
 XLSX.openxlsx(filename) do xf
-    sheet = xf[sheetname]
+    sheet = xf[1]
     read_data = sheet[:]
 
     @test isequal(read_data, new_data)
