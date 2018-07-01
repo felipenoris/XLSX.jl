@@ -198,4 +198,3 @@ julia> for r in XLSX.eachtablerow(sheet)
 * [XLSXReader.jl](https://github.com/mpastell/XLSXReader.jl)
 
 * [Taro.jl](https://github.com/aviks/Taro.jl)
-
