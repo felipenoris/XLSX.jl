@@ -167,7 +167,7 @@ function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
     nothing
 end
 
-function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; rewrite::Bool=false)
+function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{T}}}; rewrite::Bool=false) where {T<:Union{String, Symbol}}
     if !rewrite
         @assert !isfile(filename) "$filename already exists."
     end
