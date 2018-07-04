@@ -1004,4 +1004,16 @@ data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
 @test labels[2] == :COLUMN_B
 check_test_data(data, report_2_data)
 
+XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], rewrite=true)
+
+data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+@test labels[1] == :HEADER_A
+@test labels[2] == :HEADER_B
+check_test_data(data, report_1_data)
+
+data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+@test labels[1] == :COLUMN_A
+@test labels[2] == :COLUMN_B
+check_test_data(data, report_2_data)
+
 rm("output_tables.xlsx")

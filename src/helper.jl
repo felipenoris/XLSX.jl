@@ -121,6 +121,7 @@ end
 
 """
     writetable(filename::AbstractString; rewrite::Bool=false, kw...)
+    writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; rewrite::Bool=false)
 
 Write multiple tables.
 
@@ -148,6 +149,34 @@ function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
     is_first = true
 
     for (sheetname, (data, column_names)) in kw
+        if is_first
+            # first sheet already exists in template file
+            sheet = xf[1]
+            rename!(sheet, string(sheetname))
+            writetable!(sheet, data, column_names)
+
+            is_first = false
+        else
+            sheet = addsheet!(xf, string(sheetname))
+            writetable!(sheet, data, column_names)
+        end
+    end
+
+    # write output file
+    writexlsx(filename, xf, rewrite=rewrite)
+    nothing
+end
+
+function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; rewrite::Bool=false)
+    if !rewrite
+        @assert !isfile(filename) "$filename already exists."
+    end
+
+    xf = open_default_template()
+
+    is_first = true
+
+    for (sheetname, data, column_names) in tables
         if is_first
             # first sheet already exists in template file
             sheet = xf[1]
