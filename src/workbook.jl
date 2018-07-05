@@ -54,7 +54,20 @@ end
 @inline getsheet(xl::XLSXFile, sheetname::String) :: Worksheet = getsheet(xl.workbook, sheetname)
 @inline getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = getsheet(xl.workbook, sheet_index)
 
-Base.show(io::IO, xf::XLSXFile) = print(io, "XLSXFile(\"$(xf.filepath)\")")
+function Base.show(io::IO, xf::XLSXFile) 
+    wb = xf.workbook
+    print(io, "XLSXFile(\"$(basename(xf.filepath))\") ",
+              "containing $(sheetcount(wb)) Worksheets\n")
+    @printf(io, "%21s %-13s %-13s\n", "sheetname", "size", "range")
+    println(io, "-"^(21+1+13+1+13))
+    
+    for s in wb.sheets
+        rg = s.dimension
+        _size = size(rg) |> x -> string(x[1], "x", x[2])
+        name = s.name |> x -> length(x) < 20 ? x : x[1:20]*"…"
+        @printf("%21s %-13s %-13s\n", name, _size, rg)
+    end
+end
 
 @inline Base.getindex(xl::XLSXFile, i::Integer) = getsheet(xl, i)
 
