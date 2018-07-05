@@ -64,7 +64,7 @@ function Base.show(io::IO, xf::XLSXFile)
     for s in wb.sheets
         rg = s.dimension
         _size = size(rg) |> x -> string(x[1], "x", x[2])
-        name = s.name |> x -> length(x) < 20 ? x : x[1:20]*"…"
+        name = s.name |> x -> length(x) > 20 ? x[1:20]*"…" : x
         @printf(io, "%21s %-13s %-13s\n", name, _size, rg)
     end
 end
