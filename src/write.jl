@@ -267,7 +267,7 @@ setdata!(ws::Worksheet, ref_str::AbstractString, value) = error("Unsupported dat
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 
-const DEFAULT_EXCEL_TEMPLATE = joinpath(dirname(@__FILE__), "..", "data", "blank.xlsx")
+const DEFAULT_EXCEL_TEMPLATE = joinpath(@__DIR__, "..", "data", "blank.xlsx")
 
 function open_default_template() :: XLSXFile
     @assert isfile(DEFAULT_EXCEL_TEMPLATE) "Couldn't find template file $DEFAULT_EXCEL_TEMPLATE."
@@ -329,7 +329,7 @@ function rename!(ws::Worksheet, name::AbstractString)
     nothing
 end
 
-const FILEPATH_SHEET_TEMPLATE = joinpath(dirname(@__FILE__), "..", "data", "sheet_template.xml")
+const FILEPATH_SHEET_TEMPLATE = joinpath(@__DIR__, "..", "data", "sheet_template.xml")
 
 addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_workbook(xl), name)
 

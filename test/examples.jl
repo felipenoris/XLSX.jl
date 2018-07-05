@@ -5,7 +5,7 @@ import XLSX
 # examples from docstrings
 #
 
-data_directory = joinpath(dirname(@__FILE__), "..", "data")
+data_directory = joinpath(Pkg.dir("XLSX"), "data")
 
 v = XLSX.readdata(joinpath(data_directory, "myfile.xlsx"), "mysheet", "A1:B4")
 
