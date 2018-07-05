@@ -2,7 +2,7 @@
 import XLSX
 using Base.Test, Missings
 
-data_directory = joinpath(dirname(@__FILE__), "..", "data")
+data_directory = joinpath(Pkg.dir("XLSX"), "data")
 
 ef_blank_ptbr_1904 = XLSX.readxlsx(joinpath(data_directory, "blank_ptbr_1904.xlsx"))
 ef_Book1 = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
