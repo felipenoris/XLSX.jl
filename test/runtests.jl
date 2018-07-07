@@ -423,6 +423,7 @@ dt = Date(2018,4,1)
 
 # General number formats
 f = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"))
+show(IOBuffer(), f)
 sheet = f["general"]
 @test sheet["A1"] == "text"
 @test sheet["B1"] == "regular text"
