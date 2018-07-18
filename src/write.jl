@@ -197,13 +197,22 @@ function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64})
     setdata!(ws, cell)
 end
 
+
+function xlsxescape(str::AbstractString)
+    str = replace(str, '"', "&quot;")
+    str = replace(str, '&', "&amp;")
+    str = replace(str, '<', "&lt;")
+    str = replace(str, '>', "&gt;")
+    return replace(str, "'", "&apos;")
+end
+
 function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
     if isempty(str)
         # no-op
         return
     end
 
-    sst_ind = add_shared_string!(get_workbook(ws), str)
+    sst_ind = add_shared_string!(get_workbook(ws), xlsxescape(str))
     cell = Cell(ref, "s", "", string(sst_ind), "")
     setdata!(ws, cell)
 end
