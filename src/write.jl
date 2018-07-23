@@ -44,7 +44,7 @@ function writexlsx(output_filepath::AbstractString, xf::XLSXFile; rewrite::Bool=
     end
 
     close(xlsx)
-
+    close(io)
     nothing
 end
 
@@ -199,11 +199,11 @@ end
 
 
 function xlsxescape(str::AbstractString)
-    str = replace(str, '"', "&quot;")
-    str = replace(str, '&', "&amp;")
-    str = replace(str, '<', "&lt;")
-    str = replace(str, '>', "&gt;")
-    return replace(str, "'", "&apos;")
+    str = replace(str, '"' => "&quot;")
+    str = replace(str, '&' => "&amp;")
+    str = replace(str, '<' => "&lt;")
+    str = replace(str, '>' => "&gt;")
+    return replace(str, "'" => "&apos;")
 end
 
 function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
@@ -217,7 +217,7 @@ function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing)
+function setdata!(ws::Worksheet, ref::CellRef, m::Missing)
     # no-op
     nothing
 end
@@ -232,7 +232,7 @@ const DEFAULT_DATE_numFmtId = 14
 const DEFAULT_TIME_numFmtId = 20
 const DEFAULT_DATETIME_numFmtId = 22
 
-function setdata!(ws::Worksheet, ref::CellRef, date::Date)
+function setdata!(ws::Worksheet, ref::CellRef, date::Dates.Date)
     wb = get_workbook(ws)
     date_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATE_numFmtId)
     if date_style_index == -1

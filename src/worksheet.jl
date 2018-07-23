@@ -81,8 +81,8 @@ julia> close(f)
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
-    result = Array{Any, 2}(size(rng))
-    fill!(result, Missings.missing)
+    result = Array{Any, 2}(undef, size(rng))
+    fill!(result, missing)
 
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
@@ -111,7 +111,7 @@ end
 
 function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
     columns_count = length(rng)
-    columns = Vector{Vector{Any}}(columns_count)
+    columns = Vector{Vector{Any}}(undef, columns_count)
     for i in 1:columns_count
         columns[i] = Vector{Any}()
     end
@@ -171,7 +171,7 @@ getdata(ws::Worksheet) = getdata(ws, get_dimension(ws))
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
-function Base.show(io::IO, ws::Worksheet) 
+function Base.show(io::IO, ws::Worksheet)
     rg = get_dimension(ws)
     nrow, ncol = size(rg)
     @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
@@ -221,7 +221,7 @@ Returns a matrix with cells as `Array{AbstractCell, 2}`.
 `rng` must be a valid cell range, as in `"A1:B2"`.
 """
 function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
-    result = Array{AbstractCell, 2}(size(rng))
+    result = Array{AbstractCell, 2}(undef, size(rng))
     for cellref in rng
         (r, c) = relative_cell_position(cellref, rng)
         result[r, c] = EmptyCell(cellref)
@@ -254,7 +254,7 @@ end
 
 function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
     columns_count = length(rng)
-    columns = Vector{Vector{AbstractCell}}(columns_count)
+    columns = Vector{Vector{AbstractCell}}(undef, columns_count)
     for i in 1:columns_count
         columns[i] = Vector{AbstractCell}()
     end

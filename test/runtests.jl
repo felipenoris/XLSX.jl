@@ -1,8 +1,8 @@
 
 import XLSX
-using Base.Test, Missings
+using Test, Dates
 
-data_directory = joinpath(Pkg.dir("XLSX"), "data")
+data_directory = joinpath(@__DIR__, "..", "data")
 
 ef_blank_ptbr_1904 = XLSX.readxlsx(joinpath(data_directory, "blank_ptbr_1904.xlsx"))
 ef_Book1 = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
@@ -396,8 +396,7 @@ XLSX.getcellrange(f, "Sheet1!B2:C3")
 @test_throws ErrorException XLSX.getcellrange(f, "B2:C3")
 
 # a cell can be put in a dict
-c = XLSX.getcell(sheet1, "B2")
-dct = Dict("a" => c)
+dct = Dict("a" => XLSX.getcell(sheet1, "B2"))
 @test dct["a"] == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 
 # equality and hash
@@ -411,10 +410,10 @@ sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 @test sheet2[:] == XLSX.getdata(sheet2)
 
 # Time and DateTime
-@test XLSX.excel_value_to_time(0.82291666666666663) == Dates.Time(Dates.Hour(19), Dates.Minute(45))
+@test XLSX.excel_value_to_time(0.82291666666666663) == Time(Hour(19), Minute(45))
 @test XLSX.time_to_excel_value( XLSX.excel_value_to_time(0.2) ) == 0.2
-@test XLSX.excel_value_to_datetime(43206.805447106482, false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
-@test XLSX.excel_value_to_datetime(XLSX.datetime_to_excel_value(Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51)),false ), false ) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+@test XLSX.excel_value_to_datetime(43206.805447106482, false) == Date(2018, 4, 16) + Time(Hour(19), Minute(19), Second(51))
+@test XLSX.excel_value_to_datetime(XLSX.datetime_to_excel_value(Date(2018, 4, 16) + Time(Hour(19), Minute(19), Second(51)),false ), false ) == Date(2018, 4, 16) + Time(Hour(19), Minute(19), Second(51))
 
 
 dt = Date(2018,4,1)
@@ -434,9 +433,9 @@ sheet = f["general"]
 @test sheet["A4"] == "date"
 @test sheet["B4"] == Date(1983, 4, 16)
 @test sheet["A5"] == "hour"
-@test sheet["B5"] == Dates.Time(Dates.Hour(19), Dates.Minute(45))
+@test sheet["B5"] == Time(Hour(19), Minute(45))
 @test sheet["A6"] == "datetime"
-@test sheet["B6"] == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+@test sheet["B6"] == Date(2018, 4, 16) + Time(Hour(19), Minute(19), Second(51))
 @test f["general!B7"] == -220.0
 @test f["general!B8"] == -2000
 @test f["general!B9"] == 100000000000000
@@ -448,7 +447,7 @@ sheet = f["general"]
 @test !XLSX.is_defined_name_value_a_reference(1)
 @test !XLSX.is_defined_name_value_a_reference(1.2)
 @test !XLSX.is_defined_name_value_a_reference("Hey")
-@test !XLSX.is_defined_name_value_a_reference(Missings.missing)
+@test !XLSX.is_defined_name_value_a_reference(missing)
 
 @test f["SINGLE_CELL"] == "single cell A2"
 @test f["RANGE_B4C5"] == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
@@ -599,10 +598,10 @@ s[:];
 data, col_names = XLSX.gettable(s)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-test_data = Vector{Any}(6)
+test_data = Vector{Any}(undef, 6)
 test_data[1] = collect(1:8)
 test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
-test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+test_data[3] = [ Date(2018, 4, 21) + Day(i) for i in 0:7 ]
 test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing ]
 test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
 test_data[6] = [ missing for i in 1:8 ]
@@ -660,12 +659,12 @@ data_inferred, col_names = XLSX.gettable(s, infer_eltypes=true)
 
 function stop_function(r::XLSX.TableRow)
     v = r[Symbol("Column C")]
-    return !Missings.ismissing(v) && v == "Str2"
+    return !ismissing(v) && v == "Str2"
 end
 
 function never_reaches_stop(r::XLSX.TableRow)
     v = r[Symbol("Column C")]
-    return !Missings.ismissing(v) && v == "never was found"
+    return !ismissing(v) && v == "never was found"
 end
 
 data, col_names = XLSX.gettable(s, stop_in_row_function=never_reaches_stop)
@@ -674,10 +673,10 @@ check_test_data(data, test_data)
 data, col_names = XLSX.gettable(s, stop_in_row_function=stop_function)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-test_data = Vector{Any}(6)
+test_data = Vector{Any}(undef, 6)
 test_data[1] = collect(1:4)
 test_data[2] = [ "Str1", missing, "Str1", "Str1" ]
-test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:3 ]
+test_data[3] = [ Date(2018, 4, 21) + Day(i) for i in 0:3 ]
 test_data[4] = [ missing, missing, missing, missing ]
 test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067 ]
 test_data[6] = [ missing for i in 1:4 ]
@@ -687,10 +686,10 @@ check_test_data(data, test_data)
 data, col_names = XLSX.gettable(s, stop_in_empty_row=false)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-test_data = Vector{Any}(6)
+test_data = Vector{Any}(undef, 6)
 test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash" ]
 test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2", missing ]
-test_data[3] = Any[ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+test_data[3] = Any[ Date(2018, 4, 21) + Day(i) for i in 0:7 ]
 push!(test_data[3], "trash")
 test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing, missing ]
 test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883, "trash" ]
@@ -732,7 +731,7 @@ d2 = f["table!B:D"]
 @test_throws AssertionError f["table!D:B"]
 
 s = f["table2"]
-test_data = Vector{Any}(3)
+test_data = Vector{Any}(undef, 3)
 test_data[1] = [ "A1", "A2", "A3", missing ]
 test_data[2] = [ "B1", "B2", missing, "B4"]
 test_data[3] = [ missing, missing, missing, missing ]
@@ -766,14 +765,14 @@ data, col_names = XLSX.gettable(s, column_labels=override_col_names)
 check_test_data(data, test_data)
 
 data, col_names = XLSX.gettable(s, "A:B", first_row=1)
-test_data_AB_cols = Vector{Any}(2)
+test_data_AB_cols = Vector{Any}(undef, 2)
 test_data_AB_cols[1] = test_data[1]
 test_data_AB_cols[2] = test_data[2]
 @test col_names == [:HA, :HB]
 check_test_data(data, test_data_AB_cols)
 
 data, col_names = XLSX.gettable(s, "A:B")
-test_data_AB_cols = Vector{Any}(2)
+test_data_AB_cols = Vector{Any}(undef, 2)
 test_data_AB_cols[1] = test_data[1]
 test_data_AB_cols[2] = test_data[2]
 @test col_names == [:HA, :HB]
@@ -787,7 +786,7 @@ data, col_names = XLSX.gettable(s, "B:B", first_row=2)
 
 data, col_names = XLSX.gettable(s, "B:C")
 @test col_names == [ :HB, :HC ]
-test_data_BC_cols = Vector{Any}(2)
+test_data_BC_cols = Vector{Any}(undef, 2)
 test_data_BC_cols[1] = ["B1", "B2"]
 test_data_BC_cols[2] = [ missing, missing]
 check_test_data(data, test_data_BC_cols)
@@ -797,7 +796,7 @@ data, col_names = XLSX.gettable(s, "B:C", first_row=2, header=false)
 check_test_data(data, test_data_BC_cols)
 
 s = f["table3"]
-test_data = Vector{Any}(3)
+test_data = Vector{Any}(undef, 3)
 test_data[1] = [ missing, missing, "B5" ]
 test_data[2] = [ "C3", missing, missing ]
 test_data[3] = [ missing, "D4", missing ]
@@ -832,7 +831,7 @@ close(xf)
 
 f = XLSX.readxlsx(joinpath(data_directory,"general.xlsx"))
 tb5 = f["table5"]
-test_data = Vector{Any}(1)
+test_data = Vector{Any}(undef, 1)
 test_data[1] = [1, 2, 3, 4, 5]
 data, col_names = XLSX.gettable(tb5)
 @test col_names == [ :HEADER ]
@@ -847,7 +846,7 @@ data, col_names = XLSX.gettable(tb7, first_row=3)
 check_test_data(data, test_data)
 
 sheet_lookup = f["lookup"]
-test_data = Vector{Any}(3)
+test_data = Vector{Any}(undef, 3)
 test_data[1] = [ 10, 20, 30]
 test_data[2] = [ "name1", "name2", "name3" ]
 test_data[3] = [ 100, 200, 300 ]
@@ -880,7 +879,7 @@ check_test_data(data, test_data)
 # Helper functions
 #
 
-test_data = Vector{Any}(3)
+test_data = Vector{Any}(undef, 3)
 test_data[1] = [ missing, missing, "B5" ]
 test_data[2] = [ "C3", missing, missing ]
 test_data[3] = [ missing, "D4", missing ]
@@ -890,7 +889,7 @@ data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "tabl
 check_test_data(data, test_data)
 
 @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "E12") == "H1"
-test_data = Array{Any, 2}(2, 1)
+test_data = Array{Any, 2}(undef, (2, 1))
 test_data[1, 1] = "H2"
 test_data[2, 1] = "C3"
 
@@ -912,10 +911,10 @@ s[:];
 data, col_names = XLSX.gettable(s)
 @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-test_data = Vector{Any}(6)
+test_data = Vector{Any}(undef, 6)
 test_data[1] = collect(1:8)
 test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
-test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+test_data[3] = [ Date(2018, 4, 21) + Day(i) for i in 0:7 ]
 test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing ]
 test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
 test_data[6] = [ missing for i in 1:8 ]
@@ -962,14 +961,14 @@ rm("general_copy_2.xlsx")
 
 # export table from template
 col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
-data = Vector{Any}(7)
-data[1] = [1, 2, Missings.missing, 4]
+data = Vector{Any}(undef, 7)
+data[1] = [1, 2, missing, 4]
 data[2] = ["Hey", "You", "Out", "There"]
-data[3] = [101.5, 102.5, Missings.missing, 104.5]
-data[4] = [ true, false, Missings.missing, true]
+data[3] = [101.5, 102.5, missing, 104.5]
+data[4] = [ true, false, missing, true]
 data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
-data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
-data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+data[6] = [ Time(19, 10), Time(19, 20), Time(19, 30), Time(19, 40) ]
+data[7] = [ DateTime(2018, 5, 20, 19, 10), DateTime(2018, 5, 20, 19, 20), DateTime(2018, 5, 20, 19, 30), DateTime(2018, 5, 20, 19, 40)]
 
 XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true, sheetname="report", anchor_cell="B2")
 @test isfile("output_table.xlsx")
@@ -983,12 +982,12 @@ check_test_data(read_data, data)
 rm("output_table.xlsx")
 
 report_1_column_names = ["HEADER_A", "HEADER_B"]
-report_1_data = Vector{Any}(2)
+report_1_data = Vector{Any}(undef, 2)
 report_1_data[1] = [1, 2, 3]
 report_1_data[2] = ["A", "B", ""]
 
 report_2_column_names = ["COLUMN_A", "COLUMN_B"]
-report_2_data = Vector{Any}(2)
+report_2_data = Vector{Any}(undef, 2)
 report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
 report_2_data[2] = [10.2, 10.3]
 

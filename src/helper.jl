@@ -56,7 +56,7 @@ Example for `stop_in_row_function`:
 ```
 function stop_function(r)
     v = r[:col_label]
-    return !Missings.ismissing(v) && v == "unwanted value"
+    return !ismissing(v) && v == "unwanted value"
 end
 ```
 
@@ -72,7 +72,7 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 See also: `gettable`.
 ```
 """
-function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing, enable_cache::Bool=false)
+function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, enable_cache::Bool=false)
     xf = openxlsx(filepath, enable_cache=enable_cache)
     c = gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     close(xf)

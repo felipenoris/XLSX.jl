@@ -73,7 +73,7 @@ function Cell(c::EzXML.Node)
     return Cell(ref, t, s, v, f)
 end
 
-@inline getdata(ws::Worksheet, empty::EmptyCell) = Missings.missing
+@inline getdata(ws::Worksheet, empty::EmptyCell) = missing
 
 const RGX_INTEGER = r"^\-?[0-9]+$"
 
@@ -90,12 +90,12 @@ For numbers, if the style implies that the number is visualized with decimals,
 the method will return a float, even if the underlying number is stored
 as an integer inside the spreadsheet XML.
 
-If `cell` has empty value or empty `String`, this function will return `Missings.missing`.
+If `cell` has empty value or empty `String`, this function will return `missing`.
 """
 function getdata(ws::Worksheet, cell::Cell) :: CellValue
 
     if iserror(cell)
-        return Missings.missing
+        return missing
     end
 
     if cell.datatype == "inlineStr"
@@ -107,7 +107,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValue
         str = sst_unformatted_string(ws, cell.value)
 
         if isempty(str)
-            return Missings.missing
+            return missing
         else
             return str
         end
@@ -115,7 +115,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValue
     elseif (isempty(cell.datatype) || cell.datatype == "n")
 
         if isempty(cell.value)
-            return Missings.missing
+            return missing
         end
 
         if !isempty(cell.style) && styles_is_datetime(ws, cell.style)
@@ -129,7 +129,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValue
 
         else
             # fallback to unformatted number
-            if ismatch(RGX_INTEGER, cell.value)  # if contains only numbers
+            if occursin(RGX_INTEGER, cell.value)  # if contains only numbers
                 v_num = parse(Int64, cell.value)
             else
                 v_num = parse(Float64, cell.value)
@@ -148,7 +148,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValue
     elseif cell.datatype == "str"
         # plain string
         if isempty(cell.value)
-            return Missings.missing
+            return missing
         else
             return cell.value
         end
@@ -163,7 +163,7 @@ function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dat
     # does not allow empty string
     @assert !isempty(v) "Cannot convert an empty string into a datetime value."
 
-    if contains(v, ".")
+    if occursin(".", v)
         time_value = parse(Float64, v)
         @assert time_value >= 0
 
@@ -201,13 +201,13 @@ See also: `isdate1904` function.
 """
 function excel_value_to_date(x::Int, _is_date_1904::Bool) :: Dates.Date
     if _is_date_1904
-        return Date(Dates.rata2datetime(x + 695056))
+        return Dates.Date(Dates.rata2datetime(x + 695056))
     else
-        return Date(Dates.rata2datetime(x + 693594))
+        return Dates.Date(Dates.rata2datetime(x + 693594))
     end
 end
 
-function date_to_excel_value(date::Date, _is_date_1904::Bool) :: Int
+function date_to_excel_value(date::Dates.Date, _is_date_1904::Bool) :: Int
     if _is_date_1904
         return Dates.datetime2rata(date) - 695056
     else

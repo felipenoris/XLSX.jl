@@ -248,17 +248,17 @@ function parse_workbook!(xf::XLSXFile)
                     defined_value = SheetCellRef(defined_value_string)
                 elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
                     defined_value = SheetCellRange(defined_value_string)
-                elseif ismatch(r"^\".*\"$", defined_value_string) # is enclosed by quotes
+                elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
                     defined_value = defined_value_string[2:end-1] # remove enclosing quotes
                     if isempty(defined_value)
-                        defined_value = Missings.missing
+                        defined_value = missing
                     end
                 elseif tryparse(Int, defined_value_string)
                     defined_value = parse(Int, defined_value_string)
                 elseif tryparse(Float64, defined_value_string)
                     defined_value = parse(Float64, defined_value_string)
                 elseif isempty(defined_value_string)
-                    defined_value = Missings.missing
+                    defined_value = missing
                 else
 
                     # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.

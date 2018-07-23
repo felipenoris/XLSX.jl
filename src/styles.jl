@@ -70,7 +70,7 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
             isdatetime = true
         elseif numFmtId > 81
             code = styles_numFmt_formatCode(wb, numFmtId)
-            if contains(code, "dd") || contains(code, "mm") || contains(code, "yy") || contains(code, "hh") || contains(code, "ss")
+            if occursin("dd", code) || occursin("mm", code) || occursin("yy", code) || occursin("hh", code) || occursin("ss", code)
                 isdatetime = true
             end
         end
@@ -98,7 +98,7 @@ function styles_is_float(wb::Workbook, index::Int) :: Bool
             isfloat = true
         elseif numFmtId > 81
             code = styles_numFmt_formatCode(wb, numFmtId)
-            if contains(code, ".0")
+            if occursin(".0", code)
                 isfloat = true
             end
         end
