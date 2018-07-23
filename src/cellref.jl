@@ -5,7 +5,11 @@ function CellRef(n::AbstractString)
     return CellRef(n, row_number, decode_column_number(column_name))
 end
 
-CellRef(row::Int, col::Int) = CellRef(encode_column_number(col) * string(row))
+@inline CellRef(row::Int, col::Int) = CellRef(encode_column_number(col) * string(row))
+@inline CellPosition(ref::CellRef) = CellPosition(row_number(ref), column_number(ref))
+@inline row_number(p::CellPosition) = p.row
+@inline column_number(p::CellPosition) = p.column
+@inline CellRef(p::CellPosition) = CellRef(row_number(p), column_number(p))
 
 """
     decode_column_number(column_name::AbstractString) :: Int
@@ -81,7 +85,7 @@ const RGX_CELLNAME = r"^[A-Z]+[0-9]+$"
 const RGX_CELLRANGE = r"^[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 
 function is_valid_column_name(n::AbstractString) :: Bool
-    if !ismatch(RGX_COLUMN_NAME, n)
+    if !occursin(RGX_COLUMN_NAME, n)
         return false
     end
 
@@ -115,7 +119,7 @@ end
 # Cellname is bounded by A1 : XFD1048576
 function is_valid_cellname(n::AbstractString) :: Bool
 
-    if !ismatch(RGX_CELLNAME, n)
+    if !occursin(RGX_CELLNAME, n)
         return false
     end
 
@@ -145,7 +149,7 @@ end
 
 function is_valid_cellrange(n::AbstractString) :: Bool
 
-    if !ismatch(RGX_CELLRANGE, n)
+    if !occursin(RGX_CELLRANGE, n)
         return false
     end
 
@@ -167,7 +171,7 @@ macro ref_str(ref)
 end
 
 function CellRange(r::AbstractString)
-    @assert ismatch(RGX_CELLRANGE, r) "Invalid cell range: $r."
+    @assert occursin(RGX_CELLRANGE, r) "Invalid cell range: $r."
     start_name, stop_name = split_cellrange(r)
     return CellRange(CellRef(start_name), CellRef(stop_name))
 end
@@ -293,7 +297,7 @@ Returns tuple (column_name_start, column_name_stop).
 end
 
 function is_valid_column_range(r::AbstractString) :: Bool
-    if !ismatch(RGX_COLUMN_RANGE, r)
+    if !occursin(RGX_COLUMN_RANGE, r)
         return false
     end
 
@@ -318,32 +322,34 @@ convert(::Type{ColumnRange}, column_range::ColumnRange) = column_range
 column_bounds(r::ColumnRange) = (r.start, r.stop)
 Base.length(r::ColumnRange) = r.stop - r.start + 1
 
-# ColumnRange iterator
-Base.start(itr::ColumnRange) = itr.start
-Base.done(itr::ColumnRange, column_index::Int) = column_index > itr.stop
-Base.next(itr::ColumnRange, column_index::Int) = (encode_column_number(column_index), column_index + 1)
+# ColumnRange iterator: element is a String with the column name, the state is the column number.
+function Base.iterate(itr::ColumnRange, state::Int=itr.start)
+    if state > itr.stop
+        return nothing
+    end
 
-# CellRange iterator
-Base.start(rng::CellRange) = CellRefIteratorState(row_number(rng.start), column_number(rng.start))
-Base.done(rng::CellRange, state::CellRefIteratorState) = state.row > row_number(rng.stop)
+    return encode_column_number(state), state + 1
+end
+
+# CellRange iterator: element is a CellRef, the state is a CellPosition.
+function Base.iterate(rng::CellRange, state::CellPosition=CellPosition(rng.start))
+
+    if row_number(state) > row_number(rng.stop)
+        return nothing
+    elseif column_number(state) == column_number(rng.stop)
+        # reached last column. Go to the next row.
+        next_state = CellPosition(row_number(state) + 1, column_number(rng.start))
+    else
+        # go to the next column
+        next_state = CellPosition(row_number(state), column_number(state) + 1)
+    end
+
+    return CellRef(state), next_state
+end
 
 function Base.length(rng::CellRange)
     (r, c) = size(rng)
     return r * c
-end
-
-# (i, state) = next(I, state)
-function Base.next(rng::CellRange, state::CellRefIteratorState)
-    local next_state::CellRefIteratorState
-    if state.col == column_number(rng.stop)
-        # reached last column. Go to the next row.
-        next_state = CellRefIteratorState(state.row + 1, column_number(rng.start))
-    else
-        # go to the next column
-        next_state = CellRefIteratorState(state.row, state.col + 1)
-    end
-
-    return CellRef(state.row, state.col), next_state
 end
 
 #
@@ -374,7 +380,7 @@ const RGX_SHEET_CELLRANGE_RIGHT = r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE_RIGHT = r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 
 function is_valid_sheet_cellname(n::AbstractString) :: Bool
-    if !ismatch(RGX_SHEET_CELLNAME, n)
+    if !occursin(RGX_SHEET_CELLNAME, n)
         return false
     end
 
@@ -387,7 +393,7 @@ function is_valid_sheet_cellname(n::AbstractString) :: Bool
 end
 
 function is_valid_sheet_cellrange(n::AbstractString) :: Bool
-    if !ismatch(RGX_SHEET_CELLRANGE, n)
+    if !occursin(RGX_SHEET_CELLRANGE, n)
         return false
     end
 
@@ -400,7 +406,7 @@ function is_valid_sheet_cellrange(n::AbstractString) :: Bool
 end
 
 function is_valid_sheet_column_range(n::AbstractString) :: Bool
-    if !ismatch(RGX_SHEET_COLUMN_RANGE, n)
+    if !occursin(RGX_SHEET_COLUMN_RANGE, n)
         return false
     end
 
@@ -418,7 +424,7 @@ const RGX_SHEET_CELNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 function SheetCellRef(n::AbstractString)
     if is_valid_fixed_sheet_cellname(n)
         fixed_cellname = match(RGX_CELLNAME_RIGHT_FIXED, n).match
-        cellname = replace(fixed_cellname, "\$", "")
+        cellname = replace(fixed_cellname, "\$" => "")
         sheetname = SubString(n, 1, length(n) - length(fixed_cellname) - 1)
         return SheetCellRef(sheetname, CellRef(cellname))
     else
@@ -432,7 +438,7 @@ end
 function SheetCellRange(n::AbstractString)
     if is_valid_fixed_sheet_cellrange(n)
         fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
-        cellrange = replace(fixed_cellrange, "\$", "")
+        cellrange = replace(fixed_cellrange, "\$" => "")
         sheetname = SubString(n, 1, length(n) - length(fixed_cellrange) - 1)
         return SheetCellRange(sheetname, CellRange(cellrange))
     else
@@ -454,5 +460,5 @@ end
 const RGX_FIXED_SHEET_CELLNAME = r"^.+!\$[A-Z]+\$[0-9]+$"
 const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
-is_valid_fixed_sheet_cellname(s::AbstractString) = ismatch(RGX_FIXED_SHEET_CELLNAME, s)
-is_valid_fixed_sheet_cellrange(s::AbstractString) = ismatch(RGX_FIXED_SHEET_CELLRANGE, s)
+is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLNAME, s)
+is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)

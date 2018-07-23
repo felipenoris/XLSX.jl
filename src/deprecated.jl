@@ -46,7 +46,7 @@ function getdata(filepath::AbstractString, sheetref::AbstractString)
     return readdata(filepath, sheetref)
 end
 
-function gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing, enable_cache::Bool=false)
+function gettable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, enable_cache::Bool=false)
     warn("`XLSX.gettable(filepath, sheet, ...)` is deprecated. Use `XLSX.readtable(filepath, sheet, ...)` instead.")
     return readtable(filepath, sheet, first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, enable_cache=enable_cache)
 end

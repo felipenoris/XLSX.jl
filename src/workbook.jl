@@ -1,5 +1,7 @@
 
-EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(), Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), Nullable{EzXML.Node}())
+EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false,
+    Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(),
+    Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), nothing)
 
 """
     is_writable(xl::XLSXFile)

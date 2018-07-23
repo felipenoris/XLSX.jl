@@ -1,4 +1,9 @@
 
+struct CellPosition
+    row::Int
+    column::Int
+end
+
 """
 A `CellRef` represents a cell location given by row and column identifiers.
 
@@ -53,7 +58,7 @@ struct CellDataFormat <: AbstractCellDataFormat
     id::UInt
 end
 
-const CellValueType = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+const CellValueType = Union{String, Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 """
 CellValue is a Julia type of a value read from a Spreadsheet.
@@ -97,7 +102,7 @@ struct ColumnRange
 
     function ColumnRange(a::Int, b::Int)
         @assert a <= b "Invalid ColumnRange. Start column must be located before end column."
-        new(a, b)
+        return new(a, b)
     end
 end
 
@@ -153,7 +158,6 @@ abstract type SheetRowIterator end
 mutable struct SheetRowStreamIteratorState
     zip_io::ZipFile.Reader
     xml_stream_reader::EzXML.StreamReader
-    done_reading::Bool # true when we reach the end of sheetData XML element
     is_open::Bool # indicated if zip_io and xml_stream_reader are opened
     row::Int # number of current row. It´s set to 0 in the start state.
 end
@@ -163,7 +167,7 @@ mutable struct WorksheetCache <: SheetRowIterator
     rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
     row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
     stream_iterator::SheetRowIterator
-    stream_state::SheetRowStreamIteratorState
+    stream_state::Union{Nothing, SheetRowStreamIteratorState}
 end
 
 mutable struct Worksheet
@@ -172,10 +176,10 @@ mutable struct Worksheet
     relationship_id::String # r:id="rId1"
     name::String
     dimension::CellRange
-    cache::Nullable{WorksheetCache}
+    cache::Union{WorksheetCache, Nothing}
 
     function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::CellRange)
-        new(package, sheetId, relationship_id, name, dimension, Nullable{WorksheetCache}())
+        return new(package, sheetId, relationship_id, name, dimension, nothing)
     end
 end
 
@@ -193,7 +197,7 @@ mutable struct SharedStrings
     is_loaded::Bool # for lazy-loading of sst XML file
 end
 
-const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missings.Missing}
+const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missing}
 
 """
 Workbook is the result of parsing file `xl/workbook.xml`.
@@ -208,7 +212,7 @@ mutable struct Workbook
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
     workbook_names::Dict{String, DefinedNameValueTypes} # definedName
     worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
-    styles_xroot::Nullable{EzXML.Node}
+    styles_xroot::Union{EzXML.Node, Nothing}
 end
 
 """
@@ -235,7 +239,7 @@ mutable struct XLSXFile <: MSOfficePackage
         io = ZipFile.Reader(filepath)
         xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
-        finalizer(xl, close)
+        finalizer(close, xl)
         return xl
     end
 end
@@ -250,12 +254,13 @@ struct SheetRow
     rowcells::Dict{Int, Cell} # column -> value
 end
 
-mutable struct Index # based on DataFrames.jl
-    lookup::Dict{Symbol, Int} # name -> table column index
+struct Index # based on DataFrames.jl
+    lookup::Dict{Symbol, Int} # column label -> table column index
     column_labels::Vector{Symbol}
     column_map::Dict{Int, Int} # table column index (1-based) -> sheet column index (cellref based)
 
-    function Index(column_range::ColumnRange, column_labels::Vector{Symbol})
+    function Index(column_range::Union{ColumnRange, AbstractString}, column_labels::Vector{Symbol})
+        column_range = convert(ColumnRange, column_range)
         @assert length(unique(column_labels)) == length(column_labels) "Column labels must be unique."
 
         lookup = Dict{Symbol, Int}()
@@ -276,7 +281,7 @@ struct TableRowIterator
     index::Index
     first_data_row::Int
     stop_in_empty_row::Bool
-    stop_in_row_function::Union{Function, Void}
+    stop_in_row_function::Union{Nothing, Function}
 end
 
 struct TableRow
@@ -286,14 +291,7 @@ struct TableRow
 end
 
 struct TableRowIteratorState{S}
-    state::S
-    sheet_row::SheetRow
     table_row_index::Int
-    last_sheet_row_number::Int
-    is_done::Bool
-end
-
-struct CellRefIteratorState
-    row::Int
-    col::Int
+    sheet_row_index::Int
+    sheet_row_iterator_state::S
 end
