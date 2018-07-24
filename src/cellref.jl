@@ -319,31 +319,36 @@ column_bounds(r::ColumnRange) = (r.start, r.stop)
 Base.length(r::ColumnRange) = r.stop - r.start + 1
 
 # ColumnRange iterator
-Base.start(itr::ColumnRange) = itr.start
-Base.done(itr::ColumnRange, column_index::Int) = column_index > itr.stop
-Base.next(itr::ColumnRange, column_index::Int) = (encode_column_number(column_index), column_index + 1)
+function Base.iterate(itr::ColumnRange, state=(encode_column_number(itr.start), itr.start))
+    element, column_index = state
+
+    if column_index > itr.stop
+        return nothing
+    end
+
+    return (element, (encode_column_number(column_index+1), column_index+1))
+end
 
 # CellRange iterator
-Base.start(rng::CellRange) = CellRefIteratorState(row_number(rng.start), column_number(rng.start))
-Base.done(rng::CellRange, state::CellRefIteratorState) = state.row > row_number(rng.stop)
+function Base.iterate(rng::CellRange, state=(rng.start, rng.start))
+    element, loc = state
+
+    if row_number(loc) > row_number(rng.stop)
+        return nothing
+    elseif column_number(loc) == column_number(rng.stop)
+        # reached last column. Go to the next row.
+        next_loc = CellRef(row_number(loc) + 1, column_number(rng.start))
+    else
+        # go to the next column
+        next_loc = CellRef(row_number(loc), column_number(loc) + 1)
+    end
+
+    return (element, (next_loc, next_loc))
+end
 
 function Base.length(rng::CellRange)
     (r, c) = size(rng)
     return r * c
-end
-
-# (i, state) = next(I, state)
-function Base.next(rng::CellRange, state::CellRefIteratorState)
-    local next_state::CellRefIteratorState
-    if state.col == column_number(rng.stop)
-        # reached last column. Go to the next row.
-        next_state = CellRefIteratorState(state.row + 1, column_number(rng.start))
-    else
-        # go to the next column
-        next_state = CellRefIteratorState(state.row, state.col + 1)
-    end
-
-    return CellRef(state.row, state.col), next_state
 end
 
 #
