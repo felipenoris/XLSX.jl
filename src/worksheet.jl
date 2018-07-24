@@ -14,7 +14,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRa
     target_file = "xl/" * get_relationship_target_by_id(wb, relationship_id)
     zip_io, reader = open_internal_file_stream(xf, target_file)
 
-    local result::Nullable{CellRange} = Nullable{CellRange}()
+    local result::Union{CellRange, Nothing} = nothing
 
     # read Worksheet dimension
     while !EzXML.done(reader)
@@ -34,10 +34,10 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRa
     close(reader)
     close(zip_io)
 
-    if isnull(result)
+    if result == nothing
         error("Couldn't parse worksheet $name dimension.")
     else
-        return get(result)
+        return result
     end
 end
 

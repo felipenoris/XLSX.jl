@@ -321,10 +321,10 @@ end
 """
 function eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
-        if isnull(ws.cache)
+        if ws.cache == nothing
             ws.cache = WorksheetCache(ws)
         end
-        return get(ws.cache)
+        return ws.cache
     else
         return SheetRowStreamIterator(ws)
     end

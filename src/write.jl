@@ -151,8 +151,8 @@ end
 
 function setdata!(ws::Worksheet, cell::Cell)
     @assert is_writable(get_xlsxfile(ws)) "XLSXFile instance is not writable."
-    @assert !isnull(ws.cache) "Can't write data to a Worksheet with empty cache."
-    cache = get(ws.cache)
+    @assert ws.cache != nothing "Can't write data to a Worksheet with empty cache."
+    cache = ws.cache
 
     r = row_number(cell)
     c = column_number(cell)

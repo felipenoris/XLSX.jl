@@ -156,10 +156,10 @@ mutable struct Worksheet
     relationship_id::String # r:id="rId1"
     name::String
     dimension::CellRange
-    cache::Nullable{WorksheetCache}
+    cache::Union{WorksheetCache, Nothing}
 
     function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::CellRange)
-        new(package, sheetId, relationship_id, name, dimension, Nullable{WorksheetCache}())
+        new(package, sheetId, relationship_id, name, dimension, nothing)
     end
 end
 
@@ -192,7 +192,7 @@ mutable struct Workbook
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
     workbook_names::Dict{String, DefinedNameValueTypes} # definedName
     worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
-    styles_xroot::Nullable{EzXML.Node}
+    styles_xroot::Union{EzXML.Node, Nothing}
 end
 
 """
