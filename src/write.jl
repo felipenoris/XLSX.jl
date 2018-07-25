@@ -192,8 +192,13 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64})
-    cell = Cell(ref, "", "", string(v), "")
+function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64}; formatid::Integer=-1)
+    if formatid < 0
+        cell = Cell(ref, "", "", string(v), "")
+    else
+        num_style_index = get_style_index(ws, formatid)
+        cell = Cell(ref, "", string(num_style_index), string(v), "")
+    end
     setdata!(ws, cell)
 end
 
@@ -206,23 +211,29 @@ function xlsxescape(str::AbstractString)
     return replace(str, "'", "&apos;")
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
+function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString; formatid::Integer=-1)
     if isempty(str)
         # no-op
         return
     end
-
     sst_ind = add_shared_string!(get_workbook(ws), xlsxescape(str))
-    cell = Cell(ref, "s", "", string(sst_ind), "")
+
+    if formatid < 0
+        cell = Cell(ref, "s", "", string(sst_ind), "")
+    else
+        style_index = get_style_index(ws, formatid)
+        cell = Cell(ref, "s", string(style_index), string(sst_ind), "")
+    end
+
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing)
+function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing; formatid::Integer=-1)
     # no-op
     nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, b::Bool)
+function setdata!(ws::Worksheet, ref::CellRef, b::Bool; formatid::Integer=-1)
     value_str = b ? "1" : "0"
     cell = Cell(ref, "b", "", value_str, "")
     setdata!(ws, cell)
@@ -232,39 +243,37 @@ const DEFAULT_DATE_numFmtId = 14
 const DEFAULT_TIME_numFmtId = 20
 const DEFAULT_DATETIME_numFmtId = 22
 
-function setdata!(ws::Worksheet, ref::CellRef, date::Date)
+function get_style_index(ws::Worksheet, formatid::Integer)
+    @assert formatid > 0
+
     wb = get_workbook(ws)
-    date_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATE_numFmtId)
-    if date_style_index == -1
-        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="14" xfId="0"/>
-        date_style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>"14", "xfId"=>"0"))
+    style_index = styles_get_cellXf_with_numFmtId(wb, formatid)
+    if style_index == -1
+        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId=formatid xfId="0"/>
+        style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>string(formatid), "xfId"=>"0"))
     end
+
+    return style_index
+end
+
+function setdata!(ws::Worksheet, ref::CellRef, date::Date; formatid::Integer=DEFAULT_DATE_numFmtId)
+    date_style_index = get_style_index(ws, formatid)
 
     value_str = string(date_to_excel_value(date, isdate1904(get_xlsxfile(ws))))
     cell = Cell(ref, "", string(date_style_index), value_str, "")
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time)
-    wb = get_workbook(ws)
-    time_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_TIME_numFmtId)
-    if time_style_index == -1
-        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="20" xfId="0"/>
-        time_style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>"20", "xfId"=>"0"))
-    end
+function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time; formatid::Integer=DEFAULT_TIME_numFmtId)
+    time_style_index = get_style_index(ws, formatid)
 
     value_str = string(time_to_excel_value(t))
     cell = Cell(ref, "", string(time_style_index), value_str, "")
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime)
-    wb = get_workbook(ws)
-    datetime_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATETIME_numFmtId)
-    if datetime_style_index == -1
-        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="22" xfId="0"/>
-        datetime_style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>"22", "xfId"=>"0"))
-    end
+function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime; formatid::Integer=DEFAULT_DATETIME_numFmtId)
+    datetime_style_index = get_style_index(ws, formatid)
 
     value_str = string(datetime_to_excel_value(t, isdate1904(get_xlsxfile(ws))))
     cell = Cell(ref, "", string(datetime_style_index), value_str, "")

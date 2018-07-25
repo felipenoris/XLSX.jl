@@ -1033,3 +1033,48 @@ data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
 check_test_data(data, report_2_data)
 
 rm("output_tables.xlsx")
+
+xf = XLSX.open_default_template()
+wb = XLSX.get_workbook(xf)
+datestyle = XLSX.styles_add_numFmt(wb, "yyyymmdd")
+numstyle = XLSX.styles_add_numFmt(wb, "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@")
+
+@test datestyle == 164
+@test numstyle == 165
+
+XLSX.setdata!(xf[1], XLSX.CellRef("A1"), Date(2011, 10, 13), formatid = datestyle)
+XLSX.setdata!(xf[1], XLSX.CellRef("A2"), 1000, formatid = numstyle)
+XLSX.setdata!(xf[1], XLSX.CellRef("A3"), 1000.10, formatid = numstyle)
+XLSX.setdata!(xf[1], XLSX.CellRef("A4"), -1000.10, formatid = numstyle)
+XLSX.setdata!(xf[1], XLSX.CellRef("A5"), 0, formatid = numstyle)
+XLSX.setdata!(xf[1], XLSX.CellRef("A6"), "hello", formatid = numstyle)
+
+sheet = xf["Sheet1"]
+
+@test sheet["A1"] == Date(2011, 10, 13)
+
+cell = XLSX.getcell(sheet, "A1")
+formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cell.style))
+
+# Check the right format id is set
+@test formatid == 164
+# Check for the right format code
+@test XLSX.styles_numFmt_formatCode(wb, string(formatid)) == "yyyymmdd"
+# Check the cellXf exists
+@test XLSX.styles_get_cellXf_with_numFmtId(wb, formatid) > -1
+
+cellstyle = XLSX.getcell(sheet, "A2").style
+formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cellstyle))
+@test formatid == 165
+@test XLSX.styles_numFmt_formatCode(wb, string(formatid)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@"
+@test XLSX.styles_get_cellXf_with_numFmtId(wb, formatid) > -1
+
+@test sheet["A2"] == 1000
+@test sheet["A3"] == 1000.10
+@test XLSX.getcell(sheet, "A3").style == cellstyle
+@test sheet["A4"] == -1000.10
+@test XLSX.getcell(sheet, "A4").style == cellstyle
+@test sheet["A5"] == 0
+@test XLSX.getcell(sheet, "A5").style == cellstyle
+@test sheet["A6"] == "hello"
+@test XLSX.getcell(sheet, "A6").style == cellstyle

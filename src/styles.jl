@@ -49,6 +49,35 @@ function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
 end
 
 """
+Defines a custom number format to render numbers, dates or text.
+Returns the index to be used as the `numFmtId` in a style definition.
+"""
+function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
+    xroot = styles_xmlroot(wb)
+
+    numfmts = find(xroot, "/xpath:styleSheet/xpath:numFmts", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    if isempty(numfmts)
+        stylesheet = findfirst(xroot, "/xpath:styleSheet", SPREADSHEET_NAMESPACE_XPATH_ARG)
+        numfmts = EzXML.addelement!(stylesheet, "numFmts")
+    else
+        numfmts = numfmts[1]
+    end
+
+    existing_numFmt_elements_count = EzXML.countelements(numfmts)
+
+    new_fmt = EzXML.addelement!(numfmts, "numFmt")
+
+    # The number of predefined number formats in XLSX
+    # Any custom formats must have an id >= PREDEFINED_NUMFMT_COUNT
+    PREDEFINED_NUMFMT_COUNT = 164
+    fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
+    new_fmt["numFmtId"] = fmt_code
+    new_fmt["formatCode"] = format_code
+
+    return fmt_code
+end
+
+"""
 Queries numFmt formatCode field by numFmtId.
 """
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
