@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.org/felipenoris/XLSX.jl.svg?branch=master)](https://travis-ci.org/felipenoris/XLSX.jl)
 [![codecov.io](http://codecov.io/github/felipenoris/XLSX.jl/coverage.svg?branch=master)](http://codecov.io/github/felipenoris/XLSX.jl?branch=master)
 [![XLSX](http://pkg.julialang.org/badges/XLSX_0.6.svg)](http://pkg.julialang.org/?pkg=XLSX&ver=0.6)
-
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://felipenoris.github.io/XLSX.jl/latest)
 Excel file reader/writer coded in pure Julia.
 
 ## Installation
@@ -38,13 +38,13 @@ julia> sh["B2"] # From a sheet, you can access a cell value
 
 julia> sh["A2:B4"] # or a cell range
 3×2 Array{Any,2}:
- 1  "first" 
+ 1  "first"
  2  "second"
  3  "third"
 
 julia> XLSX.readdata("myfile.xlsx", "mysheet", "A2:B4") # shorthand for all above
 3×2 Array{Any,2}:
- 1  "first" 
+ 1  "first"
  2  "second"
  3  "third"
 
@@ -52,12 +52,12 @@ julia> sh[:] # all data inside worksheet's dimension
 4×2 Array{Any,2}:
   "HeaderA"  "HeaderB"
  1           "first"  
- 2           "second" 
+ 2           "second"
  3           "third"
 
 julia> xf["mysheet!A2:B4"] # you can also query values from a file reference
 3×2 Array{Any,2}:
- 1  "first" 
+ 1  "first"
  2  "second"
  3  "third"
 
