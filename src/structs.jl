@@ -48,6 +48,14 @@ CellValue is a Julia type of a value read from a Spreadsheet.
 const CellValue = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 """
+CellDataFormat is a wrapper to apply formatting to a value when writing to a Spreadsheet.
+"""
+struct CellDataFormat
+    value::CellValue
+    styleid::Integer
+end
+
+"""
 A `CellRange` represents a rectangular range of cells in a spreadsheet.
 
 `CellRange("A1:C4")` denotes cells ranging from `A1` (upper left corner) to `C4` (bottom right corner).

@@ -50,7 +50,7 @@ end
 
 """
 Defines a custom number format to render numbers, dates or text.
-Returns the index to be used as the `numFmtId` in a style definition.
+Returns the index to be used as the `numFmtId` in a cellXf definition.
 """
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
@@ -64,7 +64,6 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     end
 
     existing_numFmt_elements_count = EzXML.countelements(numfmts)
-
     new_fmt = EzXML.addelement!(numfmts, "numFmt")
 
     # The number of predefined number formats in XLSX
@@ -76,6 +75,31 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
 
     return fmt_code
 end
+
+FontAttribute = Union{AbstractString, Pair{String, Pair{String, String}}}
+
+"""
+Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
+"""
+function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
+    xroot = styles_xmlroot(wb)
+    fonts_element = findfirst(xroot, "/xpath:styleSheet/xpath:fonts", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    existing_font_elements_count = EzXML.countelements(fonts_element)
+
+    new_font = EzXML.addelement!(fonts_element, "font")
+    for a in attributes
+        if a isa Pair
+            name, val = last(a)
+            attr = EzXML.addelement!(new_font, first(a))
+            attr[name] = val
+        else
+            EzXML.addelement!(new_font, a)
+        end
+    end
+
+    return existing_font_elements_count
+end
+
 
 """
 Queries numFmt formatCode field by numFmtId.

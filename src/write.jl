@@ -192,13 +192,10 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64}; formatid::Integer=-1)
-    if formatid < 0
-        cell = Cell(ref, "", "", string(v), "")
-    else
-        num_style_index = get_style_index(ws, formatid)
-        cell = Cell(ref, "", string(num_style_index), string(v), "")
-    end
+function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64}; styleid::Integer=-1)
+    style_index = styleid < 0 ? "" : string(styleid)
+    cell = Cell(ref, "", style_index, string(v), "")
+
     setdata!(ws, cell)
 end
 
@@ -211,31 +208,29 @@ function xlsxescape(str::AbstractString)
     return replace(str, "'", "&apos;")
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString; formatid::Integer=-1)
+function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString; styleid::Integer=-1)
     if isempty(str)
         # no-op
         return
     end
     sst_ind = add_shared_string!(get_workbook(ws), xlsxescape(str))
 
-    if formatid < 0
-        cell = Cell(ref, "s", "", string(sst_ind), "")
-    else
-        style_index = get_style_index(ws, formatid)
-        cell = Cell(ref, "s", string(style_index), string(sst_ind), "")
-    end
+    style_index = styleid < 0 ? "" : string(styleid)
+    cell = Cell(ref, "s", style_index, string(sst_ind), "")
 
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing; formatid::Integer=-1)
+function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing; styleid::Integer=-1)
     # no-op
     nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, b::Bool; formatid::Integer=-1)
+function setdata!(ws::Worksheet, ref::CellRef, b::Bool; styleid::Integer=-1)
     value_str = b ? "1" : "0"
-    cell = Cell(ref, "b", "", value_str, "")
+
+    style_index = styleid < 0 ? "" : string(styleid)
+    cell = Cell(ref, "b", style_index, value_str, "")
     setdata!(ws, cell)
 end
 
@@ -244,7 +239,7 @@ const DEFAULT_TIME_numFmtId = 20
 const DEFAULT_DATETIME_numFmtId = 22
 
 function get_style_index(ws::Worksheet, formatid::Integer)
-    @assert formatid > 0
+    @assert formatid >= 0
 
     wb = get_workbook(ws)
     style_index = styles_get_cellXf_with_numFmtId(wb, formatid)
@@ -256,32 +251,34 @@ function get_style_index(ws::Worksheet, formatid::Integer)
     return style_index
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, date::Date; formatid::Integer=DEFAULT_DATE_numFmtId)
-    date_style_index = get_style_index(ws, formatid)
+function setdata!(ws::Worksheet, ref::CellRef, date::Date; styleid::Integer=-1)
+    style_index = styleid < 0 ? string(get_style_index(ws, DEFAULT_DATE_numFmtId)) : string(styleid)
 
     value_str = string(date_to_excel_value(date, isdate1904(get_xlsxfile(ws))))
-    cell = Cell(ref, "", string(date_style_index), value_str, "")
+    cell = Cell(ref, "", style_index, value_str, "")
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time; formatid::Integer=DEFAULT_TIME_numFmtId)
-    time_style_index = get_style_index(ws, formatid)
+function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time; styleid::Integer=-1)
+    style_index = styleid < 0 ? string(get_style_index(ws, DEFAULT_TIME_numFmtId)) : string(styleid)
 
     value_str = string(time_to_excel_value(t))
-    cell = Cell(ref, "", string(time_style_index), value_str, "")
+    cell = Cell(ref, "", style_index, value_str, "")
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime; formatid::Integer=DEFAULT_DATETIME_numFmtId)
-    datetime_style_index = get_style_index(ws, formatid)
+function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime; styleid::Integer=-1)
+    style_index = styleid < 0 ? string(get_style_index(ws, DEFAULT_DATETIME_numFmtId)) : string(styleid)
 
     value_str = string(datetime_to_excel_value(t, isdate1904(get_xlsxfile(ws))))
-    cell = Cell(ref, "", string(datetime_style_index), value_str, "")
+    cell = Cell(ref, "", style_index, value_str, "")
     setdata!(ws, cell)
 end
 
-setdata!(ws::Worksheet, ref_str::AbstractString, value::CellValue) = setdata!(ws, CellRef(ref_str), value)
-setdata!(ws::Worksheet, ref_str::AbstractString, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValue).")
+setdata!(ws::Worksheet, ref::CellRef, value::CellDataFormat) = setdata!(ws, ref, value.value, styleid=value.styleid)
+setdata!(ws::Worksheet, ref_str::AbstractString, value; kwargs...) = setdata!(ws, CellRef(ref_str), value; kwargs...)
+
+setdata!(ws::Worksheet, ref::CellRef, value; kwargs...) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValue) or $(CellDataFormat).")
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 
