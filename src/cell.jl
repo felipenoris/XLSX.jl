@@ -92,7 +92,7 @@ as an integer inside the spreadsheet XML.
 
 If `cell` has empty value or empty `String`, this function will return `Missings.missing`.
 """
-function getdata(ws::Worksheet, cell::Cell) :: CellValue
+function getdata(ws::Worksheet, cell::Cell) :: CellValueTypes
 
     if iserror(cell)
         return Missings.missing

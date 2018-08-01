@@ -11,7 +11,12 @@
 # General formatCodes ranges from 0 to 81.
 #
 # 18.8.10 cellXfs (Cell Formats)
+import Base: isempty
 
+id(format::CellDataFormat) = string(format.id)
+id(::EmptyCellDataFormat) = ""
+isempty(::CellDataFormat) = false
+isempty(::EmptyCellDataFormat) = true
 # get styles document for workbook
 function styles_xmlroot(workbook::Workbook)
     if isnull(workbook.styles_xroot)
@@ -76,7 +81,7 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     return fmt_code
 end
 
-FontAttribute = Union{AbstractString, Pair{String, Pair{String, String}}}
+const FontAttribute = Union{AbstractString, Pair{String, Pair{String, String}}}
 
 """
 Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
@@ -184,28 +189,28 @@ Returns -1 if not found.
             <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="22" xfId="0"/>
 ```
 """
-function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Int
+function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
     elements_found = find(xroot, "/xpath:styleSheet/xpath:cellXfs/xpath:xf", SPREADSHEET_NAMESPACE_XPATH_ARG)
 
     if isempty(elements_found)
-        return -1
+        return EmptyCellDataFormat()
     else
         for i in 1:length(elements_found)
             el = elements_found[i]
             if haskey(el, "numFmtId")
                 if parse(Int, el["numFmtId"]) == numFmtId
-                    return i-1
+                    return CellDataFormat(i-1)
                 end
             end
         end
 
         # not found
-        return -1
+        return EmptyCellDataFormat()
     end
 end
 
-function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: Int
+function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: CellDataFormat
     xroot = styles_xmlroot(wb)
     cellXfs_element = findfirst(xroot, "/xpath:styleSheet/xpath:cellXfs", SPREADSHEET_NAMESPACE_XPATH_ARG)
     existing_cellxf_elements_count = EzXML.countelements(cellXfs_element)
@@ -215,5 +220,5 @@ function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: I
         new_xf[k] = attributes[k]
     end
 
-    return existing_cellxf_elements_count # turns out this is the new index
+    return CellDataFormat(existing_cellxf_elements_count) # turns out this is the new index
 end
