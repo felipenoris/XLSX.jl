@@ -1058,6 +1058,27 @@ textstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"true", "fontId"=>"$fo
 datestyle = XLSX.styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "numFmtId"=>"$datefmt"))
 numstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"1", "applyNumberFormat"=>"1", "fontId"=>"$font", "numFmtId"=>"$numfmt"))
 
+xf = XLSX.styles_get_cellXf_with_numFmtId(wb, 1000)
+@test xf == XLSX.EmptyCellDataFormat()
+@test isempty(xf)
+@test id(xf) == ""
+
+@test textstyle isa XLSX.CellDataFormat
+@test !isempty(textstyle)
+@test id(textstyle) == "1"
+
+@test XLSX.styles_get_cellXf_with_numFmtId(wb, datefmt) == datestyle
+@test XLSX.styles_numFmt_formatCode(wb, string(datefmt)) == "yyyymmdd"
+@test datestyle isa XLSX.CellDataFormat
+@test !isempty(datestyle)
+@test id(datestyle) == "2"
+
+@test XLSX.styles_get_cellXf_with_numFmtId(wb, numfmt) == numstyle
+@test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@"
+@test numstyle isa XLSX.CellDataFormat
+@test !isempty(numstyle)
+@test id(numstyle) == "3"
+
 setdata!(sheet, CellRef("A1"), CellValue(Date(2011, 10, 13), datestyle))
 setdata!(sheet, CellRef("A2"), CellValue(1000, numstyle))
 setdata!(sheet, CellRef("A3"), CellValue(1000.10, numstyle))
@@ -1067,24 +1088,15 @@ setdata!(sheet, CellRef("A6"), CellValue("hello", numstyle))
 setdata!(sheet, CellRef("B1"), CellValue("hello world", textstyle))
 
 @test sheet["A1"] == Date(2011, 10, 13)
-
 cell = getcell(sheet, "A1")
 @test cell.style == id(datestyle)
 formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cell.style))
-
-# Check the right format id is set
 @test formatid == datefmt
-# Check for the right format code
-@test XLSX.styles_numFmt_formatCode(wb, string(formatid)) == "yyyymmdd"
-# Check the cellXf exists
-@test !isempty(XLSX.styles_get_cellXf_with_numFmtId(wb, formatid))
 
 cellstyle = getcell(sheet, "A2").style
 @test cellstyle == id(numstyle)
 formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cellstyle))
 @test formatid == numfmt
-@test XLSX.styles_numFmt_formatCode(wb, string(formatid)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@"
-@test !isempty(XLSX.styles_get_cellXf_with_numFmtId(wb, formatid))
 
 @test sheet["A2"] == 1000
 @test sheet["A3"] == 1000.10
