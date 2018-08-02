@@ -4,16 +4,16 @@
 #
 
 function readdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getdata(getsheet(xf, sheet), ref )
-    close(xf)
+    c = openxlsx(filepath, enable_cache=false) do xf
+        getdata(getsheet(xf, sheet), ref)
+    end
     return c
 end
 
 function readdata(filepath::AbstractString, sheetref::AbstractString)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getdata(xf, sheetref)
-    close(xf)
+    c = openxlsx(filepath, enable_cache=false) do xf
+        getdata(xf, sheetref)
+    end
     return c
 end
 
@@ -73,9 +73,9 @@ See also: `gettable`.
 ```
 """
 function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing, enable_cache::Bool=false)
-    xf = openxlsx(filepath, enable_cache=enable_cache)
-    c = gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
-    close(xf)
+    c = openxlsx(filepath, enable_cache=enable_cache) do xf
+        gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+    end
     return c
 end
 
@@ -212,13 +212,15 @@ function emptyfile(sheetname::AbstractString="")
 end
 
 """
-    openxlsx(f::Function, filename::AbstractString, sheetname::AbstractString=""; kw...)
+    openxlsx(f::Function, filename::AbstractString; kw...)
 
 Open XLSX file for reading and/or writing.
 
 `filename` is the name of the file.
 
-If `rewrite=true` the file `filename` will overwritten is it exists.
+If `write=true` the file `filename` will be overwritten.
+If `read=true` the existing data in the file `filename` will be accessible and can be edited
+in `write` mode, otherwise `f` will run as if the file were empty.
 
 If `enable_cache=true`, all read worksheet cells will be cached.
 If you read a worksheet cell twice it will use the cached value instead of reading from disk
@@ -242,27 +244,25 @@ XLSX.openxlsx("new.xlsx", enable_cache=false) do xf
     data = sheet[:]
 end
 
-XLSX.openxlsx("new.xlsx", rewrite=true) do xf
+XLSX.openxlsx("new.xlsx", write=true) do xf
     sheet = xf[1]
     sheet[1, 1] = "New data"
 end
 ```
 """
-function openxlsx(f::Function, filename::AbstractString; rewrite::Bool=false, enable_cache::Bool=true)
-    writefile = false
-
-    if isfile(filename) && !rewrite
-        xf = open_or_read_xlsx(filename, false, enable_cache, false)
+function openxlsx(f::Function, filename::AbstractString; read::Bool=true, write::Bool=false, enable_cache::Bool=true)
+    if isfile(filename) && read
+        xf = open_or_read_xlsx(filename, write, enable_cache, write)
     else
-        writefile = true
-        xf = open_default_template()
+        xf = emptyfile()
     end
 
     try
         f(xf)
     finally
-        if writefile
-            writexlsx(filename, xf, rewrite=rewrite)
+
+        if write
+            writexlsx(filename, xf, rewrite=true)
         else
             close(xf)
         end

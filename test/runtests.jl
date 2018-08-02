@@ -1259,7 +1259,7 @@ data = [
     missing "c" Date(2018, 1, 3);
 ]
 
-XLSX.openxlsx(filename) do xf
+XLSX.openxlsx(filename, write=true) do xf
     sheet = xf[1]
     XLSX.rename!(sheet, sheetname)
 
@@ -1282,7 +1282,7 @@ end
 # test overwrite file
 @test isfile(filename)
 new_data = [1 2 3;]
-XLSX.openxlsx(filename, rewrite=true) do xf
+XLSX.openxlsx(filename, write=true, read=false) do xf
     sheet = xf[1]
     sheet[1, :] = new_data[1,:]
 end
@@ -1293,5 +1293,32 @@ XLSX.openxlsx(filename) do xf
 
     @test isequal(read_data, new_data)
 end
+
+# test edit file
+XLSX.openxlsx(filename, write=true, read=true) do xf
+    sheet=xf[1]
+    sheet[1, 2] = "hello"
+    sheet["B6"] = 5
+end
+
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    read_data = sheet[:]
+
+    @test read_data[1, 1] == new_data[1, 1]
+    @test read_data[1, 2] == "hello"
+    @test read_data[1, 3] == new_data[1, 3]
+    @test read_data[6, 2] == 5
+end
+
+# test writing throws error if flag not set
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    @test_throws AssertionError sheet[1, 1] = "failure"
+end
+
+xf = XLSX.emptyfile("page")
+@test XLSX.sheetnames(xf) == ["page"]
+close(xf)
 
 rm(filename)
