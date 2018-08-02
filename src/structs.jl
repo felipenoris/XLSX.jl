@@ -48,20 +48,15 @@ struct EmptyCellDataFormat <: AbstractCellDataFormat end
 Keeps track of formatting information.
 """
 struct CellDataFormat <: AbstractCellDataFormat
-    id::Integer
-
-    function CellDataFormat(id::Integer)
-        @assert id >= 0
-        new(id)
-    end
+    id::UInt
 end
 
-const CellValueTypes = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+const CellValueType = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 """
 CellValue is a Julia type of a value read from a Spreadsheet.
 """
 struct CellValue
-    value::CellValueTypes
+    value::CellValueType
     styleid::AbstractCellDataFormat
 end
 
@@ -284,7 +279,7 @@ end
 struct TableRow
     row::Int # Index of the row in the table. This is not relative to the worksheet cell row.
     index::Index
-    cell_values::Vector{CellValueTypes}
+    cell_values::Vector{CellValueType}
 end
 
 struct TableRowIteratorState

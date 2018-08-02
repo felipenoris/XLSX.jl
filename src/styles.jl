@@ -13,10 +13,47 @@
 # 18.8.10 cellXfs (Cell Formats)
 import Base: isempty
 
+function CellValue(ws::Worksheet, val::CellValueType)
+    CellValue(val, default_cell_format(ws, val))
+end
+
 id(format::CellDataFormat) = string(format.id)
 id(::EmptyCellDataFormat) = ""
 isempty(::CellDataFormat) = false
 isempty(::EmptyCellDataFormat) = true
+
+# The number of predefined number formats in XLSX
+# Any custom number formats must have an id >= PREDEFINED_NUMFMT_COUNT
+const PREDEFINED_NUMFMT_COUNT = 164
+
+# these formats may appear differently in different editors
+const DEFAULT_DATE_numFmtId = 14 # dd-mm-yyyy
+const DEFAULT_TIME_numFmtId = 20 # h:mm
+const DEFAULT_DATETIME_numFmtId = 22 # dd-mm-yyyy h:mm
+
+"""
+Returns the default `CellDataFormat` for a type
+"""
+default_cell_format(::Worksheet, ::CellValueType) = EmptyCellDataFormat()
+default_cell_format(ws::Worksheet, ::Date) = get_num_style_index(ws, DEFAULT_DATE_numFmtId)
+default_cell_format(ws::Worksheet, ::Dates.Time) = get_num_style_index(ws, DEFAULT_TIME_numFmtId)
+default_cell_format(ws::Worksheet, ::Dates.DateTime) = get_num_style_index(ws, DEFAULT_DATETIME_numFmtId)
+
+# Attempts to get CellDataFormat associated with a numFmtId and sets a default style if it is not found
+# Use for ensuring default formats exist
+function get_num_style_index(ws::Worksheet, numformatid::Integer)
+    @assert numformatid >= 0 "Invalid number format id"
+
+    wb = get_workbook(ws)
+    style_index = styles_get_cellXf_with_numFmtId(wb, numformatid)
+    if isempty(style_index)
+        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId=formatid xfId="0"/>
+        style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>string(numformatid), "xfId"=>"0"))
+    end
+
+    return style_index
+end
+
 # get styles document for workbook
 function styles_xmlroot(workbook::Workbook)
     if isnull(workbook.styles_xroot)
@@ -71,9 +108,7 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     existing_numFmt_elements_count = EzXML.countelements(numfmts)
     new_fmt = EzXML.addelement!(numfmts, "numFmt")
 
-    # The number of predefined number formats in XLSX
-    # Any custom formats must have an id >= PREDEFINED_NUMFMT_COUNT
-    PREDEFINED_NUMFMT_COUNT = 164
+
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt["numFmtId"] = fmt_code
     new_fmt["formatCode"] = format_code

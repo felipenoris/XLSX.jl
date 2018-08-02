@@ -219,7 +219,7 @@ Base.getindex(r::TableRow, x) = getdata(r, x)
 function TableRow(itr::TableRowIterator, sheet_row::SheetRow, row::Int)
     ws = get_worksheet(itr)
     index = itr.index
-    cell_values = Vector{CellValueTypes}()
+    cell_values = Vector{CellValueType}()
 
     for table_column_number in table_column_numbers(index)
         sheet_column = table_column_to_sheet_column_number(index, table_column_number)
