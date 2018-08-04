@@ -1,6 +1,12 @@
 
 # Getting Started
 
+## Installation
+
+```julia
+julia> Pkg.add("XLSX")
+```
+
 ## Basic Usage
 
 The basic usage is to read an Excel file and read values.
@@ -38,7 +44,7 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet", "A2:B4") # shorthand for all abov
 julia> sh[:] # all data inside worksheet's dimension
 4×2 Array{Any,2}:
   "HeaderA"  "HeaderB"
- 1           "first"  
+ 1           "first"
  2           "second"
  3           "third"
 

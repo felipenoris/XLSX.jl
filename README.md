@@ -6,6 +6,7 @@
 [![codecov.io](http://codecov.io/github/felipenoris/XLSX.jl/coverage.svg?branch=master)](http://codecov.io/github/felipenoris/XLSX.jl?branch=master)
 [![XLSX](http://pkg.julialang.org/badges/XLSX_0.6.svg)](http://pkg.julialang.org/?pkg=XLSX&ver=0.6)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://felipenoris.github.io/XLSX.jl/latest)
+
 Excel file reader/writer coded in pure Julia.
 
 ## Installation
@@ -13,6 +14,10 @@ Excel file reader/writer coded in pure Julia.
 ```julia
 julia> Pkg.add("XLSX")
 ```
+
+## Documentation
+
+Package docs are available in the following link: [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://felipenoris.github.io/XLSX.jl/latest).
 
 ## References
 
