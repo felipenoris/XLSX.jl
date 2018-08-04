@@ -17,11 +17,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "index.html#Installation-1",
+    "page": "Getting Started",
+    "title": "Installation",
+    "category": "section",
+    "text": "julia> Pkg.add(\"XLSX\")"
+},
+
+{
     "location": "index.html#Basic-Usage-1",
     "page": "Getting Started",
     "title": "Basic Usage",
     "category": "section",
-    "text": "The basic usage is to read an Excel file and read values.julia> import XLSX\n\njulia> xf = XLSX.openxlsx(\"myfile.xlsx\")\nXLSXFile(\"myfile.xlsx\")\n\njulia> XLSX.sheetnames(xf)\n3-element Array{String,1}:\n \"mysheet\"\n \"othersheet\"\n \"named\"\n\njulia> sh = xf[\"mysheet\"] # get a reference to a Worksheet\nXLSX.Worksheet: \"mysheet\". Dimension: A1:B4.\n\njulia> sh[\"B2\"] # From a sheet, you can access a cell value\n\"first\"\n\njulia> sh[\"A2:B4\"] # or a cell range\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> XLSX.readdata(\"myfile.xlsx\", \"mysheet\", \"A2:B4\") # shorthand for all above\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> sh[:] # all data inside worksheet\'s dimension\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"  \n 2           \"second\"\n 3           \"third\"\n\njulia> xf[\"mysheet!A2:B4\"] # you can also query values from a file reference\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> xf[\"NAMED_CELL\"] # you can even read named ranges\n\"B4 is a named cell from sheet \\\"named\\\"\"\n\njulia> xf[\"mysheet!A:B\"] # Column ranges are also supported\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> close(xf) # close the file when done readingTo inspect the internal representation of each cell, use the getcell or getcellrange methods.The example above used xf = XLSX.openxlsx(filename) to open a file, so the contents will be fetched from disk as needed but you need to close the file when done reading with close(xf).You can also use XLSX.readxlsx(filename) to read the whole file and return a closed XLSXFile."
+    "text": "The basic usage is to read an Excel file and read values.julia> import XLSX\n\njulia> xf = XLSX.openxlsx(\"myfile.xlsx\")\nXLSXFile(\"myfile.xlsx\")\n\njulia> XLSX.sheetnames(xf)\n3-element Array{String,1}:\n \"mysheet\"\n \"othersheet\"\n \"named\"\n\njulia> sh = xf[\"mysheet\"] # get a reference to a Worksheet\nXLSX.Worksheet: \"mysheet\". Dimension: A1:B4.\n\njulia> sh[\"B2\"] # From a sheet, you can access a cell value\n\"first\"\n\njulia> sh[\"A2:B4\"] # or a cell range\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> XLSX.readdata(\"myfile.xlsx\", \"mysheet\", \"A2:B4\") # shorthand for all above\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> sh[:] # all data inside worksheet\'s dimension\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> xf[\"mysheet!A2:B4\"] # you can also query values from a file reference\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> xf[\"NAMED_CELL\"] # you can even read named ranges\n\"B4 is a named cell from sheet \\\"named\\\"\"\n\njulia> xf[\"mysheet!A:B\"] # Column ranges are also supported\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> close(xf) # close the file when done readingTo inspect the internal representation of each cell, use the getcell or getcellrange methods.The example above used xf = XLSX.openxlsx(filename) to open a file, so the contents will be fetched from disk as needed but you need to close the file when done reading with close(xf).You can also use XLSX.readxlsx(filename) to read the whole file and return a closed XLSXFile."
 },
 
 {
