@@ -162,8 +162,8 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
         if (14 <= numFmtId && numFmtId <= 22) || (45 <= numFmtId && numFmtId <= 47)
             isdatetime = true
         elseif numFmtId > 81
-            code = styles_numFmt_formatCode(wb, numFmtId)
-            if contains(code, "dd") || contains(code, "mm") || contains(code, "yy") || contains(code, "hh") || contains(code, "ss")
+            code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
+            if contains(code, "d") || contains(code, "m") || contains(code, "yy") || contains(code, "h") || contains(code, "s")
                 isdatetime = true
             end
         end
