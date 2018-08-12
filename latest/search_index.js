@@ -65,11 +65,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.CellValue",
+    "location": "api.html#XLSX.CellDataFormat",
     "page": "API",
-    "title": "XLSX.CellValue",
-    "category": "constant",
-    "text": "CellValue is a Julia type of a value read from a Spreadsheet.\n\n\n\n"
+    "title": "XLSX.CellDataFormat",
+    "category": "type",
+    "text": "Keeps track of formatting information.\n\n\n\n"
 },
 
 {
@@ -86,6 +86,14 @@ var documenterSearchIndex = {"docs": [
     "title": "XLSX.CellRef",
     "category": "type",
     "text": "A CellRef represents a cell location given by row and column identifiers.\n\nCellRef(\"A6\") indicates a cell located at column 1 and row 6.\n\nExample:\n\ncn = XLSX.CellRef(\"AB1\")\nprintln( XLSX.row_number(cn) ) # will print 1\nprintln( XLSX.column_number(cn) ) # will print 28\nprintln( string(cn) ) # will print out AB1\n\nAs a convenience, @ref_str macro is provided.\n\ncn = XLSX.ref\"AB1\"\nprintln( XLSX.row_number(cn) ) # will print 1\nprintln( XLSX.column_number(cn) ) # will print 28\nprintln( string(cn) ) # will print out AB1\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.CellValue",
+    "page": "API",
+    "title": "XLSX.CellValue",
+    "category": "type",
+    "text": "CellValue is a Julia type of a value read from a Spreadsheet.\n\n\n\n"
 },
 
 {
@@ -198,6 +206,14 @@ var documenterSearchIndex = {"docs": [
     "title": "XLSX.decode_column_number",
     "category": "method",
     "text": "decode_column_number(column_name::AbstractString) :: Int\n\nConverts column name to a column number.\n\njulia> XLSX.decode_column_number(\"D\")\n4\n\nSee also: encode_column_number.\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.default_cell_format-Tuple{XLSX.Worksheet,Union{Base.Dates.Time, Bool, Date, DateTime, Float64, Int64, Missings.Missing, String}}",
+    "page": "API",
+    "title": "XLSX.default_cell_format",
+    "category": "method",
+    "text": "Returns the default CellDataFormat for a type\n\n\n\n"
 },
 
 {
@@ -497,6 +513,22 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api.html#XLSX.styles_add_font-Tuple{XLSX.Workbook,Array{Union{AbstractString, Pair{String,Pair{String,String}}},1}}",
+    "page": "API",
+    "title": "XLSX.styles_add_font",
+    "category": "method",
+    "text": "Defines a custom font. Returns the index to be used as the fontId in a cellXf definition.\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.styles_add_numFmt-Tuple{XLSX.Workbook,AbstractString}",
+    "page": "API",
+    "title": "XLSX.styles_add_numFmt",
+    "category": "method",
+    "text": "Defines a custom number format to render numbers, dates or text. Returns the index to be used as the numFmtId in a cellXf definition.\n\n\n\n"
+},
+
+{
     "location": "api.html#XLSX.styles_cell_xf-Tuple{XLSX.Workbook,Int64}",
     "page": "API",
     "title": "XLSX.styles_cell_xf",
@@ -574,6 +606,14 @@ var documenterSearchIndex = {"docs": [
     "title": "XLSX.writexlsx",
     "category": "method",
     "text": "writexlsx(output_filepath, xlsx_file; [rewrite])\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.xlsx_encode-Tuple{XLSX.Worksheet,AbstractString}",
+    "page": "API",
+    "title": "XLSX.xlsx_encode",
+    "category": "method",
+    "text": "Returns the datatype and value for val to be inserted into ws.\n\n\n\n"
 },
 
 {
