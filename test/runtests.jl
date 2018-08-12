@@ -1033,3 +1033,87 @@ data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
 check_test_data(data, report_2_data)
 
 rm("output_tables.xlsx")
+
+using XLSX: CellValue, id, getcell, setdata!, CellRef
+xf = XLSX.open_default_template()
+wb = XLSX.get_workbook(xf)
+sheet = xf["Sheet1"]
+
+datefmt = XLSX.styles_add_numFmt(wb, "yyyymmdd")
+numfmt = XLSX.styles_add_numFmt(wb, "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@")
+
+#Check format id numbers dont intersect with predefined formats or each other
+@test datefmt == 164
+@test numfmt == 165
+
+font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
+xroot = XLSX.styles_xmlroot(wb)
+fontnodes = find(xroot, "/xpath:styleSheet/xpath:fonts/xpath:font", XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
+fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
+
+# Check the font was written correctly
+@test string(fontnode) == "<font><b/><sz val=\"24\"/></font>"
+
+textstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"true", "fontId"=>"$font"))
+datestyle = XLSX.styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "numFmtId"=>"$datefmt"))
+numstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"1", "applyNumberFormat"=>"1", "fontId"=>"$font", "numFmtId"=>"$numfmt"))
+
+xf = XLSX.styles_get_cellXf_with_numFmtId(wb, 1000)
+@test xf == XLSX.EmptyCellDataFormat()
+@test isempty(xf)
+@test id(xf) == ""
+
+@test textstyle isa XLSX.CellDataFormat
+@test !isempty(textstyle)
+@test id(textstyle) == "1"
+
+@test XLSX.styles_get_cellXf_with_numFmtId(wb, datefmt) == datestyle
+@test XLSX.styles_numFmt_formatCode(wb, string(datefmt)) == "yyyymmdd"
+@test datestyle isa XLSX.CellDataFormat
+@test !isempty(datestyle)
+@test id(datestyle) == "2"
+
+@test XLSX.styles_get_cellXf_with_numFmtId(wb, numfmt) == numstyle
+@test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@"
+@test numstyle isa XLSX.CellDataFormat
+@test !isempty(numstyle)
+@test id(numstyle) == "3"
+
+setdata!(sheet, CellRef("A1"), CellValue(Date(2011, 10, 13), datestyle))
+setdata!(sheet, CellRef("A2"), CellValue(1000, numstyle))
+setdata!(sheet, CellRef("A3"), CellValue(1000.10, numstyle))
+setdata!(sheet, CellRef("A4"), CellValue(-1000.10, numstyle))
+setdata!(sheet, CellRef("A5"), CellValue(0, numstyle))
+setdata!(sheet, CellRef("A6"), CellValue("hello", numstyle))
+setdata!(sheet, CellRef("B1"), CellValue("hello world", textstyle))
+
+@test sheet["A1"] == Date(2011, 10, 13)
+cell = getcell(sheet, "A1")
+@test cell.style == id(datestyle)
+formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cell.style))
+@test formatid == datefmt
+
+cellstyle = getcell(sheet, "A2").style
+@test cellstyle == id(numstyle)
+formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cellstyle))
+@test formatid == numfmt
+
+@test sheet["A2"] == 1000
+@test sheet["A3"] == 1000.10
+@test XLSX.getcell(sheet, "A3").style == cellstyle
+@test sheet["A4"] == -1000.10
+@test XLSX.getcell(sheet, "A4").style == cellstyle
+@test sheet["A5"] == 0
+@test XLSX.getcell(sheet, "A5").style == cellstyle
+@test sheet["A6"] == "hello"
+@test XLSX.getcell(sheet, "A6").style == cellstyle
+
+@test sheet["B1"] == "hello world"
+@test XLSX.getcell(sheet, "B1").style == id(textstyle)
+
+sheet["B2"] = CellValue("hello world", textstyle)
+@test sheet["B2"] == "hello world"
+@test XLSX.getcell(sheet, "B2").style == id(textstyle)
+
+# Check CellDataFormat only works with CellValues
+@test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)

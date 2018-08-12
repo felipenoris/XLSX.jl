@@ -192,12 +192,6 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, v::Union{Int, Float64})
-    cell = Cell(ref, "", "", string(v), "")
-    setdata!(ws, cell)
-end
-
-
 function xlsxescape(str::AbstractString)
     str = replace(str, '"', "&quot;")
     str = replace(str, '&', "&amp;")
@@ -206,73 +200,35 @@ function xlsxescape(str::AbstractString)
     return replace(str, "'", "&apos;")
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, str::AbstractString)
-    if isempty(str)
-        # no-op
-        return
+"""
+Returns the datatype and value for `val` to be inserted into `ws`.
+"""
+function xlsx_encode(ws::Worksheet, val::AbstractString)
+    if isempty(val)
+        return ("", "")
     end
+    sst_ind = add_shared_string!(get_workbook(ws), xlsxescape(val))
+    return ("s", string(sst_ind))
+end
 
-    sst_ind = add_shared_string!(get_workbook(ws), xlsxescape(str))
-    cell = Cell(ref, "s", "", string(sst_ind), "")
+xlsx_encode(::Worksheet, val::Missings.Missing) = ("", "")
+xlsx_encode(::Worksheet, val::Bool) = ("b", val ? "1" : "0")
+xlsx_encode(::Worksheet, val::Union{Int, Float64}) = ("", string(val))
+xlsx_encode(ws::Worksheet, val::Date) = ("", string(date_to_excel_value(val, isdate1904(get_xlsxfile(ws)))))
+xlsx_encode(ws::Worksheet, val::Dates.DateTime) = ("", string(datetime_to_excel_value(val, isdate1904(get_xlsxfile(ws)))))
+xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)))
+
+function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
+    t, v = xlsx_encode(ws, val.value)
+    cell = Cell(ref, t, id(val.styleid), v, "")
+
     setdata!(ws, cell)
 end
 
-function setdata!(ws::Worksheet, ref::CellRef, m::Missings.Missing)
-    # no-op
-    nothing
-end
+setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
+setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
 
-function setdata!(ws::Worksheet, ref::CellRef, b::Bool)
-    value_str = b ? "1" : "0"
-    cell = Cell(ref, "b", "", value_str, "")
-    setdata!(ws, cell)
-end
-
-const DEFAULT_DATE_numFmtId = 14
-const DEFAULT_TIME_numFmtId = 20
-const DEFAULT_DATETIME_numFmtId = 22
-
-function setdata!(ws::Worksheet, ref::CellRef, date::Date)
-    wb = get_workbook(ws)
-    date_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATE_numFmtId)
-    if date_style_index == -1
-        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="14" xfId="0"/>
-        date_style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>"14", "xfId"=>"0"))
-    end
-
-    value_str = string(date_to_excel_value(date, isdate1904(get_xlsxfile(ws))))
-    cell = Cell(ref, "", string(date_style_index), value_str, "")
-    setdata!(ws, cell)
-end
-
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.Time)
-    wb = get_workbook(ws)
-    time_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_TIME_numFmtId)
-    if time_style_index == -1
-        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="20" xfId="0"/>
-        time_style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>"20", "xfId"=>"0"))
-    end
-
-    value_str = string(time_to_excel_value(t))
-    cell = Cell(ref, "", string(time_style_index), value_str, "")
-    setdata!(ws, cell)
-end
-
-function setdata!(ws::Worksheet, ref::CellRef, t::Dates.DateTime)
-    wb = get_workbook(ws)
-    datetime_style_index = styles_get_cellXf_with_numFmtId(wb, DEFAULT_DATETIME_numFmtId)
-    if datetime_style_index == -1
-        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="22" xfId="0"/>
-        datetime_style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>"22", "xfId"=>"0"))
-    end
-
-    value_str = string(datetime_to_excel_value(t, isdate1904(get_xlsxfile(ws))))
-    cell = Cell(ref, "", string(datetime_style_index), value_str, "")
-    setdata!(ws, cell)
-end
-
-setdata!(ws::Worksheet, ref_str::AbstractString, value::CellValue) = setdata!(ws, CellRef(ref_str), value)
-setdata!(ws::Worksheet, ref_str::AbstractString, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValue).")
+setdata!(ws::Worksheet, ref::CellRef, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue).")
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 
