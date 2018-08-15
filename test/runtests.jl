@@ -1189,13 +1189,56 @@ style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 fmt = styles_add_numFmt(wb, "0.00*m")
 style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 @test !styles_is_datetime(wb, style)
+@test XLSX.styles_is_float(wb, style)
 
 fmt = styles_add_numFmt(wb, "0.00_m")
 style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 @test !styles_is_datetime(wb, style)
+@test XLSX.styles_is_float(wb, style)
 
 fmt = styles_add_numFmt(wb, "0.00\\d")
 style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 @test !styles_is_datetime(wb, style)
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "[red][>1.5]000")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.#")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "\"hello.\" ###")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, ".??")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "#e+00")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "0e00")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "# ??/??")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "*.00")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "\\.00")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "00_.")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !XLSX.styles_is_float(wb, style)
 
 close(xfile)
