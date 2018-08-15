@@ -164,7 +164,7 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
             isdatetime = true
         elseif numFmtId > 81
             code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
-            code = replace(code,  r"\[.{2,}?\]|&quot;.+&quot;", "") # remove colors/conditionals/quotes
+            code = replace(code,  r"\[.{2,}?\]|&quot;.+&quot;|_.{1}|\\.{1}|\*.{1}", "") # remove colors/conditionals/quotes/etc.
             if any(map(x->contains(code, x), DATETIME_CODES))
                 isdatetime = true
             end

@@ -1186,4 +1186,16 @@ style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 @test !styles_is_datetime(wb, style)
 @test !XLSX.styles_is_float(wb, style)
 
+fmt = styles_add_numFmt(wb, "0.00*m")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.00_m")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.00\\d")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
 close(xfile)
