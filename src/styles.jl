@@ -154,6 +154,19 @@ styles_numFmt_formatCode(wb::Workbook, numFmtId::Int) = styles_numFmt_formatCode
 
 const DATETIME_CODES = ["d", "m", "yy", "h", "s", "a/p", "am/pm"]
 
+function remove_formatting(code::AbstractString)
+    # this regex should cover all the formatting cases found here(colors/conditionals/quotes/spacing):
+    # https://support.office.com/en-us/article/create-or-delete-a-custom-number-format-78f2a361-936b-4c03-8772-09fab54be7f4
+    ignoredformatting = r"""
+        \[.{2,}?\]|
+        &quot;.+&quot;|
+        _.{1}|
+        \\.{1}|
+        \*.{1}
+        """ix
+    replace(code, ignoredformatting, "")
+end
+
 function styles_is_datetime(wb::Workbook, index::Int) :: Bool
     if !haskey(wb.buffer_styles_is_datetime, index)
         isdatetime = false
@@ -164,7 +177,7 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
             isdatetime = true
         elseif numFmtId > 81
             code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
-            code = replace(code,  r"\[.{2,}?\]|&quot;.+&quot;|_.{1}|\\.{1}|\*.{1}", "") # remove colors/conditionals/quotes/etc.
+            code = remove_formatting(code)
             if any(map(x->contains(code, x), DATETIME_CODES))
                 isdatetime = true
             end
@@ -194,7 +207,15 @@ function styles_is_float(wb::Workbook, index::Int) :: Bool
             isfloat = true
         elseif numFmtId > 81
             code = styles_numFmt_formatCode(wb, numFmtId)
-            if contains(code, ".0")
+            code = remove_formatting(code)
+
+            floatformats = r"""
+                \.[0#?]|
+                [0#?]e[+-]?[0#?]|
+                [0#?]/[0#?]|
+                %
+                """ix
+            if ismatch(floatformats, code)
                 isfloat = true
             end
         end
