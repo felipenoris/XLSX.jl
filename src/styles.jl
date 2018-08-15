@@ -160,11 +160,11 @@ function remove_formatting(code::AbstractString)
     ignoredformatting = r"""
         \[.{2,}?\]|
         &quot;.+&quot;|
-        _.{1}|
-        \\.{1}|
-        \*.{1}
-        """ix
-    replace(code, ignoredformatting, "")
+        _.|
+        \\.|
+        \*.
+        """x
+    replace(code, ignoredformatting => "")
 end
 
 function styles_is_datetime(wb::Workbook, index::Int) :: Bool
