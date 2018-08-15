@@ -153,6 +153,8 @@ end
 
 styles_numFmt_formatCode(wb::Workbook, numFmtId::Int) = styles_numFmt_formatCode(wb, string(numFmtId))
 
+const DATETIME_CODES = ["d", "m", "yy", "h", "s", "a/p", "am/pm"]
+
 function styles_is_datetime(wb::Workbook, index::Int) :: Bool
     if !haskey(wb.buffer_styles_is_datetime, index)
         isdatetime = false
@@ -163,7 +165,8 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
             isdatetime = true
         elseif numFmtId > 81
             code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
-            if contains(code, "d") || contains(code, "m") || contains(code, "yy") || contains(code, "h") || contains(code, "s")
+            code = replace(code,  r"\[.+\]|&quot;.+&quot;", "") # remove colors/conditionals/quotes
+            if any(map(x->contains(code, x), DATETIME_CODES))
                 isdatetime = true
             end
         end
