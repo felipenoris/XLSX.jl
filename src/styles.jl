@@ -108,10 +108,9 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     existing_numFmt_elements_count = EzXML.countelements(numfmts)
     new_fmt = EzXML.addelement!(numfmts, "numFmt")
 
-
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt["numFmtId"] = fmt_code
-    new_fmt["formatCode"] = format_code
+    new_fmt["formatCode"] = xlsxescape(format_code)
 
     return fmt_code
 end
@@ -153,6 +152,8 @@ end
 
 styles_numFmt_formatCode(wb::Workbook, numFmtId::Int) = styles_numFmt_formatCode(wb, string(numFmtId))
 
+const DATETIME_CODES = ["d", "m", "yy", "h", "s", "a/p", "am/pm"]
+
 function styles_is_datetime(wb::Workbook, index::Int) :: Bool
     if !haskey(wb.buffer_styles_is_datetime, index)
         isdatetime = false
@@ -162,8 +163,9 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
         if (14 <= numFmtId && numFmtId <= 22) || (45 <= numFmtId && numFmtId <= 47)
             isdatetime = true
         elseif numFmtId > 81
-            code = styles_numFmt_formatCode(wb, numFmtId)
-            if contains(code, "dd") || contains(code, "mm") || contains(code, "yy") || contains(code, "hh") || contains(code, "ss")
+            code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
+            code = replace(code,  r"\[.{2,}?\]|&quot;.+&quot;|_.{1}|\\.{1}|\*.{1}", "") # remove colors/conditionals/quotes/etc.
+            if any(map(x->contains(code, x), DATETIME_CODES))
                 isdatetime = true
             end
         end
@@ -173,6 +175,8 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
 
     return wb.buffer_styles_is_datetime[index]
 end
+
+styles_is_datetime(wb::Workbook, fmt::CellDataFormat) = styles_is_datetime(wb, Int(fmt.id))
 
 function styles_is_datetime(wb::Workbook, index::AbstractString)
     @assert !isempty(index)
@@ -184,7 +188,6 @@ styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(get_workbook(ws), 
 function styles_is_float(wb::Workbook, index::Int) :: Bool
     if !haskey(wb.buffer_styles_is_float, index)
         isfloat = false
-
         numFmtId = styles_cell_xf_numFmtId(wb, index)
 
         if numFmtId == 2 || numFmtId == 4 || (7 <= numFmtId && numFmtId <= 11) || numFmtId == 39 || numFmtId == 40 || numFmtId == 44 || numFmtId == 48
@@ -207,6 +210,7 @@ function styles_is_float(wb::Workbook, index::AbstractString)
     styles_is_float(wb, parse(Int, index))
 end
 
+styles_is_float(wb::Workbook, fmt::CellDataFormat) = styles_is_float(wb, Int(fmt.id))
 styles_is_float(ws::Worksheet, index) = styles_is_float(get_workbook(ws), index)
 
 """

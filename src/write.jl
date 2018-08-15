@@ -193,8 +193,8 @@ function setdata!(ws::Worksheet, cell::Cell)
 end
 
 function xlsxescape(str::AbstractString)
-    str = replace(str, '"', "&quot;")
     str = replace(str, '&', "&amp;")
+    str = replace(str, '"', "&quot;")
     str = replace(str, '<', "&lt;")
     str = replace(str, '>', "&gt;")
     return replace(str, "'", "&apos;")

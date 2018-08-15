@@ -1035,9 +1035,9 @@ check_test_data(data, report_2_data)
 rm("output_tables.xlsx")
 
 using XLSX: CellValue, id, getcell, setdata!, CellRef
-xf = XLSX.open_default_template()
-wb = XLSX.get_workbook(xf)
-sheet = xf["Sheet1"]
+xfile = XLSX.open_default_template()
+wb = XLSX.get_workbook(xfile)
+sheet = xfile["Sheet1"]
 
 datefmt = XLSX.styles_add_numFmt(wb, "yyyymmdd")
 numfmt = XLSX.styles_add_numFmt(wb, "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@")
@@ -1074,7 +1074,7 @@ xf = XLSX.styles_get_cellXf_with_numFmtId(wb, 1000)
 @test id(datestyle) == "2"
 
 @test XLSX.styles_get_cellXf_with_numFmtId(wb, numfmt) == numstyle
-@test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@"
+@test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* &quot;-&quot;??;[Magenta]@"
 @test numstyle isa XLSX.CellDataFormat
 @test !isempty(numstyle)
 @test id(numstyle) == "3"
@@ -1117,3 +1117,85 @@ sheet["B2"] = CellValue("hello world", textstyle)
 
 # Check CellDataFormat only works with CellValues
 @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
+
+close(xfile)
+
+using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
+# Capitalized and single character numfmts
+xfile = XLSX.open_default_template()
+wb = XLSX.get_workbook(xfile)
+sheet = xfile["Sheet1"]
+
+fmt = styles_add_numFmt(wb, "yyyy m d")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "h:m:s")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.00")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "[red]yyyy m d")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+fmt = styles_add_numFmt(wb, "[red] h:m:s")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+fmt = styles_add_numFmt(wb, "[red] 0.00; [magenta] 0.00")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+@test XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "YYYY M D")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+fmt = styles_add_numFmt(wb, "H:M:S")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "m")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "M")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "y")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "[s]")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "am/pm")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "a/p")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "\"Monday\"")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+@test !XLSX.styles_is_float(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.00*m")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.00_m")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
+fmt = styles_add_numFmt(wb, "0.00\\d")
+style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
+@test !styles_is_datetime(wb, style)
+
+close(xfile)
