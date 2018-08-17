@@ -233,6 +233,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api.html#XLSX.emptyfile",
+    "page": "API",
+    "title": "XLSX.emptyfile",
+    "category": "function",
+    "text": "emptyfile(sheetname::AbstractString=\"\")\n\nReturns an empty, writable XLSXFile with 1 worksheet.\n\nsheetname is the name of the worksheet, defaults to Sheet1.\n\n\n\n"
+},
+
+{
     "location": "api.html#XLSX.encode_column_number-Tuple{Int64}",
     "page": "API",
     "title": "XLSX.encode_column_number",
@@ -390,6 +398,14 @@ var documenterSearchIndex = {"docs": [
     "title": "XLSX.openxlsx",
     "category": "method",
     "text": "openxlsx(filepath; [enable_cache]) :: XLSXFile\n\nOpen a XLSX file for reading. The user must close this file after using it with close(xf). XML data will be fetched from disk as needed.\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nThe following example shows how you would read worksheet cells, one row at a time, where filename.xlsx is a spreadsheet that doesn\'t fit into memory.\n\njulia> f = XLSX.openxlsx(\"filename.xlsx\", enable_cache=false)\n\njulia for r in XLSX.eachrow(f[\"sheetname\"])\n        # do something with r\n      end\n\nSee also readxlsx method.\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.openxlsx-Tuple{Function,AbstractString}",
+    "page": "API",
+    "title": "XLSX.openxlsx",
+    "category": "method",
+    "text": "openxlsx(f::Function, filename::AbstractString; kw...)\n\nOpen XLSX file for reading and/or writing.\n\nfilename is the name of the file.\n\nIf write=true the file filename will be overwritten. If read=true the existing data in the file filename will be accessible and can be edited in write mode, otherwise f will run as if the file were empty.\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExample:\n\nXLSX.openxlsx(\"new.xlsx\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nXLSX.openxlsx(\"new.xlsx\", enable_cache=false) do xf\n    sheet = xf[1]\n    data = sheet[:]\nend\n\nXLSX.openxlsx(\"new.xlsx\", write=true) do xf\n    sheet = xf[1]\n    sheet[1, 1] = \"New data\"\nend\n\n\n\n"
 },
 
 {
