@@ -2,39 +2,39 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "index.html#",
-    "page": "Getting Started",
-    "title": "Getting Started",
+    "page": "Tutorial",
+    "title": "Tutorial",
     "category": "page",
     "text": ""
 },
 
 {
-    "location": "index.html#Getting-Started-1",
-    "page": "Getting Started",
-    "title": "Getting Started",
+    "location": "index.html#Tutorial-1",
+    "page": "Tutorial",
+    "title": "Tutorial",
     "category": "section",
     "text": ""
 },
 
 {
     "location": "index.html#Installation-1",
-    "page": "Getting Started",
+    "page": "Tutorial",
     "title": "Installation",
     "category": "section",
     "text": "julia> Pkg.add(\"XLSX\")"
 },
 
 {
-    "location": "index.html#Basic-Usage-1",
-    "page": "Getting Started",
-    "title": "Basic Usage",
+    "location": "index.html#Getting-Started-1",
+    "page": "Tutorial",
+    "title": "Getting Started",
     "category": "section",
     "text": "The basic usage is to read an Excel file and read values.julia> import XLSX\n\njulia> xf = XLSX.openxlsx(\"myfile.xlsx\")\nXLSXFile(\"myfile.xlsx\")\n\njulia> XLSX.sheetnames(xf)\n3-element Array{String,1}:\n \"mysheet\"\n \"othersheet\"\n \"named\"\n\njulia> sh = xf[\"mysheet\"] # get a reference to a Worksheet\nXLSX.Worksheet: \"mysheet\". Dimension: A1:B4.\n\njulia> sh[\"B2\"] # From a sheet, you can access a cell value\n\"first\"\n\njulia> sh[\"A2:B4\"] # or a cell range\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> XLSX.readdata(\"myfile.xlsx\", \"mysheet\", \"A2:B4\") # shorthand for all above\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> sh[:] # all data inside worksheet\'s dimension\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> xf[\"mysheet!A2:B4\"] # you can also query values from a file reference\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> xf[\"NAMED_CELL\"] # you can even read named ranges\n\"B4 is a named cell from sheet \\\"named\\\"\"\n\njulia> xf[\"mysheet!A:B\"] # Column ranges are also supported\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> close(xf) # close the file when done readingTo inspect the internal representation of each cell, use the getcell or getcellrange methods.The example above used xf = XLSX.openxlsx(filename) to open a file, so the contents will be fetched from disk as needed but you need to close the file when done reading with close(xf).You can also use XLSX.readxlsx(filename) to read the whole file and return a closed XLSXFile."
 },
 
 {
     "location": "index.html#Read-Tabular-Data-1",
-    "page": "Getting Started",
+    "page": "Tutorial",
     "title": "Read Tabular Data",
     "category": "section",
     "text": "The gettable method returns tabular data from a spreadsheet as a tuple (data, column_labels). You can use it to create a DataFrame from DataFrames.jl. Check the docstring for gettable method for more advanced options.There\'s also a helper method readtable to read from file directly, as shown in the following example.julia> using DataFrames, XLSX\n\njulia> df = DataFrame(XLSX.readtable(\"myfile.xlsx\", \"mysheet\")...)\n3×2 DataFrames.DataFrame\n│ Row │ HeaderA │ HeaderB  │\n├─────┼─────────┼──────────┤\n│ 1   │ 1       │ \"first\"  │\n│ 2   │ 2       │ \"second\" │\n│ 3   │ 3       │ \"third\"  │"
@@ -42,7 +42,7 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "index.html#Writing-Excel-Files-1",
-    "page": "Getting Started",
+    "page": "Tutorial",
     "title": "Writing Excel Files",
     "category": "section",
     "text": "To export tabular data to Excel, use XLSX.writetable method.julia> import DataFrames, XLSX\n\njulia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])\n4×6 DataFrames.DataFrame\n│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │\n├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤\n│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │\n│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │\n│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │\n│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │\n\njulia> XLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))You can also export multiple tables to Excel, each table in a separate worksheet.julia> import DataFrames, XLSX\n\njulia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[\"Fist\", \"Sec\", \"Third\"])\n3×2 DataFrames.DataFrame\n│ Row │ COL1 │ COL2  │\n├─────┼──────┼───────┤\n│ 1   │ 10   │ Fist  │\n│ 2   │ 20   │ Sec   │\n│ 3   │ 30   │ Third │\n\njulia> df2 = DataFrames.DataFrame(AA=[\"aa\", \"bb\"], AB=[10.1, 10.2])\n2×2 DataFrames.DataFrame\n│ Row │ AA │ AB   │\n├─────┼────┼──────┤\n│ 1   │ aa │ 10.1 │\n│ 2   │ bb │ 10.2 │\n\njulia> XLSX.writetable(\"report.xlsx\", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))"
@@ -50,7 +50,7 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "index.html#Streaming-Large-Excel-Files-and-Caching-1",
-    "page": "Getting Started",
+    "page": "Tutorial",
     "title": "Streaming Large Excel Files and Caching",
     "category": "section",
     "text": "The method XLSX.openxlsx has a enable_cache option to control worksheet cells caching.Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.If enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.The following example shows how you would read worksheet cells, one row at a time, where myfile.xlsx is a spreadsheet that doesn\'t fit into memory.julia> f = XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false)\n\njulia> sheet = f[\"mysheet\"]\n\njulia> for r in XLSX.eachrow(sheet)\n          # r is a `SheetRow`, values are read using column references\n          rn = XLSX.row_number(r) # `SheetRow` row number\n          v1 = r[1]    # will read value at column 1\n          v2 = r[\"B\"]  # will read value at column 2\n       endYou could also stream tabular data using XLSX.eachtablerow(sheet), which is the underlying iterator in gettable method. Check docstrings for XLSX.eachtablerow for more advanced options.julia> for r in XLSX.eachtablerow(sheet)\n           # r is a `TableRow`, values are read using column labels or numbers\n           rn = XLSX.row_number(r) # `TableRow` row number\n           v1 = r[1] # will read value at table column 1\n           v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`\n       end"
