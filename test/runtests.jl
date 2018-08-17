@@ -1242,3 +1242,83 @@ style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
 @test !XLSX.styles_is_float(wb, style)
 
 close(xfile)
+
+#
+# Write one row at a time
+#
+
+sheetname = "New Sheet"
+filename = "test_file.xlsx"
+if isfile(filename)
+    rm(filename)
+end
+
+data = [
+    1 "a" Date(2018, 1, 1);
+    2 missing Date(2018, 1, 2);
+    missing "c" Date(2018, 1, 3);
+]
+
+XLSX.openxlsx(filename, write=true) do xf
+    sheet = xf[1]
+    XLSX.rename!(sheet, sheetname)
+
+    sheet["A1"] = data[1, :]
+    sheet[2, :] = data[2, :]
+    sheet[2, 1] = "test overwrite"
+    sheet[3, 2:3] = data[3, 2:3]
+end
+
+@test isfile(filename)
+XLSX.openxlsx(filename) do xf
+    sheet = xf[sheetname]
+    read_data = sheet[:]
+
+    @test isequal(read_data[1, :], data[1, :])
+    @test isequal(read_data[2, :], vcat(["test overwrite"], data[2, 2:end]))
+    @test isequal(read_data[3, :], data[3, :])
+end
+
+# test overwrite file
+@test isfile(filename)
+new_data = [1 2 3;]
+XLSX.openxlsx(filename, write=true, read=false) do xf
+    sheet = xf[1]
+    sheet[1, :] = new_data[1,:]
+end
+
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    read_data = sheet[:]
+
+    @test isequal(read_data, new_data)
+end
+
+# test edit file
+XLSX.openxlsx(filename, write=true, read=true) do xf
+    sheet=xf[1]
+    sheet[1, 2] = "hello"
+    sheet["B6"] = 5
+end
+
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    read_data = sheet[:]
+
+    @test read_data[1, 1] == new_data[1, 1]
+    @test read_data[1, 2] == "hello"
+    @test read_data[1, 3] == new_data[1, 3]
+    @test read_data[6, 2] == 5
+end
+
+# test writing throws error if flag not set
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    @test_throws AssertionError sheet[1, 1] = "failure"
+end
+
+xf = XLSX.emptyfile("page")
+@test XLSX.sheetnames(xf) == ["page"]
+close(xf)
+
+rm(filename)

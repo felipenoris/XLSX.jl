@@ -5,7 +5,7 @@
 
 function readdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
     xf = openxlsx(filepath, enable_cache=false)
-    c = getdata(getsheet(xf, sheet), ref )
+    c = getdata(getsheet(xf, sheet), ref)
     close(xf)
     return c
 end
@@ -193,4 +193,79 @@ function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vecto
     # write output file
     writexlsx(filename, xf, rewrite=rewrite)
     nothing
+end
+
+"""
+    emptyfile(sheetname::AbstractString="")
+
+Returns an empty, writable `XLSXFile` with 1 worksheet.
+
+`sheetname` is the name of the worksheet, defaults to `Sheet1`.
+"""
+function emptyfile(sheetname::AbstractString="")
+    xf = open_default_template()
+
+    if sheetname != ""
+        rename!(xf[1], sheetname)
+    end
+
+    return xf
+end
+
+"""
+    openxlsx(f::Function, filename::AbstractString; kw...)
+
+Open XLSX file for reading and/or writing.
+
+`filename` is the name of the file.
+
+If `write=true` the file `filename` will be overwritten.
+If `read=true` the existing data in the file `filename` will be accessible and can be edited
+in `write` mode, otherwise `f` will run as if the file were empty.
+
+If `enable_cache=true`, all read worksheet cells will be cached.
+If you read a worksheet cell twice it will use the cached value instead of reading from disk
+in the second time.
+
+If `enable_cache=false`, worksheet cells will always be read from disk.
+This is useful when you want to read a spreadsheet that doesn't fit into memory.
+
+The default value is `enable_cache=true`.
+
+Example:
+
+```julia
+XLSX.openxlsx("new.xlsx") do xf
+    sheet = xf[1]
+    sheet[1, :] = [1, Date(2018, 1, 1), "test"]
+end
+
+XLSX.openxlsx("new.xlsx", enable_cache=false) do xf
+    sheet = xf[1]
+    data = sheet[:]
+end
+
+XLSX.openxlsx("new.xlsx", write=true) do xf
+    sheet = xf[1]
+    sheet[1, 1] = "New data"
+end
+```
+"""
+function openxlsx(f::Function, filename::AbstractString; read::Bool=true, write::Bool=false, enable_cache::Bool=true)
+    if isfile(filename) && read
+        xf = open_or_read_xlsx(filename, write, enable_cache, write)
+    else
+        xf = emptyfile()
+    end
+
+    try
+        f(xf)
+    finally
+
+        if write
+            writexlsx(filename, xf, rewrite=true)
+        else
+            close(xf)
+        end
+    end
 end

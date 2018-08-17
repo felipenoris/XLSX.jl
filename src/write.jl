@@ -268,6 +268,44 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     end
 end
 
+function Base.setindex!(sheet::Worksheet, value, row::Integer, col::Integer)
+    target_cell_ref = CellRef(row, col)
+    sheet[target_cell_ref] = value
+end
+
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, cols::UnitRange{<:Integer})
+    col_count = length(data)
+
+    @assert col_count == length(cols) "Column count mismatch between `data` ($col_count columns) and column range $cols ($(length(cols)) columns)."
+
+    for c in 1:col_count
+        target_cell_ref = CellRef(row, c + first(cols) - 1)
+        sheet[target_cell_ref] = data[c]
+    end
+end
+
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, c::Colon)
+    col_count = length(data)
+
+    for c in 1:col_count
+        target_cell_ref = CellRef(row, c)
+        sheet[target_cell_ref] = data[c]
+    end
+end
+
+Base.setindex!(sheet::Worksheet, data::AbstractVector, ref_str::AbstractString) = setindex!(sheet, data, CellRef(ref_str))
+
+function Base.setindex!(sheet::Worksheet, data::AbstractVector, index::CellRef)
+    col_count = length(data)
+    anchor_row = row_number(index)
+    anchor_col = column_number(index)
+
+    for c in 1:col_count
+        target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
+        sheet[target_cell_ref] = data[c]
+    end
+end
+
 function rename!(ws::Worksheet, name::AbstractString)
     xf = get_xlsxfile(ws)
     @assert is_writable(xf) "XLSXFile instance is not writable."

@@ -146,7 +146,7 @@ function check_minimum_requirements(xf::XLSXFile)
                        "[Content_Types].xml",
                        "xl/_rels/workbook.xml.rels"
                        ]
- 
+
     for f in mandatory_files
         @assert in(f, filenames(xf)) "Malformed XLSX File. Couldn't find file $f in the package."
     end
