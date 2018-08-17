@@ -1,5 +1,5 @@
 
-# Getting Started
+# Tutorial
 
 ## Installation
 
@@ -7,7 +7,7 @@
 julia> Pkg.add("XLSX")
 ```
 
-## Basic Usage
+## Getting Started
 
 The basic usage is to read an Excel file and read values.
 
