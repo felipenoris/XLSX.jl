@@ -130,7 +130,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         else
             # fallback to unformatted number
             if ismatch(RGX_INTEGER, cell.value)  # if contains only numbers
-                v_num = parse(Int64, cell.value)
+                v_num = parse(Int, cell.value)
             else
                 v_num = parse(Float64, cell.value)
             end
