@@ -1322,3 +1322,34 @@ xf = XLSX.emptyfile("page")
 close(xf)
 
 rm(filename)
+
+# 
+# simple escape test  ( write & read )
+# 
+esc_filename  = "output_table_escape_test.xlsx"
+esc_col_names = ["&; &amp; &quot; &lt; &gt; &apos; ", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
+esc_sheetname = string( esc_col_names[1],esc_col_names[2],esc_col_names[3],esc_col_names[4])
+esc_data = Vector{Any}(4)
+esc_data[1] = ["11&amp;&",    "12&quot;&",    "13&lt;&",    "14&gt;&",    "15&apos;&"    ]
+esc_data[2] = ["21&&amp;&&",  "22&&quot;&&",  "23&&lt;&&",  "24&&gt;&&",  "25&&apos;&&"  ]
+esc_data[3] = ["31&&&amp;&&&","32&&&quot;&&&","33&&&lt;&&&","34&&&gt;&&&","35&&&apos;&&&"]
+esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
+XLSX.writetable(esc_filename, esc_data, esc_col_names, rewrite=true, sheetname=esc_sheetname)
+
+r1_data, r1_col_names = XLSX.readtable(esc_filename, esc_sheetname)
+check_test_data(r1_data, esc_data)
+@test r1_col_names[4] == Symbol( esc_col_names[4] )
+@test r1_col_names[3] == Symbol( esc_col_names[3] )
+@test r1_col_names[2] == Symbol( esc_col_names[2] )
+@test r1_col_names[1] == Symbol( esc_col_names[1] )
+rm(esc_filename)
+
+# compare to the backup version: escape.xlsx
+r2_data, r2_col_names = XLSX.readtable(joinpath(data_directory, "escape.xlsx"), esc_sheetname)
+check_test_data(r2_data, esc_data)
+check_test_data(r2_data, r1_data)
+@test r2_col_names[4] == Symbol( esc_col_names[4] )
+@test r2_col_names[3] == Symbol( esc_col_names[3] )
+@test r2_col_names[2] == Symbol( esc_col_names[2] )
+@test r2_col_names[1] == Symbol( esc_col_names[1] )
+
