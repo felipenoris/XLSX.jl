@@ -4,16 +4,16 @@
 #
 
 function readdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getdata(getsheet(xf, sheet), ref)
-    close(xf)
+    c = openxlsx(filepath, enable_cache=false) do xf
+        getdata(getsheet(xf, sheet), ref)
+    end
     return c
 end
 
 function readdata(filepath::AbstractString, sheetref::AbstractString)
-    xf = openxlsx(filepath, enable_cache=false)
-    c = getdata(xf, sheetref)
-    close(xf)
+    c = openxlsx(filepath, enable_cache=false) do xf
+        getdata(xf, sheetref)
+    end
     return c
 end
 
@@ -73,9 +73,9 @@ See also: `gettable`.
 ```
 """
 function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing, enable_cache::Bool=false)
-    xf = openxlsx(filepath, enable_cache=enable_cache)
-    c = gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
-    close(xf)
+    c = openxlsx(filepath, enable_cache=enable_cache) do xf
+        gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+    end
     return c
 end
 
@@ -192,7 +192,6 @@ function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vecto
 
     # write output file
     writexlsx(filename, xf, rewrite=rewrite)
-    nothing
 end
 
 """
