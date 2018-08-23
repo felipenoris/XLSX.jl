@@ -171,11 +171,12 @@ getdata(ws::Worksheet) = getdata(ws, get_dimension(ws))
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
-function Base.show(io::IO, ws::Worksheet) 
+function Base.show(io::IO, ws::Worksheet)
     rg = get_dimension(ws)
     nrow, ncol = size(rg)
     @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
 end
+
 """
     getcell(sheet, ref)
     getcell(filepath, sheet, ref)

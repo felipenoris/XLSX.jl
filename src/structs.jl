@@ -43,7 +43,9 @@ struct EmptyCell <: AbstractCell
 end
 
 abstract type AbstractCellDataFormat end
+
 struct EmptyCellDataFormat <: AbstractCellDataFormat end
+
 """
 Keeps track of formatting information.
 """
@@ -52,6 +54,7 @@ struct CellDataFormat <: AbstractCellDataFormat
 end
 
 const CellValueType = Union{String, Missings.Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+
 """
 CellValue is a Julia type of a value read from a Spreadsheet.
 """

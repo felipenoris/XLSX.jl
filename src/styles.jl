@@ -235,7 +235,6 @@ styles_is_float(wb::Workbook, fmt::CellDataFormat) = styles_is_float(wb, Int(fmt
 styles_is_float(ws::Worksheet, index) = styles_is_float(get_workbook(ws), index)
 
 """
-
 Cell Xf element follows the XML format below.
 This function queries the 0-based index of the first xf element that has the provided numFmtId.
 Returns -1 if not found.

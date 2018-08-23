@@ -85,10 +85,10 @@ for r in XLSX.eachrow(sheet)
 end
 
 for r in XLSX.eachtablerow(sheet)
-	# r is a `TableRow`, values are read using column labels or numbers
-	rn = XLSX.row_number(r) # `TableRow` row number
-	v1 = r[1] # will read value at table column 1
-	v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
+    # r is a `TableRow`, values are read using column labels or numbers
+    rn = XLSX.row_number(r) # `TableRow` row number
+    v1 = r[1] # will read value at table column 1
+    v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
 end
 
 import DataFrames, XLSX
