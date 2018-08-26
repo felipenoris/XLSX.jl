@@ -67,7 +67,8 @@ function writexlsx(output_filepath::AbstractString, xf::XLSXFile; rewrite::Bool=
 
     close(xlsx)
 
-    nothing
+    # fix libuv issue on windows (#42)
+    @static is_windows() ? gc() : nothing
 end
 
 get_worksheet_internal_file(ws::Worksheet) = "xl/" * get_relationship_target_by_id(get_workbook(ws), ws.relationship_id)

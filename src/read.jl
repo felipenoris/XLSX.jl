@@ -126,6 +126,9 @@ function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r
         else
             close(xf)
         end
+
+        # fix libuv issue on windows (#42)
+        @static is_windows() ? gc() : nothing
     end
 end
 

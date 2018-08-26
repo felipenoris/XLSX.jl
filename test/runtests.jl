@@ -1003,7 +1003,6 @@ end
             @test Symbol(col_names[c]) == read_column_names[c]
         end
         check_test_data(read_data, data)
-        rm("output_table.xlsx")
     end
 
     @testset "multiple" begin
@@ -1056,8 +1055,12 @@ end
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
+    end
 
-        rm("output_tables.xlsx")
+    # delete files created by this testset
+    delete_files = ["output_table.xlsx", "output_tables.xlsx"]
+    for f in delete_files
+        isfile(f) && rm(f)
     end
 end
 
