@@ -22,7 +22,6 @@ include("workbook.jl")
 include("worksheet.jl")
 include("cell.jl")
 include("styles.jl")
-include("helper.jl")
 include("deprecated.jl")
 include("write.jl")
 

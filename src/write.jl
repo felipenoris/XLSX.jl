@@ -431,3 +431,120 @@ function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
 
     return ws
 end
+
+#
+# Helper Functions
+#
+
+
+
+"""
+    writetable(filename, data, columnnames; [rewrite], [sheetname])
+
+`data` is a vector of columns.
+`columnames` is a vector of column labels.
+`rewrite` is a `Bool` to control if `filename` should be rewrited if already exists.
+`sheetname` is the name for the worksheet.
+
+Example using `DataFrames.jl`:
+
+```julia
+import DataFrames, XLSX
+df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5])
+XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
+```
+"""
+function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
+
+    if !rewrite
+        @assert !isfile(filename) "$filename already exists."
+    end
+
+    xf = open_empty_template(sheetname)
+    sheet = xf[1]
+
+    if isa(anchor_cell, String)
+        anchor_cell = CellRef(anchor_cell)
+    end
+
+    writetable!(sheet, data, columnnames; anchor_cell=anchor_cell)
+
+    # write output file
+    writexlsx(filename, xf, rewrite=rewrite)
+    nothing
+end
+
+"""
+    writetable(filename::AbstractString; rewrite::Bool=false, kw...)
+    writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; rewrite::Bool=false)
+
+Write multiple tables.
+
+`kw` is a variable keyword argument list. Each element should be in this format: `sheetname=( data, column_names )`,
+where `data` is a vector of columns and `column_names` is a vector of column labels.
+
+Example:
+
+```julia
+import DataFrames, XLSX
+
+df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
+df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+
+XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
+```
+"""
+function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
+    if !rewrite
+        @assert !isfile(filename) "$filename already exists."
+    end
+
+    xf = open_empty_template()
+
+    is_first = true
+
+    for (sheetname, (data, column_names)) in kw
+        if is_first
+            # first sheet already exists in template file
+            sheet = xf[1]
+            rename!(sheet, string(sheetname))
+            writetable!(sheet, data, column_names)
+
+            is_first = false
+        else
+            sheet = addsheet!(xf, string(sheetname))
+            writetable!(sheet, data, column_names)
+        end
+    end
+
+    # write output file
+    writexlsx(filename, xf, rewrite=rewrite)
+    nothing
+end
+
+function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{T}}}; rewrite::Bool=false) where {T<:Union{String, Symbol}}
+    if !rewrite
+        @assert !isfile(filename) "$filename already exists."
+    end
+
+    xf = open_empty_template()
+
+    is_first = true
+
+    for (sheetname, data, column_names) in tables
+        if is_first
+            # first sheet already exists in template file
+            sheet = xf[1]
+            rename!(sheet, string(sheetname))
+            writetable!(sheet, data, column_names)
+
+            is_first = false
+        else
+            sheet = addsheet!(xf, string(sheetname))
+            writetable!(sheet, data, column_names)
+        end
+    end
+
+    # write output file
+    writexlsx(filename, xf, rewrite=rewrite)
+end
