@@ -14,8 +14,13 @@ The basic usage is to read an Excel file and read values.
 ```julia
 julia> import XLSX
 
-julia> xf = XLSX.openxlsx("myfile.xlsx")
-XLSXFile("myfile.xlsx")
+julia> xf = XLSX.readxlsx("myfile.xlsx")
+XLSXFile("myfile.xlsx") containing 3 Worksheets
+            sheetname size          range
+-------------------------------------------------
+              mysheet 4x2           A1:B4
+           othersheet 1x1           A1:A1
+                named 1x1           B4:B4
 
 julia> XLSX.sheetnames(xf)
 3-element Array{String,1}:
@@ -24,7 +29,7 @@ julia> XLSX.sheetnames(xf)
  "named"
 
 julia> sh = xf["mysheet"] # get a reference to a Worksheet
-XLSX.Worksheet: "mysheet". Dimension: A1:B4.
+4×2 XLSX.Worksheet: ["mysheet"](A1:B4)
 
 julia> sh["B2"] # From a sheet, you can access a cell value
 "first"
@@ -64,15 +69,13 @@ julia> xf["mysheet!A:B"] # Column ranges are also supported
  2           "second"
  3           "third"
 
-julia> close(xf) # close the file when done reading
 ```
 
 To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.
 
-The example above used `xf = XLSX.openxlsx(filename)` to open a file, so the contents will be fetched from disk as needed
-but you need to close the file when done reading with `close(xf)`.
+The example above used `xf = XLSX.readxlsx(filename)` to open a file, so all file contents will be fetched at once from disk.
 
-You can also use `XLSX.readxlsx(filename)` to read the whole file and return a closed `XLSXFile`.
+You can also use `XLSX.openxlsx` to read file contents as needed (see section about streaming below).
 
 ## Read Tabular Data
 
@@ -150,26 +153,39 @@ The following example shows how you would read worksheet cells, one row at a tim
 where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 
 ```julia
-julia> f = XLSX.openxlsx("myfile.xlsx", enable_cache=false)
+julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do f
+           sheet = f["mysheet"]
+           for r in XLSX.eachrow(sheet)
+              # r is a `SheetRow`, values are read using column references
+              rn = XLSX.row_number(r) # `SheetRow` row number
+              v1 = r[1]    # will read value at column 1
+              v2 = r["B"]  # will read value at column 2
 
-julia> sheet = f["mysheet"]
-
-julia> for r in XLSX.eachrow(sheet)
-          # r is a `SheetRow`, values are read using column references
-          rn = XLSX.row_number(r) # `SheetRow` row number
-          v1 = r[1]    # will read value at column 1
-          v2 = r["B"]  # will read value at column 2
-       end
+              println("v1=$v1, v2=$v2")
+           end
+      end
+v1=HeaderA, v2=HeaderB
+v1=1, v2=first
+v1=2, v2=second
+v1=3, v2=third
 ```
 
 You could also stream tabular data using `XLSX.eachtablerow(sheet)`, which is the underlying iterator in `gettable` method.
 Check docstrings for `XLSX.eachtablerow` for more advanced options.
 
 ```julia
-julia> for r in XLSX.eachtablerow(sheet)
-           # r is a `TableRow`, values are read using column labels or numbers
-           rn = XLSX.row_number(r) # `TableRow` row number
-           v1 = r[1] # will read value at table column 1
-           v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
+julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do f
+           sheet = f["mysheet"]
+           for r in XLSX.eachtablerow(sheet)
+               # r is a `TableRow`, values are read using column labels or numbers
+               rn = XLSX.row_number(r) # `TableRow` row number
+               v1 = r[1] # will read value at table column 1
+               v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
+
+               println("v1=$v1, v2=$v2")
+            end
        end
+v1=1, v2=first
+v1=2, v2=second
+v1=3, v2=third
 ```
