@@ -1,8 +1,10 @@
 
 """
-   open_xlsx_template(filepath::AbstractString) :: XLSXFile
+    open_xlsx_template(filepath::AbstractString) :: XLSXFile
 
 Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
+
+The returned `XLSXFile` instance is in closed state.
 """
 @inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
 
