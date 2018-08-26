@@ -233,14 +233,6 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.emptyfile",
-    "page": "API",
-    "title": "XLSX.emptyfile",
-    "category": "function",
-    "text": "emptyfile(sheetname::AbstractString=\"\")\n\nReturns an empty, writable XLSXFile with 1 worksheet.\n\nsheetname is the name of the worksheet, defaults to Sheet1.\n\n\n\n"
-},
-
-{
     "location": "api.html#XLSX.encode_column_number-Tuple{Int64}",
     "page": "API",
     "title": "XLSX.encode_column_number",
@@ -373,7 +365,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.is_writable",
     "category": "method",
-    "text": "is_writable(xl::XLSXFile)\n\nIndicates wether this XLSX file can be edited. This controls if assignment to worksheet cells is allowed. Writable XLSXFile instances are opened with XLSX.openxlsxtemplate method.\n\n\n\n"
+    "text": "is_writable(xl::XLSXFile)\n\nIndicates wether this XLSX file can be edited. This controls if assignment to worksheet cells is allowed. Writable XLSXFile instances are opened with XLSX.open_xlsx_template method.\n\n\n\n"
 },
 
 {
@@ -385,11 +377,27 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api.html#XLSX.open_empty_template",
+    "page": "API",
+    "title": "XLSX.open_empty_template",
+    "category": "function",
+    "text": "open_empty_template(sheetname::AbstractString=\"\") :: XLSXFile\n\nReturns an empty, writable XLSXFile with 1 worksheet.\n\nsheetname is the name of the worksheet, defaults to Sheet1.\n\n\n\n"
+},
+
+{
     "location": "api.html#XLSX.open_internal_file_stream-Tuple{XLSX.XLSXFile,String}",
     "page": "API",
     "title": "XLSX.open_internal_file_stream",
     "category": "method",
     "text": "Open a file for streaming.\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.open_xlsx_template-Tuple{AbstractString}",
+    "page": "API",
+    "title": "XLSX.open_xlsx_template",
+    "category": "method",
+    "text": "open_xlsx_template(filepath::AbstractString) :: XLSXFile\n\nOpen an Excel file as template for editing and saving to another file with XLSX.writexlsx.\n\n\n\n"
 },
 
 {
@@ -405,15 +413,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.openxlsx",
     "category": "method",
-    "text": "openxlsx(f::Function, filename::AbstractString; kw...)\n\nOpen XLSX file for reading and/or writing.\n\nfilename is the name of the file.\n\nIf write=true the file filename will be overwritten. If read=true the existing data in the file filename will be accessible and can be edited in write mode, otherwise f will run as if the file were empty.\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExample:\n\nXLSX.openxlsx(\"new.xlsx\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nXLSX.openxlsx(\"new.xlsx\", enable_cache=false) do xf\n    sheet = xf[1]\n    data = sheet[:]\nend\n\nXLSX.openxlsx(\"new.xlsx\", write=true) do xf\n    sheet = xf[1]\n    sheet[1, 1] = \"New data\"\nend\n\n\n\n"
-},
-
-{
-    "location": "api.html#XLSX.openxlsxtemplate-Tuple{AbstractString}",
-    "page": "API",
-    "title": "XLSX.openxlsxtemplate",
-    "category": "method",
-    "text": "openxlsxtemplate(filepath::AbstractString) :: XLSXFile\n\nOpen an Excel file as template for editing and saving to another file with XLSX.writexlsx.\n\n\n\n"
+    "text": "openxlsx(f::Function, filename::AbstractString; read::Bool=true, write::Bool=false, enable_cache::Bool=true)\n\nOpen XLSX file for reading and/or writing.\n\nfilename is the name of the file.\n\nIf write=true the file filename will be overwritten. If read=true the existing data in the file filename will be accessible and can be edited in write mode, otherwise f will run as if the file were empty.\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExample:\n\nXLSX.openxlsx(\"new.xlsx\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nXLSX.openxlsx(\"new.xlsx\", enable_cache=false) do xf\n    sheet = xf[1]\n    data = sheet[:]\nend\n\nXLSX.openxlsx(\"new.xlsx\", write=true) do xf\n    sheet = xf[1]\n    sheet[1, 1] = \"New data\"\nend\n\n\n\n"
 },
 
 {
