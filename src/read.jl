@@ -40,8 +40,8 @@ Open XLSX file for reading and/or writing. It returns an opened XLSXFile that wi
 This function should be used with `do` syntax, like in:
 
 ```julia
-XLSX.openxlsx("filename.xlsx) do xf
-    # do stuff with `xf`
+XLSX.openxlsx("myfile.xlsx") do xf
+    # read data from `xf`
 end
 ```
 
@@ -74,33 +74,34 @@ The default value is `enable_cache=true`.
 
 # Examples
 
+## Read from file
+
 The following example shows how you would read worksheet cells, one row at a time,
-where `filename.xlsx` is a spreadsheet that doesn't fit into memory.
+where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 
 ```julia
-julia> XLSX.openxlsx("filename.xlsx", enable_cache=false) do xf
-          for r in XLSX.eachrow(xf["sheetname"])
-              # do something with r
+julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do xf
+          for r in XLSX.eachrow(xf["mysheet"])
+              # read something from row `r`
           end
        end
 ```
 
-Other general examples:
+## Write a new file
 
 ```julia
-XLSX.openxlsx("new.xlsx") do xf
+XLSX.openxlsx("new.xlsx", mode="w") do xf
     sheet = xf[1]
     sheet[1, :] = [1, Date(2018, 1, 1), "test"]
 end
+```
 
-XLSX.openxlsx("new.xlsx", enable_cache=false) do xf
-    sheet = xf[1]
-    data = sheet[:]
-end
+## Edit an existing file
 
-XLSX.openxlsx("new.xlsx", write=true) do xf
+```julia
+XLSX.openxlsx("edit.xlsx", mode="rw") do xf
     sheet = xf[1]
-    sheet[1, 1] = "New data"
+    sheet[2, :] = [2, Date(2019, 1, 1), "add new line"]
 end
 ```
 

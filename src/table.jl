@@ -428,14 +428,12 @@ Example code for `gettable`:
 ```julia
 julia> using DataFrames, XLSX
 
-julia> xf = XLSX.openxlsx("myfile.xlsx")
-
-julia> df = DataFrame(XLSX.gettable(xf["mysheet"])...)
-
-julia> close(xf)
+julia> df = XLSX.openxlsx("myfile.xlsx") do xf
+                DataFrame(XLSX.gettable(xf["mysheet"])...)
+            end
+```
 
 See also: `readtable`.
-```
 """
 function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Int=_find_first_row_with_data(sheet, convert(ColumnRange, cols).start), column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing)
     itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)

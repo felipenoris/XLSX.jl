@@ -439,7 +439,6 @@ end
 #
 
 
-
 """
     writetable(filename, data, columnnames; [rewrite], [sheetname])
 

@@ -54,29 +54,23 @@ end
 
 """
     getdata(sheet, ref)
-    getdata(filepath, sheet, ref)
 
 Returns a escalar or a matrix with values from a spreadsheet.
 `ref` can be a cell reference or a range.
 
-Example:
-
-```julia
-julia> v = XLSX.getdata("myfile.xlsx", "mysheet", "A1:B4")
-```
-
 Indexing in a `Worksheet` will dispatch to `getdata` method.
-So the following example will have the same effect as the first example.
+
+# Example
 
 ```julia
-julia> f = XLSX.openxlsx("myfile.xlsx")
+julia> f = XLSX.readxlsx("myfile.xlsx")
 
 julia> sheet = f["mysheet"]
 
 julia> v = sheet["A1:B4"]
-
-julia> close(f)
 ```
+
+See also `readdata`.
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 
@@ -179,20 +173,17 @@ end
 
 """
     getcell(sheet, ref)
-    getcell(filepath, sheet, ref)
 
 Returns an `AbstractCell` that represents a cell in the spreadsheet.
 
 Example:
 
 ```julia
-julia> xf = XLSX.openxlsx("myfile.xlsx")
+julia> xf = XLSX.readxlsx("myfile.xlsx")
 
 julia> sheet = xf["mysheet"]
 
 julia> cell = XLSX.getcell(sheet, "A1")
-
-julia> close(xf)
 ```
 """
 function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
@@ -216,7 +207,6 @@ end
 
 """
     getcellrange(sheet, rng)
-    getcellrange(filepath, sheet, rng)
 
 Returns a matrix with cells as `Array{AbstractCell, 2}`.
 `rng` must be a valid cell range, as in `"A1:B2"`.
