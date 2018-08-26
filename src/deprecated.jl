@@ -60,3 +60,11 @@ function openxlsxtemplate(filepath::AbstractString)
     warn("`XLSX.openxlsxtemplate(filepath)` is deprecated. Use `XLSX.open_xlsx_template(filepath)` instead.")
     return open_xlsx_template(filepath)
 end
+
+function openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile
+    warn("""`XLSX.openxlsx(filepath)` is deprecated. Use `XLSX.openxlsx` with `do` syntax as in the following example:
+XLSX.openxlsx("new.xlsx") do xf
+    # use xf variable
+end""")
+    return open_or_read_xlsx(filepath, false, enable_cache, false)
+end

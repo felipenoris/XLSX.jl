@@ -31,10 +31,37 @@ Consider using `openxlsx` for lazy loading of Excel file contents.
 @inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, false)
 
 """
-    openxlsx(filepath; [enable_cache]) :: XLSXFile
+    openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
 
-Open a XLSX file for reading. The user must close this file after using it with `close(xf)`.
-XML data will be fetched from disk as needed.
+Open XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying `f` to the file.
+
+# `Do` syntax
+
+This function should be used with `do` syntax, like in:
+
+```julia
+XLSX.openxlsx("filename.xlsx) do xf
+    # do stuff with `xf`
+end
+```
+
+# Filemodes
+
+The `mode` argument controls how the file is opened. The following modes are allowed:
+
+* `r` : read mode. The existing data in `filename` will be accessible for reading. This is the **default** mode.
+
+* `w` : write mode. Opens an empty file that will be written to `filename`.
+
+* `rw` : edit mode. Opens `filename` for editing. The file will be saved to disk when the function ends.
+
+# Arguments
+
+* `filename` is the name of the file.
+
+* `mode` is the file mode, as explained in the last section.
+
+* `enable_cache`:
 
 If `enable_cache=true`, all read worksheet cells will be cached.
 If you read a worksheet cell twice it will use the cached value instead of reading from disk
@@ -44,43 +71,21 @@ If `enable_cache=false`, worksheet cells will always be read from disk.
 This is useful when you want to read a spreadsheet that doesn't fit into memory.
 
 The default value is `enable_cache=true`.
+
+# Examples
 
 The following example shows how you would read worksheet cells, one row at a time,
 where `filename.xlsx` is a spreadsheet that doesn't fit into memory.
 
 ```julia
-julia> f = XLSX.openxlsx("filename.xlsx", enable_cache=false)
-
-julia for r in XLSX.eachrow(f["sheetname"])
-        # do something with r
-      end
+julia> XLSX.openxlsx("filename.xlsx", enable_cache=false) do xf
+          for r in XLSX.eachrow(xf["sheetname"])
+              # do something with r
+          end
+       end
 ```
 
-See also `readxlsx` method.
-"""
-@inline openxlsx(filepath::AbstractString; enable_cache::Bool=true) :: XLSXFile = open_or_read_xlsx(filepath, false, enable_cache, false)
-
-"""
-    openxlsx(f::Function, filename::AbstractString; read::Bool=true, write::Bool=false, enable_cache::Bool=true)
-
-Open XLSX file for reading and/or writing.
-
-`filename` is the name of the file.
-
-If `write=true` the file `filename` will be overwritten.
-If `read=true` the existing data in the file `filename` will be accessible and can be edited
-in `write` mode, otherwise `f` will run as if the file were empty.
-
-If `enable_cache=true`, all read worksheet cells will be cached.
-If you read a worksheet cell twice it will use the cached value instead of reading from disk
-in the second time.
-
-If `enable_cache=false`, worksheet cells will always be read from disk.
-This is useful when you want to read a spreadsheet that doesn't fit into memory.
-
-The default value is `enable_cache=true`.
-
-Example:
+Other general examples:
 
 ```julia
 XLSX.openxlsx("new.xlsx") do xf
@@ -98,10 +103,15 @@ XLSX.openxlsx("new.xlsx", write=true) do xf
     sheet[1, 1] = "New data"
 end
 ```
+
+See also `readxlsx` method.
 """
-function openxlsx(f::Function, filename::AbstractString; read::Bool=true, write::Bool=false, enable_cache::Bool=true)
-    if isfile(filename) && read
-        xf = open_or_read_xlsx(filename, write, enable_cache, write)
+function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
+
+    _read, _write = parse_file_mode(mode)
+
+    if isfile(filename) && _read
+        xf = open_or_read_xlsx(filename, _write, enable_cache, _write)
     else
         xf = open_empty_template()
     end
@@ -110,11 +120,24 @@ function openxlsx(f::Function, filename::AbstractString; read::Bool=true, write:
         f(xf)
     finally
 
-        if write
+        if _write
             writexlsx(filename, xf, rewrite=true)
         else
             close(xf)
         end
+    end
+end
+
+"Parses filemode string to the tuple (read, write). See `openxlsx`."
+function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
+    if mode == "r"
+        return (true, false)
+    elseif mode == "w"
+        return (false, true)
+    elseif mode == "rw" || mode == "wr"
+        return (true, true)
+    else
+        error("Couldn't parse file mode $mode.")
     end
 end
 
