@@ -397,15 +397,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.open_xlsx_template",
     "category": "method",
-    "text": "open_xlsx_template(filepath::AbstractString) :: XLSXFile\n\nOpen an Excel file as template for editing and saving to another file with XLSX.writexlsx.\n\n\n\n"
-},
-
-{
-    "location": "api.html#XLSX.openxlsx-Tuple{AbstractString}",
-    "page": "API",
-    "title": "XLSX.openxlsx",
-    "category": "method",
-    "text": "openxlsx(filepath; [enable_cache]) :: XLSXFile\n\nOpen a XLSX file for reading. The user must close this file after using it with close(xf). XML data will be fetched from disk as needed.\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nThe following example shows how you would read worksheet cells, one row at a time, where filename.xlsx is a spreadsheet that doesn\'t fit into memory.\n\njulia> f = XLSX.openxlsx(\"filename.xlsx\", enable_cache=false)\n\njulia for r in XLSX.eachrow(f[\"sheetname\"])\n        # do something with r\n      end\n\nSee also readxlsx method.\n\n\n\n"
+    "text": "open_xlsx_template(filepath::AbstractString) :: XLSXFile\n\nOpen an Excel file as template for editing and saving to another file with XLSX.writexlsx.\n\nThe returned XLSXFile instance is in closed state.\n\n\n\n"
 },
 
 {
@@ -413,7 +405,15 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.openxlsx",
     "category": "method",
-    "text": "openxlsx(f::Function, filename::AbstractString; read::Bool=true, write::Bool=false, enable_cache::Bool=true)\n\nOpen XLSX file for reading and/or writing.\n\nfilename is the name of the file.\n\nIf write=true the file filename will be overwritten. If read=true the existing data in the file filename will be accessible and can be edited in write mode, otherwise f will run as if the file were empty.\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExample:\n\nXLSX.openxlsx(\"new.xlsx\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nXLSX.openxlsx(\"new.xlsx\", enable_cache=false) do xf\n    sheet = xf[1]\n    data = sheet[:]\nend\n\nXLSX.openxlsx(\"new.xlsx\", write=true) do xf\n    sheet = xf[1]\n    sheet[1, 1] = \"New data\"\nend\n\n\n\n"
+    "text": "openxlsx(f::Function, filename::AbstractString; mode::AbstractString=\"r\", enable_cache::Bool=true)\n\nOpen XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying f to the file.\n\nDo syntax\n\nThis function should be used with do syntax, like in:\n\nXLSX.openxlsx(\"filename.xlsx) do xf\n    # do stuff with `xf`\nend\n\nFilemodes\n\nThe mode argument controls how the file is opened. The following modes are allowed:\n\nr : read mode. The existing data in filename will be accessible for reading. This is the default mode.\nw : write mode. Opens an empty file that will be written to filename.\nrw : edit mode. Opens filename for editing. The file will be saved to disk when the function ends.\n\nArguments\n\nfilename is the name of the file.\nmode is the file mode, as explained in the last section.\nenable_cache:\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExamples\n\nThe following example shows how you would read worksheet cells, one row at a time, where filename.xlsx is a spreadsheet that doesn\'t fit into memory.\n\njulia> XLSX.openxlsx(\"filename.xlsx\", enable_cache=false) do xf\n          for r in XLSX.eachrow(xf[\"sheetname\"])\n              # do something with r\n          end\n       end\n\nOther general examples:\n\nXLSX.openxlsx(\"new.xlsx\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nXLSX.openxlsx(\"new.xlsx\", enable_cache=false) do xf\n    sheet = xf[1]\n    data = sheet[:]\nend\n\nXLSX.openxlsx(\"new.xlsx\", write=true) do xf\n    sheet = xf[1]\n    sheet[1, 1] = \"New data\"\nend\n\nSee also readxlsx method.\n\n\n\n"
+},
+
+{
+    "location": "api.html#XLSX.parse_file_mode-Tuple{AbstractString}",
+    "page": "API",
+    "title": "XLSX.parse_file_mode",
+    "category": "method",
+    "text": "Parses filemode string to the tuple (read, write). See openxlsx.\n\n\n\n"
 },
 
 {
