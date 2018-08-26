@@ -55,3 +55,8 @@ function dimension(ws::Worksheet)
     warn("`XLSX.dimension(sheet)` is deprecated. Use `XLSX.get_dimension(sheet)` instead.")
     return get_dimension(ws)
 end
+
+function openxlsxtemplate(filepath::AbstractString)
+    warn("`XLSX.openxlsxtemplate(filepath)` is deprecated. Use `XLSX.open_xlsx_template(filepath)` instead.")
+    return open_xlsx_template(filepath)
+end

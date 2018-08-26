@@ -900,7 +900,7 @@ test_data[2, 1] = "C3"
 # Write
 #
 
-f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
+f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
 filename_copy = "general_copy.xlsx"
 XLSX.writexlsx(filename_copy, f)
 @test isfile(filename_copy)
@@ -923,7 +923,7 @@ check_test_data(data, test_data)
 rm(filename_copy)
 
 # Edit cells
-f = XLSX.openxlsxtemplate(joinpath(data_directory, "general.xlsx"))
+f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
 s = f["general"]
 @test_throws ErrorException s["A1"] = :sym
 XLSX.rename!(s, "renamed_sheet")
@@ -1035,7 +1035,7 @@ check_test_data(data, report_2_data)
 rm("output_tables.xlsx")
 
 using XLSX: CellValue, id, getcell, setdata!, CellRef
-xfile = XLSX.open_default_template()
+xfile = XLSX.open_empty_template()
 wb = XLSX.get_workbook(xfile)
 sheet = xfile["Sheet1"]
 
@@ -1122,7 +1122,7 @@ close(xfile)
 
 using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
 # Capitalized and single character numfmts
-xfile = XLSX.open_default_template()
+xfile = XLSX.open_empty_template()
 wb = XLSX.get_workbook(xfile)
 sheet = xfile["Sheet1"]
 
@@ -1317,7 +1317,7 @@ XLSX.openxlsx(filename) do xf
     @test_throws AssertionError sheet[1, 1] = "failure"
 end
 
-xf = XLSX.emptyfile("page")
+xf = XLSX.open_empty_template("page")
 @test XLSX.sheetnames(xf) == ["page"]
 close(xf)
 

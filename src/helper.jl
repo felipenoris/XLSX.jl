@@ -101,12 +101,8 @@ function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=f
         @assert !isfile(filename) "$filename already exists."
     end
 
-    xf = open_default_template()
+    xf = open_empty_template(sheetname)
     sheet = xf[1]
-
-    if sheetname != ""
-        rename!(sheet, sheetname)
-    end
 
     if isa(anchor_cell, String)
         anchor_cell = CellRef(anchor_cell)
@@ -144,7 +140,7 @@ function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
         @assert !isfile(filename) "$filename already exists."
     end
 
-    xf = open_default_template()
+    xf = open_empty_template()
 
     is_first = true
 
@@ -172,7 +168,7 @@ function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vecto
         @assert !isfile(filename) "$filename already exists."
     end
 
-    xf = open_default_template()
+    xf = open_empty_template()
 
     is_first = true
 
@@ -192,23 +188,6 @@ function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vecto
 
     # write output file
     writexlsx(filename, xf, rewrite=rewrite)
-end
-
-"""
-    emptyfile(sheetname::AbstractString="")
-
-Returns an empty, writable `XLSXFile` with 1 worksheet.
-
-`sheetname` is the name of the worksheet, defaults to `Sheet1`.
-"""
-function emptyfile(sheetname::AbstractString="")
-    xf = open_default_template()
-
-    if sheetname != ""
-        rename!(xf[1], sheetname)
-    end
-
-    return xf
 end
 
 """
@@ -254,7 +233,7 @@ function openxlsx(f::Function, filename::AbstractString; read::Bool=true, write:
     if isfile(filename) && read
         xf = open_or_read_xlsx(filename, write, enable_cache, write)
     else
-        xf = emptyfile()
+        xf = open_empty_template()
     end
 
     try

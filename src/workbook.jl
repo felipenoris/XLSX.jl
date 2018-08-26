@@ -6,7 +6,7 @@ EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false, V
 
 Indicates wether this XLSX file can be edited.
 This controls if assignment to worksheet cells is allowed.
-Writable XLSXFile instances are opened with `XLSX.openxlsxtemplate` method.
+Writable XLSXFile instances are opened with `XLSX.open_xlsx_template` method.
 """
 is_writable(xl::XLSXFile) = xl.is_writable
 

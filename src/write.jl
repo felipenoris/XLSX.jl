@@ -1,10 +1,30 @@
 
 """
-   openxlsxtemplate(filepath::AbstractString) :: XLSXFile
+   open_xlsx_template(filepath::AbstractString) :: XLSXFile
 
 Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
 """
-@inline openxlsxtemplate(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
+@inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
+
+const EMPTY_EXCEL_TEMPLATE = joinpath(@__DIR__, "..", "data", "blank.xlsx")
+
+"""
+    open_empty_template(sheetname::AbstractString="") :: XLSXFile
+
+Returns an empty, writable `XLSXFile` with 1 worksheet.
+
+`sheetname` is the name of the worksheet, defaults to `Sheet1`.
+"""
+function open_empty_template(sheetname::AbstractString="") :: XLSXFile
+    @assert isfile(EMPTY_EXCEL_TEMPLATE) "Couldn't find template file $EMPTY_EXCEL_TEMPLATE."
+    xf = open_xlsx_template(EMPTY_EXCEL_TEMPLATE)
+
+    if sheetname != ""
+        rename!(xf[1], sheetname)
+    end
+
+    return xf
+end
 
 """
     writexlsx(output_filepath, xlsx_file; [rewrite])
@@ -12,7 +32,7 @@ Open an Excel file as template for editing and saving to another file with `XLSX
 function writexlsx(output_filepath::AbstractString, xf::XLSXFile; rewrite::Bool=false)
     @assert is_writable(xf) "XLSXFile instance is not writable."
     @assert !isopen(xf) "Can't save an open XLSXFile."
-    @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.openxlsxtemplate` to open this file?"
+    @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"
     if !rewrite
         @assert !isfile(output_filepath) "Output file $output_filepath already exists."
     end
@@ -231,13 +251,6 @@ setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(r
 setdata!(ws::Worksheet, ref::CellRef, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue).")
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
-
-const DEFAULT_EXCEL_TEMPLATE = joinpath(@__DIR__, "..", "data", "blank.xlsx")
-
-function open_default_template() :: XLSXFile
-    @assert isfile(DEFAULT_EXCEL_TEMPLATE) "Couldn't find template file $DEFAULT_EXCEL_TEMPLATE."
-    return openxlsxtemplate(DEFAULT_EXCEL_TEMPLATE)
-end
 
 function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
 
