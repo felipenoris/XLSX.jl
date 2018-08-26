@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · XLSX.jl</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link href="assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>XLSX.jl</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="search.html"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li class="current"><a class="toctext" href="index.html">Tutorial</a><ul class="internal"><li><a class="toctext" href="#Installation-1">Installation</a></li><li><a class="toctext" href="#Getting-Started-1">Getting Started</a></li><li><a class="toctext" href="#Read-Tabular-Data-1">Read Tabular Data</a></li><li><a class="toctext" href="#Writing-Excel-Files-1">Writing Excel Files</a></li><li><a class="toctext" href="#Streaming-Large-Excel-Files-and-Caching-1">Streaming Large Excel Files and Caching</a></li></ul></li><li><a class="toctext" href="api.html">API</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href="index.html">Tutorial</a></li></ul><a class="edit-page" href="https://github.com/felipenoris/XLSX.jl/blob/master/docs/src/index.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Tutorial</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="Tutorial-1" href="#Tutorial-1">Tutorial</a></h1><h2><a class="nav-anchor" id="Installation-1" href="#Installation-1">Installation</a></h2><pre><code class="language-julia">julia&gt; Pkg.add(&quot;XLSX&quot;)</code></pre><h2><a class="nav-anchor" id="Getting-Started-1" href="#Getting-Started-1">Getting Started</a></h2><p>The basic usage is to read an Excel file and read values.</p><pre><code class="language-julia">julia&gt; import XLSX
 
-julia&gt; xf = XLSX.openxlsx(&quot;myfile.xlsx&quot;)
-XLSXFile(&quot;myfile.xlsx&quot;)
+julia&gt; xf = XLSX.readxlsx(&quot;myfile.xlsx&quot;)
+XLSXFile(&quot;myfile.xlsx&quot;) containing 3 Worksheets
+            sheetname size          range
+-------------------------------------------------
+              mysheet 4x2           A1:B4
+           othersheet 1x1           A1:A1
+                named 1x1           B4:B4
 
 julia&gt; XLSX.sheetnames(xf)
 3-element Array{String,1}:
@@ -11,7 +16,7 @@ julia&gt; XLSX.sheetnames(xf)
  &quot;named&quot;
 
 julia&gt; sh = xf[&quot;mysheet&quot;] # get a reference to a Worksheet
-XLSX.Worksheet: &quot;mysheet&quot;. Dimension: A1:B4.
+4×2 XLSX.Worksheet: [&quot;mysheet&quot;](A1:B4)
 
 julia&gt; sh[&quot;B2&quot;] # From a sheet, you can access a cell value
 &quot;first&quot;
@@ -50,8 +55,7 @@ julia&gt; xf[&quot;mysheet!A:B&quot;] # Column ranges are also supported
  1           &quot;first&quot;
  2           &quot;second&quot;
  3           &quot;third&quot;
-
-julia&gt; close(xf) # close the file when done reading</code></pre><p>To inspect the internal representation of each cell, use the <code>getcell</code> or <code>getcellrange</code> methods.</p><p>The example above used <code>xf = XLSX.openxlsx(filename)</code> to open a file, so the contents will be fetched from disk as needed but you need to close the file when done reading with <code>close(xf)</code>.</p><p>You can also use <code>XLSX.readxlsx(filename)</code> to read the whole file and return a closed <code>XLSXFile</code>.</p><h2><a class="nav-anchor" id="Read-Tabular-Data-1" href="#Read-Tabular-Data-1">Read Tabular Data</a></h2><p>The <code>gettable</code> method returns tabular data from a spreadsheet as a tuple <code>(data, column_labels)</code>. You can use it to create a <code>DataFrame</code> from <a href="https://github.com/JuliaData/DataFrames.jl">DataFrames.jl</a>. Check the docstring for <code>gettable</code> method for more advanced options.</p><p>There&#39;s also a helper method <code>readtable</code> to read from file directly, as shown in the following example.</p><pre><code class="language-julia">julia&gt; using DataFrames, XLSX
+</code></pre><p>To inspect the internal representation of each cell, use the <code>getcell</code> or <code>getcellrange</code> methods.</p><p>The example above used <code>xf = XLSX.readxlsx(filename)</code> to open a file, so all file contents will be fetched at once from disk.</p><p>You can also use <code>XLSX.openxlsx</code> to read file contents as needed (see section about streaming below).</p><h2><a class="nav-anchor" id="Read-Tabular-Data-1" href="#Read-Tabular-Data-1">Read Tabular Data</a></h2><p>The <code>gettable</code> method returns tabular data from a spreadsheet as a tuple <code>(data, column_labels)</code>. You can use it to create a <code>DataFrame</code> from <a href="https://github.com/JuliaData/DataFrames.jl">DataFrames.jl</a>. Check the docstring for <code>gettable</code> method for more advanced options.</p><p>There&#39;s also a helper method <code>readtable</code> to read from file directly, as shown in the following example.</p><pre><code class="language-julia">julia&gt; using DataFrames, XLSX
 
 julia&gt; df = DataFrame(XLSX.readtable(&quot;myfile.xlsx&quot;, &quot;mysheet&quot;)...)
 3×2 DataFrames.DataFrame
@@ -87,18 +91,31 @@ julia&gt; df2 = DataFrames.DataFrame(AA=[&quot;aa&quot;, &quot;bb&quot;], AB=[10
 │ 1   │ aa │ 10.1 │
 │ 2   │ bb │ 10.2 │
 
-julia&gt; XLSX.writetable(&quot;report.xlsx&quot;, REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))</code></pre><h2><a class="nav-anchor" id="Streaming-Large-Excel-Files-and-Caching-1" href="#Streaming-Large-Excel-Files-and-Caching-1">Streaming Large Excel Files and Caching</a></h2><p>The method <code>XLSX.openxlsx</code> has a <code>enable_cache</code> option to control worksheet cells caching.</p><p>Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.</p><p>If <code>enable_cache=false</code>, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn&#39;t fit into memory.</p><p>The following example shows how you would read worksheet cells, one row at a time, where <code>myfile.xlsx</code> is a spreadsheet that doesn&#39;t fit into memory.</p><pre><code class="language-julia">julia&gt; f = XLSX.openxlsx(&quot;myfile.xlsx&quot;, enable_cache=false)
+julia&gt; XLSX.writetable(&quot;report.xlsx&quot;, REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))</code></pre><h2><a class="nav-anchor" id="Streaming-Large-Excel-Files-and-Caching-1" href="#Streaming-Large-Excel-Files-and-Caching-1">Streaming Large Excel Files and Caching</a></h2><p>The method <code>XLSX.openxlsx</code> has a <code>enable_cache</code> option to control worksheet cells caching.</p><p>Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.</p><p>If <code>enable_cache=false</code>, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn&#39;t fit into memory.</p><p>The following example shows how you would read worksheet cells, one row at a time, where <code>myfile.xlsx</code> is a spreadsheet that doesn&#39;t fit into memory.</p><pre><code class="language-julia">julia&gt; XLSX.openxlsx(&quot;myfile.xlsx&quot;, enable_cache=false) do f
+           sheet = f[&quot;mysheet&quot;]
+           for r in XLSX.eachrow(sheet)
+              # r is a `SheetRow`, values are read using column references
+              rn = XLSX.row_number(r) # `SheetRow` row number
+              v1 = r[1]    # will read value at column 1
+              v2 = r[&quot;B&quot;]  # will read value at column 2
 
-julia&gt; sheet = f[&quot;mysheet&quot;]
+              println(&quot;v1=$v1, v2=$v2&quot;)
+           end
+      end
+v1=HeaderA, v2=HeaderB
+v1=1, v2=first
+v1=2, v2=second
+v1=3, v2=third</code></pre><p>You could also stream tabular data using <code>XLSX.eachtablerow(sheet)</code>, which is the underlying iterator in <code>gettable</code> method. Check docstrings for <code>XLSX.eachtablerow</code> for more advanced options.</p><pre><code class="language-julia">julia&gt; XLSX.openxlsx(&quot;myfile.xlsx&quot;, enable_cache=false) do f
+           sheet = f[&quot;mysheet&quot;]
+           for r in XLSX.eachtablerow(sheet)
+               # r is a `TableRow`, values are read using column labels or numbers
+               rn = XLSX.row_number(r) # `TableRow` row number
+               v1 = r[1] # will read value at table column 1
+               v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
 
-julia&gt; for r in XLSX.eachrow(sheet)
-          # r is a `SheetRow`, values are read using column references
-          rn = XLSX.row_number(r) # `SheetRow` row number
-          v1 = r[1]    # will read value at column 1
-          v2 = r[&quot;B&quot;]  # will read value at column 2
-       end</code></pre><p>You could also stream tabular data using <code>XLSX.eachtablerow(sheet)</code>, which is the underlying iterator in <code>gettable</code> method. Check docstrings for <code>XLSX.eachtablerow</code> for more advanced options.</p><pre><code class="language-julia">julia&gt; for r in XLSX.eachtablerow(sheet)
-           # r is a `TableRow`, values are read using column labels or numbers
-           rn = XLSX.row_number(r) # `TableRow` row number
-           v1 = r[1] # will read value at table column 1
-           v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`
-       end</code></pre><footer><hr/><a class="next" href="api.html"><span class="direction">Next</span><span class="title">API</span></a></footer></article></body></html>
+               println(&quot;v1=$v1, v2=$v2&quot;)
+            end
+       end
+v1=1, v2=first
+v1=2, v2=second
+v1=3, v2=third</code></pre><footer><hr/><a class="next" href="api.html"><span class="direction">Next</span><span class="title">API</span></a></footer></article></body></html>
