@@ -6,9 +6,12 @@
 
 function check_for_xlsx_file_format(filepath::AbstractString)
     @assert isfile(filepath) "File $filepath not found."
-    io = open(filepath, "r")
-    header = Base.read(io, 4)
-    close(io)
+
+    local header::Vector{UInt8}
+
+    open(filepath, "r") do io
+        header = Base.read(io, 4)
+    end
 
     if header == [ 0x50, 0x4b, 0x03, 0x04 ] # valid Zip file header
         return
