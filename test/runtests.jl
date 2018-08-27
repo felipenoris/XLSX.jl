@@ -1372,6 +1372,9 @@ end
 end
 
 @testset "escape" begin
+
+    @test XLSX.xlsx_escape("hello&world<'") == "hello&amp;world&lt;&apos;"
+
     esc_filename  = "output_table_escape_test.xlsx"
     esc_col_names = ["&; &amp; &quot; &lt; &gt; &apos; ", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
     esc_sheetname = string( esc_col_names[1],esc_col_names[2],esc_col_names[3],esc_col_names[4])

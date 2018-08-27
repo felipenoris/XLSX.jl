@@ -222,11 +222,29 @@ function setdata!(ws::Worksheet, cell::Cell)
 end
 
 function xlsx_escape(str::AbstractString)
-    str = replace(str, '&', "&amp;")
-    str = replace(str, '"', "&quot;")
-    str = replace(str, '<', "&lt;")
-    str = replace(str, '>', "&gt;")
-    return replace(str, "'", "&apos;")
+    if isempty(str)
+        return str
+    end
+
+    buffer = IOBuffer()
+
+    for c in str
+        if c == '&'
+            write(buffer, "&amp;")
+        elseif c == '"'
+            write(buffer, "&quot;")
+        elseif c == '<'
+            write(buffer, "&lt;")
+        elseif c == '>'
+            write(buffer, "&gt;")
+        elseif c == '\''
+            write(buffer, "&apos;")
+        else
+            write(buffer, c)
+        end
+    end
+
+    return String(take!(buffer))
 end
 
 """
