@@ -41,19 +41,43 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "index.html#Reading-Large-Excel-Files-and-Caching-1",
+    "page": "Tutorial",
+    "title": "Reading Large Excel Files and Caching",
+    "category": "section",
+    "text": "The method XLSX.openxlsx has a enable_cache option to control worksheet cells caching.Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.If enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.The following example shows how you would read worksheet cells, one row at a time, where myfile.xlsx is a spreadsheet that doesn\'t fit into memory.julia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do f\n           sheet = f[\"mysheet\"]\n           for r in XLSX.eachrow(sheet)\n              # r is a `SheetRow`, values are read using column references\n              rn = XLSX.row_number(r) # `SheetRow` row number\n              v1 = r[1]    # will read value at column 1\n              v2 = r[\"B\"]  # will read value at column 2\n\n              println(\"v1=$v1, v2=$v2\")\n           end\n      end\nv1=HeaderA, v2=HeaderB\nv1=1, v2=first\nv1=2, v2=second\nv1=3, v2=thirdYou could also stream tabular data using XLSX.eachtablerow(sheet), which is the underlying iterator in gettable method. Check docstrings for XLSX.eachtablerow for more advanced options.julia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do f\n           sheet = f[\"mysheet\"]\n           for r in XLSX.eachtablerow(sheet)\n               # r is a `TableRow`, values are read using column labels or numbers\n               rn = XLSX.row_number(r) # `TableRow` row number\n               v1 = r[1] # will read value at table column 1\n               v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`\n\n               println(\"v1=$v1, v2=$v2\")\n            end\n       end\nv1=1, v2=first\nv1=2, v2=second\nv1=3, v2=third"
+},
+
+{
     "location": "index.html#Writing-Excel-Files-1",
     "page": "Tutorial",
     "title": "Writing Excel Files",
     "category": "section",
-    "text": "To export tabular data to Excel, use XLSX.writetable method.julia> import DataFrames, XLSX\n\njulia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])\n4×6 DataFrames.DataFrame\n│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │\n├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤\n│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │\n│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │\n│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │\n│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │\n\njulia> XLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))You can also export multiple tables to Excel, each table in a separate worksheet.julia> import DataFrames, XLSX\n\njulia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[\"Fist\", \"Sec\", \"Third\"])\n3×2 DataFrames.DataFrame\n│ Row │ COL1 │ COL2  │\n├─────┼──────┼───────┤\n│ 1   │ 10   │ Fist  │\n│ 2   │ 20   │ Sec   │\n│ 3   │ 30   │ Third │\n\njulia> df2 = DataFrames.DataFrame(AA=[\"aa\", \"bb\"], AB=[10.1, 10.2])\n2×2 DataFrames.DataFrame\n│ Row │ AA │ AB   │\n├─────┼────┼──────┤\n│ 1   │ aa │ 10.1 │\n│ 2   │ bb │ 10.2 │\n\njulia> XLSX.writetable(\"report.xlsx\", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))"
+    "text": ""
 },
 
 {
-    "location": "index.html#Streaming-Large-Excel-Files-and-Caching-1",
+    "location": "index.html#Create-New-Files-1",
     "page": "Tutorial",
-    "title": "Streaming Large Excel Files and Caching",
+    "title": "Create New Files",
     "category": "section",
-    "text": "The method XLSX.openxlsx has a enable_cache option to control worksheet cells caching.Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.If enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.The following example shows how you would read worksheet cells, one row at a time, where myfile.xlsx is a spreadsheet that doesn\'t fit into memory.julia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do f\n           sheet = f[\"mysheet\"]\n           for r in XLSX.eachrow(sheet)\n              # r is a `SheetRow`, values are read using column references\n              rn = XLSX.row_number(r) # `SheetRow` row number\n              v1 = r[1]    # will read value at column 1\n              v2 = r[\"B\"]  # will read value at column 2\n\n              println(\"v1=$v1, v2=$v2\")\n           end\n      end\nv1=HeaderA, v2=HeaderB\nv1=1, v2=first\nv1=2, v2=second\nv1=3, v2=thirdYou could also stream tabular data using XLSX.eachtablerow(sheet), which is the underlying iterator in gettable method. Check docstrings for XLSX.eachtablerow for more advanced options.julia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do f\n           sheet = f[\"mysheet\"]\n           for r in XLSX.eachtablerow(sheet)\n               # r is a `TableRow`, values are read using column labels or numbers\n               rn = XLSX.row_number(r) # `TableRow` row number\n               v1 = r[1] # will read value at table column 1\n               v2 = r[:HeaderB] # will read value at column labeled `:HeaderB`\n\n               println(\"v1=$v1, v2=$v2\")\n            end\n       end\nv1=1, v2=first\nv1=2, v2=second\nv1=3, v2=third"
+    "text": "Opening a file in write mode with XLSX.openxlsx will open a new (blank) Excel file for editing.XLSX.openxlsx(\"my_new_file.xlsx\", mode=\"w\") do xf\n    sheet = xf[1]\n    XLSX.rename!(sheet, \"new_sheet\")\n    sheet[\"A1\"] = \"this\"\n    sheet[\"A2\"] = \"is a\"\n    sheet[\"A3\"] = \"new file\"\n    sheet[\"A4\"] = 100\nend"
+},
+
+{
+    "location": "index.html#Edit-Existing-Files-1",
+    "page": "Tutorial",
+    "title": "Edit Existing Files",
+    "category": "section",
+    "text": "Opening a file in read-write mode with XLSX.openxlsx will open an existing Excel file for editing. This will preserve existing data in the original file.XLSX.openxlsx(\"my_new_file.xlsx\", mode=\"rw\") do xf\n    sheet = xf[1]\n    sheet[\"B1\"] = \"new data\"\nend"
+},
+
+{
+    "location": "index.html#Export-Tabular-Data-1",
+    "page": "Tutorial",
+    "title": "Export Tabular Data",
+    "category": "section",
+    "text": "To export tabular data to Excel, use XLSX.writetable method.julia> import DataFrames, XLSX\n\njulia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])\n4×6 DataFrames.DataFrame\n│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │\n├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤\n│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │\n│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │\n│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │\n│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │\n\njulia> XLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))You can also export multiple tables to Excel, each table in a separate worksheet.julia> import DataFrames, XLSX\n\njulia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[\"Fist\", \"Sec\", \"Third\"])\n3×2 DataFrames.DataFrame\n│ Row │ COL1 │ COL2  │\n├─────┼──────┼───────┤\n│ 1   │ 10   │ Fist  │\n│ 2   │ 20   │ Sec   │\n│ 3   │ 30   │ Third │\n\njulia> df2 = DataFrames.DataFrame(AA=[\"aa\", \"bb\"], AB=[10.1, 10.2])\n2×2 DataFrames.DataFrame\n│ Row │ AA │ AB   │\n├─────┼────┼──────┤\n│ 1   │ aa │ 10.1 │\n│ 2   │ bb │ 10.2 │\n\njulia> XLSX.writetable(\"report.xlsx\", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))"
 },
 
 {
