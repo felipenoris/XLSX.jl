@@ -6,6 +6,10 @@
 [![codecov.io](http://codecov.io/github/felipenoris/XLSX.jl/coverage.svg?branch=master)](http://codecov.io/github/felipenoris/XLSX.jl?branch=master)
 [![XLSX](http://pkg.julialang.org/badges/XLSX_0.6.svg)](http://pkg.julialang.org/?pkg=XLSX&ver=0.6)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://felipenoris.github.io/XLSX.jl/latest)
+[![][appveyor-img]][appveyor-url]
+
+[appveyor-img]: https://ci.appveyor.com/api/projects/status/github/felipenoris/XLSX.jl?branch=master&svg=true
+[appveyor-url]: https://ci.appveyor.com/project/felipenoris/xlsx-jl/branch/master
 
 Excel file reader/writer coded in pure Julia.
 
