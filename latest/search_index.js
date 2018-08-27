@@ -605,7 +605,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.writetable",
     "category": "method",
-    "text": "writetable(filename, data, columnnames; [rewrite], [sheetname])\n\ndata is a vector of columns. columnames is a vector of column labels. rewrite is a Bool to control if filename should be rewrited if already exists. sheetname is the name for the worksheet.\n\nExample using DataFrames.jl:\n\nimport DataFrames, XLSX\ndf = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5])\nXLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))\n\n\n\n"
+    "text": "writetable(filename, data, columnnames; [overwrite], [sheetname])\n\ndata is a vector of columns. columnames is a vector of column labels. overwrite is a Bool to control if filename should be overwritten if already exists. sheetname is the name for the worksheet.\n\nExample using DataFrames.jl:\n\nimport DataFrames, XLSX\ndf = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5])\nXLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))\n\n\n\n"
 },
 
 {
@@ -613,7 +613,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.writetable",
     "category": "method",
-    "text": "writetable(filename::AbstractString; rewrite::Bool=false, kw...)\nwritetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; rewrite::Bool=false)\n\nWrite multiple tables.\n\nkw is a variable keyword argument list. Each element should be in this format: sheetname=( data, column_names ), where data is a vector of columns and column_names is a vector of column labels.\n\nExample:\n\nimport DataFrames, XLSX\n\ndf1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[\"Fist\", \"Sec\", \"Third\"])\ndf2 = DataFrames.DataFrame(AA=[\"aa\", \"bb\"], AB=[10.1, 10.2])\n\nXLSX.writetable(\"report.xlsx\", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))\n\n\n\n"
+    "text": "writetable(filename::AbstractString; overwrite::Bool=false, kw...)\nwritetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; overwrite::Bool=false)\n\nWrite multiple tables.\n\nkw is a variable keyword argument list. Each element should be in this format: sheetname=( data, column_names ), where data is a vector of columns and column_names is a vector of column labels.\n\nExample:\n\nimport DataFrames, XLSX\n\ndf1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[\"Fist\", \"Sec\", \"Third\"])\ndf2 = DataFrames.DataFrame(AA=[\"aa\", \"bb\"], AB=[10.1, 10.2])\n\nXLSX.writetable(\"report.xlsx\", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))\n\n\n\n"
 },
 
 {
@@ -621,7 +621,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "XLSX.writexlsx",
     "category": "method",
-    "text": "writexlsx(output_filepath, xlsx_file; [rewrite])\n\n\n\n"
+    "text": "writexlsx(output_filepath, xlsx_file; [overwrite])\n\n\n\n"
 },
 
 {
