@@ -97,49 +97,7 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 │ 3   │ 3       │ "third"  │
 ```
 
-## Writing Excel Files
-
-To export tabular data to Excel, use `XLSX.writetable` method.
-
-```julia
-julia> import DataFrames, XLSX
-
-julia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
-4×6 DataFrames.DataFrame
-│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │
-├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤
-│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │
-│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │
-│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
-│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
-
-julia> XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
-```
-
-You can also export multiple tables to Excel, each table in a separate worksheet.
-
-```julia
-julia> import DataFrames, XLSX
-
-julia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
-3×2 DataFrames.DataFrame
-│ Row │ COL1 │ COL2  │
-├─────┼──────┼───────┤
-│ 1   │ 10   │ Fist  │
-│ 2   │ 20   │ Sec   │
-│ 3   │ 30   │ Third │
-
-julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
-2×2 DataFrames.DataFrame
-│ Row │ AA │ AB   │
-├─────┼────┼──────┤
-│ 1   │ aa │ 10.1 │
-│ 2   │ bb │ 10.2 │
-
-julia> XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
-```
-
-## Streaming Large Excel Files and Caching
+## Reading Large Excel Files and Caching
 
 The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cells caching.
 
@@ -188,4 +146,75 @@ julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do f
 v1=1, v2=first
 v1=2, v2=second
 v1=3, v2=third
+```
+
+## Writing Excel Files
+
+### Create New Files
+
+Opening a file in `write` mode with `XLSX.openxlsx` will open a new (blank) Excel file for editing.
+
+```julia
+XLSX.openxlsx("my_new_file.xlsx", mode="w") do xf
+    sheet = xf[1]
+    XLSX.rename!(sheet, "new_sheet")
+    sheet["A1"] = "this"
+    sheet["A2"] = "is a"
+    sheet["A3"] = "new file"
+    sheet["A4"] = 100
+end
+```
+
+### Edit Existing Files
+
+Opening a file in `read-write` mode with `XLSX.openxlsx` will open an existing Excel file for editing.
+This will preserve existing data in the original file.
+
+```julia
+XLSX.openxlsx("my_new_file.xlsx", mode="rw") do xf
+    sheet = xf[1]
+    sheet["B1"] = "new data"
+end
+```
+
+### Export Tabular Data
+
+To export tabular data to Excel, use `XLSX.writetable` method.
+
+```julia
+julia> import DataFrames, XLSX
+
+julia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
+4×6 DataFrames.DataFrame
+│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │
+├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤
+│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │
+│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │
+│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
+│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
+
+julia> XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
+```
+
+You can also export multiple tables to Excel, each table in a separate worksheet.
+
+```julia
+julia> import DataFrames, XLSX
+
+julia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
+3×2 DataFrames.DataFrame
+│ Row │ COL1 │ COL2  │
+├─────┼──────┼───────┤
+│ 1   │ 10   │ Fist  │
+│ 2   │ 20   │ Sec   │
+│ 3   │ 30   │ Third │
+
+julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+2×2 DataFrames.DataFrame
+│ Row │ AA │ AB   │
+├─────┼────┼──────┤
+│ 1   │ aa │ 10.1 │
+│ 2   │ bb │ 10.2 │
+
+julia> XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
 ```
