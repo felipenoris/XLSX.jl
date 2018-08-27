@@ -38,6 +38,26 @@ data_directory = joinpath(Pkg.dir("XLSX"), "data")
 
     @test XLSX.get_dimension(ef_Book1["Sheet1"]) == XLSX.range"B2:C8"
     @test XLSX.isdate1904(ef_Book1["Sheet1"]) == false
+
+    @testset "Read XLS file error" begin
+        @test_throws ErrorException XLSX.readxlsx(joinpath(data_directory, "old.xls"))
+        try
+            XLSX.readxlsx(joinpath(data_directory, "old.xls"))
+            @test false # didn't throw exception
+        catch e
+            @test contains("$e", "This package does not support XLS file format")
+        end
+    end
+
+    @testset "Read invalid XLSX error" begin
+        @test_throws ErrorException XLSX.readxlsx(joinpath(data_directory, "sheet_template.xml"))
+        try
+            XLSX.readxlsx(joinpath(data_directory, "sheet_template.xml"))
+            @test false # didn't throw exception
+        catch e
+            @test contains("$e", "is not a valid XLSX file")
+        end
+    end
 end
 
 @testset "Cell names" begin
