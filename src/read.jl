@@ -122,7 +122,7 @@ function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r
     finally
 
         if _write
-            writexlsx(filename, xf, rewrite=true)
+            writexlsx(filename, xf, overwrite=true)
         else
             close(xf)
         end

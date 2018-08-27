@@ -981,7 +981,7 @@ end
     s = XLSX.addsheet!(f)
     s["B1"] = "unnamed sheet"
 
-    XLSX.writexlsx("general_copy_2.xlsx", f, rewrite=true)
+    XLSX.writexlsx("general_copy_2.xlsx", f, overwrite=true)
     @test isfile("general_copy_2.xlsx")
 
     XLSX.openxlsx("general_copy_2.xlsx") do f
@@ -1014,7 +1014,7 @@ end
         data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
         data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
 
-        XLSX.writetable("output_table.xlsx", data, col_names, rewrite=true, sheetname="report", anchor_cell="B2")
+        XLSX.writetable("output_table.xlsx", data, col_names, overwrite=true, sheetname="report", anchor_cell="B2")
         @test isfile("output_table.xlsx")
 
         read_data, read_column_names = XLSX.readtable("output_table.xlsx", "report")
@@ -1036,7 +1036,7 @@ end
         report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
         report_2_data[2] = [10.2, 10.3]
 
-        XLSX.writetable("output_tables.xlsx", rewrite=true, REPORT_A=(report_1_data, report_1_column_names), REPORT_B=(report_2_data, report_2_column_names))
+        XLSX.writetable("output_tables.xlsx", overwrite=true, REPORT_A=(report_1_data, report_1_column_names), REPORT_B=(report_2_data, report_2_column_names))
         @test isfile("output_tables.xlsx")
 
         data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
@@ -1049,7 +1049,7 @@ end
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
 
-        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], rewrite=true)
+        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
 
         data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
         @test labels[1] == :HEADER_A
@@ -1064,7 +1064,7 @@ end
         report_1_column_names = [:HEADER_A, :HEADER_B]
         report_2_column_names = [:COLUMN_A, :COLUMN_B]
 
-        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], rewrite=true)
+        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
 
         data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
         @test labels[1] == :HEADER_A
@@ -1380,7 +1380,7 @@ end
     esc_data[2] = ["21&&amp;&&",  "22&&quot;&&",  "23&&lt;&&",  "24&&gt;&&",  "25&&apos;&&"  ]
     esc_data[3] = ["31&&&amp;&&&","32&&&quot;&&&","33&&&lt;&&&","34&&&gt;&&&","35&&&apos;&&&"]
     esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
-    XLSX.writetable(esc_filename, esc_data, esc_col_names, rewrite=true, sheetname=esc_sheetname)
+    XLSX.writetable(esc_filename, esc_data, esc_col_names, overwrite=true, sheetname=esc_sheetname)
 
     r1_data, r1_col_names = XLSX.readtable(esc_filename, esc_sheetname)
     check_test_data(r1_data, esc_data)

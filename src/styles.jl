@@ -110,7 +110,7 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
 
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt["numFmtId"] = fmt_code
-    new_fmt["formatCode"] = xlsxescape(format_code)
+    new_fmt["formatCode"] = xlsx_escape(format_code)
 
     return fmt_code
 end

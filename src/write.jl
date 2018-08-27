@@ -29,13 +29,19 @@ function open_empty_template(sheetname::AbstractString="") :: XLSXFile
 end
 
 """
-    writexlsx(output_filepath, xlsx_file; [rewrite])
+    writexlsx(output_filepath, xlsx_file; [overwrite])
 """
-function writexlsx(output_filepath::AbstractString, xf::XLSXFile; rewrite::Bool=false)
+function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Bool=false, rewrite=nothing)
+
+    # rewrite is deprecated
+    if rewrite != nothing
+        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writexlsx`.")
+    end
+
     @assert is_writable(xf) "XLSXFile instance is not writable."
     @assert !isopen(xf) "Can't save an open XLSXFile."
     @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"
-    if !rewrite
+    if !overwrite
         @assert !isfile(output_filepath) "Output file $output_filepath already exists."
     end
 
@@ -215,7 +221,7 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
-function xlsxescape(str::AbstractString)
+function xlsx_escape(str::AbstractString)
     str = replace(str, '&', "&amp;")
     str = replace(str, '"', "&quot;")
     str = replace(str, '<', "&lt;")
@@ -230,7 +236,7 @@ function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
-    sst_ind = add_shared_string!(get_workbook(ws), xlsxescape(val))
+    sst_ind = add_shared_string!(get_workbook(ws), xlsx_escape(val))
     return ("s", string(sst_ind))
 end
 
@@ -441,11 +447,11 @@ end
 
 
 """
-    writetable(filename, data, columnnames; [rewrite], [sheetname])
+    writetable(filename, data, columnnames; [overwrite], [sheetname])
 
 `data` is a vector of columns.
 `columnames` is a vector of column labels.
-`rewrite` is a `Bool` to control if `filename` should be rewrited if already exists.
+`overwrite` is a `Bool` to control if `filename` should be overwritten if already exists.
 `sheetname` is the name for the worksheet.
 
 Example using `DataFrames.jl`:
@@ -456,9 +462,14 @@ df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
 ```
 """
-function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
+function writetable(filename::AbstractString, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"), rewrite=nothing)
 
-    if !rewrite
+    # rewrite is deprecated
+    if rewrite != nothing
+        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writetable`.")
+    end
+
+    if !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
 
@@ -472,13 +483,13 @@ function writetable(filename::AbstractString, data, columnnames; rewrite::Bool=f
     writetable!(sheet, data, columnnames; anchor_cell=anchor_cell)
 
     # write output file
-    writexlsx(filename, xf, rewrite=rewrite)
+    writexlsx(filename, xf, overwrite=overwrite)
     nothing
 end
 
 """
-    writetable(filename::AbstractString; rewrite::Bool=false, kw...)
-    writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; rewrite::Bool=false)
+    writetable(filename::AbstractString; overwrite::Bool=false, kw...)
+    writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; overwrite::Bool=false)
 
 Write multiple tables.
 
@@ -496,13 +507,18 @@ df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
 ```
 """
-function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
-    if !rewrite
+function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
+
+    # rewrite keyword is deprecated
+    if !isempty(kw) && isa(kw[1], Tuple{Symbol, Bool}) && kw[1][1] == :rewrite
+        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writetable`.")
+    end
+
+    if !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
 
     xf = open_empty_template()
-
     is_first = true
 
     for (sheetname, (data, column_names)) in kw
@@ -520,12 +536,18 @@ function writetable(filename::AbstractString; rewrite::Bool=false, kw...)
     end
 
     # write output file
-    writexlsx(filename, xf, rewrite=rewrite)
+    writexlsx(filename, xf, overwrite=overwrite)
     nothing
 end
 
-function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{T}}}; rewrite::Bool=false) where {T<:Union{String, Symbol}}
-    if !rewrite
+function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{T}}}; overwrite::Bool=false, rewrite=nothing) where {T<:Union{String, Symbol}}
+
+    # rewrite is deprecated
+    if rewrite != nothing
+        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writexlsx`.")
+    end
+
+    if !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
 
@@ -548,5 +570,5 @@ function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vecto
     end
 
     # write output file
-    writexlsx(filename, xf, rewrite=rewrite)
+    writexlsx(filename, xf, overwrite=overwrite)
 end
