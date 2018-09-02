@@ -285,8 +285,8 @@ struct TableRow
     cell_values::Vector{CellValueType}
 end
 
-struct TableRowIteratorState
-    state::Any
+struct TableRowIteratorState{S}
+    state::S
     sheet_row::SheetRow
     table_row_index::Int
     last_sheet_row_number::Int
