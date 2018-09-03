@@ -29,7 +29,11 @@ function open_empty_template(sheetname::AbstractString="") :: XLSXFile
 end
 
 """
-    writexlsx(output_filepath, xlsx_file; [overwrite])
+    writexlsx(output_filepath, xlsx_file; [overwrite=false])
+
+Writes an Excel file given by `xlsx_file::XLSXFile` to file at path `output_filepath`.
+
+If `overwrite=true`, `output_filepath` will be overwritten if it exists.
 """
 function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Bool=false)
 

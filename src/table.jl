@@ -462,7 +462,7 @@ function stop_function(r)
 end
 ```
 
-Rows where all column values are equal to `Missing.missing` are dropped.
+Rows where all column values are equal to `missing` are dropped.
 
 Example code for `gettable`:
 

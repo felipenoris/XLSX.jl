@@ -43,6 +43,8 @@ end
 
 Converts column number to a column name.
 
+# Example
+
 ```julia
 julia> XLSX.encode_column_number(4)
 "D"
@@ -101,7 +103,16 @@ const RGX_CELLNAME_LEFT = r"^[A-Z]+"
 const RGX_CELLNAME_RIGHT = r"[0-9]+$"
 
 """
-Returns tuple (column_name, row_number).
+    split_cellname(n::AbstractString) -> column_name, row_number
+
+Splits a string representing a cell name to its column name and row number.
+
+# Example
+
+```julia
+julia> XLSX.split_cellname("AB:12")
+("AB:", 12)
+```
 """
 @inline function split_cellname(n::AbstractString)
     for (i, c) in enumerate(n)
@@ -116,7 +127,13 @@ Returns tuple (column_name, row_number).
     error("Couldn't split (column_name, row) for cellname $n.")
 end
 
-# Cellname is bounded by A1 : XFD1048576
+"""
+    is_valid_cellname(n::AbstractString) :: Bool
+
+Checks wether `n` is a valid name for a cell.
+
+Cell names are bounded by `A1 : XFD1048576`.
+"""
 function is_valid_cellname(n::AbstractString) :: Bool
 
     if !occursin(RGX_CELLNAME, n)
@@ -140,10 +157,20 @@ const RGX_CELLRANGE_START = r"^[A-Z]+[0-9]+"
 const RGX_CELLRANGE_STOP = r"[A-Z]+[0-9]+$"
 
 """
-Returns tuple (start_name, stop_name).
+    split_cellrange(n::AbstractString) -> start_name, stop_name
+
+Splits a string representing a cell range into its cell names.
+
+# Example
+
+```julia
+julia> XLSX.split_cellrange("AB12:CD24")
+("AB12", "CD24")
+```
 """
 @inline function split_cellrange(n::AbstractString)
     s = split(n, ":")
+    @assert length(s) == 2 "$n is not a valid cell range."
     return s[1], s[2]
 end
 
