@@ -31,12 +31,7 @@ end
 """
     writexlsx(output_filepath, xlsx_file; [overwrite])
 """
-function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Bool=false, rewrite=nothing)
-
-    # rewrite is deprecated
-    if rewrite != nothing
-        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writexlsx`.")
-    end
+function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Bool=false)
 
     @assert is_writable(xf) "XLSXFile instance is not writable."
     @assert !isopen(xf) "Can't save an open XLSXFile."
@@ -486,12 +481,7 @@ df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
 ```
 """
-function writetable(filename::AbstractString, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"), rewrite=nothing)
-
-    # rewrite is deprecated
-    if rewrite != nothing
-        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writetable`.")
-    end
+function writetable(filename::AbstractString, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
 
     if !overwrite
         @assert !isfile(filename) "$filename already exists."
@@ -533,11 +523,6 @@ XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.na
 """
 function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
 
-    # rewrite keyword is deprecated
-    if !isempty(kw) && isa(kw[1], Tuple{Symbol, Bool}) && kw[1][1] == :rewrite
-        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writetable`.")
-    end
-
     if !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
@@ -564,12 +549,7 @@ function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
     nothing
 end
 
-function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{T}}}; overwrite::Bool=false, rewrite=nothing) where {T<:Union{String, Symbol}}
-
-    # rewrite is deprecated
-    if rewrite != nothing
-        error("`rewrite` keyword argument was renamed to `overwrite` in `XLSX.writexlsx`.")
-    end
+function writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{T}}}; overwrite::Bool=false) where {T<:Union{String, Symbol}}
 
     if !overwrite
         @assert !isfile(filename) "$filename already exists."
