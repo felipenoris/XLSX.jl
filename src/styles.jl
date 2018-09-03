@@ -35,7 +35,7 @@ const DEFAULT_DATETIME_numFmtId = 22 # dd-mm-yyyy h:mm
 Returns the default `CellDataFormat` for a type
 """
 default_cell_format(::Worksheet, ::CellValueType) = EmptyCellDataFormat()
-default_cell_format(ws::Worksheet, ::Date) = get_num_style_index(ws, DEFAULT_DATE_numFmtId)
+default_cell_format(ws::Worksheet, ::Dates.Date) = get_num_style_index(ws, DEFAULT_DATE_numFmtId)
 default_cell_format(ws::Worksheet, ::Dates.Time) = get_num_style_index(ws, DEFAULT_TIME_numFmtId)
 default_cell_format(ws::Worksheet, ::Dates.DateTime) = get_num_style_index(ws, DEFAULT_DATETIME_numFmtId)
 
@@ -56,7 +56,7 @@ end
 
 # get styles document for workbook
 function styles_xmlroot(workbook::Workbook)
-    if isnull(workbook.styles_xroot)
+    if workbook.styles_xroot == nothing
         STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
         if has_relationship_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
             styles_target = get_relationship_target_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
@@ -65,13 +65,13 @@ function styles_xmlroot(workbook::Workbook)
             # check root node name for styles.xml
             @assert get_default_namespace(styles_root) == SPREADSHEET_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
             @assert EzXML.nodename(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
-            workbook.styles_xroot = Nullable(styles_root)
+            workbook.styles_xroot = styles_root
         else
             error("Styles not found for this workbook.")
         end
     end
 
-    return get(workbook.styles_xroot)
+    return workbook.styles_xroot
 end
 
 """
@@ -80,7 +80,7 @@ Returns the xf XML node element for style `index`.
 """
 function styles_cell_xf(wb::Workbook, index::Int) :: EzXML.Node
     xroot = styles_xmlroot(wb)
-    xf_elements = find(xroot, "/xpath:styleSheet/xpath:cellXfs/xpath:xf", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    xf_elements = findall("/xpath:styleSheet/xpath:cellXfs/xpath:xf", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     return xf_elements[index+1]
 end
 
@@ -97,9 +97,9 @@ Returns the index to be used as the `numFmtId` in a cellXf definition.
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
 
-    numfmts = find(xroot, "/xpath:styleSheet/xpath:numFmts", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    numfmts = findall("/xpath:styleSheet/xpath:numFmts", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     if isempty(numfmts)
-        stylesheet = findfirst(xroot, "/xpath:styleSheet", SPREADSHEET_NAMESPACE_XPATH_ARG)
+        stylesheet = findfirst("/xpath:styleSheet", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
         numfmts = EzXML.addelement!(stylesheet, "numFmts")
     else
         numfmts = numfmts[1]
@@ -122,7 +122,7 @@ Defines a custom font. Returns the index to be used as the `fontId` in a cellXf 
 """
 function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
     xroot = styles_xmlroot(wb)
-    fonts_element = findfirst(xroot, "/xpath:styleSheet/xpath:fonts", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    fonts_element = findfirst("/xpath:styleSheet/xpath:fonts", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     existing_font_elements_count = EzXML.countelements(fonts_element)
 
     new_font = EzXML.addelement!(fonts_element, "font")
@@ -145,7 +145,7 @@ Queries numFmt formatCode field by numFmtId.
 """
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = styles_xmlroot(wb)
-    elements_found = find(xroot, "/xpath:styleSheet/xpath:numFmts/xpath:numFmt[@numFmtId='$(numFmtId)']", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    elements_found = findall("/xpath:styleSheet/xpath:numFmts/xpath:numFmt[@numFmtId='$(numFmtId)']", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     @assert length(elements_found) == 1 "numFmtId $numFmtId not found."
     return elements_found[1]["formatCode"]
 end
@@ -178,7 +178,7 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
         elseif numFmtId > 81
             code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
             code = remove_formatting(code)
-            if any(map(x->contains(code, x), DATETIME_CODES))
+            if any(map(x->occursin(x, code), DATETIME_CODES))
                 isdatetime = true
             end
         end
@@ -215,7 +215,7 @@ function styles_is_float(wb::Workbook, index::Int) :: Bool
                 [0#?]/[0#?]|
                 %
                 """ix
-            if ismatch(floatformats, code)
+            if occursin(floatformats, code)
                 isfloat = true
             end
         end
@@ -250,7 +250,7 @@ Returns -1 if not found.
 """
 function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
-    elements_found = find(xroot, "/xpath:styleSheet/xpath:cellXfs/xpath:xf", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    elements_found = findall("/xpath:styleSheet/xpath:cellXfs/xpath:xf", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
 
     if isempty(elements_found)
         return EmptyCellDataFormat()
@@ -271,7 +271,7 @@ end
 
 function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: CellDataFormat
     xroot = styles_xmlroot(wb)
-    cellXfs_element = findfirst(xroot, "/xpath:styleSheet/xpath:cellXfs", SPREADSHEET_NAMESPACE_XPATH_ARG)
+    cellXfs_element = findfirst("/xpath:styleSheet/xpath:cellXfs", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     existing_cellxf_elements_count = EzXML.countelements(cellXfs_element)
 
     new_xf = EzXML.addelement!(cellXfs_element, "xf")

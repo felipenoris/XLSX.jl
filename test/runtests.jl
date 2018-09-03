@@ -1,8 +1,9 @@
 
 import XLSX
-using Base.Test, Missings
+using Test, Dates
 
-data_directory = joinpath(Pkg.dir("XLSX"), "data")
+data_directory = joinpath(@__DIR__, "..", "data")
+@assert isdir(data_directory)
 
 @testset "read test files" begin
     ef_blank_ptbr_1904 = XLSX.readxlsx(joinpath(data_directory, "blank_ptbr_1904.xlsx"))
@@ -45,7 +46,7 @@ data_directory = joinpath(Pkg.dir("XLSX"), "data")
             XLSX.readxlsx(joinpath(data_directory, "old.xls"))
             @test false # didn't throw exception
         catch e
-            @test contains("$e", "This package does not support XLS file format")
+            @test occursin("This package does not support XLS file format", "$e")
         end
     end
 
@@ -55,7 +56,7 @@ data_directory = joinpath(Pkg.dir("XLSX"), "data")
             XLSX.readxlsx(joinpath(data_directory, "sheet_template.xml"))
             @test false # didn't throw exception
         catch e
-            @test contains("$e", "is not a valid XLSX file")
+            @test occursin("is not a valid XLSX file", "$e")
         end
     end
 end
@@ -480,7 +481,7 @@ end
     @test !XLSX.is_defined_name_value_a_reference(1)
     @test !XLSX.is_defined_name_value_a_reference(1.2)
     @test !XLSX.is_defined_name_value_a_reference("Hey")
-    @test !XLSX.is_defined_name_value_a_reference(Missings.missing)
+    @test !XLSX.is_defined_name_value_a_reference(missing)
 
     XLSX.openxlsx(joinpath(data_directory, "general.xlsx")) do f
         @test f["SINGLE_CELL"] == "single cell A2"
@@ -632,6 +633,13 @@ end
 
 @testset "Table" begin
 
+    @testset "Index" begin
+        index = XLSX.Index("A:B", [:First, :Second])
+        @test index.column_labels == [:First, :Second]
+        @test index.lookup[:First] == 1
+        @test index.lookup[:Second] == 2
+    end
+
     @testset "Bounds" begin
         f = XLSX.readxlsx(joinpath(data_directory, "book_sparse.xlsx"))
         s = f["Sheet1"]
@@ -672,7 +680,7 @@ end
     data, col_names = XLSX.gettable(s)
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-    test_data = Vector{Any}(6)
+    test_data = Vector{Any}(undef, 6)
     test_data[1] = collect(1:8)
     test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
     test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
@@ -701,12 +709,12 @@ end
 
     function stop_function(r::XLSX.TableRow)
         v = r[Symbol("Column C")]
-        return !Missings.ismissing(v) && v == "Str2"
+        return !ismissing(v) && v == "Str2"
     end
 
     function never_reaches_stop(r::XLSX.TableRow)
         v = r[Symbol("Column C")]
-        return !Missings.ismissing(v) && v == "never was found"
+        return !ismissing(v) && v == "never was found"
     end
 
     data, col_names = XLSX.gettable(s, stop_in_row_function=never_reaches_stop)
@@ -715,7 +723,7 @@ end
     data, col_names = XLSX.gettable(s, stop_in_row_function=stop_function)
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-    test_data = Vector{Any}(6)
+    test_data = Vector{Any}(undef, 6)
     test_data[1] = collect(1:4)
     test_data[2] = [ "Str1", missing, "Str1", "Str1" ]
     test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:3 ]
@@ -728,7 +736,7 @@ end
     data, col_names = XLSX.gettable(s, stop_in_empty_row=false)
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-    test_data = Vector{Any}(6)
+    test_data = Vector{Any}(undef, 6)
     test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash" ]
     test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2", missing ]
     test_data[3] = Any[ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
@@ -773,7 +781,7 @@ end
     @test_throws AssertionError f["table!D:B"]
 
     s = f["table2"]
-    test_data = Vector{Any}(3)
+    test_data = Vector{Any}(undef, 3)
     test_data[1] = [ "A1", "A2", "A3", missing ]
     test_data[2] = [ "B1", "B2", missing, "B4"]
     test_data[3] = [ missing, missing, missing, missing ]
@@ -807,14 +815,14 @@ end
     check_test_data(data, test_data)
 
     data, col_names = XLSX.gettable(s, "A:B", first_row=1)
-    test_data_AB_cols = Vector{Any}(2)
+    test_data_AB_cols = Vector{Any}(undef, 2)
     test_data_AB_cols[1] = test_data[1]
     test_data_AB_cols[2] = test_data[2]
     @test col_names == [:HA, :HB]
     check_test_data(data, test_data_AB_cols)
 
     data, col_names = XLSX.gettable(s, "A:B")
-    test_data_AB_cols = Vector{Any}(2)
+    test_data_AB_cols = Vector{Any}(undef, 2)
     test_data_AB_cols[1] = test_data[1]
     test_data_AB_cols[2] = test_data[2]
     @test col_names == [:HA, :HB]
@@ -828,7 +836,7 @@ end
 
     data, col_names = XLSX.gettable(s, "B:C")
     @test col_names == [ :HB, :HC ]
-    test_data_BC_cols = Vector{Any}(2)
+    test_data_BC_cols = Vector{Any}(undef, 2)
     test_data_BC_cols[1] = ["B1", "B2"]
     test_data_BC_cols[2] = [ missing, missing]
     check_test_data(data, test_data_BC_cols)
@@ -838,7 +846,7 @@ end
     check_test_data(data, test_data_BC_cols)
 
     s = f["table3"]
-    test_data = Vector{Any}(3)
+    test_data = Vector{Any}(undef, 3)
     test_data[1] = [ missing, missing, "B5" ]
     test_data[2] = [ "C3", missing, missing ]
     test_data[3] = [ missing, "D4", missing ]
@@ -876,7 +884,7 @@ end
     @testset "sheets 6/7/lookup/header_error" begin
         f = XLSX.readxlsx(joinpath(data_directory,"general.xlsx"))
         tb5 = f["table5"]
-        test_data = Vector{Any}(1)
+        test_data = Vector{Any}(undef, 1)
         test_data[1] = [1, 2, 3, 4, 5]
         data, col_names = XLSX.gettable(tb5)
         @test col_names == [ :HEADER ]
@@ -891,7 +899,7 @@ end
         check_test_data(data, test_data)
 
         sheet_lookup = f["lookup"]
-        test_data = Vector{Any}(3)
+        test_data = Vector{Any}(undef, 3)
         test_data[1] = [ 10, 20, 30]
         test_data[2] = [ "name1", "name2", "name3" ]
         test_data[3] = [ 100, 200, 300 ]
@@ -920,7 +928,7 @@ end
 
 @testset "Helper functions" begin
 
-    test_data = Vector{Any}(3)
+    test_data = Vector{Any}(undef, 3)
     test_data[1] = [ missing, missing, "B5" ]
     test_data[2] = [ "C3", missing, missing ]
     test_data[3] = [ missing, "D4", missing ]
@@ -930,7 +938,7 @@ end
     check_test_data(data, test_data)
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "E12") == "H1"
-    test_data = Array{Any, 2}(2, 1)
+    test_data = Array{Any, 2}(undef, 2, 1)
     test_data[1, 1] = "H2"
     test_data[2, 1] = "C3"
 
@@ -950,7 +958,7 @@ end
     data, col_names = XLSX.gettable(s)
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
-    test_data = Vector{Any}(6)
+    test_data = Vector{Any}(undef, 6)
     test_data[1] = collect(1:8)
     test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
     test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
@@ -959,6 +967,34 @@ end
     test_data[6] = [ missing for i in 1:8 ]
     check_test_data(data, test_data)
     rm(filename_copy)
+end
+
+@testset "Edit Template" begin
+    new_filename = "new_file_from_empty_template.xlsx"
+    f = XLSX.open_empty_template()
+    f["Sheet1"]["A1"] = "Hello"
+    f["Sheet1"]["A2"] = 10
+    XLSX.writexlsx(new_filename, f, overwrite=true)
+    @test !XLSX.isopen(f)
+
+    f = XLSX.readxlsx(new_filename)
+    @test f["Sheet1"]["A1"] == "Hello"
+    @test f["Sheet1"]["A2"] == 10
+
+    rm(new_filename)
+end
+
+@testset "addsheet!" begin
+    new_filename = "template_with_new_sheet.xlsx"
+    f = XLSX.open_empty_template()
+    s = XLSX.addsheet!(f, "new_sheet")
+    s["A1"] = 10
+    XLSX.writexlsx(new_filename, f, overwrite=true)
+    @test !XLSX.isopen(f)
+
+    f = XLSX.readxlsx(new_filename)
+    @test XLSX.sheetnames(f) == [ "Sheet1", "new_sheet" ]
+    rm(new_filename)
 end
 
 @testset "Edit" begin
@@ -1005,11 +1041,11 @@ end
 
     @testset "single" begin
         col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
-        data = Vector{Any}(7)
-        data[1] = [1, 2, Missings.missing, 4]
+        data = Vector{Any}(undef, 7)
+        data[1] = [1, 2, missing, 4]
         data[2] = ["Hey", "You", "Out", "There"]
-        data[3] = [101.5, 102.5, Missings.missing, 104.5]
-        data[4] = [ true, false, Missings.missing, true]
+        data[3] = [101.5, 102.5, missing, 104.5]
+        data[4] = [ true, false, missing, true]
         data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
         data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
         data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
@@ -1027,12 +1063,12 @@ end
 
     @testset "multiple" begin
         report_1_column_names = ["HEADER_A", "HEADER_B"]
-        report_1_data = Vector{Any}(2)
+        report_1_data = Vector{Any}(undef, 2)
         report_1_data[1] = [1, 2, 3]
         report_1_data[2] = ["A", "B", ""]
 
         report_2_column_names = ["COLUMN_A", "COLUMN_B"]
-        report_2_data = Vector{Any}(2)
+        report_2_data = Vector{Any}(undef, 2)
         report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
         report_2_data[2] = [10.2, 10.3]
 
@@ -1092,7 +1128,7 @@ end
     sheet = xfile["Sheet1"]
 
     datefmt = XLSX.styles_add_numFmt(wb, "yyyymmdd")
-    numfmt = XLSX.styles_add_numFmt(wb, "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* \"-\"??;[Magenta]@")
+    numfmt = XLSX.styles_add_numFmt(wb, "\$* #,##0.00;\$* (#,##0.00);\$* \"-\"??;[Magenta]@")
 
     #Check format id numbers dont intersect with predefined formats or each other
     @test datefmt == 164
@@ -1100,7 +1136,7 @@ end
 
     font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
     xroot = XLSX.styles_xmlroot(wb)
-    fontnodes = find(xroot, "/xpath:styleSheet/xpath:fonts/xpath:font", XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
+    fontnodes = findall("/xpath:styleSheet/xpath:fonts/xpath:font", xroot, XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
     fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
 
     # Check the font was written correctly
@@ -1126,7 +1162,7 @@ end
     @test id(datestyle) == "2"
 
     @test XLSX.styles_get_cellXf_with_numFmtId(wb, numfmt) == numstyle
-    @test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* \#,\#\#0.00;\$* (\#,\#\#0.00);\$* &quot;-&quot;??;[Magenta]@"
+    @test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* #,##0.00;\$* (#,##0.00);\$* &quot;-&quot;??;[Magenta]@"
     @test numstyle isa XLSX.CellDataFormat
     @test !isempty(numstyle)
     @test id(numstyle) == "3"
@@ -1378,7 +1414,7 @@ end
     esc_filename  = "output_table_escape_test.xlsx"
     esc_col_names = ["&; &amp; &quot; &lt; &gt; &apos; ", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
     esc_sheetname = string( esc_col_names[1],esc_col_names[2],esc_col_names[3],esc_col_names[4])
-    esc_data = Vector{Any}(4)
+    esc_data = Vector{Any}(undef, 4)
     esc_data[1] = ["11&amp;&",    "12&quot;&",    "13&lt;&",    "14&gt;&",    "15&apos;&"    ]
     esc_data[2] = ["21&&amp;&&",  "22&&quot;&&",  "23&&lt;&&",  "24&&gt;&&",  "25&&apos;&&"  ]
     esc_data[3] = ["31&&&amp;&&&","32&&&quot;&&&","33&&&lt;&&&","34&&&gt;&&&","35&&&apos;&&&"]

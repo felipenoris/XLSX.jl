@@ -2,11 +2,14 @@
 __precompile__(true)
 module XLSX
 
-import ZipFile, EzXML, Missings
+import Dates
+using Printf
+
+import ZipFile, EzXML
 
 # https://github.com/fhs/ZipFile.jl/issues/39
-if !method_exists(Base.nb_available, Tuple{ZipFile.ReadableFile})
-    Base.nb_available(f::ZipFile.ReadableFile) = f.uncompressedsize - f._pos
+if !hasmethod(Base.bytesavailable, Tuple{ZipFile.ReadableFile})
+    Base.bytesavailable(f::ZipFile.ReadableFile) = f.uncompressedsize - f._pos
 end
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]

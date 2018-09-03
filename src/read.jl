@@ -131,7 +131,7 @@ function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r
         end
 
         # fix libuv issue on windows (#42)
-        @static is_windows() ? gc() : nothing
+        @static Sys.iswindows() ? GC.gc() : nothing
     end
 end
 
@@ -336,17 +336,17 @@ function parse_workbook!(xf::XLSXFile)
                     defined_value = SheetCellRef(defined_value_string)
                 elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
                     defined_value = SheetCellRange(defined_value_string)
-                elseif ismatch(r"^\".*\"$", defined_value_string) # is enclosed by quotes
+                elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
                     defined_value = defined_value_string[2:end-1] # remove enclosing quotes
                     if isempty(defined_value)
-                        defined_value = Missings.missing
+                        defined_value = missing
                     end
                 elseif tryparse(Int, defined_value_string)
                     defined_value = parse(Int, defined_value_string)
                 elseif tryparse(Float64, defined_value_string)
                     defined_value = parse(Float64, defined_value_string)
                 elseif isempty(defined_value_string)
-                    defined_value = Missings.missing
+                    defined_value = missing
                 else
 
                     # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
@@ -436,9 +436,8 @@ function Base.close(xl::XLSXFile)
 
     # close all internal file streams from worksheet caches
     for sheet in xl.workbook.sheets
-        if !isnull(sheet.cache)
-            cache = get(sheet.cache)
-            close(cache.stream_state)
+        if sheet.cache != nothing && sheet.cache.stream_state != nothing
+            close(sheet.cache.stream_state)
         end
     end
 end
@@ -518,7 +517,7 @@ Example for `stop_in_row_function`:
 ```
 function stop_function(r)
     v = r[:col_label]
-    return !Missings.ismissing(v) && v == "unwanted value"
+    return !ismissing(v) && v == "unwanted value"
 end
 ```
 
@@ -534,7 +533,7 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 See also: `gettable`.
 ```
 """
-function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Void}=nothing, enable_cache::Bool=false)
+function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
     c = openxlsx(filepath, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     end
