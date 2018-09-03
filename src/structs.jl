@@ -162,11 +162,11 @@ mutable struct SheetRowStreamIteratorState
     row::Int # number of current row. It´s set to 0 in the start state.
 end
 
-mutable struct WorksheetCache <: SheetRowIterator
+mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
     cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
     rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
     row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
-    stream_iterator::SheetRowIterator
+    stream_iterator::I
     stream_state::Union{Nothing, SheetRowStreamIteratorState}
 end
 
@@ -276,8 +276,8 @@ struct Index # based on DataFrames.jl
     end
 end
 
-struct TableRowIterator
-    itr::SheetRowIterator
+struct TableRowIterator{I<:SheetRowIterator}
+    itr::I
     index::Index
     first_data_row::Int
     stop_in_empty_row::Bool
