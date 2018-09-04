@@ -26,7 +26,8 @@ See also: `encode_column_number`.
 function decode_column_number(column_name::AbstractString) :: Int
     local result::Int = 0
 
-    num_characters = length(column_name)
+    @assert isascii(column_name) "$column_name is not a valid column name."
+    num_characters = length(column_name) # this is safe, since `column_name` is encoded as ASCII
 
     iteration = 1
     for i in num_characters:-1:1
@@ -115,8 +116,9 @@ julia> XLSX.split_cellname("AB:12")
 ```
 """
 @inline function split_cellname(n::AbstractString)
+    @assert isascii(n) "$n is not a valid cell name."
     for (i, c) in enumerate(n)
-        if isdigit(c)
+        if isdigit(c) # this block is safe since n is encoded as ASCII
             column_name = SubString(n, 1, i-1)
             row = parse(Int, SubString(n, i, length(n)))
 
@@ -445,41 +447,50 @@ function is_valid_sheet_column_range(n::AbstractString) :: Bool
     return true
 end
 
+const RGX_SHEET_PREFIX = r"^.+!"
 const RGX_CELLNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+$"
 const RGX_SHEET_CELNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
+function parse_sheetname_from_sheetcell_name(n::AbstractString) :: SubString
+    @assert occursin(RGX_SHEET_PREFIX, n) "$n is not a SheetCell reference."
+    sheetname = match(RGX_SHEET_PREFIX, n).match
+    sheetname = SubString(sheetname, firstindex(sheetname), prevind(sheetname, lastindex(sheetname)))
+    return sheetname
+end
+
 function SheetCellRef(n::AbstractString)
+    local cellref::CellRef
+
     if is_valid_fixed_sheet_cellname(n)
         fixed_cellname = match(RGX_CELLNAME_RIGHT_FIXED, n).match
-        cellname = replace(fixed_cellname, "\$" => "")
-        sheetname = SubString(n, 1, length(n) - length(fixed_cellname) - 1)
-        return SheetCellRef(sheetname, CellRef(cellname))
+        cellref = CellRef(replace(fixed_cellname, "\$" => ""))
     else
         @assert is_valid_sheet_cellname(n) "$n is not a valid SheetCellRef."
-        cellname = match(RGX_SHEET_CELLNAME_RIGHT, n).match
-        sheetname = SubString(n, 1, length(n) - length(cellname) - 1)
-        return SheetCellRef(sheetname, CellRef(cellname))
+        cellref = CellRef(match(RGX_SHEET_CELLNAME_RIGHT, n).match)
     end
+    sheetname = parse_sheetname_from_sheetcell_name(n)
+    return SheetCellRef(sheetname, cellref)
 end
 
 function SheetCellRange(n::AbstractString)
+    local cellrange::CellRange
+
     if is_valid_fixed_sheet_cellrange(n)
         fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
-        cellrange = replace(fixed_cellrange, "\$" => "")
-        sheetname = SubString(n, 1, length(n) - length(fixed_cellrange) - 1)
-        return SheetCellRange(sheetname, CellRange(cellrange))
+        cellrange = CellRange(replace(fixed_cellrange, "\$" => ""))
     else
         @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
-        cellrange = match(RGX_SHEET_CELLRANGE_RIGHT, n).match
-        sheetname = SubString(n, 1, length(n) - length(cellrange) - 1)
-        return SheetCellRange(sheetname, CellRange(cellrange))
+        cellrange = CellRange(match(RGX_SHEET_CELLRANGE_RIGHT, n).match)
     end
+
+    sheetname = parse_sheetname_from_sheetcell_name(n)
+    return SheetCellRange(sheetname, cellrange)
 end
 
 function SheetColumnRange(n::AbstractString)
     @assert is_valid_sheet_column_range(n) "$n is not a valid SheetColumnRange."
     column_range = match(RGX_SHEET_COLUMN_RANGE_RIGHT, n).match
-    sheetname = SubString(n, 1, length(n) - length(column_range) - 1)
+    sheetname = parse_sheetname_from_sheetcell_name(n)
     return SheetColumnRange(sheetname, ColumnRange(column_range))
 end
 
