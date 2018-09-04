@@ -5,7 +5,7 @@
 @inline get_workbook(xl::XLSXFile) :: Workbook = xl.workbook
 
 function check_for_xlsx_file_format(filepath::AbstractString)
-    @assert isfile(filepath) "File $filepath not found."
+    systemerror("opening file $filepath", !isfile(filepath))
 
     local header::Vector{UInt8}
 
@@ -111,7 +111,8 @@ end
 See also `readxlsx` method.
 """
 function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
-
+    systemerror("opening file $filename", !isfile(filename))
+    
     _read, _write = parse_file_mode(mode)
 
     if isfile(filename) && _read
