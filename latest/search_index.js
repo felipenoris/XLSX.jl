@@ -129,9 +129,9 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.SharedStrings",
+    "location": "api.html#XLSX.SharedStringTable",
     "page": "API",
-    "title": "XLSX.SharedStrings",
+    "title": "XLSX.SharedStringTable",
     "category": "type",
     "text": "Shared String Table\n\n\n\n\n\n"
 },
@@ -305,11 +305,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.get_shared_string_index-Tuple{XLSX.SharedStrings,AbstractString}",
+    "location": "api.html#XLSX.get_shared_string_index-Tuple{XLSX.SharedStringTable,AbstractString}",
     "page": "API",
     "title": "XLSX.get_shared_string_index",
     "category": "method",
-    "text": "Checks if string is inside shared string table. Returns -1 if it\'s not in the shared string table. Returns the index of the string in the shared string table. The index is 0-based.\n\n\n\n\n\n"
+    "text": "Checks if string is inside shared string table. Returns nothing if it\'s not in the shared string table. Returns the index of the string in the shared string table. The index is 0-based.\n\n\n\n\n\n"
 },
 
 {
