@@ -110,12 +110,13 @@ end
 
 See also `readxlsx` method.
 """
-function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
+function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
 
     _read, _write = parse_file_mode(mode)
 
-    if isfile(filename) && _read
-        xf = open_or_read_xlsx(filename, _write, enable_cache, _write)
+    if _read
+        @assert isfile(filepath) "File $filepath not found."
+        xf = open_or_read_xlsx(filepath, _write, enable_cache, _write)
     else
         xf = open_empty_template()
     end
@@ -125,7 +126,7 @@ function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r
     finally
 
         if _write
-            writexlsx(filename, xf, overwrite=true)
+            writexlsx(filepath, xf, overwrite=true)
         else
             close(xf)
         end

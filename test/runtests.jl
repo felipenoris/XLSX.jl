@@ -1346,7 +1346,17 @@ end
         missing "c" Date(2018, 1, 3);
     ]
 
-    XLSX.openxlsx(filename, mode="rw") do xf
+    # can't read or edit a file that does not exist
+    @test_throws AssertionError XLSX.openxlsx(filename, mode="r") do xf
+        error("This should fail.")
+    end
+
+    @test_throws AssertionError XLSX.openxlsx(filename, mode="rw") do xf
+        error("This should fail.")
+    end
+
+    # test create new file
+    XLSX.openxlsx(filename, mode="w") do xf
         sheet = xf[1]
         XLSX.rename!(sheet, sheetname)
 
