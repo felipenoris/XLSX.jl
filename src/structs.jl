@@ -193,8 +193,7 @@ Shared String Table
 mutable struct SharedStringTable
     unformatted_strings::Vector{String}
     formatted_strings::Vector{String}
-    hashmap::Dict{UInt64, Int} # shared string hash -> index in strings vector.
-    is_loaded::Bool # for lazy-loading of sst XML file
+    is_loaded::Bool # for lazy-loading of sst XML file (implies that this struct must be mutable)
 end
 
 const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missing}

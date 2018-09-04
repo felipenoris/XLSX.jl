@@ -1,5 +1,5 @@
 
-SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), Dict{UInt64, Int}(), false)
+SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), false)
 
 @inline get_sst(wb::Workbook) = wb.sst
 @inline get_sst(xl::XLSXFile) = get_sst(get_workbook(xl))
@@ -8,19 +8,32 @@ SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), Dict
 
 """
 Checks if string is inside shared string table.
-Returns -1 if it's not in the shared string table.
+Returns `nothing` if it's not in the shared string table.
 Returns the index of the string in the shared string table. The index is 0-based.
 """
-function get_shared_string_index(sst::SharedStringTable, str_formatted::AbstractString) :: Int
+function get_shared_string_index(sst::SharedStringTable, str_formatted::AbstractString) :: Union{Nothing, Int}
     @assert sst.is_loaded "Can't query shared string table because it's not loaded into memory."
 
-    h = hash(str_formatted)
-    if haskey(sst.hashmap, h)
-        i = sst.hashmap[h]
-        @assert sst.formatted_strings[i+1] == str_formatted "\"Congratulations. You've just discovered the secret message. Please send your answer to Old Pink, care of the Funny Farm, Chalfont…\"\nPlease, file an issue at https://github.com/felipenoris/XLSX.jl..."
+    i = findfirst(s -> s == str_formatted, sst.formatted_strings)
+    if i == nothing
+        return nothing
+    else
+        return i - 1
+    end
+
+end
+
+function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
+    i = get_shared_string_index(sst, str_formatted)
+    if i != nothing
+        # it's already in the table
         return i
     else
-        return -1
+        push!(sst.unformatted_strings, str_unformatted)
+        push!(sst.formatted_strings, str_formatted)
+        new_index = length(sst.formatted_strings) - 1 # 0-based
+        @assert new_index == get_shared_string_index(sst, str_formatted) "Inconsistent state after adding a string to the Shared String Table."
+        return new_index
     end
 end
 
@@ -51,17 +64,7 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
         override_node["PartName"] = "/xl/sharedStrings.xml"
     end
 
-    i = get_shared_string_index(sst, str_formatted)
-    if i != -1
-        # it's already in the table
-        return i
-    end
-
-    push!(sst.unformatted_strings, str_unformatted)
-    push!(sst.formatted_strings, str_formatted)
-    new_index = length(sst.formatted_strings) - 1 # 0-based
-    sst.hashmap[hash(str_formatted)] = new_index
-    return new_index
+    return add_shared_string!(sst, str_unformatted, str_formatted)
 end
 
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString) :: Int
@@ -70,7 +73,9 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString) :: In
 end
 
 function sst_load!(workbook::Workbook)
-    if !workbook.sst.is_loaded
+    sst = get_sst(workbook)
+
+    if !sst.is_loaded
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
@@ -81,13 +86,13 @@ function sst_load!(workbook::Workbook)
             formatted_string_buffer = IOBuffer()
             for el in EzXML.eachelement(sst_root)
                 @assert EzXML.nodename(el) == "si" "Unsupported node $(EzXML.nodename(el)) in sst table."
-                push!(get_sst(workbook).unformatted_strings, unformatted_text(el))
+                push!(sst.unformatted_strings, unformatted_text(el))
 
                 print(formatted_string_buffer, el)
-                push!(get_sst(workbook).formatted_strings, String(take!(formatted_string_buffer)))
+                push!(sst.formatted_strings, String(take!(formatted_string_buffer)))
             end
 
-            workbook.sst.is_loaded=true
+            sst.is_loaded=true
             return
         end
 
