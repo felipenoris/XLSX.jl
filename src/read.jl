@@ -115,7 +115,7 @@ function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r
     _read, _write = parse_file_mode(mode)
 
     if _read
-        systemerror("opening file $filename", !isfile(filename))
+        systemerror("opening file $filepath", !isfile(filepath))
         xf = open_or_read_xlsx(filepath, _write, enable_cache, _write)
     else
         xf = open_empty_template()
