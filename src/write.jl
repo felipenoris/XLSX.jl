@@ -86,7 +86,7 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::EzXML.Document)
     xf.data[filename] = xdoc
 end
 
-function generate_sst_xml_string(sst::SharedStrings) :: String
+function generate_sst_xml_string(sst::SharedStringTable) :: String
     @assert sst.is_loaded "Can't generate XML string from a Shared String Table that is not loaded."
     buff = IOBuffer()
 

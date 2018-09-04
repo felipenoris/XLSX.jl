@@ -1,6 +1,6 @@
 
 EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false,
-    Vector{Relationship}(), SharedStrings(), Dict{Int, Bool}(), Dict{Int, Bool}(),
+    Vector{Relationship}(), SharedStringTable(), Dict{Int, Bool}(), Dict{Int, Bool}(),
     Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), nothing)
 
 """

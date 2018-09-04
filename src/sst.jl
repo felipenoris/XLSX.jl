@@ -1,17 +1,17 @@
 
-SharedStrings() = SharedStrings(Vector{String}(), Vector{String}(), Dict{UInt64, Int}(), false)
+SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), Dict{UInt64, Int}(), false)
 
 @inline get_sst(wb::Workbook) = wb.sst
 @inline get_sst(xl::XLSXFile) = get_sst(get_workbook(xl))
-@inline Base.length(sst::SharedStrings) = length(sst.formatted_strings)
-@inline Base.isempty(sst::SharedStrings) = isempty(sst.formatted_strings)
+@inline Base.length(sst::SharedStringTable) = length(sst.formatted_strings)
+@inline Base.isempty(sst::SharedStringTable) = isempty(sst.formatted_strings)
 
 """
 Checks if string is inside shared string table.
 Returns -1 if it's not in the shared string table.
 Returns the index of the string in the shared string table. The index is 0-based.
 """
-function get_shared_string_index(sst::SharedStrings, str_formatted::AbstractString) :: Int
+function get_shared_string_index(sst::SharedStringTable, str_formatted::AbstractString) :: Int
     @assert sst.is_loaded "Can't query shared string table because it's not loaded into memory."
 
     h = hash(str_formatted)
