@@ -85,6 +85,7 @@ end
     @test !XLSX.is_valid_sheet_cellname("Sheet1")
     @test !XLSX.is_valid_sheet_cellname("Sheet1!A")
     @test !XLSX.is_valid_sheet_cellname("Sheet1!1")
+    @test XLSX.is_valid_sheet_cellname("NEGOCIAÇÕES Descrição!A1")
 
     @test XLSX.is_valid_sheet_cellrange("Sheet1!A1:B4")
     @test !XLSX.is_valid_sheet_cellrange("Sheet1!:B4")
@@ -547,6 +548,10 @@ end
     @test ismissing(f["Plan2"]["B1"])
     @test f["Plan2"]["C2"] == "C2"
     @test f["Plan2"]["D3"] == "D3"
+    @test f["NEGOCIAÇÕES Descrição"]["A1"] == "Negociações"
+    @test f["NEGOCIAÇÕES Descrição"]["B1"] == 10
+    @test f["NEGOCIAÇÕES Descrição!A1"] == "Negociações"
+    @test f["NEGOCIAÇÕES Descrição!B1"] == 10
 end
 
 @testset "numbers.xlsx" begin
