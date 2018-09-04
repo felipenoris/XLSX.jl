@@ -34,7 +34,7 @@ Consider using `openxlsx` for lazy loading of Excel file contents.
 @inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, false)
 
 """
-    openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
+    openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
 
 Open XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying `f` to the file.
 
@@ -52,15 +52,15 @@ end
 
 The `mode` argument controls how the file is opened. The following modes are allowed:
 
-* `r` : read mode. The existing data in `filename` will be accessible for reading. This is the **default** mode.
+* `r` : read mode. The existing data in `filepath` will be accessible for reading. This is the **default** mode.
 
-* `w` : write mode. Opens an empty file that will be written to `filename`.
+* `w` : write mode. Opens an empty file that will be written to `filepath`.
 
-* `rw` : edit mode. Opens `filename` for editing. The file will be saved to disk when the function ends.
+* `rw` : edit mode. Opens `filepath` for editing. The file will be saved to disk when the function ends.
 
 # Arguments
 
-* `filename` is the name of the file.
+* `filepath` is the complete path to the file.
 
 * `mode` is the file mode, as explained in the last section.
 
@@ -110,13 +110,13 @@ end
 
 See also `readxlsx` method.
 """
-function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
-    systemerror("opening file $filename", !isfile(filename))
-    
+function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
+
     _read, _write = parse_file_mode(mode)
 
-    if isfile(filename) && _read
-        xf = open_or_read_xlsx(filename, _write, enable_cache, _write)
+    if _read
+        systemerror("opening file $filename", !isfile(filename))
+        xf = open_or_read_xlsx(filepath, _write, enable_cache, _write)
     else
         xf = open_empty_template()
     end
@@ -126,7 +126,7 @@ function openxlsx(f::Function, filename::AbstractString; mode::AbstractString="r
     finally
 
         if _write
-            writexlsx(filename, xf, overwrite=true)
+            writexlsx(filepath, xf, overwrite=true)
         else
             close(xf)
         end
