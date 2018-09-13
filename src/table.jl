@@ -199,17 +199,17 @@ end
 
 # Returns an iterator for table column numbers.
 @inline table_column_numbers(i::Index) = eachindex(i.column_labels)
-@inline table_column_numbers(r::TableRow) = table_column_numbers(r.index)
+@inline table_column_numbers(r::TableRow) = table_column_numbers(getfield(r, :index))
 
 # Maps table column index (1-based) -> sheet column index (cellref based)
 @inline table_column_to_sheet_column_number(index::Index, table_column_number::Int) = index.column_map[table_column_number]
 @inline table_columns_count(i::Index) = length(i.column_labels)
 @inline table_columns_count(itr::TableRowIterator) = table_columns_count(itr.index)
-@inline table_columns_count(r::TableRow) = table_columns_count(r.index)
-@inline row_number(r::TableRow) = r.row
+@inline table_columns_count(r::TableRow) = table_columns_count(getfield(r, :index))
+@inline row_number(r::TableRow) = getfield(r, :row)
 @inline get_column_labels(index::Index) = index.column_labels
 @inline get_column_labels(itr::TableRowIterator) = get_column_labels(itr.index)
-@inline get_column_labels(r::TableRow) = get_column_labels(r.index)
+@inline get_column_labels(r::TableRow) = get_column_labels(getfield(r, :index))
 @inline get_column_label(r::TableRow, table_column_number::Int) = get_column_labels(r)[table_column_number]
 
 # iterate into TableRow to get each column value
@@ -249,10 +249,10 @@ function TableRow(table_row::Int, index::Index, sheet_row::SheetRow)
     return TableRow(table_row, index, cell_values)
 end
 
-getdata(r::TableRow, table_column_number::Int) = r.cell_values[table_column_number]
+getdata(r::TableRow, table_column_number::Int) = getfield(r, :cell_values)[table_column_number]
 
 function getdata(r::TableRow, column_label::Symbol)
-    index = r.index
+    index = getfield(r, :index)
     if haskey(index.lookup, column_label)
         return getdata(r, index.lookup[column_label])
     else
@@ -516,3 +516,14 @@ function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, colu
     itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
+
+# Tables.jl interface
+using Tables
+Tables.istable(::Type{<:TableRowIterator}) = true
+Tables.rowaccess(::Type{<:TableRowIterator}) = true
+Tables.schema(tri::TableRowIterator) = nothing
+Tables.rows(tri::TableRowIterator) = tri
+
+Base.IteratorSize(::Type{<:TableRowIterator}) = Base.SizeUnknown()
+Base.propertynames(tr::TableRow) = Tuple(getfield(tr, :index).column_labels)
+Base.getproperty(tr::TableRow, nm::Symbol) = getdata(tr, nm)
