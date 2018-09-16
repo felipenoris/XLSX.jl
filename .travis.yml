@@ -14,5 +14,5 @@ env:
 notifications:
     email: false
 after_success:
-  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
-  - julia -e 'using Pkg; Pkg.add("Documenter"); include(joinpath("docs", "make.jl"))'
+  - julia -e 'ENV["TRAVIS_JULIA_VERSION"] != "1.0" && ENV["TRAVIS_OS_NAME"] != "linux" && exit(); using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  - julia -e 'ENV["TRAVIS_JULIA_VERSION"] != "1.0" && ENV["TRAVIS_OS_NAME"] != "linux" && exit(); using Pkg; Pkg.add("Documenter"); include(joinpath("docs", "make.jl"))'
