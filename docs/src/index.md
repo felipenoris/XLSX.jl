@@ -73,9 +73,9 @@ julia> xf["mysheet!A:B"] # Column ranges are also supported
 
 To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.
 
-The example above used `xf = XLSX.readxlsx(filename)` to open a file, so all file contents will be fetched at once from disk.
+The example above used `xf = XLSX.readxlsx(filename)` to open a file, so all file contents are fetched at once from disk.
 
-You can also use `XLSX.openxlsx` to read file contents as needed (see section about streaming below).
+You can also use `XLSX.openxlsx` to read file contents as needed (see [Reading Large Excel Files and Caching](@ref)).
 
 ## Read Tabular Data
 
