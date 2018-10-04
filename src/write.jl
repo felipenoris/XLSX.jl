@@ -603,6 +603,12 @@ function writetable(filename::AbstractString, data, columnnames; overwrite::Bool
     nothing
 end
 
+# Tables.jl integration
+getvector(x::AbstractVector) = x
+getvector(x) = collect(x)
+writetable(filename::AbstractString, x; kw...) =
+    writetable(filename, Any[getvector(c) for c in Tables.eachcolumn(x)], collect(Symbol, propertynames(x)); kw...)
+
 """
     writetable(filename::AbstractString; overwrite::Bool=false, kw...)
     writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; overwrite::Bool=false)
