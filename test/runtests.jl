@@ -1,8 +1,8 @@
 
 import XLSX
-using Test, Dates
+using Test, Dates, Tables
 
-data_directory = joinpath(@__DIR__, "..", "data")
+data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
 @assert isdir(data_directory)
 
 @testset "read test files" begin
@@ -1453,3 +1453,64 @@ end
     @test r2_col_names[2] == Symbol( esc_col_names[2] )
     @test r2_col_names[1] == Symbol( esc_col_names[1] )
 end
+
+@testset "Tables.jl integration" begin
+    f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
+    s = f["table"]
+    ct = XLSX.eachtablerow(s) |> columntable
+    @test isequal(ct, NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}(([1, 2, 3, 4, 5, 6, 7, 8], Union{Missing, String}["Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2"], Date[Date(2018,04,21), Date(2018,04,22), Date(2018,04,23), Date(2018,04,24), Date(2018,04,25), Date(2018,04,26), Date(2018,04,27), Date(2018,04,28)], Union{Missing, String}[missing, missing, missing, missing, missing, "a", "b", missing], [0.2001132319106511,0.27939873773400004,0.09505916768351352,0.07440230673248627,0.82422780912015,0.620588357787471,0.9174151017732964,0.6749604882690108], Missing[missing, missing, missing, missing, missing, missing, missing, missing])))
+    rt = XLSX.eachtablerow(s) |> rowtable
+    rt2 = [
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((1, "Str1", Date(2018,04,21), missing, 0.2001132319106511, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((2, missing, Date(2018,04,22), missing, 0.27939873773400004, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((3, "Str1", Date(2018,04,23), missing, 0.09505916768351352, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((4, "Str1", Date(2018,04,24), missing, 0.07440230673248627, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((5, "Str2", Date(2018,04,25), missing, 0.82422780912015, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((6, "Str2", Date(2018,04,26), "a", 0.620588357787471, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((7, "Str2", Date(2018,04,27), "b", 0.9174151017732964, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((8, "Str2", Date(2018,04,28), missing, 0.6749604882690108, missing))
+    ]
+    @test isequal(rt, rt2)
+    ct = XLSX.eachtablerow(f["table2"]) |> columntable
+    @test length(ct) == 3
+    @test length(ct[1]) == 4
+    ct = XLSX.eachtablerow(f["general"]) |> columntable
+    @test length(ct) == 2
+    @test length(ct[1]) == 9
+    ct = XLSX.eachtablerow(f["table3"]) |> columntable
+    @test length(ct) == 3
+    @test length(ct[1]) == 3
+    ct = XLSX.eachtablerow(f["table4"]) |> columntable
+    @test length(ct) == 3
+    @test length(ct[1]) == 3
+    ct = XLSX.eachtablerow(f["table5"]) |> columntable
+    @test length(ct) == 1
+    @test length(ct[1]) == 5
+    ct = XLSX.eachtablerow(f["table6"]) |> columntable
+    @test length(ct) == 0
+    ct = XLSX.eachtablerow(f["table7"]) |> columntable
+    @test length(ct) == 1
+    @test length(ct[1]) == 1
+
+    # write
+    col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
+    data = Vector{Any}(undef, 7)
+    data[1] = [1, 2, missing, 4]
+    data[2] = ["Hey", "You", "Out", "There"]
+    data[3] = [101.5, 102.5, missing, 104.5]
+    data[4] = [ true, false, missing, true]
+    data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
+    data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
+    data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+    table = NamedTuple{Tuple(Symbol(x) for x in col_names)}(Tuple(data))
+
+    XLSX.writetable("output_table.xlsx", table, overwrite=true, sheetname="report", anchor_cell="B2")
+    @test isfile("output_table.xlsx")
+
+    f = XLSX.readxlsx("output_table.xlsx")
+    s = f["report"]
+    table2 = XLSX.eachtablerow(s) |> columntable
+    @test isequal(table, table2)
+    rm("output_table.xlsx")
+end
+
