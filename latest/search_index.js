@@ -29,7 +29,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Requirements",
     "category": "section",
-    "text": "Julia v1.0\nLinux, OSX or Windows."
+    "text": "Julia v1.0\nLinux, macOS or Windows."
 },
 
 {
