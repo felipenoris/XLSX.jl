@@ -5,7 +5,9 @@ makedocs(
     format = :html,
     sitename = "XLSX.jl",
     modules = [ XLSX ],
-    pages = [ "index.md", "api.md" ]
+    pages = [ "Home" => "index.md",
+              "Tutorial" => "tutorial.md",
+              "API Reference" => "api.md" ]
 )
 
 deploydocs(
