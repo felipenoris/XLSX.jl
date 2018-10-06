@@ -28,7 +28,7 @@ julia> Pkg.add("XLSX")
 
 ## Source Code
 
-The source code for this package is hosted at https://github.com/felipenoris/XLSX.jl.
+The source code for this package is hosted at [https://github.com/felipenoris/XLSX.jl](https://github.com/felipenoris/XLSX.jl).
 
 ## License
 
