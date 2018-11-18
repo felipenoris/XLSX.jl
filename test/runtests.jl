@@ -1052,7 +1052,7 @@ end
         data[3] = [101.5, 102.5, missing, 104.5]
         data[4] = [ true, false, missing, true]
         data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
-        data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
+        data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0) ]
         data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
 
         XLSX.writetable("output_table.xlsx", data, col_names, overwrite=true, sheetname="report", anchor_cell="B2")
