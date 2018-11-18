@@ -1453,3 +1453,13 @@ end
     @test r2_col_names[2] == Symbol( esc_col_names[2] )
     @test r2_col_names[1] == Symbol( esc_col_names[1] )
 end
+
+@testset "row_index (#67)" begin
+    filename = "test_pr67.xlsx"
+    XLSX.openxlsx(filename, mode="w") do xf
+        xf[1]["A2"] = 5
+        xf[1]["A1"] = 7
+    end
+    @test isfile(filename)
+    rm(filename)
+end
