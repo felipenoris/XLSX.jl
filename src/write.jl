@@ -190,11 +190,7 @@ function setdata!(ws::Worksheet, cell::Cell)
         sort!(cache.rows_in_cache)
         cache.cells[r] = Dict{Int, Cell}()
 
-        for i in 1:length(cache.rows_in_cache)
-            if cache.rows_in_cache[i] == r
-                cache.row_index[r] = i
-            end
-        end
+        cache.row_index = Dict{Int, Int}(cache.rows_in_cache[i] => i for i in 1:length(cache.rows_in_cache))
     end
     cache.cells[r][c] = cell
 
