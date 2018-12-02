@@ -487,7 +487,7 @@ Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 Use this function to create a `DataFrame` from package `DataFrames.jl`.
 
 Use `columns` argument to specify which columns to get.
-For example, `columns="B:D"` will select columns `B`, `C` and `D`.
+For example, `"B:D"` will select columns `B`, `C` and `D`.
 If `columns` is not given, the algorithm will find the first sequence
 of consecutive non-empty cells.
 
