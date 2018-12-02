@@ -316,16 +316,26 @@ end
 const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 const RGX_COLUMN_RANGE_START = r"^[A-Z]+"
 const RGX_COLUMN_RANGE_STOP = r"[A-Z]+$"
+const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
 
 """
 Returns tuple (column_name_start, column_name_stop).
 """
 @inline function split_column_range(n::AbstractString)
-    s = split(n, ":")
-    return s[1], s[2]
+    if length(n) == 1
+        return n, n
+    else
+        s = split(n, ":")
+        return s[1], s[2]
+    end
 end
 
 function is_valid_column_range(r::AbstractString) :: Bool
+
+    if occursin(RGX_SINGLE_COLUMN, r)
+        return true
+    end
+
     if !occursin(RGX_COLUMN_RANGE, r)
         return false
     end

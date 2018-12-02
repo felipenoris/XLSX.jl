@@ -338,6 +338,12 @@ end
         @test XLSX.decode_column_number(v_column_names[i]) == v_column_numbers[i]
     end
 
+    @testset "ColumnRange" begin
+        c = XLSX.ColumnRange("C")
+        @test c.start == 3
+        @test c.stop == 3
+    end
+
     @test XLSX.CellRef(12, 2).name == "B12"
 
     cr = XLSX.range"A1:C4"
@@ -948,6 +954,19 @@ end
     test_data[2, 1] = "C3"
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "F12:F13") == test_data
+
+    @testset "readtable select single column" begin
+        data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F")
+        @test col_names == [ :H2 ]
+        @test data == Any[Any["C3"]]
+    end
+
+    @testset "readtable select column range" begin
+        data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F:G")
+        @test col_names == [ :H2, :H3 ]
+        test_data = Any[Any["C3", missing], Any[missing, "D4"]]
+        check_test_data(data, test_data)
+    end
 end
 
 @testset "Write" begin
