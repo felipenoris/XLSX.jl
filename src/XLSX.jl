@@ -3,9 +3,9 @@ __precompile__(true)
 module XLSX
 
 import Dates
-using Printf
-
-import ZipFile, EzXML
+import Printf.@printf
+import ZipFile
+import EzXML
 
 # https://github.com/fhs/ZipFile.jl/issues/39
 if !hasmethod(Base.bytesavailable, Tuple{ZipFile.ReadableFile})
