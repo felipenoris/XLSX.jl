@@ -76,7 +76,7 @@ function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Boo
     @static Sys.iswindows() ? GC.gc() : nothing
 end
 
-get_worksheet_internal_file(ws::Worksheet) = "xl/" * get_relationship_target_by_id(get_workbook(ws), ws.relationship_id)
+get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
 get_worksheet_xml_document(ws::Worksheet) = get_xlsxfile(ws).data[ get_worksheet_internal_file(ws) ]
 
 function set_worksheet_xml_document!(ws::Worksheet, xdoc::EzXML.Document)

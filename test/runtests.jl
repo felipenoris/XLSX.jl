@@ -33,8 +33,6 @@ data_directory = joinpath(@__DIR__, "..", "data")
     @test XLSX.sst_unformatted_string(ef_Book1, 0) == "B2"
     @test XLSX.sst_unformatted_string(ef_Book1, "0") == "B2"
 
-    @test_throws ErrorException XLSX.get_relationship_target_by_id(ef_Book1.workbook, "indalid_id")
-    @test_throws ErrorException XLSX.get_relationship_target_by_type(ef_Book1.workbook, "indalid_type")
     @test !XLSX.has_relationship_by_type(ef_Book1.workbook, "invalid_type")
 
     @test XLSX.get_dimension(ef_Book1["Sheet1"]) == XLSX.range"B2:C8"
@@ -1481,4 +1479,11 @@ end
     end
     @test isfile(filename)
     rm(filename)
+end
+
+@testset "relative paths (#62)" begin
+    xf = XLSX.readxlsx(joinpath(data_directory, "openpyxl.xlsx"))
+    @test XLSX.sheetnames(xf) == [ "Sheet", "Test1" ]
+    @test xf["Test1"]["A1"] == "One"
+    @test xf["Test1"]["A2"] == 1
 end

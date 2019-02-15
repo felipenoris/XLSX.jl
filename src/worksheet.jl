@@ -11,7 +11,7 @@ end
 
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRange
     wb = get_workbook(xf)
-    target_file = "xl/" * get_relationship_target_by_id(wb, relationship_id)
+    target_file = get_relationship_target_by_id("xl", wb, relationship_id)
     zip_io, reader = open_internal_file_stream(xf, target_file)
 
     local result::Union{Nothing, CellRange} = nothing

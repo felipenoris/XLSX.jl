@@ -83,7 +83,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     if state == nothing # first iteration. Will open a stream and create the first state instance
         state = let
             ws = get_worksheet(itr)
-            target_file = "xl/" * get_relationship_target_by_id(get_workbook(ws), ws.relationship_id)
+            target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             zip_io, reader = open_internal_file_stream(get_xlsxfile(ws), target_file)
 
             # The reader will be positioned in the first row element inside sheetData
