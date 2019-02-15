@@ -182,7 +182,9 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
 
                 # Binary file
                 # we only read binary files to save the Excel file later
-                xf.binary_data[f.name] = ZipFile.read(f, UInt8, f.uncompressedsize)
+                bytes = ZipFile.read(f)
+                @assert sizeof(bytes) == f.uncompressedsize
+                xf.binary_data[f.name] = bytes
             end
         end
 
