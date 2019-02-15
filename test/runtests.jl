@@ -1487,3 +1487,11 @@ end
     @test xf["Test1"]["A1"] == "One"
     @test xf["Test1"]["A2"] == 1
 end
+
+@testset "windows compatibility (#62) (#71)" begin
+    xf = XLSX.open_xlsx_template(joinpath(data_directory, "issue62_71.xlsx"))
+    @test xf["Sheet1"]["A1"] == "One"
+    @test xf["Sheet1"]["A2"] == 1
+
+    @test collect(keys(xf.binary_data)) == ["xl/printerSettings/printerSettings1.bin"]
+end
