@@ -1488,8 +1488,8 @@ end
     @test xf["Test1"]["A2"] == 1
 end
 
-@testset "windows compatibility (#71) (#72)" begin
-    xf = XLSX.open_xlsx_template(joinpath(data_directory, "issue71_72.xlsx"))
+@testset "windows compatibility (#62) (#71)" begin
+    xf = XLSX.open_xlsx_template(joinpath(data_directory, "issue71.xlsx"))
     @test xf["Sheet1"]["A1"] == "One"
     @test xf["Sheet1"]["A2"] == 1
 
