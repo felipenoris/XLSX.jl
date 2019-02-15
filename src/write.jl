@@ -55,18 +55,18 @@ function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Boo
             continue
         end
 
-        io = ZipFile.addfile(xlsx, f)
+        io = ZipFile.addfile(xlsx, f, method=ZipFile.Deflate)
         EzXML.print(io, xf.data[f])
     end
 
     # write binary files
     for f in keys(xf.binary_data)
-        io = ZipFile.addfile(xlsx, f)
+        io = ZipFile.addfile(xlsx, f, method=ZipFile.Deflate)
         ZipFile.write(io, xf.binary_data[f])
     end
 
     if !isempty(get_sst(xf))
-        io = ZipFile.addfile(xlsx, "xl/sharedStrings.xml")
+        io = ZipFile.addfile(xlsx, "xl/sharedStrings.xml", method=ZipFile.Deflate)
         print(io, generate_sst_xml_string(get_sst(xf)))
     end
 
