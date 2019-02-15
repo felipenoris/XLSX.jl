@@ -28,6 +28,14 @@ function open_empty_template(sheetname::AbstractString="") :: XLSXFile
     return xf
 end
 
+function addzipfile(xlsx, f)
+    @static if Sys.iswindows() && VERSION < v"1.2"
+        return ZipFile.addfile(xlsx, f)
+    else
+        return ZipFile.addfile(xlsx, f, method=ZipFile.Deflate)
+    end
+end
+
 """
     writexlsx(output_filepath, xlsx_file; [overwrite=false])
 
@@ -55,18 +63,18 @@ function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Boo
             continue
         end
 
-        io = ZipFile.addfile(xlsx, f, method=ZipFile.Deflate)
+        io = addzipfile(xlsx, f)
         EzXML.print(io, xf.data[f])
     end
 
     # write binary files
     for f in keys(xf.binary_data)
-        io = ZipFile.addfile(xlsx, f, method=ZipFile.Deflate)
+        io = addzipfile(xlsx, f)
         ZipFile.write(io, xf.binary_data[f])
     end
 
     if !isempty(get_sst(xf))
-        io = ZipFile.addfile(xlsx, "xl/sharedStrings.xml", method=ZipFile.Deflate)
+        io = addzipfile(xlsx, "xl/sharedStrings.xml")
         print(io, generate_sst_xml_string(get_sst(xf)))
     end
 
