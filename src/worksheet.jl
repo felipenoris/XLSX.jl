@@ -10,29 +10,31 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
 end
 
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRange
+    local result::Union{Nothing, CellRange} = nothing
+
     wb = get_workbook(xf)
     target_file = get_relationship_target_by_id("xl", wb, relationship_id)
     zip_io, reader = open_internal_file_stream(xf, target_file)
 
-    local result::Union{Nothing, CellRange} = nothing
+    try
+        # read Worksheet dimension
+        while EzXML.iterate(reader) != nothing
+            if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "dimension"
+                @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(EzXML.nodedepth(reader))."
+                ref_str = reader["ref"]
+                if is_valid_cellname(ref_str)
+                    result = CellRange("$(ref_str):$(ref_str)")
+                else
+                    result = CellRange(ref_str)
+                end
 
-    # read Worksheet dimension
-    while EzXML.iterate(reader) != nothing
-        if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "dimension"
-            @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(EzXML.nodedepth(reader))."
-            ref_str = reader["ref"]
-            if is_valid_cellname(ref_str)
-                result = CellRange("$(ref_str):$(ref_str)")
-            else
-                result = CellRange(ref_str)
+                break
             end
-
-            break
         end
+    finally
+        close(reader)
+        close(zip_io)
     end
-
-    close(reader)
-    close(zip_io)
 
     if result == nothing
         error("Couldn't parse worksheet $name dimension.")
@@ -250,13 +252,15 @@ function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
         columns[i] = Vector{AbstractCell}()
     end
 
-    left, right = column_bounds(rng)
+    let
+        left, right = column_bounds(rng)
 
-    for sheetrow in eachrow(ws)
-        for column in left:right
-            cell = getcell(sheetrow, column)
-            c = relative_column_position(cell, rng) # r will be ignored
-            push!(columns[c], cell)
+        for sheetrow in eachrow(ws)
+            for column in left:right
+                cell = getcell(sheetrow, column)
+                c = relative_column_position(cell, rng) # r will be ignored
+                push!(columns[c], cell)
+            end
         end
     end
 

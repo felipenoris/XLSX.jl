@@ -67,18 +67,21 @@ Adds new relationship. Returns new generated rId.
 function add_relationship!(wb::Workbook, target::String, _type::String) :: String
     xf = get_xlsxfile(wb)
     @assert is_writable(xf) "XLSXFile instance is not writable."
-    got_unique_id = false
-    id = 1
     local rId :: String
 
-    while !got_unique_id
-        got_unique_id = true
-        rId = string("rId", id)
-        for r in wb.relationships
-            if r.Id == rId
-                got_unique_id = false
-                id += 1
-                break
+    let
+        got_unique_id = false
+        id = 1
+
+        while !got_unique_id
+            got_unique_id = true
+            rId = string("rId", id)
+            for r in wb.relationships
+                if r.Id == rId
+                    got_unique_id = false
+                    id += 1
+                    break
+                end
             end
         end
     end

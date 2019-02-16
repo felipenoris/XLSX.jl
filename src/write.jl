@@ -129,12 +129,12 @@ function update_worksheets_xml!(xl::XLSXFile)
         doc_copy = EzXML.parsexml(String(take!(buff)))
 
         # deletes all elements under sheetData
-        child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
-        for c in child_nodes
-            EzXML.unlink!(c)
+        let
+            child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
+            for c in child_nodes
+                EzXML.unlink!(c)
+            end
         end
-        c = nothing
-        child_nodes = nothing
 
         # updates sheetData
         sheetData_node = EzXML.findfirst("/xpath:worksheet/xpath:sheetData", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
@@ -176,8 +176,10 @@ function update_worksheets_xml!(xl::XLSXFile)
         end
 
         # updates worksheet dimension
-        dimension_node = EzXML.findfirst("/xpath:worksheet/xpath:dimension", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
-        dimension_node["ref"] = string(get_dimension(sheet))
+        let
+            dimension_node = EzXML.findfirst("/xpath:worksheet/xpath:dimension", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
+            dimension_node["ref"] = string(get_dimension(sheet))
+        end
 
         set_worksheet_xml_document!(sheet, doc_copy)
     end
