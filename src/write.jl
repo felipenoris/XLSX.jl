@@ -138,7 +138,12 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # updates sheetData
         sheetData_node = EzXML.findfirst("/xpath:worksheet/xpath:sheetData", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
-        spans_str = string(column_number(get_dimension(sheet).start), ":", column_number(get_dimension(sheet).stop))
+
+        local spans_str::String = ""
+
+        if get_dimension(sheet) != nothing
+            spans_str = string(column_number(get_dimension(sheet).start), ":", column_number(get_dimension(sheet).stop))
+        end
 
         # iterates over WorksheetCache cells and write the XML
         for r in eachrow(sheet)
@@ -146,7 +151,10 @@ function update_worksheets_xml!(xl::XLSXFile)
 
             row_node = EzXML.addelement!(sheetData_node, "row")
             row_node["r"] = string(row_number(r))
-            row_node["spans"] = spans_str
+
+            if spans_str != ""
+                row_node["spans"] = spans_str
+            end
 
             # add cells to row
             for c in ordered_column_indexes
@@ -176,12 +184,43 @@ function update_worksheets_xml!(xl::XLSXFile)
         end
 
         # updates worksheet dimension
-        let
+        if get_dimension(sheet) != nothing
             dimension_node = EzXML.findfirst("/xpath:worksheet/xpath:dimension", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
             dimension_node["ref"] = string(get_dimension(sheet))
         end
 
         set_worksheet_xml_document!(sheet, doc_copy)
+    end
+
+    nothing
+end
+
+function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)
+    # update worksheet dimension
+    ws_dimension = get_dimension(ws)
+
+    if ws_dimension == nothing
+        set_dimension!(ws, CellRange(cell.ref, cell.ref))
+        return
+    end
+
+    top = row_number(ws_dimension.start)
+    left = column_number(ws_dimension.start)
+
+    bottom = row_number(ws_dimension.stop)
+    right = column_number(ws_dimension.stop)
+
+    r = row_number(cell)
+    c = column_number(cell)
+
+    if r < top || c < left
+        top = min(r, top)
+        left = min(c, left)
+        set_dimension!(ws, CellRange(top, left, bottom, right))
+    elseif r > bottom || c > right
+        bottom = max(r, bottom)
+        right = max(c, right)
+        set_dimension!(ws, CellRange(top, left, bottom, right))
     end
 
     nothing
@@ -203,25 +242,7 @@ function setdata!(ws::Worksheet, cell::Cell)
         cache.row_index = Dict{Int, Int}(cache.rows_in_cache[i] => i for i in 1:length(cache.rows_in_cache))
     end
     cache.cells[r][c] = cell
-
-    # update worksheet dimension
-    ws_dimension = get_dimension(ws)
-
-    top = row_number(ws_dimension.start)
-    left = column_number(ws_dimension.start)
-
-    bottom = row_number(ws_dimension.stop)
-    right = column_number(ws_dimension.stop)
-
-    if r < top || c < left
-        top = min(r, top)
-        left = min(c, left)
-        set_dimension!(ws, CellRange(top, left, bottom, right))
-    elseif r > bottom || c > right
-        bottom = max(r, bottom)
-        right = max(c, right)
-        set_dimension!(ws, CellRange(top, left, bottom, right))
-    end
+    add_cell_to_worksheet_dimension!(ws, cell)
 
     nothing
 end

@@ -9,7 +9,8 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     return Worksheet(xf, sheetId, relationship_id, name, dim)
 end
 
-function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRange
+# 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
+function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{Nothing, CellRange}
     local result::Union{Nothing, CellRange} = nothing
 
     wb = get_workbook(xf)
@@ -36,11 +37,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRa
         close(zip_io)
     end
 
-    if result == nothing
-        error("Couldn't parse worksheet $name dimension.")
-    else
-        return result
-    end
+    return result
 end
 
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
@@ -48,7 +45,7 @@ end
 """
 Retuns the dimension of this worksheet as a CellRange.
 """
-@inline get_dimension(ws::Worksheet) :: CellRange = ws.dimension
+@inline get_dimension(ws::Worksheet) = ws.dimension
 
 function set_dimension!(ws::Worksheet, rng::CellRange)
     ws.dimension = rng
@@ -162,15 +159,26 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
 end
 
 getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
-getdata(ws::Worksheet) = getdata(ws, get_dimension(ws))
+
+function getdata(ws::Worksheet)
+    if ws.dimension != nothing
+        return getdata(ws, get_dimension(ws))
+    else
+        error("Worksheet dimension is unknown.")
+    end
+end
 
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 function Base.show(io::IO, ws::Worksheet)
-    rg = get_dimension(ws)
-    nrow, ncol = size(rg)
-    @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
+    if get_dimension(ws) != nothing
+        rg = get_dimension(ws)
+        nrow, ncol = size(rg)
+        @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
+    else
+        @printf(io, "%s: [\"%s\"]", typeof(ws), ws.name)
+    end
 end
 
 """

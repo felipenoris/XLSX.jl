@@ -340,9 +340,14 @@ end
         c = XLSX.ColumnRange("C")
         @test c.start == 3
         @test c.stop == 3
+        show(IOBuffer(), c)
     end
 
-    @test XLSX.CellRef(12, 2).name == "B12"
+    @testset "CellRef" begin
+        ref = XLSX.CellRef(12, 2)
+        @test ref.name == "B12"
+        show(IOBuffer(), ref)
+    end
 
     cr = XLSX.range"A1:C4"
     @test string(cr) == "A1:C4"
@@ -351,6 +356,7 @@ end
     @test XLSX.row_number(cr.stop) == 4
     @test XLSX.column_number(cr.stop) == 3
     @test size(cr) == (4, 3)
+    show(IOBuffer(), cr)
 
     cr = XLSX.range"B2:C8"
     @test XLSX.ref"B2" ∈ cr
@@ -394,6 +400,7 @@ end
     @test ref.cellref == XLSX.CellRef("A2")
     @test XLSX.SheetCellRef("Sheet1!A2") == XLSX.SheetCellRef("Sheet1!A2")
     @test hash(XLSX.SheetCellRef("Sheet1!A2")) == hash(XLSX.SheetCellRef("Sheet1!A2"))
+    show(IOBuffer(), ref)
 
     ref = XLSX.SheetCellRange("Sheet1!A1:B4")
     @test ref.sheet == "Sheet1"
@@ -401,6 +408,7 @@ end
     @test_throws AssertionError XLSX.SheetCellRange("Sheet1!B4:A1")
     @test XLSX.SheetCellRange("Sheet1!A1:B4") == XLSX.SheetCellRange("Sheet1!A1:B4")
     @test hash(XLSX.SheetCellRange("Sheet1!A1:B4")) == hash(XLSX.SheetCellRange("Sheet1!A1:B4"))
+    show(IOBuffer(), ref)
 
     ref = XLSX.SheetColumnRange("Sheet1!A:B")
     @test string(ref) == "Sheet1!A:B"
@@ -408,6 +416,7 @@ end
     @test ref.colrng == XLSX.ColumnRange("A:B")
     @test XLSX.SheetColumnRange("Sheet1!A:B") == XLSX.SheetColumnRange("Sheet1!A:B")
     @test hash(XLSX.SheetColumnRange("Sheet1!A:B")) == hash(XLSX.SheetColumnRange("Sheet1!A:B"))
+    show(IOBuffer(), ref)
 
     @test XLSX.is_valid_fixed_sheet_cellname("named_ranges!\$A\$2")
     @test XLSX.is_valid_fixed_sheet_cellrange("named_ranges!\$B\$4:\$C\$5")
@@ -419,7 +428,9 @@ end
 
 @testset "getindex" begin
     f = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
+    show(IOBuffer(), f)
     sheet1 = f["Sheet1"]
+    show(IOBuffer(), sheet1)
     @test sheet1["B2"] == "B2"
     @test isapprox(sheet1["C3"], 21.2)
     @test sheet1["B5"] == Date(2018, 3, 21)
@@ -432,6 +443,7 @@ end
 
     # a cell can be put in a dict
     c = XLSX.getcell(sheet1, "B2")
+    show(IOBuffer(), c)
     dct = Dict("a" => c)
     @test dct["a"] == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
 
@@ -1471,7 +1483,8 @@ end
     @test r2_col_names[1] == Symbol( esc_col_names[1] )
 end
 
-@testset "row_index (#67)" begin
+# issue #67
+@testset "row_index" begin
     filename = "test_pr67.xlsx"
     XLSX.openxlsx(filename, mode="w") do xf
         xf[1]["A2"] = 5
@@ -1481,14 +1494,27 @@ end
     rm(filename)
 end
 
-@testset "relative paths (#62)" begin
-    xf = XLSX.readxlsx(joinpath(data_directory, "openpyxl.xlsx"))
-    @test XLSX.sheetnames(xf) == [ "Sheet", "Test1" ]
-    @test xf["Test1"]["A1"] == "One"
-    @test xf["Test1"]["A2"] == 1
+# issues #62, #75
+@testset "relative paths" begin
+    let
+        xf = XLSX.readxlsx(joinpath(data_directory, "openpyxl.xlsx"))
+        @test XLSX.sheetnames(xf) == [ "Sheet", "Test1" ]
+        @test xf["Test1"]["A1"] == "One"
+        @test xf["Test1"]["A2"] == 1
+        show(IOBuffer(), xf)
+        show(IOBuffer(), xf["Sheet"])
+        show(IOBuffer(), xf["Test1"])
+    end
+
+    let
+        data, col_names = XLSX.readtable(joinpath(data_directory, "openpyxl.xlsx"), "Test1")
+        @test data == [ [1, 3], [2, 4]]
+        @test col_names == [:One, :Two]
+    end
 end
 
-@testset "windows compatibility (#62) (#71)" begin
+# issues #62, #71
+@testset "windows compatibility" begin
     xf = XLSX.open_xlsx_template(joinpath(data_directory, "issue62_71.xlsx"))
     @test xf["Sheet1"]["A1"] == "One"
     @test xf["Sheet1"]["A2"] == 1
