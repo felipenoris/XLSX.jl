@@ -5,7 +5,7 @@
 [![travis][travis-img]][travis-url]
 [![appveyor][appveyor-img]][appveyor-url]
 [![codecov][codecov-img]][codecov-url]
-[![latest][docs-latest-img]][docs-latest-url]
+[![dev][docs-dev-img]][docs-dev-url]
 [![stable][docs-stable-img]][docs-stable-url]
 
 [license-img]: http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat
@@ -15,8 +15,8 @@
 [appveyor-url]: https://ci.appveyor.com/project/felipenoris/xlsx-jl/branch/master
 [codecov-img]: https://img.shields.io/codecov/c/github/felipenoris/XLSX.jl/master.svg?label=codecov
 [codecov-url]: http://codecov.io/github/felipenoris/XLSX.jl?branch=master
-[docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
-[docs-latest-url]: https://felipenoris.github.io/XLSX.jl/latest
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://felipenoris.github.io/XLSX.jl/dev
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://felipenoris.github.io/XLSX.jl/stable
 
@@ -27,6 +27,10 @@ Excel file reader/writer coded in pure Julia.
 ```julia
 julia> Pkg.add("XLSX")
 ```
+
+## Documentation
+
+Package documentation is hosted at https://felipenoris.github.io/XLSX.jl/stable.
 
 ## References
 
