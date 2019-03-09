@@ -1,7 +1,7 @@
 var documenterSearchIndex = {"docs": [
 
 {
-    "location": "index.html#",
+    "location": "#",
     "page": "Home",
     "title": "Home",
     "category": "page",
@@ -9,7 +9,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#XLSX.jl-1",
+    "location": "#XLSX.jl-1",
     "page": "Home",
     "title": "XLSX.jl",
     "category": "section",
@@ -17,7 +17,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#Introduction-1",
+    "location": "#Introduction-1",
     "page": "Home",
     "title": "Introduction",
     "category": "section",
@@ -25,7 +25,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#Requirements-1",
+    "location": "#Requirements-1",
     "page": "Home",
     "title": "Requirements",
     "category": "section",
@@ -33,7 +33,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#Installation-1",
+    "location": "#Installation-1",
     "page": "Home",
     "title": "Installation",
     "category": "section",
@@ -41,7 +41,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#Source-Code-1",
+    "location": "#Source-Code-1",
     "page": "Home",
     "title": "Source Code",
     "category": "section",
@@ -49,7 +49,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#License-1",
+    "location": "#License-1",
     "page": "Home",
     "title": "License",
     "category": "section",
@@ -57,7 +57,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#References-1",
+    "location": "#References-1",
     "page": "Home",
     "title": "References",
     "category": "section",
@@ -65,7 +65,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#Alternative-Packages-1",
+    "location": "#Alternative-Packages-1",
     "page": "Home",
     "title": "Alternative Packages",
     "category": "section",
@@ -73,7 +73,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#",
+    "location": "tutorial/#",
     "page": "Tutorial",
     "title": "Tutorial",
     "category": "page",
@@ -81,7 +81,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Tutorial-1",
+    "location": "tutorial/#Tutorial-1",
     "page": "Tutorial",
     "title": "Tutorial",
     "category": "section",
@@ -89,7 +89,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Setup-1",
+    "location": "tutorial/#Setup-1",
     "page": "Tutorial",
     "title": "Setup",
     "category": "section",
@@ -97,7 +97,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Getting-Started-1",
+    "location": "tutorial/#Getting-Started-1",
     "page": "Tutorial",
     "title": "Getting Started",
     "category": "section",
@@ -105,15 +105,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Read-Tabular-Data-1",
+    "location": "tutorial/#Read-Tabular-Data-1",
     "page": "Tutorial",
     "title": "Read Tabular Data",
     "category": "section",
-    "text": "The gettable method returns tabular data from a spreadsheet as a tuple (data, column_labels). You can use it to create a DataFrame from DataFrames.jl. Check the docstring for gettable method for more advanced options.There\'s also a helper method readtable to read from file directly, as shown in the following example.julia> using DataFrames, XLSX\n\njulia> df = DataFrame(XLSX.readtable(\"myfile.xlsx\", \"mysheet\")...)\n3×2 DataFrames.DataFrame\n│ Row │ HeaderA │ HeaderB  │\n├─────┼─────────┼──────────┤\n│ 1   │ 1       │ \"first\"  │\n│ 2   │ 2       │ \"second\" │\n│ 3   │ 3       │ \"third\"  │"
+    "text": "The gettable method returns tabular data from a spreadsheet as a tuple (data, column_labels). You can use it to create a DataFrame from DataFrames.jl. Check the docstring for gettable method for more advanced options.There\'s also a helper method readtable to read from file directly, as shown in the following example. In this case, the ... operator will splat the tuple (data, column_labels) into the constructor of DataFrame.julia> using DataFrames, XLSX\n\njulia> df = DataFrame(XLSX.readtable(\"myfile.xlsx\", \"mysheet\")...)\n3×2 DataFrames.DataFrame\n│ Row │ HeaderA │ HeaderB  │\n├─────┼─────────┼──────────┤\n│ 1   │ 1       │ \"first\"  │\n│ 2   │ 2       │ \"second\" │\n│ 3   │ 3       │ \"third\"  │"
 },
 
 {
-    "location": "tutorial.html#Reading-Large-Excel-Files-and-Caching-1",
+    "location": "tutorial/#Reading-Large-Excel-Files-and-Caching-1",
     "page": "Tutorial",
     "title": "Reading Large Excel Files and Caching",
     "category": "section",
@@ -121,7 +121,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Writing-Excel-Files-1",
+    "location": "tutorial/#Writing-Excel-Files-1",
     "page": "Tutorial",
     "title": "Writing Excel Files",
     "category": "section",
@@ -129,7 +129,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Create-New-Files-1",
+    "location": "tutorial/#Create-New-Files-1",
     "page": "Tutorial",
     "title": "Create New Files",
     "category": "section",
@@ -137,7 +137,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Edit-Existing-Files-1",
+    "location": "tutorial/#Edit-Existing-Files-1",
     "page": "Tutorial",
     "title": "Edit Existing Files",
     "category": "section",
@@ -145,7 +145,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "tutorial.html#Export-Tabular-Data-1",
+    "location": "tutorial/#Export-Tabular-Data-1",
     "page": "Tutorial",
     "title": "Export Tabular Data",
     "category": "section",
@@ -153,7 +153,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#",
+    "location": "api/#",
     "page": "API Reference",
     "title": "API Reference",
     "category": "page",
@@ -161,7 +161,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.CellDataFormat",
+    "location": "api/#XLSX.CellDataFormat",
     "page": "API Reference",
     "title": "XLSX.CellDataFormat",
     "category": "type",
@@ -169,7 +169,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.CellRange",
+    "location": "api/#XLSX.CellRange",
     "page": "API Reference",
     "title": "XLSX.CellRange",
     "category": "type",
@@ -177,7 +177,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.CellRef",
+    "location": "api/#XLSX.CellRef",
     "page": "API Reference",
     "title": "XLSX.CellRef",
     "category": "type",
@@ -185,7 +185,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.CellValue",
+    "location": "api/#XLSX.CellValue",
     "page": "API Reference",
     "title": "XLSX.CellValue",
     "category": "type",
@@ -193,7 +193,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.Relationship",
+    "location": "api/#XLSX.Relationship",
     "page": "API Reference",
     "title": "XLSX.Relationship",
     "category": "type",
@@ -201,7 +201,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.SharedStringTable",
+    "location": "api/#XLSX.SharedStringTable",
     "page": "API Reference",
     "title": "XLSX.SharedStringTable",
     "category": "type",
@@ -209,7 +209,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.SheetRowIterator",
+    "location": "api/#XLSX.SheetRowIterator",
     "page": "API Reference",
     "title": "XLSX.SheetRowIterator",
     "category": "type",
@@ -217,7 +217,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.Workbook",
+    "location": "api/#XLSX.Workbook",
     "page": "API Reference",
     "title": "XLSX.Workbook",
     "category": "type",
@@ -225,7 +225,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.XLSXFile",
+    "location": "api/#XLSX.XLSXFile",
     "page": "API Reference",
     "title": "XLSX.XLSXFile",
     "category": "type",
@@ -233,7 +233,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#Base.in-Tuple{XLSX.CellRef,XLSX.CellRange}",
+    "location": "api/#Base.in-Tuple{XLSX.CellRef,XLSX.CellRange}",
     "page": "API Reference",
     "title": "Base.in",
     "category": "method",
@@ -241,7 +241,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#Base.issubset-Tuple{XLSX.CellRange,XLSX.CellRange}",
+    "location": "api/#Base.issubset-Tuple{XLSX.CellRange,XLSX.CellRange}",
     "page": "API Reference",
     "title": "Base.issubset",
     "category": "method",
@@ -249,7 +249,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#Base.iterate",
+    "location": "api/#Base.iterate",
     "page": "API Reference",
     "title": "Base.iterate",
     "category": "function",
@@ -257,7 +257,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.add_relationship!-Tuple{XLSX.Workbook,String,String}",
+    "location": "api/#XLSX.add_relationship!-Tuple{XLSX.Workbook,String,String}",
     "page": "API Reference",
     "title": "XLSX.add_relationship!",
     "category": "method",
@@ -265,7 +265,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.add_shared_string!-Tuple{XLSX.Workbook,AbstractString,AbstractString}",
+    "location": "api/#XLSX.add_shared_string!-Tuple{XLSX.Workbook,AbstractString,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.add_shared_string!",
     "category": "method",
@@ -273,7 +273,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.addsheet!",
+    "location": "api/#XLSX.addsheet!",
     "page": "API Reference",
     "title": "XLSX.addsheet!",
     "category": "function",
@@ -281,7 +281,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.column_bounds-Tuple{XLSX.SheetRow}",
+    "location": "api/#XLSX.column_bounds-Tuple{XLSX.SheetRow}",
     "page": "API Reference",
     "title": "XLSX.column_bounds",
     "category": "method",
@@ -289,7 +289,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.column_number-Tuple{XLSX.CellRef}",
+    "location": "api/#XLSX.column_number-Tuple{XLSX.CellRef}",
     "page": "API Reference",
     "title": "XLSX.column_number",
     "category": "method",
@@ -297,15 +297,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.decode_column_number-Tuple{AbstractString}",
+    "location": "api/#XLSX.decode_column_number-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.decode_column_number",
     "category": "method",
-    "text": "decode_column_number(column_name::AbstractString) :: Int\n\nConverts column name to a column number.\n\njulia> XLSX.decode_column_number(\"D\")\n4\n\nSee also: encode_column_number.\n\n\n\n\n\n"
+    "text": "decode_column_number(column_name::AbstractString) :: Int\n\nConverts column name to a column number.\n\njulia> XLSX.decode_column_number(\"D\")\n4\n\nSee also: XLSX.encode_column_number.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.default_cell_format-Tuple{XLSX.Worksheet,Union{Missing, Bool, Float64, Int64, Date, DateTime, Time, String}}",
+    "location": "api/#XLSX.default_cell_format-Tuple{XLSX.Worksheet,Union{Missing, Bool, Float64, Int64, Date, DateTime, Time, String}}",
     "page": "API Reference",
     "title": "XLSX.default_cell_format",
     "category": "method",
@@ -313,7 +313,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.eachrow-Tuple{XLSX.Worksheet}",
+    "location": "api/#XLSX.eachrow-Tuple{XLSX.Worksheet}",
     "page": "API Reference",
     "title": "XLSX.eachrow",
     "category": "method",
@@ -321,39 +321,39 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.eachtablerow-Tuple{XLSX.Worksheet,Union{ColumnRange, AbstractString}}",
+    "location": "api/#XLSX.eachtablerow-Tuple{XLSX.Worksheet,Union{ColumnRange, AbstractString}}",
     "page": "API Reference",
     "title": "XLSX.eachtablerow",
     "category": "method",
-    "text": "eachtablerow(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row], [stop_in_row_function])\n\nConstructs an iterator of table rows. Each element of the iterator is of type TableRow.\n\nheader is a boolean indicating wether the first row of the table is a table header.\n\nIf header == false and no names were supplied, column names will be generated following the column names found in the Excel file. Also, the column range will be inferred by the non-empty contiguous cells in the first row of the table.\n\nThe user can replace column names by assigning the optional names input variable with a Vector{Symbol}.\n\nstop_in_empty_row is a boolean indicating wether an empty row marks the end of the table. If stop_in_empty_row=false, the iterator will continue to fetch rows until there\'s no more rows in the Worksheet. The default behavior is stop_in_empty_row=true. Empty rows may be returned by the iterator when stop_in_empty_row=false.\n\nstop_in_row_function is a Function that receives a TableRow and returns a Bool indicating if the end of the table was reached.\n\nExample for stop_in_row_function:\n\nfunction stop_function(r)\n    v = r[:col_label]\n    return !ismissing(v) && v == \"unwanted value\"\nend\n\nExample code:\n\nfor r in XLSX.eachtablerow(sheet)\n    # r is a `TableRow`. Values are read using column labels or numbers.\n    rn = XLSX.row_number(r) # `TableRow` row number.\n    v1 = r[1] # will read value at table column 1.\n    v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`.\nend\n\nSee also gettable.\n\n\n\n\n\n"
+    "text": "eachtablerow(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row], [stop_in_row_function])\n\nConstructs an iterator of table rows. Each element of the iterator is of type TableRow.\n\nheader is a boolean indicating wether the first row of the table is a table header.\n\nIf header == false and no names were supplied, column names will be generated following the column names found in the Excel file. Also, the column range will be inferred by the non-empty contiguous cells in the first row of the table.\n\nThe user can replace column names by assigning the optional names input variable with a Vector{Symbol}.\n\nstop_in_empty_row is a boolean indicating wether an empty row marks the end of the table. If stop_in_empty_row=false, the iterator will continue to fetch rows until there\'s no more rows in the Worksheet. The default behavior is stop_in_empty_row=true. Empty rows may be returned by the iterator when stop_in_empty_row=false.\n\nstop_in_row_function is a Function that receives a TableRow and returns a Bool indicating if the end of the table was reached.\n\nExample for stop_in_row_function:\n\nfunction stop_function(r)\n    v = r[:col_label]\n    return !ismissing(v) && v == \"unwanted value\"\nend\n\nExample code:\n\nfor r in XLSX.eachtablerow(sheet)\n    # r is a `TableRow`. Values are read using column labels or numbers.\n    rn = XLSX.row_number(r) # `TableRow` row number.\n    v1 = r[1] # will read value at table column 1.\n    v2 = r[:COL_LABEL2] # will read value at column labeled `:COL_LABEL2`.\nend\n\nSee also XLSX.gettable.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.encode_column_number-Tuple{Int64}",
+    "location": "api/#XLSX.encode_column_number-Tuple{Int64}",
     "page": "API Reference",
     "title": "XLSX.encode_column_number",
     "category": "method",
-    "text": "encode_column_number(column_number::Int) :: String\n\nConverts column number to a column name.\n\nExample\n\njulia> XLSX.encode_column_number(4)\n\"D\"\n\nSee also: decode_column_number.\n\n\n\n\n\n"
+    "text": "encode_column_number(column_number::Int) :: String\n\nConverts column number to a column name.\n\nExample\n\njulia> XLSX.encode_column_number(4)\n\"D\"\n\nSee also: XLSX.decode_column_number.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.excel_value_to_date-Tuple{Int64,Bool}",
+    "location": "api/#XLSX.excel_value_to_date-Tuple{Int64,Bool}",
     "page": "API Reference",
     "title": "XLSX.excel_value_to_date",
     "category": "method",
-    "text": "Converts Excel number to Date.\n\nSee also: isdate1904 function.\n\n\n\n\n\n"
+    "text": "Converts Excel number to Date.\n\nSee also: XLSX.isdate1904 function.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.excel_value_to_datetime-Tuple{Float64,Bool}",
+    "location": "api/#XLSX.excel_value_to_datetime-Tuple{Float64,Bool}",
     "page": "API Reference",
     "title": "XLSX.excel_value_to_datetime",
     "category": "method",
-    "text": "Converts Excel number to DateTime.\n\nThe decimal part represents the Time (see _time function). The integer part represents the Date.\n\nSee also: isdate1904 function.\n\n\n\n\n\n"
+    "text": "Converts Excel number to DateTime.\n\nThe decimal part represents the Time (see _time function). The integer part represents the Date.\n\nSee also: XLSX.isdate1904.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.excel_value_to_time-Tuple{Float64}",
+    "location": "api/#XLSX.excel_value_to_time-Tuple{Float64}",
     "page": "API Reference",
     "title": "XLSX.excel_value_to_time",
     "category": "method",
@@ -361,7 +361,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.filenames-Tuple{XLSX.XLSXFile}",
+    "location": "api/#XLSX.filenames-Tuple{XLSX.XLSXFile}",
     "page": "API Reference",
     "title": "XLSX.filenames",
     "category": "method",
@@ -369,15 +369,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.get_dimension-Tuple{XLSX.Worksheet}",
+    "location": "api/#XLSX.get_dimension-Tuple{XLSX.Worksheet}",
     "page": "API Reference",
     "title": "XLSX.get_dimension",
     "category": "method",
-    "text": "Retuns the dimension of this worksheet as a CellRange.\n\n\n\n\n\n"
+    "text": "get_dimension(ws::Worksheet) :: Union{Nothing, CellRange}\n\nRetuns the dimension of this worksheet as a CellRange. Returns nothing if the dimension is unknown.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.get_shared_string_index-Tuple{XLSX.SharedStringTable,AbstractString}",
+    "location": "api/#XLSX.get_shared_string_index-Tuple{XLSX.SharedStringTable,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.get_shared_string_index",
     "category": "method",
@@ -385,7 +385,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.getcell-Tuple{XLSX.Worksheet,XLSX.CellRef}",
+    "location": "api/#XLSX.getcell-Tuple{XLSX.Worksheet,XLSX.CellRef}",
     "page": "API Reference",
     "title": "XLSX.getcell",
     "category": "method",
@@ -393,7 +393,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.getcellrange-Tuple{XLSX.Worksheet,XLSX.CellRange}",
+    "location": "api/#XLSX.getcellrange-Tuple{XLSX.Worksheet,XLSX.CellRange}",
     "page": "API Reference",
     "title": "XLSX.getcellrange",
     "category": "method",
@@ -401,15 +401,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.getdata-Tuple{XLSX.Worksheet,XLSX.CellRef}",
+    "location": "api/#XLSX.getdata-Tuple{XLSX.Worksheet,XLSX.CellRef}",
     "page": "API Reference",
     "title": "XLSX.getdata",
     "category": "method",
-    "text": "getdata(sheet, ref)\n\nReturns a escalar or a matrix with values from a spreadsheet. ref can be a cell reference or a range.\n\nIndexing in a Worksheet will dispatch to getdata method.\n\nExample\n\njulia> f = XLSX.readxlsx(\"myfile.xlsx\")\n\njulia> sheet = f[\"mysheet\"]\n\njulia> v = sheet[\"A1:B4\"]\n\nSee also readdata.\n\n\n\n\n\n"
+    "text": "getdata(sheet, ref)\n\nReturns a escalar or a matrix with values from a spreadsheet. ref can be a cell reference or a range.\n\nIndexing in a Worksheet will dispatch to getdata method.\n\nExample\n\njulia> f = XLSX.readxlsx(\"myfile.xlsx\")\n\njulia> sheet = f[\"mysheet\"]\n\njulia> v = sheet[\"A1:B4\"]\n\nSee also XLSX.readdata.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.getdata-Tuple{XLSX.Worksheet,XLSX.Cell}",
+    "location": "api/#XLSX.getdata-Tuple{XLSX.Worksheet,XLSX.Cell}",
     "page": "API Reference",
     "title": "XLSX.getdata",
     "category": "method",
@@ -417,15 +417,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.gettable-Tuple{XLSX.Worksheet,Union{ColumnRange, AbstractString}}",
+    "location": "api/#XLSX.gettable-Tuple{XLSX.Worksheet,Union{ColumnRange, AbstractString}}",
     "page": "API Reference",
     "title": "XLSX.gettable",
     "category": "method",
-    "text": "gettable(sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels\n\nReturns tabular data from a spreadsheet as a tuple (data, column_labels). data is a vector of columns. column_labels is a vector of symbols. Use this function to create a DataFrame from package DataFrames.jl.\n\nUse columns argument to specify which columns to get. For example, columns=\"B:D\" will select columns B, C and D. If columns is not given, the algorithm will find the first sequence of consecutive non-empty cells.\n\nUse first_row to indicate the first row from the table. first_row=5 will look for a table starting at sheet row 5. If first_row is not given, the algorithm will look for the first non-empty row in the spreadsheet.\n\nheader is a Bool indicating if the first row is a header. If header=true and column_labels is not specified, the column labels for the table will be read from the first row of the table. If header=false and column_labels is not specified, the algorithm will generate column labels. The default value is header=true.\n\nUse column_labels as a vector of symbols to specify names for the header of the table.\n\nUse infer_eltypes=true to get data as a Vector{Any} of typed vectors. The default value is infer_eltypes=false.\n\nstop_in_empty_row is a boolean indicating wether an empty row marks the end of the table. If stop_in_empty_row=false, the TableRowIterator will continue to fetch rows until there\'s no more rows in the Worksheet. The default behavior is stop_in_empty_row=true.\n\nstop_in_row_function is a Function that receives a TableRow and returns a Bool indicating if the end of the table was reached.\n\nExample for stop_in_row_function:\n\nfunction stop_function(r)\n    v = r[:col_label]\n    return !ismissing(v) && v == \"unwanted value\"\nend\n\nRows where all column values are equal to missing are dropped.\n\nExample code for gettable:\n\njulia> using DataFrames, XLSX\n\njulia> df = XLSX.openxlsx(\"myfile.xlsx\") do xf\n                DataFrame(XLSX.gettable(xf[\"mysheet\"])...)\n            end\n\nSee also: readtable.\n\n\n\n\n\n"
+    "text": "gettable(sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels\n\nReturns tabular data from a spreadsheet as a tuple (data, column_labels). data is a vector of columns. column_labels is a vector of symbols. Use this function to create a DataFrame from package DataFrames.jl.\n\nUse columns argument to specify which columns to get. For example, columns=\"B:D\" will select columns B, C and D. If columns is not given, the algorithm will find the first sequence of consecutive non-empty cells.\n\nUse first_row to indicate the first row from the table. first_row=5 will look for a table starting at sheet row 5. If first_row is not given, the algorithm will look for the first non-empty row in the spreadsheet.\n\nheader is a Bool indicating if the first row is a header. If header=true and column_labels is not specified, the column labels for the table will be read from the first row of the table. If header=false and column_labels is not specified, the algorithm will generate column labels. The default value is header=true.\n\nUse column_labels as a vector of symbols to specify names for the header of the table.\n\nUse infer_eltypes=true to get data as a Vector{Any} of typed vectors. The default value is infer_eltypes=false.\n\nstop_in_empty_row is a boolean indicating wether an empty row marks the end of the table. If stop_in_empty_row=false, the TableRowIterator will continue to fetch rows until there\'s no more rows in the Worksheet. The default behavior is stop_in_empty_row=true.\n\nstop_in_row_function is a Function that receives a TableRow and returns a Bool indicating if the end of the table was reached.\n\nExample for stop_in_row_function:\n\nfunction stop_function(r)\n    v = r[:col_label]\n    return !ismissing(v) && v == \"unwanted value\"\nend\n\nRows where all column values are equal to missing are dropped.\n\nExample\n\nIn this example, the ... operator will splat the tuple (data, column_labels) into the constructor of DataFrame.\n\njulia> using DataFrames, XLSX\n\njulia> df = XLSX.openxlsx(\"myfile.xlsx\") do xf\n                DataFrame(XLSX.gettable(xf[\"mysheet\"])...)\n            end\n\nSee also: XLSX.readtable.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.has_sst-Tuple{XLSX.Workbook}",
+    "location": "api/#XLSX.has_sst-Tuple{XLSX.Workbook}",
     "page": "API Reference",
     "title": "XLSX.has_sst",
     "category": "method",
@@ -433,7 +433,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.internal_xml_file_isread-Tuple{XLSX.XLSXFile,String}",
+    "location": "api/#XLSX.internal_xml_file_isread-Tuple{XLSX.XLSXFile,String}",
     "page": "API Reference",
     "title": "XLSX.internal_xml_file_isread",
     "category": "method",
@@ -441,7 +441,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.is_cache_enabled-Tuple{XLSX.Worksheet}",
+    "location": "api/#XLSX.is_cache_enabled-Tuple{XLSX.Worksheet}",
     "page": "API Reference",
     "title": "XLSX.is_cache_enabled",
     "category": "method",
@@ -449,7 +449,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.is_end_of_sheet_data-Tuple{EzXML.StreamReader}",
+    "location": "api/#XLSX.is_end_of_sheet_data-Tuple{EzXML.StreamReader}",
     "page": "API Reference",
     "title": "XLSX.is_end_of_sheet_data",
     "category": "method",
@@ -457,7 +457,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.is_valid_cellname-Tuple{AbstractString}",
+    "location": "api/#XLSX.is_valid_cellname-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.is_valid_cellname",
     "category": "method",
@@ -465,7 +465,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.is_writable-Tuple{XLSX.XLSXFile}",
+    "location": "api/#XLSX.is_writable-Tuple{XLSX.XLSXFile}",
     "page": "API Reference",
     "title": "XLSX.is_writable",
     "category": "method",
@@ -473,7 +473,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.isdate1904-Tuple{XLSX.Workbook}",
+    "location": "api/#XLSX.isdate1904-Tuple{XLSX.Workbook}",
     "page": "API Reference",
     "title": "XLSX.isdate1904",
     "category": "method",
@@ -481,7 +481,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.open_empty_template",
+    "location": "api/#XLSX.open_empty_template",
     "page": "API Reference",
     "title": "XLSX.open_empty_template",
     "category": "function",
@@ -489,7 +489,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.open_internal_file_stream-Tuple{XLSX.XLSXFile,String}",
+    "location": "api/#XLSX.open_internal_file_stream-Tuple{XLSX.XLSXFile,String}",
     "page": "API Reference",
     "title": "XLSX.open_internal_file_stream",
     "category": "method",
@@ -497,7 +497,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.open_xlsx_template-Tuple{AbstractString}",
+    "location": "api/#XLSX.open_xlsx_template-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.open_xlsx_template",
     "category": "method",
@@ -505,15 +505,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.openxlsx-Tuple{Function,AbstractString}",
+    "location": "api/#XLSX.openxlsx-Tuple{Function,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.openxlsx",
     "category": "method",
-    "text": "openxlsx(f::Function, filepath::AbstractString; mode::AbstractString=\"r\", enable_cache::Bool=true)\n\nOpen XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying f to the file.\n\nDo syntax\n\nThis function should be used with do syntax, like in:\n\nXLSX.openxlsx(\"myfile.xlsx\") do xf\n    # read data from `xf`\nend\n\nFilemodes\n\nThe mode argument controls how the file is opened. The following modes are allowed:\n\nr : read mode. The existing data in filepath will be accessible for reading. This is the default mode.\nw : write mode. Opens an empty file that will be written to filepath.\nrw : edit mode. Opens filepath for editing. The file will be saved to disk when the function ends.\n\nArguments\n\nfilepath is the complete path to the file.\nmode is the file mode, as explained in the last section.\nenable_cache:\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExamples\n\nRead from file\n\nThe following example shows how you would read worksheet cells, one row at a time, where myfile.xlsx is a spreadsheet that doesn\'t fit into memory.\n\njulia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do xf\n          for r in XLSX.eachrow(xf[\"mysheet\"])\n              # read something from row `r`\n          end\n       end\n\nWrite a new file\n\nXLSX.openxlsx(\"new.xlsx\", mode=\"w\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nEdit an existing file\n\nXLSX.openxlsx(\"edit.xlsx\", mode=\"rw\") do xf\n    sheet = xf[1]\n    sheet[2, :] = [2, Date(2019, 1, 1), \"add new line\"]\nend\n\nSee also readxlsx method.\n\n\n\n\n\n"
+    "text": "openxlsx(f::Function, filepath::AbstractString; mode::AbstractString=\"r\", enable_cache::Bool=true)\n\nOpen XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying f to the file.\n\nDo syntax\n\nThis function should be used with do syntax, like in:\n\nXLSX.openxlsx(\"myfile.xlsx\") do xf\n    # read data from `xf`\nend\n\nFilemodes\n\nThe mode argument controls how the file is opened. The following modes are allowed:\n\nr : read mode. The existing data in filepath will be accessible for reading. This is the default mode.\nw : write mode. Opens an empty file that will be written to filepath.\nrw : edit mode. Opens filepath for editing. The file will be saved to disk when the function ends.\n\nArguments\n\nfilepath is the complete path to the file.\nmode is the file mode, as explained in the last section.\nenable_cache:\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExamples\n\nRead from file\n\nThe following example shows how you would read worksheet cells, one row at a time, where myfile.xlsx is a spreadsheet that doesn\'t fit into memory.\n\njulia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do xf\n          for r in XLSX.eachrow(xf[\"mysheet\"])\n              # read something from row `r`\n          end\n       end\n\nWrite a new file\n\nXLSX.openxlsx(\"new.xlsx\", mode=\"w\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nEdit an existing file\n\nXLSX.openxlsx(\"edit.xlsx\", mode=\"rw\") do xf\n    sheet = xf[1]\n    sheet[2, :] = [2, Date(2019, 1, 1), \"add new line\"]\nend\n\nSee also XLSX.readxlsx.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.parse_file_mode-Tuple{AbstractString}",
+    "location": "api/#XLSX.parse_file_mode-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.parse_file_mode",
     "category": "method",
@@ -521,7 +521,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.parse_relationships!-Tuple{XLSX.XLSXFile}",
+    "location": "api/#XLSX.parse_relationships!-Tuple{XLSX.XLSXFile}",
     "page": "API Reference",
     "title": "XLSX.parse_relationships!",
     "category": "method",
@@ -529,7 +529,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.parse_workbook!-Tuple{XLSX.XLSXFile}",
+    "location": "api/#XLSX.parse_workbook!-Tuple{XLSX.XLSXFile}",
     "page": "API Reference",
     "title": "XLSX.parse_workbook!",
     "category": "method",
@@ -537,15 +537,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.readtable-Tuple{AbstractString,Union{Int64, AbstractString}}",
+    "location": "api/#XLSX.readtable-Tuple{AbstractString,Union{Int64, AbstractString}}",
     "page": "API Reference",
     "title": "XLSX.readtable",
     "category": "method",
-    "text": "readtable(filepath, sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels\n\nReturns tabular data from a spreadsheet as a tuple (data, column_labels). data is a vector of columns. column_labels is a vector of symbols. Use this function to create a DataFrame from package DataFrames.jl.\n\nUse columns argument to specify which columns to get. For example, \"B:D\" will select columns B, C and D. If columns is not given, the algorithm will find the first sequence of consecutive non-empty cells.\n\nUse first_row to indicate the first row from the table. first_row=5 will look for a table starting at sheet row 5. If first_row is not given, the algorithm will look for the first non-empty row in the spreadsheet.\n\nheader is a Bool indicating if the first row is a header. If header=true and column_labels is not specified, the column labels for the table will be read from the first row of the table. If header=false and column_labels is not specified, the algorithm will generate column labels. The default value is header=true.\n\nUse column_labels as a vector of symbols to specify names for the header of the table.\n\nUse infer_eltypes=true to get data as a Vector{Any} of typed vectors. The default value is infer_eltypes=false.\n\nstop_in_empty_row is a boolean indicating wether an empty row marks the end of the table. If stop_in_empty_row=false, the TableRowIterator will continue to fetch rows until there\'s no more rows in the Worksheet. The default behavior is stop_in_empty_row=true.\n\nstop_in_row_function is a Function that receives a TableRow and returns a Bool indicating if the end of the table was reached.\n\nExample for stop_in_row_function:\n\nfunction stop_function(r)\n    v = r[:col_label]\n    return !ismissing(v) && v == \"unwanted value\"\nend\n\nRows where all column values are equal to missing are dropped.\n\nExample code for readtable:\n\njulia> using DataFrames, XLSX\n\njulia> df = DataFrame(XLSX.readtable(\"myfile.xlsx\", \"mysheet\")...)\n\nSee also: `gettable`.\n\n\n\n\n\n"
+    "text": "readtable(filepath, sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels\n\nReturns tabular data from a spreadsheet as a tuple (data, column_labels). data is a vector of columns. column_labels is a vector of symbols. Use this function to create a DataFrame from package DataFrames.jl.\n\nUse columns argument to specify which columns to get. For example, \"B:D\" will select columns B, C and D. If columns is not given, the algorithm will find the first sequence of consecutive non-empty cells.\n\nUse first_row to indicate the first row from the table. first_row=5 will look for a table starting at sheet row 5. If first_row is not given, the algorithm will look for the first non-empty row in the spreadsheet.\n\nheader is a Bool indicating if the first row is a header. If header=true and column_labels is not specified, the column labels for the table will be read from the first row of the table. If header=false and column_labels is not specified, the algorithm will generate column labels. The default value is header=true.\n\nUse column_labels as a vector of symbols to specify names for the header of the table.\n\nUse infer_eltypes=true to get data as a Vector{Any} of typed vectors. The default value is infer_eltypes=false.\n\nstop_in_empty_row is a boolean indicating wether an empty row marks the end of the table. If stop_in_empty_row=false, the TableRowIterator will continue to fetch rows until there\'s no more rows in the Worksheet. The default behavior is stop_in_empty_row=true.\n\nstop_in_row_function is a Function that receives a TableRow and returns a Bool indicating if the end of the table was reached.\n\nExample for stop_in_row_function:\n\nfunction stop_function(r)\n    v = r[:col_label]\n    return !ismissing(v) && v == \"unwanted value\"\nend\n\nRows where all column values are equal to missing are dropped.\n\nExample\n\nIn this example, the ... operator will splat the tuple (data, column_labels) into the constructor of DataFrame.\n\njulia> using DataFrames, XLSX\n\njulia> df = DataFrame(XLSX.readtable(\"myfile.xlsx\", \"mysheet\")...)\n\nSee also: XLSX.gettable.\n\n\n\n\n\n"
 },
 
 {
-    "location": "api.html#XLSX.readxlsx-Tuple{AbstractString}",
+    "location": "api/#XLSX.readxlsx-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.readxlsx",
     "category": "method",
@@ -553,7 +553,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.relative_cell_position-Tuple{XLSX.CellRef,XLSX.CellRange}",
+    "location": "api/#XLSX.relative_cell_position-Tuple{XLSX.CellRef,XLSX.CellRange}",
     "page": "API Reference",
     "title": "XLSX.relative_cell_position",
     "category": "method",
@@ -561,7 +561,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.row_number-Tuple{XLSX.CellRef}",
+    "location": "api/#XLSX.row_number-Tuple{XLSX.CellRef}",
     "page": "API Reference",
     "title": "XLSX.row_number",
     "category": "method",
@@ -569,7 +569,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.sheet_column_numbers-Tuple{XLSX.Index}",
+    "location": "api/#XLSX.sheet_column_numbers-Tuple{XLSX.Index}",
     "page": "API Reference",
     "title": "XLSX.sheet_column_numbers",
     "category": "method",
@@ -577,7 +577,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.sheetcount-Tuple{XLSX.Workbook}",
+    "location": "api/#XLSX.sheetcount-Tuple{XLSX.Workbook}",
     "page": "API Reference",
     "title": "XLSX.sheetcount",
     "category": "method",
@@ -585,7 +585,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.sheetnames-Tuple{XLSX.Workbook}",
+    "location": "api/#XLSX.sheetnames-Tuple{XLSX.Workbook}",
     "page": "API Reference",
     "title": "XLSX.sheetnames",
     "category": "method",
@@ -593,7 +593,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.split_cellname-Tuple{AbstractString}",
+    "location": "api/#XLSX.split_cellname-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.split_cellname",
     "category": "method",
@@ -601,7 +601,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.split_cellrange-Tuple{AbstractString}",
+    "location": "api/#XLSX.split_cellrange-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.split_cellrange",
     "category": "method",
@@ -609,7 +609,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.split_column_range-Tuple{AbstractString}",
+    "location": "api/#XLSX.split_column_range-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.split_column_range",
     "category": "method",
@@ -617,7 +617,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.sst_formatted_string-Tuple{XLSX.Workbook,Int64}",
+    "location": "api/#XLSX.sst_formatted_string-Tuple{XLSX.Workbook,Int64}",
     "page": "API Reference",
     "title": "XLSX.sst_formatted_string",
     "category": "method",
@@ -625,7 +625,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.sst_unformatted_string-Tuple{XLSX.Workbook,Int64}",
+    "location": "api/#XLSX.sst_unformatted_string-Tuple{XLSX.Workbook,Int64}",
     "page": "API Reference",
     "title": "XLSX.sst_unformatted_string",
     "category": "method",
@@ -633,7 +633,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.styles_add_font-Tuple{XLSX.Workbook,Array{Union{Pair{String,Pair{String,String}}, AbstractString},1}}",
+    "location": "api/#XLSX.styles_add_font-Tuple{XLSX.Workbook,Array{Union{Pair{String,Pair{String,String}}, AbstractString},1}}",
     "page": "API Reference",
     "title": "XLSX.styles_add_font",
     "category": "method",
@@ -641,7 +641,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.styles_add_numFmt-Tuple{XLSX.Workbook,AbstractString}",
+    "location": "api/#XLSX.styles_add_numFmt-Tuple{XLSX.Workbook,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.styles_add_numFmt",
     "category": "method",
@@ -649,7 +649,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.styles_cell_xf-Tuple{XLSX.Workbook,Int64}",
+    "location": "api/#XLSX.styles_cell_xf-Tuple{XLSX.Workbook,Int64}",
     "page": "API Reference",
     "title": "XLSX.styles_cell_xf",
     "category": "method",
@@ -657,7 +657,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.styles_cell_xf_numFmtId-Tuple{XLSX.Workbook,Int64}",
+    "location": "api/#XLSX.styles_cell_xf_numFmtId-Tuple{XLSX.Workbook,Int64}",
     "page": "API Reference",
     "title": "XLSX.styles_cell_xf_numFmtId",
     "category": "method",
@@ -665,7 +665,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.styles_get_cellXf_with_numFmtId-Tuple{XLSX.Workbook,Int64}",
+    "location": "api/#XLSX.styles_get_cellXf_with_numFmtId-Tuple{XLSX.Workbook,Int64}",
     "page": "API Reference",
     "title": "XLSX.styles_get_cellXf_with_numFmtId",
     "category": "method",
@@ -673,7 +673,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.styles_numFmt_formatCode-Tuple{XLSX.Workbook,AbstractString}",
+    "location": "api/#XLSX.styles_numFmt_formatCode-Tuple{XLSX.Workbook,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.styles_numFmt_formatCode",
     "category": "method",
@@ -681,7 +681,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.table_column_numbers-Tuple{XLSX.Index}",
+    "location": "api/#XLSX.table_column_numbers-Tuple{XLSX.Index}",
     "page": "API Reference",
     "title": "XLSX.table_column_numbers",
     "category": "method",
@@ -689,7 +689,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.table_column_to_sheet_column_number-Tuple{XLSX.Index,Int64}",
+    "location": "api/#XLSX.table_column_to_sheet_column_number-Tuple{XLSX.Index,Int64}",
     "page": "API Reference",
     "title": "XLSX.table_column_to_sheet_column_number",
     "category": "method",
@@ -697,7 +697,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.unformatted_text-Tuple{EzXML.Node}",
+    "location": "api/#XLSX.unformatted_text-Tuple{EzXML.Node}",
     "page": "API Reference",
     "title": "XLSX.unformatted_text",
     "category": "method",
@@ -705,7 +705,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.writetable-Tuple{AbstractString,Any,Any}",
+    "location": "api/#XLSX.writetable-Tuple{AbstractString,Any,Any}",
     "page": "API Reference",
     "title": "XLSX.writetable",
     "category": "method",
@@ -713,7 +713,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.writetable-Tuple{AbstractString}",
+    "location": "api/#XLSX.writetable-Tuple{AbstractString}",
     "page": "API Reference",
     "title": "XLSX.writetable",
     "category": "method",
@@ -721,7 +721,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.writexlsx-Tuple{AbstractString,XLSX.XLSXFile}",
+    "location": "api/#XLSX.writexlsx-Tuple{AbstractString,XLSX.XLSXFile}",
     "page": "API Reference",
     "title": "XLSX.writexlsx",
     "category": "method",
@@ -729,7 +729,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.xlsx_encode-Tuple{XLSX.Worksheet,AbstractString}",
+    "location": "api/#XLSX.xlsx_encode-Tuple{XLSX.Worksheet,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.xlsx_encode",
     "category": "method",
@@ -737,7 +737,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.xmldocument-Tuple{XLSX.XLSXFile,String}",
+    "location": "api/#XLSX.xmldocument-Tuple{XLSX.XLSXFile,String}",
     "page": "API Reference",
     "title": "XLSX.xmldocument",
     "category": "method",
@@ -745,7 +745,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#XLSX.xmlroot-Tuple{XLSX.XLSXFile,String}",
+    "location": "api/#XLSX.xmlroot-Tuple{XLSX.XLSXFile,String}",
     "page": "API Reference",
     "title": "XLSX.xmlroot",
     "category": "method",
@@ -753,7 +753,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api.html#API-Reference-1",
+    "location": "api/#API-Reference-1",
     "page": "API Reference",
     "title": "API Reference",
     "category": "section",
