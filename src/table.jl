@@ -392,6 +392,29 @@ end
 
 infer_eltype(v::Vector{T}) where T = T
 
+function check_table_data_dimension(data::Vector)
+
+    # nothing to check
+    isempty(data) && return
+
+    # all columns should be vectors
+    for (colindex, colvec) in enumerate(data)
+        @assert isa(colvec, Vector) "Data type at index $colindex is not a vector. Found: $(typeof(colvec))."
+    end
+
+    # no need to check row count
+    length(data) == 1 && return
+
+    # check all columns have the same row count
+    col_count = length(data)
+    row_count = length(data[1])
+    for colindex in 2:col_count
+        @assert length(data[colindex]) == row_count "Not all columns have the same number of rows. Check column $colindex."
+    end
+
+    nothing
+end
+
 function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)
@@ -428,6 +451,8 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
             data[c] = new_column_data
         end
     end
+
+    check_table_data_dimension(data)
 
     return data, column_labels
 end
