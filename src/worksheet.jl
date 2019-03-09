@@ -73,7 +73,7 @@ julia> sheet = f["mysheet"]
 julia> v = sheet["A1:B4"]
 ```
 
-See also [`readdata`](@ref).
+See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 
