@@ -100,7 +100,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     end
 
     if cell.datatype == "inlineStr"
-        error("datatype inlineStr not supported...")
+        error("Excel data type inlineStr is not supported.")
     end
 
     if cell.datatype == "s"

@@ -477,7 +477,10 @@ end
 
 Rows where all column values are equal to `missing` are dropped.
 
-Example code for `gettable`:
+# Example
+
+In this example, the [... operator](https://docs.julialang.org/en/v1/base/base/#...)
+will splat the tuple `(data, column_labels)` into the constructor of `DataFrame`.
 
 ```julia
 julia> using DataFrames, XLSX

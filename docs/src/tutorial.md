@@ -88,6 +88,8 @@ You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/J
 Check the docstring for `gettable` method for more advanced options.
 
 There's also a helper method `readtable` to read from file directly, as shown in the following example.
+In this case, the [... operator](https://docs.julialang.org/en/v1/base/base/#...)
+will splat the tuple `(data, column_labels)` into the constructor of `DataFrame`.
 
 ```julia
 julia> using DataFrames, XLSX
