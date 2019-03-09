@@ -92,7 +92,7 @@ for r in XLSX.eachtablerow(sheet)
 end
 ```
 
-See also `gettable`.
+See also [`gettable`](@ref).
 """
 function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing) :: TableRowIterator
 
@@ -487,7 +487,7 @@ julia> df = XLSX.openxlsx("myfile.xlsx") do xf
             end
 ```
 
-See also: `readtable`.
+See also: [`readtable`](@ref).
 """
 function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing)
     itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)

@@ -111,7 +111,7 @@ XLSX.openxlsx("edit.xlsx", mode="rw") do xf
 end
 ```
 
-See also `readxlsx` method.
+See also [`readxlsx`](@ref).
 """
 function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
 
@@ -536,7 +536,7 @@ julia> using DataFrames, XLSX
 
 julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 
-See also: `gettable`.
+See also: [`gettable`](@ref).
 ```
 """
 function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
