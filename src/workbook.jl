@@ -64,10 +64,14 @@ function Base.show(io::IO, xf::XLSXFile)
     println(io, "-"^(21+1+13+1+13))
 
     for s in wb.sheets
-        rg = s.dimension
-        _size = size(rg) |> x -> string(x[1], "x", x[2])
         name = s.name |> x -> length(x) > 20 ? x[1:20]*"…" : x
-        @printf(io, "%21s %-13s %-13s\n", name, _size, rg)
+        if s.dimension != nothing
+            rg = s.dimension
+            _size = size(rg) |> x -> string(x[1], "x", x[2])
+            @printf(io, "%21s %-13s %-13s\n", name, _size, rg)
+        else
+            @printf(io, "%21s size unknown\n", name)
+        end
     end
 end
 

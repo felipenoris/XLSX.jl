@@ -9,19 +9,30 @@ function Relationship(e::EzXML.Node) :: Relationship
     )
 end
 
-function get_relationship_target_by_id(wb::Workbook, Id::String) :: String
+function parse_relationship_target(prefix::String, target::String) :: String
+    @assert !isempty(prefix) && !isempty(target)
+
+    if target[1] == '/'
+        @assert sizeof(target) > 1 "Incomplete target path $target."
+        return target[2:end]
+    else
+        return prefix * '/' * target
+    end
+end
+
+function get_relationship_target_by_id(prefix::String, wb::Workbook, Id::String) :: String
     for r in wb.relationships
         if Id == r.Id
-            return r.Target
+            return parse_relationship_target(prefix, r.Target)
         end
     end
     error("Relationship Id=$(Id) not found")
 end
 
-function get_relationship_target_by_type(wb::Workbook, _type_::String) :: String
+function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::String) :: String
     for r in wb.relationships
         if _type_ == r.Type
-            return r.Target
+            return parse_relationship_target(prefix, r.Target)
         end
     end
     error("Relationship Type=$(_type_) not found")
@@ -56,18 +67,21 @@ Adds new relationship. Returns new generated rId.
 function add_relationship!(wb::Workbook, target::String, _type::String) :: String
     xf = get_xlsxfile(wb)
     @assert is_writable(xf) "XLSXFile instance is not writable."
-    got_unique_id = false
-    id = 1
     local rId :: String
 
-    while !got_unique_id
-        got_unique_id = true
-        rId = string("rId", id)
-        for r in wb.relationships
-            if r.Id == rId
-                got_unique_id = false
-                id += 1
-                break
+    let
+        got_unique_id = false
+        id = 1
+
+        while !got_unique_id
+            got_unique_id = true
+            rId = string("rId", id)
+            for r in wb.relationships
+                if r.Id == rId
+                    got_unique_id = false
+                    id += 1
+                    break
+                end
             end
         end
     end

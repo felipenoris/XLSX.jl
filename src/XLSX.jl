@@ -3,9 +3,9 @@ __precompile__(true)
 module XLSX
 
 import Dates
-using Printf
-
-import ZipFile, EzXML
+import Printf.@printf
+import ZipFile
+import EzXML
 
 # https://github.com/fhs/ZipFile.jl/issues/39
 if !hasmethod(Base.bytesavailable, Tuple{ZipFile.ReadableFile})
@@ -14,7 +14,7 @@ end
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]
 
-include("structs.jl")
+include("types.jl")
 include("cellref.jl")
 include("sst.jl")
 include("stream.jl")

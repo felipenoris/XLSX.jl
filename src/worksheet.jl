@@ -9,36 +9,35 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     return Worksheet(xf, sheetId, relationship_id, name, dim)
 end
 
-function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: CellRange
-    wb = get_workbook(xf)
-    target_file = "xl/" * get_relationship_target_by_id(wb, relationship_id)
-    zip_io, reader = open_internal_file_stream(xf, target_file)
-
+# 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
+function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{Nothing, CellRange}
     local result::Union{Nothing, CellRange} = nothing
 
-    # read Worksheet dimension
-    while EzXML.iterate(reader) != nothing
-        if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "dimension"
-            @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(EzXML.nodedepth(reader))."
-            ref_str = reader["ref"]
-            if is_valid_cellname(ref_str)
-                result = CellRange("$(ref_str):$(ref_str)")
-            else
-                result = CellRange(ref_str)
+    wb = get_workbook(xf)
+    target_file = get_relationship_target_by_id("xl", wb, relationship_id)
+    zip_io, reader = open_internal_file_stream(xf, target_file)
+
+    try
+        # read Worksheet dimension
+        while EzXML.iterate(reader) != nothing
+            if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "dimension"
+                @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(EzXML.nodedepth(reader))."
+                ref_str = reader["ref"]
+                if is_valid_cellname(ref_str)
+                    result = CellRange("$(ref_str):$(ref_str)")
+                else
+                    result = CellRange(ref_str)
+                end
+
+                break
             end
-
-            break
         end
+    finally
+        close(reader)
+        close(zip_io)
     end
 
-    close(reader)
-    close(zip_io)
-
-    if result == nothing
-        error("Couldn't parse worksheet $name dimension.")
-    else
-        return result
-    end
+    return result
 end
 
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
@@ -46,7 +45,7 @@ end
 """
 Retuns the dimension of this worksheet as a CellRange.
 """
-@inline get_dimension(ws::Worksheet) :: CellRange = ws.dimension
+@inline get_dimension(ws::Worksheet) = ws.dimension
 
 function set_dimension!(ws::Worksheet, rng::CellRange)
     ws.dimension = rng
@@ -160,15 +159,26 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
 end
 
 getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
-getdata(ws::Worksheet) = getdata(ws, get_dimension(ws))
+
+function getdata(ws::Worksheet)
+    if ws.dimension != nothing
+        return getdata(ws, get_dimension(ws))
+    else
+        error("Worksheet dimension is unknown.")
+    end
+end
 
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 function Base.show(io::IO, ws::Worksheet)
-    rg = get_dimension(ws)
-    nrow, ncol = size(rg)
-    @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
+    if get_dimension(ws) != nothing
+        rg = get_dimension(ws)
+        nrow, ncol = size(rg)
+        @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
+    else
+        @printf(io, "%s: [\"%s\"]", typeof(ws), ws.name)
+    end
 end
 
 """
@@ -250,13 +260,15 @@ function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
         columns[i] = Vector{AbstractCell}()
     end
 
-    left, right = column_bounds(rng)
+    let
+        left, right = column_bounds(rng)
 
-    for sheetrow in eachrow(ws)
-        for column in left:right
-            cell = getcell(sheetrow, column)
-            c = relative_column_position(cell, rng) # r will be ignored
-            push!(columns[c], cell)
+        for sheetrow in eachrow(ws)
+            for column in left:right
+                cell = getcell(sheetrow, column)
+                c = relative_column_position(cell, rng) # r will be ignored
+                push!(columns[c], cell)
+            end
         end
     end
 

@@ -79,7 +79,7 @@ function sst_load!(workbook::Workbook)
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            sst_root = xmlroot(get_xlsxfile(workbook), "xl/" * get_relationship_target_by_type(workbook, relationship_type))
+            sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))
 
             @assert EzXML.nodename(sst_root) == "sst"
 

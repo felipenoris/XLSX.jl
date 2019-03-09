@@ -175,10 +175,10 @@ mutable struct Worksheet
     sheetId::Int
     relationship_id::String # r:id="rId1"
     name::String
-    dimension::CellRange
+    dimension::Union{Nothing, CellRange}
     cache::Union{WorksheetCache, Nothing}
 
-    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::CellRange)
+    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::Union{Nothing, CellRange})
         return new(package, sheetId, relationship_id, name, dimension, nothing)
     end
 end

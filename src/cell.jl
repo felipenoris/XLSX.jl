@@ -164,7 +164,7 @@ function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dat
     # does not allow empty string
     @assert !isempty(v) "Cannot convert an empty string into a datetime value."
 
-    if occursin(".", v)
+    if occursin(".", v) || v == "0"
         time_value = parse(Float64, v)
         @assert time_value >= 0
 

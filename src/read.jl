@@ -4,6 +4,9 @@
 @inline get_workbook(ws::Worksheet) :: Workbook = get_xlsxfile(ws).workbook
 @inline get_workbook(xl::XLSXFile) :: Workbook = xl.workbook
 
+const ZIP_FILE_HEADER = [ 0x50, 0x4b, 0x03, 0x04 ]
+const XLS_FILE_HEADER = [ 0xd0, 0xcf, 0x11, 0xe0 ]
+
 function check_for_xlsx_file_format(filepath::AbstractString)
     @assert isfile(filepath) "File $filepath not found."
 
@@ -13,9 +16,9 @@ function check_for_xlsx_file_format(filepath::AbstractString)
         header = Base.read(io, 4)
     end
 
-    if header == [ 0x50, 0x4b, 0x03, 0x04 ] # valid Zip file header
+    if header == ZIP_FILE_HEADER # valid Zip file header
         return
-    elseif header == [ 0xd0, 0xcf, 0x11, 0xe0 ] # old XLS file
+    elseif header == XLS_FILE_HEADER # old XLS file
         error("$filepath looks like an old XLS file (not XLSX). This package does not support XLS file format.")
     else
         error("$filepath is not a valid XLSX file.")
@@ -182,7 +185,9 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
 
                 # Binary file
                 # we only read binary files to save the Excel file later
-                xf.binary_data[f.name] = ZipFile.read(f, UInt8, f.uncompressedsize)
+                bytes = ZipFile.read(f)
+                @assert sizeof(bytes) == f.uncompressedsize
+                xf.binary_data[f.name] = bytes
             end
         end
 
@@ -487,7 +492,7 @@ Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 Use this function to create a `DataFrame` from package `DataFrames.jl`.
 
 Use `columns` argument to specify which columns to get.
-For example, `columns="B:D"` will select columns `B`, `C` and `D`.
+For example, `"B:D"` will select columns `B`, `C` and `D`.
 If `columns` is not given, the algorithm will find the first sequence
 of consecutive non-empty cells.
 
@@ -534,9 +539,16 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 See also: `gettable`.
 ```
 """
-function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Int = 1, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
+function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
     c = openxlsx(filepath, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+    end
+    return c
+end
+
+function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
+    c = openxlsx(filepath, enable_cache=enable_cache) do xf
+        gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     end
     return c
 end

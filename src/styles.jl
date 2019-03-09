@@ -59,8 +59,8 @@ function styles_xmlroot(workbook::Workbook)
     if workbook.styles_xroot == nothing
         STYLES_RELATIONSHIP_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
         if has_relationship_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
-            styles_target = get_relationship_target_by_type(workbook, STYLES_RELATIONSHIP_TYPE)
-            styles_root = xmlroot(get_xlsxfile(workbook), "xl/" * styles_target)
+            styles_target = get_relationship_target_by_type("xl", workbook, STYLES_RELATIONSHIP_TYPE)
+            styles_root = xmlroot(get_xlsxfile(workbook), styles_target)
 
             # check root node name for styles.xml
             @assert get_default_namespace(styles_root) == SPREADSHEET_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
