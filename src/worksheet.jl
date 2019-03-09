@@ -43,12 +43,16 @@ end
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
 
 """
+    get_dimension(ws::Worksheet) :: Union{Nothing, CellRange}
+
 Retuns the dimension of this worksheet as a CellRange.
+Returns `nothing` if the dimension is unknown.
 """
-@inline get_dimension(ws::Worksheet) = ws.dimension
+@inline get_dimension(ws::Worksheet) :: Union{Nothing, CellRange} = ws.dimension
 
 function set_dimension!(ws::Worksheet, rng::CellRange)
     ws.dimension = rng
+    nothing
 end
 
 """
@@ -69,7 +73,7 @@ julia> sheet = f["mysheet"]
 julia> v = sheet["A1:B4"]
 ```
 
-See also `readdata`.
+See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 

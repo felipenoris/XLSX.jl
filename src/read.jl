@@ -111,7 +111,7 @@ XLSX.openxlsx("edit.xlsx", mode="rw") do xf
 end
 ```
 
-See also `readxlsx` method.
+See also [`XLSX.readxlsx`](@ref).
 """
 function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
 
@@ -529,15 +529,18 @@ end
 
 Rows where all column values are equal to `missing` are dropped.
 
-Example code for `readtable`:
+# Example
+
+In this example, the [... operator](https://docs.julialang.org/en/v1/base/base/#...)
+will splat the tuple `(data, column_labels)` into the constructor of `DataFrame`.
 
 ```julia
 julia> using DataFrames, XLSX
 
 julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
-
-See also: `gettable`.
 ```
+
+See also: [`XLSX.gettable`](@ref).
 """
 function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
     c = openxlsx(filepath, enable_cache=enable_cache) do xf

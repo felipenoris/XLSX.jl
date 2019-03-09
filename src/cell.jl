@@ -100,7 +100,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     end
 
     if cell.datatype == "inlineStr"
-        error("datatype inlineStr not supported...")
+        error("Excel data type inlineStr is not supported.")
     end
 
     if cell.datatype == "s"
@@ -198,7 +198,7 @@ time_to_excel_value(x::Dates.Time) :: Float64 = Dates.value(x) / ( 86400 * 1E9 )
 """
 Converts Excel number to Date.
 
-See also: `isdate1904` function.
+See also: [`XLSX.isdate1904`](@ref) function.
 """
 function excel_value_to_date(x::Int, _is_date_1904::Bool) :: Dates.Date
     if _is_date_1904
@@ -222,7 +222,7 @@ Converts Excel number to DateTime.
 The decimal part represents the Time (see `_time` function).
 The integer part represents the Date.
 
-See also: `isdate1904` function.
+See also: [`XLSX.isdate1904`](@ref).
 """
 function excel_value_to_datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
     @assert x >= 0

@@ -21,7 +21,7 @@ julia> XLSX.decode_column_number("D")
 4
 ```
 
-See also: `encode_column_number`.
+See also: [`XLSX.encode_column_number`](@ref).
 """
 function decode_column_number(column_name::AbstractString) :: Int
     local result::Int = 0
@@ -51,7 +51,7 @@ julia> XLSX.encode_column_number(4)
 "D"
 ```
 
-See also: `decode_column_number`.
+See also: [`XLSX.decode_column_number`](@ref).
 """
 function encode_column_number(column_number::Int) :: String
     @assert column_number > 0 && column_number <= 16384 "Column number should be in the range from 1 to 16384."
