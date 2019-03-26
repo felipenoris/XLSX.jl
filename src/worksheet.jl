@@ -57,6 +57,7 @@ end
 
 """
     getdata(sheet, ref)
+    getdata(sheet, row, column)
 
 Returns a escalar or a matrix with values from a spreadsheet.
 `ref` can be a cell reference or a range.
@@ -70,12 +71,15 @@ julia> f = XLSX.readxlsx("myfile.xlsx")
 
 julia> sheet = f["mysheet"]
 
-julia> v = sheet["A1:B4"]
+julia> matrix = sheet["A1:B4"]
+
+julia> single_value = sheet[2, 2] # B2
 ```
 
 See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
+getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     result = Array{Any, 2}(undef, size(rng))
@@ -173,6 +177,7 @@ function getdata(ws::Worksheet)
 end
 
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
+Base.getindex(ws::Worksheet, r, c) = getdata(ws, r, c)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 function Base.show(io::IO, ws::Worksheet)

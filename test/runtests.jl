@@ -1448,6 +1448,32 @@ end
         @test_throws AssertionError sheet[1, 1] = "failure"
     end
 
+    @testset "write column" begin
+        col_data = collect(1:50)
+
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet[:, 2] = col_data
+            sheet[51:100, 3] = col_data
+
+            @static if VERSION < v"1.0"
+                setindex!(sheet, col_data, 2, 4, dim=1)
+            else
+                sheet[2, 4, dim=1] = col_data
+            end
+        end
+
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+
+            for (row, val) in enumerate(col_data)
+                @test sheet[row, 2] == val
+                @test sheet[50 + row, 3] == val
+                @test sheet[row + 1, 4] == val
+            end
+        end
+    end
+
     rm(filename)
 end
 
