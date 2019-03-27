@@ -1448,6 +1448,98 @@ end
         @test_throws AssertionError sheet[1, 1] = "failure"
     end
 
+    @testset "write column" begin
+        col_data = collect(1:50)
+
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet[:, 2] = col_data
+            sheet[51:100, 3] = col_data
+
+            @static if VERSION < v"1.0"
+                setindex!(sheet, col_data, 2, 4, dim=1)
+            else
+                sheet[2, 4, dim=1] = col_data
+            end
+        end
+
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+
+            for (row, val) in enumerate(col_data)
+                @test sheet[row, 2] == val
+                @test sheet[50 + row, 3] == val
+                @test sheet[row + 1, 4] == val
+            end
+        end
+    end
+
+    @testset "write matrix with anchor cell" begin
+        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet["A7"] = test_data
+        end
+
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+            rows, cols = size(test_data)
+            for c in 1:cols, r in 1:rows
+                @test sheet[r+6, c] == test_data[r, c]
+            end
+        end
+    end
+
+    @testset "write matrix with range" begin
+        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet["A7:C9"] = test_data
+        end
+
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+            rows, cols = size(test_data)
+            for c in 1:cols, r in 1:rows
+                @test sheet[r+6, c] == test_data[r, c]
+            end
+        end
+    end
+
+    @testset "write matrix with range mismatch" begin
+        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            @test_throws AssertionError sheet["A7:C10"] = test_data
+        end
+    end
+
+    @testset "doctest for writetable!" begin
+        columns = Vector()
+        push!(columns, [1, 2, 3])
+        push!(columns, ["a", "b", "c"])
+
+        labels = [ "column_1", "column_2"]
+
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            XLSX.writetable!(sheet, columns, labels, anchor_cell=XLSX.CellRef("B2"))
+        end
+
+        # read data back
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+            @test sheet["B2"] == "column_1"
+            @test sheet["C2"] == "column_2"
+            @test sheet["B3"] == 1
+            @test sheet["B4"] == 2
+            @test sheet["B5"] == 3
+            @test sheet["C3"] == "a"
+            @test sheet["C4"] == "b"
+            @test sheet["C5"] == "c"
+        end
+    end
+
     rm(filename)
 end
 

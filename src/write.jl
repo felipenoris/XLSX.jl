@@ -298,13 +298,101 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     setdata!(ws, cell)
 end
 
+Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
+Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
+
+Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
+
 setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
 setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
-
+setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
+setdata!(ws::Worksheet, row::Integer, col::Integer, data::CellValueType) = setdata!(ws, CellRef(row, col), data)
 setdata!(ws::Worksheet, ref::CellRef, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue).")
+setdata!(ws::Worksheet, row::Integer, col::Integer, data::AbstractVector, dim::Integer) = setdata!(ws, CellRef(row, col), data, dim)
 
-Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
+function setdata!(sheet::Worksheet, ref::CellRef, data::AbstractVector, dim::Integer)
+    for (i, val) in enumerate(data)
+        target_cell_ref = target_cell_ref_from_offset(ref, i-1, dim)
+        setdata!(sheet, target_cell_ref, val)
+    end
+end
 
+Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Colon, UnitRange{T}}, c) where {T<:Integer} = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r, c::Union{Colon, UnitRange{T}}) where {T<:Integer} = setdata!(ws, r, c, v)
+setdata!(sheet::Worksheet, ::Colon, col::Integer, data::AbstractVector) = setdata!(sheet, 1, col, data, 1)
+setdata!(sheet::Worksheet, row::Integer, ::Colon, data::AbstractVector) = setdata!(sheet, row, 1, data, 2)
+
+function setdata!(sheet::Worksheet, row::Integer, cols::UnitRange{T}, data::AbstractVector) where {T<:Integer}
+    @assert length(data) == length(cols) "Column count mismatch between `data` ($(length(data)) columns) and column range $cols ($(length(cols)) columns)."
+    anchor_cell_ref = CellRef(row, first(cols))
+
+    # since cols is the unit range, this is a column-based operation
+    setdata!(sheet, anchor_cell_ref, data, 2)
+end
+
+function setdata!(sheet::Worksheet, rows::UnitRange{T}, col::Integer, data::AbstractVector) where {T<:Integer}
+    @assert length(data) == length(rows) "Row count mismatch between `data` ($(length(data)) rows) and row range $rows ($(length(rows)) rows)."
+    anchor_cell_ref = CellRef(first(rows), col)
+
+    # since rows is the unit range, this is a row-based operation
+    setdata!(sheet, anchor_cell_ref, data, 1)
+end
+
+function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T, 2}) where {T<:CellValueType}
+    if is_valid_cellrange(ref_or_rng)
+        setdata!(sheet, CellRange(ref_or_rng), matrix)
+    elseif is_valid_cellname(ref_or_rng)
+        setdata!(sheet, CellRef(ref_or_rng), matrix)
+    else
+        error("Invalid cell reference or range: $ref_or_rng")
+    end
+end
+
+function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T<:CellValueType}
+    rows, cols = size(matrix)
+    anchor_row = row_number(ref)
+    anchor_col = column_number(ref)
+
+    @inbounds for c in 1:cols, r in 1:rows
+        setdata!(sheet, anchor_row + r - 1, anchor_col + c - 1, matrix[r, c])
+    end
+end
+
+function setdata!(sheet::Worksheet, rng::CellRange, matrix::Array{T, 2}) where {T<:CellValueType}
+    @assert size(rng) == size(matrix) "Target range $rng size ($(size(rng))) must be equal to the input matrix size ($(size(matrix))) "
+    setdata!(sheet, rng.start, matrix)
+end
+
+# Given an anchor cell at (anchor_row, anchor_col).
+# Returns a CellRef at:
+# - (anchor_row + offset, anchol_col) if dim = 1 (operates on rows)
+# - (anchor_row, anchor_col + offset) if dim = 2 (operates on cols)
+function target_cell_ref_from_offset(anchor_row::Integer, anchor_col::Integer, offset::Integer, dim::Integer) :: CellRef
+    if dim == 1
+        return CellRef(anchor_row + offset, anchor_col)
+    elseif dim == 2
+        return CellRef(anchor_row, anchor_col + offset)
+    else
+        error("Invalid dimension: $dim.")
+    end
+end
+
+function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim::Integer) :: CellRef
+    return target_cell_ref_from_offset(row_number(anchor_cell), column_number(anchor_cell), offset, dim)
+end
+
+"""
+    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+
+Writes tabular data `data` with labels given by `columnnames` to `sheet`,
+starting at `anchor_cell`.
+
+`data` must be a vector of columns.
+`columnnames` must be a vector of column labels.
+
+See also: [`XLSX.writetable`](@ref).
+"""
 function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
 
     # read dimensions
@@ -331,44 +419,6 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     for r in 1:row_count, c in 1:col_count
         target_cell_ref = CellRef(r + anchor_row, c + anchor_col - 1)
         sheet[target_cell_ref] = data[c][r]
-    end
-end
-
-function Base.setindex!(sheet::Worksheet, value, row::Integer, col::Integer)
-    target_cell_ref = CellRef(row, col)
-    sheet[target_cell_ref] = value
-end
-
-function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, cols::UnitRange{<:Integer})
-    col_count = length(data)
-
-    @assert col_count == length(cols) "Column count mismatch between `data` ($col_count columns) and column range $cols ($(length(cols)) columns)."
-
-    for c in 1:col_count
-        target_cell_ref = CellRef(row, c + first(cols) - 1)
-        sheet[target_cell_ref] = data[c]
-    end
-end
-
-function Base.setindex!(sheet::Worksheet, data::AbstractVector, row::Integer, c::Colon)
-    col_count = length(data)
-
-    for c in 1:col_count
-        target_cell_ref = CellRef(row, c)
-        sheet[target_cell_ref] = data[c]
-    end
-end
-
-Base.setindex!(sheet::Worksheet, data::AbstractVector, ref_str::AbstractString) = setindex!(sheet, data, CellRef(ref_str))
-
-function Base.setindex!(sheet::Worksheet, data::AbstractVector, index::CellRef)
-    col_count = length(data)
-    anchor_row = row_number(index)
-    anchor_col = column_number(index)
-
-    for c in 1:col_count
-        target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-        sheet[target_cell_ref] = data[c]
     end
 end
 
@@ -495,7 +545,6 @@ end
 # Helper Functions
 #
 
-
 """
     writetable(filename, data, columnnames; [overwrite], [sheetname])
 
@@ -511,6 +560,8 @@ import DataFrames, XLSX
 df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5])
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
 ```
+
+See also: [`XLSX.writetable!`](@ref).
 """
 function writetable(filename::AbstractString, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
 
