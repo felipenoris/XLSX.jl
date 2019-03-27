@@ -20,7 +20,10 @@ julia&gt; XLSX.sheetnames(xf)
 julia&gt; sh = xf[&quot;mysheet&quot;] # get a reference to a Worksheet
 4×2 XLSX.Worksheet: [&quot;mysheet&quot;](A1:B4)
 
-julia&gt; sh[&quot;B2&quot;] # From a sheet, you can access a cell value
+julia&gt; sh[2, 2] # access element &quot;B2&quot; (2nd row, 2nd column)
+&quot;first&quot;
+
+julia&gt; sh[&quot;B2&quot;] # you can also use the cell name
 &quot;first&quot;
 
 julia&gt; sh[&quot;A2:B4&quot;] # or a cell range
@@ -42,7 +45,7 @@ julia&gt; sh[:] # all data inside worksheet&#39;s dimension
  2           &quot;second&quot;
  3           &quot;third&quot;
 
-julia&gt; xf[&quot;mysheet!A2:B4&quot;] # you can also query values from a file reference
+julia&gt; xf[&quot;mysheet!A2:B4&quot;] # you can also query values using a sheet reference
 3×2 Array{Any,2}:
  1  &quot;first&quot;
  2  &quot;second&quot;
@@ -99,10 +102,45 @@ v1=3, v2=third</code></pre><h2><a class="nav-anchor" id="Writing-Excel-Files-1" 
     sheet[&quot;A2&quot;] = &quot;is a&quot;
     sheet[&quot;A3&quot;] = &quot;new file&quot;
     sheet[&quot;A4&quot;] = 100
+
+    # will add a row from &quot;A5&quot; to &quot;E5&quot;
+    sheet[&quot;A5&quot;] = collect(1:5) # equivalent to `sheet[&quot;A5&quot;, dim=2] = collect(1:4)`
+
+    # will add a column from &quot;B1&quot; to &quot;B4&quot;
+    sheet[&quot;B1&quot;, dim=1] = collect(1:4)
+
+    # will add a matrix from &quot;A7&quot; to &quot;C9&quot;
+    sheet[&quot;A7:C9&quot;] = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 end</code></pre><h3><a class="nav-anchor" id="Edit-Existing-Files-1" href="#Edit-Existing-Files-1">Edit Existing Files</a></h3><p>Opening a file in <code>read-write</code> mode with <code>XLSX.openxlsx</code> will open an existing Excel file for editing. This will preserve existing data in the original file.</p><pre><code class="language-julia">XLSX.openxlsx(&quot;my_new_file.xlsx&quot;, mode=&quot;rw&quot;) do xf
     sheet = xf[1]
     sheet[&quot;B1&quot;] = &quot;new data&quot;
-end</code></pre><h3><a class="nav-anchor" id="Export-Tabular-Data-1" href="#Export-Tabular-Data-1">Export Tabular Data</a></h3><p>To export tabular data to Excel, use <code>XLSX.writetable</code> method.</p><pre><code class="language-julia">julia&gt; import DataFrames, XLSX
+end</code></pre><h3><a class="nav-anchor" id="Export-Tabular-Data-1" href="#Export-Tabular-Data-1">Export Tabular Data</a></h3><p>Given a sheet reference, use the <code>XLSX.writetable!</code> method. Anchor cell defaults to cell <code>&quot;A1&quot;</code>.</p><pre><code class="language-julia">using XLSX, Test
+
+filename = &quot;myfile.xlsx&quot;
+
+columns = Vector()
+push!(columns, [1, 2, 3])
+push!(columns, [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;])
+
+labels = [ &quot;column_1&quot;, &quot;column_2&quot;]
+
+XLSX.openxlsx(filename, mode=&quot;w&quot;) do xf
+    sheet = xf[1]
+    XLSX.writetable!(sheet, columns, labels, anchor_cell=XLSX.CellRef(&quot;B2&quot;))
+end
+
+# read data back
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    @test sheet[&quot;B2&quot;] == &quot;column_1&quot;
+    @test sheet[&quot;C2&quot;] == &quot;column_2&quot;
+    @test sheet[&quot;B3&quot;] == 1
+    @test sheet[&quot;B4&quot;] == 2
+    @test sheet[&quot;B5&quot;] == 3
+    @test sheet[&quot;C3&quot;] == &quot;a&quot;
+    @test sheet[&quot;C4&quot;] == &quot;b&quot;
+    @test sheet[&quot;C5&quot;] == &quot;c&quot;
+end</code></pre><p>You can also use <code>XLSX.writetable</code> to write directly to a new file (see next section).</p><h3><a class="nav-anchor" id="Export-Tabular-Data-as-a-DataFrame-1" href="#Export-Tabular-Data-as-a-DataFrame-1">Export Tabular Data as a DataFrame</a></h3><p>To export tabular data to Excel, use <code>XLSX.writetable</code> method.</p><pre><code class="language-julia">julia&gt; import DataFrames, XLSX
 
 julia&gt; df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[&quot;Hey&quot;, &quot;You&quot;, &quot;Out&quot;, &quot;There&quot;], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
 4×6 DataFrames.DataFrame

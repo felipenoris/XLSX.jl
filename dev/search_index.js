@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Tutorial",
     "title": "Getting Started",
     "category": "section",
-    "text": "The basic usage is to read an Excel file and read values.julia> import XLSX\n\njulia> xf = XLSX.readxlsx(\"myfile.xlsx\")\nXLSXFile(\"myfile.xlsx\") containing 3 Worksheets\n            sheetname size          range\n-------------------------------------------------\n              mysheet 4x2           A1:B4\n           othersheet 1x1           A1:A1\n                named 1x1           B4:B4\n\njulia> XLSX.sheetnames(xf)\n3-element Array{String,1}:\n \"mysheet\"\n \"othersheet\"\n \"named\"\n\njulia> sh = xf[\"mysheet\"] # get a reference to a Worksheet\n4×2 XLSX.Worksheet: [\"mysheet\"](A1:B4)\n\njulia> sh[\"B2\"] # From a sheet, you can access a cell value\n\"first\"\n\njulia> sh[\"A2:B4\"] # or a cell range\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> XLSX.readdata(\"myfile.xlsx\", \"mysheet\", \"A2:B4\") # shorthand for all above\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> sh[:] # all data inside worksheet\'s dimension\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> xf[\"mysheet!A2:B4\"] # you can also query values from a file reference\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> xf[\"NAMED_CELL\"] # you can even read named ranges\n\"B4 is a named cell from sheet \\\"named\\\"\"\n\njulia> xf[\"mysheet!A:B\"] # Column ranges are also supported\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\nTo inspect the internal representation of each cell, use the getcell or getcellrange methods.The example above used xf = XLSX.readxlsx(filename) to open a file, so all file contents are fetched at once from disk.You can also use XLSX.openxlsx to read file contents as needed (see Reading Large Excel Files and Caching)."
+    "text": "The basic usage is to read an Excel file and read values.julia> import XLSX\n\njulia> xf = XLSX.readxlsx(\"myfile.xlsx\")\nXLSXFile(\"myfile.xlsx\") containing 3 Worksheets\n            sheetname size          range\n-------------------------------------------------\n              mysheet 4x2           A1:B4\n           othersheet 1x1           A1:A1\n                named 1x1           B4:B4\n\njulia> XLSX.sheetnames(xf)\n3-element Array{String,1}:\n \"mysheet\"\n \"othersheet\"\n \"named\"\n\njulia> sh = xf[\"mysheet\"] # get a reference to a Worksheet\n4×2 XLSX.Worksheet: [\"mysheet\"](A1:B4)\n\njulia> sh[2, 2] # access element \"B2\" (2nd row, 2nd column)\n\"first\"\n\njulia> sh[\"B2\"] # you can also use the cell name\n\"first\"\n\njulia> sh[\"A2:B4\"] # or a cell range\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> XLSX.readdata(\"myfile.xlsx\", \"mysheet\", \"A2:B4\") # shorthand for all above\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> sh[:] # all data inside worksheet\'s dimension\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\n\njulia> xf[\"mysheet!A2:B4\"] # you can also query values using a sheet reference\n3×2 Array{Any,2}:\n 1  \"first\"\n 2  \"second\"\n 3  \"third\"\n\njulia> xf[\"NAMED_CELL\"] # you can even read named ranges\n\"B4 is a named cell from sheet \\\"named\\\"\"\n\njulia> xf[\"mysheet!A:B\"] # Column ranges are also supported\n4×2 Array{Any,2}:\n  \"HeaderA\"  \"HeaderB\"\n 1           \"first\"\n 2           \"second\"\n 3           \"third\"\nTo inspect the internal representation of each cell, use the getcell or getcellrange methods.The example above used xf = XLSX.readxlsx(filename) to open a file, so all file contents are fetched at once from disk.You can also use XLSX.openxlsx to read file contents as needed (see Reading Large Excel Files and Caching)."
 },
 
 {
@@ -133,7 +133,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Tutorial",
     "title": "Create New Files",
     "category": "section",
-    "text": "Opening a file in write mode with XLSX.openxlsx will open a new (blank) Excel file for editing.XLSX.openxlsx(\"my_new_file.xlsx\", mode=\"w\") do xf\n    sheet = xf[1]\n    XLSX.rename!(sheet, \"new_sheet\")\n    sheet[\"A1\"] = \"this\"\n    sheet[\"A2\"] = \"is a\"\n    sheet[\"A3\"] = \"new file\"\n    sheet[\"A4\"] = 100\nend"
+    "text": "Opening a file in write mode with XLSX.openxlsx will open a new (blank) Excel file for editing.XLSX.openxlsx(\"my_new_file.xlsx\", mode=\"w\") do xf\n    sheet = xf[1]\n    XLSX.rename!(sheet, \"new_sheet\")\n    sheet[\"A1\"] = \"this\"\n    sheet[\"A2\"] = \"is a\"\n    sheet[\"A3\"] = \"new file\"\n    sheet[\"A4\"] = 100\n\n    # will add a row from \"A5\" to \"E5\"\n    sheet[\"A5\"] = collect(1:5) # equivalent to `sheet[\"A5\", dim=2] = collect(1:4)`\n\n    # will add a column from \"B1\" to \"B4\"\n    sheet[\"B1\", dim=1] = collect(1:4)\n\n    # will add a matrix from \"A7\" to \"C9\"\n    sheet[\"A7:C9\"] = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]\nend"
 },
 
 {
@@ -148,6 +148,14 @@ var documenterSearchIndex = {"docs": [
     "location": "tutorial/#Export-Tabular-Data-1",
     "page": "Tutorial",
     "title": "Export Tabular Data",
+    "category": "section",
+    "text": "Given a sheet reference, use the XLSX.writetable! method. Anchor cell defaults to cell \"A1\".using XLSX, Test\n\nfilename = \"myfile.xlsx\"\n\ncolumns = Vector()\npush!(columns, [1, 2, 3])\npush!(columns, [\"a\", \"b\", \"c\"])\n\nlabels = [ \"column_1\", \"column_2\"]\n\nXLSX.openxlsx(filename, mode=\"w\") do xf\n    sheet = xf[1]\n    XLSX.writetable!(sheet, columns, labels, anchor_cell=XLSX.CellRef(\"B2\"))\nend\n\n# read data back\nXLSX.openxlsx(filename) do xf\n    sheet = xf[1]\n    @test sheet[\"B2\"] == \"column_1\"\n    @test sheet[\"C2\"] == \"column_2\"\n    @test sheet[\"B3\"] == 1\n    @test sheet[\"B4\"] == 2\n    @test sheet[\"B5\"] == 3\n    @test sheet[\"C3\"] == \"a\"\n    @test sheet[\"C4\"] == \"b\"\n    @test sheet[\"C5\"] == \"c\"\nendYou can also use XLSX.writetable to write directly to a new file (see next section)."
+},
+
+{
+    "location": "tutorial/#Export-Tabular-Data-as-a-DataFrame-1",
+    "page": "Tutorial",
+    "title": "Export Tabular Data as a DataFrame",
     "category": "section",
     "text": "To export tabular data to Excel, use XLSX.writetable method.julia> import DataFrames, XLSX\n\njulia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])\n4×6 DataFrames.DataFrame\n│ Row │ integers │ strings │ floats │ dates      │ times    │ datetimes           │\n├─────┼──────────┼─────────┼────────┼────────────┼──────────┼─────────────────────┤\n│ 1   │ 1        │ Hey     │ 10.2   │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │\n│ 2   │ 2        │ You     │ 20.3   │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │\n│ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │\n│ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │\n\njulia> XLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))You can also export multiple tables to Excel, each table in a separate worksheet.julia> import DataFrames, XLSX\n\njulia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[\"Fist\", \"Sec\", \"Third\"])\n3×2 DataFrames.DataFrame\n│ Row │ COL1 │ COL2  │\n├─────┼──────┼───────┤\n│ 1   │ 10   │ Fist  │\n│ 2   │ 20   │ Sec   │\n│ 3   │ 30   │ Third │\n\njulia> df2 = DataFrames.DataFrame(AA=[\"aa\", \"bb\"], AB=[10.1, 10.2])\n2×2 DataFrames.DataFrame\n│ Row │ AA │ AB   │\n├─────┼────┼──────┤\n│ 1   │ aa │ 10.1 │\n│ 2   │ bb │ 10.2 │\n\njulia> XLSX.writetable(\"report.xlsx\", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))"
 },
@@ -405,7 +413,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API Reference",
     "title": "XLSX.getdata",
     "category": "method",
-    "text": "getdata(sheet, ref)\n\nReturns a escalar or a matrix with values from a spreadsheet. ref can be a cell reference or a range.\n\nIndexing in a Worksheet will dispatch to getdata method.\n\nExample\n\njulia> f = XLSX.readxlsx(\"myfile.xlsx\")\n\njulia> sheet = f[\"mysheet\"]\n\njulia> v = sheet[\"A1:B4\"]\n\nSee also XLSX.readdata.\n\n\n\n\n\n"
+    "text": "getdata(sheet, ref)\ngetdata(sheet, row, column)\n\nReturns a escalar or a matrix with values from a spreadsheet. ref can be a cell reference or a range.\n\nIndexing in a Worksheet will dispatch to getdata method.\n\nExample\n\njulia> f = XLSX.readxlsx(\"myfile.xlsx\")\n\njulia> sheet = f[\"mysheet\"]\n\njulia> matrix = sheet[\"A1:B4\"]\n\njulia> single_value = sheet[2, 2] # B2\n\nSee also XLSX.readdata.\n\n\n\n\n\n"
 },
 
 {
@@ -705,11 +713,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api/#XLSX.writetable!-Tuple{XLSX.Worksheet,Any,Any}",
+    "page": "API Reference",
+    "title": "XLSX.writetable!",
+    "category": "method",
+    "text": "writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef(\"A1\"))\n\nWrites tabular data data with labels given by columnnames to sheet, starting at anchor_cell.\n\ndata must be a vector of columns. columnnames must be a vector of column labels.\n\nSee also: XLSX.writetable.\n\n\n\n\n\n"
+},
+
+{
     "location": "api/#XLSX.writetable-Tuple{AbstractString,Any,Any}",
     "page": "API Reference",
     "title": "XLSX.writetable",
     "category": "method",
-    "text": "writetable(filename, data, columnnames; [overwrite], [sheetname])\n\ndata is a vector of columns. columnames is a vector of column labels. overwrite is a Bool to control if filename should be overwritten if already exists. sheetname is the name for the worksheet.\n\nExample using DataFrames.jl:\n\nimport DataFrames, XLSX\ndf = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5])\nXLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))\n\n\n\n\n\n"
+    "text": "writetable(filename, data, columnnames; [overwrite], [sheetname])\n\ndata is a vector of columns. columnames is a vector of column labels. overwrite is a Bool to control if filename should be overwritten if already exists. sheetname is the name for the worksheet.\n\nExample using DataFrames.jl:\n\nimport DataFrames, XLSX\ndf = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[\"Hey\", \"You\", \"Out\", \"There\"], floats=[10.2, 20.3, 30.4, 40.5])\nXLSX.writetable(\"df.xlsx\", DataFrames.columns(df), DataFrames.names(df))\n\nSee also: XLSX.writetable!.\n\n\n\n\n\n"
 },
 
 {
