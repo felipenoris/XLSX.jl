@@ -197,6 +197,42 @@ end
 
 ### Export Tabular Data
 
+Given a sheet reference, use the `XLSX.writetable!` method. Anchor cell defaults to cell `"A1"`.
+
+```julia
+using XLSX, Test
+
+filename = "myfile.xlsx"
+
+columns = Vector()
+push!(columns, [1, 2, 3])
+push!(columns, ["a", "b", "c"])
+
+labels = [ "column_1", "column_2"]
+
+XLSX.openxlsx(filename, mode="w") do xf
+    sheet = xf[1]
+    XLSX.writetable!(sheet, columns, labels, anchor_cell=XLSX.CellRef("B2"))
+end
+
+# read data back
+XLSX.openxlsx(filename) do xf
+    sheet = xf[1]
+    @test sheet["B2"] == "column_1"
+    @test sheet["C2"] == "column_2"
+    @test sheet["B3"] == 1
+    @test sheet["B4"] == 2
+    @test sheet["B5"] == 3
+    @test sheet["C3"] == "a"
+    @test sheet["C4"] == "b"
+    @test sheet["C5"] == "c"
+end
+```
+
+You can also use `XLSX.writetable` to write directly to a new file (see next section).
+
+### Export Tabular Data as a DataFrame
+
 To export tabular data to Excel, use `XLSX.writetable` method.
 
 ```julia

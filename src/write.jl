@@ -382,6 +382,17 @@ function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim:
     return target_cell_ref_from_offset(row_number(anchor_cell), column_number(anchor_cell), offset, dim)
 end
 
+"""
+    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+
+Writes tabular data `data` with labels given by `columnnames` to `sheet`,
+starting at `anchor_cell`.
+
+`data` must be a vector of columns.
+`columnnames` must be a vector of column labels.
+
+See also: [`XLSX.writetable`](@ref).
+"""
 function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
 
     # read dimensions
@@ -534,7 +545,6 @@ end
 # Helper Functions
 #
 
-
 """
     writetable(filename, data, columnnames; [overwrite], [sheetname])
 
@@ -550,6 +560,8 @@ import DataFrames, XLSX
 df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5])
 XLSX.writetable("df.xlsx", DataFrames.columns(df), DataFrames.names(df))
 ```
+
+See also: [`XLSX.writetable!`](@ref).
 """
 function writetable(filename::AbstractString, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
 

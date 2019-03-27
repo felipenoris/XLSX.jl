@@ -1514,6 +1514,32 @@ end
         end
     end
 
+    @testset "doctest for writetable!" begin
+        columns = Vector()
+        push!(columns, [1, 2, 3])
+        push!(columns, ["a", "b", "c"])
+
+        labels = [ "column_1", "column_2"]
+
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            XLSX.writetable!(sheet, columns, labels, anchor_cell=XLSX.CellRef("B2"))
+        end
+
+        # read data back
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+            @test sheet["B2"] == "column_1"
+            @test sheet["C2"] == "column_2"
+            @test sheet["B3"] == 1
+            @test sheet["B4"] == 2
+            @test sheet["B5"] == 3
+            @test sheet["C3"] == "a"
+            @test sheet["C4"] == "b"
+            @test sheet["C5"] == "c"
+        end
+    end
+
     rm(filename)
 end
 
