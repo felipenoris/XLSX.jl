@@ -1474,6 +1474,46 @@ end
         end
     end
 
+    @testset "write matrix with anchor cell" begin
+        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet["A7"] = test_data
+        end
+
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+            rows, cols = size(test_data)
+            for c in 1:cols, r in 1:rows
+                @test sheet[r+6, c] == test_data[r, c]
+            end
+        end
+    end
+
+    @testset "write matrix with range" begin
+        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet["A7:C9"] = test_data
+        end
+
+        XLSX.openxlsx(filename) do xf
+            sheet = xf[1]
+            rows, cols = size(test_data)
+            for c in 1:cols, r in 1:rows
+                @test sheet[r+6, c] == test_data[r, c]
+            end
+        end
+    end
+
+    @testset "write matrix with range mismatch" begin
+        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            @test_throws AssertionError sheet["A7:C10"] = test_data
+        end
+    end
+
     rm(filename)
 end
 

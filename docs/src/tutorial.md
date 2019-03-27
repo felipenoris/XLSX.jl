@@ -35,7 +35,10 @@ julia> XLSX.sheetnames(xf)
 julia> sh = xf["mysheet"] # get a reference to a Worksheet
 4×2 XLSX.Worksheet: ["mysheet"](A1:B4)
 
-julia> sh["B2"] # From a sheet, you can access a cell value
+julia> sh[2, 2] # access element "B2" (2nd row, 2nd column)
+"first"
+
+julia> sh["B2"] # you can also use the cell name
 "first"
 
 julia> sh["A2:B4"] # or a cell range
@@ -57,7 +60,7 @@ julia> sh[:] # all data inside worksheet's dimension
  2           "second"
  3           "third"
 
-julia> xf["mysheet!A2:B4"] # you can also query values from a file reference
+julia> xf["mysheet!A2:B4"] # you can also query values using a sheet reference
 3×2 Array{Any,2}:
  1  "first"
  2  "second"
@@ -168,6 +171,15 @@ XLSX.openxlsx("my_new_file.xlsx", mode="w") do xf
     sheet["A2"] = "is a"
     sheet["A3"] = "new file"
     sheet["A4"] = 100
+
+    # will add a row from "A5" to "E5"
+    sheet["A5"] = collect(1:5) # equivalent to `sheet["A5", dim=2] = collect(1:4)`
+
+    # will add a column from "B1" to "B4"
+    sheet["B1", dim=1] = collect(1:4)
+
+    # will add a matrix from "A7" to "C9"
+    sheet["A7:C9"] = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
 end
 ```
 
