@@ -1540,6 +1540,29 @@ end
         end
     end
 
+    @testset "openxlsx without do-syntax" begin
+        let
+            xf = XLSX.openxlsx(filename)
+            sheet = xf[1]
+            @test sheet["B2"] == "column_1"
+            close(xf)
+        end
+
+        let
+            xf = XLSX.openxlsx(filename, mode="w")
+            sheet = xf[1]
+            sheet["A1"] = "openxlsx without do-syntax"
+            XLSX.writexlsx(filename, xf, overwrite=true)
+        end
+
+        let
+            xf = XLSX.openxlsx(filename)
+            sheet = xf[1]
+            @test sheet["A1"] == "openxlsx without do-syntax"
+            close(xf)
+        end
+    end
+
     rm(filename)
 end
 
