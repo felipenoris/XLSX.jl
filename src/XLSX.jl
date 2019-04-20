@@ -1,5 +1,4 @@
 
-__precompile__(true)
 module XLSX
 
 import Dates
