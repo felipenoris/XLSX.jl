@@ -513,19 +513,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api/#XLSX.openxlsx-Tuple{AbstractString}",
+    "page": "API Reference",
+    "title": "XLSX.openxlsx",
+    "category": "method",
+    "text": "openxlsx(filepath; mode=\"r\", enable_cache=true) :: XLSXFile\n\nSupports opening a XLSX file without using do-syntax. In this case, the user is responsible for closing the XLSXFile using close or writing it to file using XLSX.writexlsx.\n\nSee also XLSX.writexlsx.\n\n\n\n\n\n"
+},
+
+{
     "location": "api/#XLSX.openxlsx-Tuple{Function,AbstractString}",
     "page": "API Reference",
     "title": "XLSX.openxlsx",
     "category": "method",
     "text": "openxlsx(f::Function, filepath::AbstractString; mode::AbstractString=\"r\", enable_cache::Bool=true)\n\nOpen XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying f to the file.\n\nDo syntax\n\nThis function should be used with do syntax, like in:\n\nXLSX.openxlsx(\"myfile.xlsx\") do xf\n    # read data from `xf`\nend\n\nFilemodes\n\nThe mode argument controls how the file is opened. The following modes are allowed:\n\nr : read mode. The existing data in filepath will be accessible for reading. This is the default mode.\nw : write mode. Opens an empty file that will be written to filepath.\nrw : edit mode. Opens filepath for editing. The file will be saved to disk when the function ends.\n\nArguments\n\nfilepath is the complete path to the file.\nmode is the file mode, as explained in the last section.\nenable_cache:\n\nIf enable_cache=true, all read worksheet cells will be cached. If you read a worksheet cell twice it will use the cached value instead of reading from disk in the second time.\n\nIf enable_cache=false, worksheet cells will always be read from disk. This is useful when you want to read a spreadsheet that doesn\'t fit into memory.\n\nThe default value is enable_cache=true.\n\nExamples\n\nRead from file\n\nThe following example shows how you would read worksheet cells, one row at a time, where myfile.xlsx is a spreadsheet that doesn\'t fit into memory.\n\njulia> XLSX.openxlsx(\"myfile.xlsx\", enable_cache=false) do xf\n          for r in XLSX.eachrow(xf[\"mysheet\"])\n              # read something from row `r`\n          end\n       end\n\nWrite a new file\n\nXLSX.openxlsx(\"new.xlsx\", mode=\"w\") do xf\n    sheet = xf[1]\n    sheet[1, :] = [1, Date(2018, 1, 1), \"test\"]\nend\n\nEdit an existing file\n\nXLSX.openxlsx(\"edit.xlsx\", mode=\"rw\") do xf\n    sheet = xf[1]\n    sheet[2, :] = [2, Date(2019, 1, 1), \"add new line\"]\nend\n\nSee also XLSX.readxlsx.\n\n\n\n\n\n"
-},
-
-{
-    "location": "api/#XLSX.parse_file_mode-Tuple{AbstractString}",
-    "page": "API Reference",
-    "title": "XLSX.parse_file_mode",
-    "category": "method",
-    "text": "Parses filemode string to the tuple (read, write). See openxlsx.\n\n\n\n\n\n"
 },
 
 {
