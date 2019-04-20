@@ -1023,11 +1023,32 @@ end
     f = XLSX.open_empty_template()
     s = XLSX.addsheet!(f, "new_sheet")
     s["A1"] = 10
+
+    @testset "check invalid sheet names" begin
+        invalid_names = [
+                         "new_sheet",
+                         "aaaaaaaaaabbbbbbbbbbccccccccccd1",
+                         "abc:def",
+                         "abcdef/",
+                         "\\aaaa",
+                         "hey?you",
+                         "[mysheet]",
+                         "asteri*"
+                        ]
+
+        for invalid_name in invalid_names
+            @test_throws AssertionError XLSX.addsheet!(f, invalid_name)
+        end
+    end
+
+    big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
+    s2 = XLSX.addsheet!(f, big_sheetname)
+
     XLSX.writexlsx(new_filename, f, overwrite=true)
     @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
-    @test XLSX.sheetnames(f) == [ "Sheet1", "new_sheet" ]
+    @test XLSX.sheetnames(f) == [ "Sheet1", "new_sheet" , big_sheetname ]
     rm(new_filename)
 end
 
