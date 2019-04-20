@@ -113,7 +113,8 @@ end
 
 See also [`XLSX.readxlsx`](@ref).
 """
-function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
+function openxlsx(f::Function, filepath::AbstractString;
+                  mode::AbstractString="r", enable_cache::Bool=true)
 
     _read, _write = parse_file_mode(mode)
 
@@ -135,11 +136,35 @@ function openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r
         end
 
         # fix libuv issue on windows (#42)
-        @static Sys.iswindows() ? GC.gc() : nothing
+        @static if Sys.iswindows()
+            GC.gc()
+        end
     end
 end
 
-"Parses filemode string to the tuple (read, write). See `openxlsx`."
+"""
+    openxlsx(filepath; mode="r", enable_cache=true) :: XLSXFile
+
+Supports opening a XLSX file without using do-syntax.
+In this case, the user is responsible for closing the `XLSXFile`
+using `close` or writing it to file using `XLSX.writexlsx`.
+
+See also [`XLSX.writexlsx`](@ref).
+"""
+function openxlsx(filepath::AbstractString;
+                  mode::AbstractString="r",
+                  enable_cache::Bool=true) :: XLSXFile
+
+    _read, _write = parse_file_mode(mode)
+
+    if _read
+        @assert isfile(filepath) "File $filepath not found."
+        return open_or_read_xlsx(filepath, _write, enable_cache, _write)
+    else
+        return open_empty_template()
+    end
+end
+
 function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
     if mode == "r"
         return (true, false)
