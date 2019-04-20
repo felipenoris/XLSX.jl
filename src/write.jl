@@ -482,6 +482,22 @@ function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
 
     @assert name != ""
 
+    # checks if name is a unique sheet name
+    @assert name ∉ sheetnames(wb) "A sheet named `$name` already exists in this workbook."
+
+    function check_valid_sheetname(n::AbstractString)
+        max_length = 31
+        @assert(length(n) <= max_length,
+                "Invalid sheetname $n: must have at most $max_length characters. Found $(length(n))"
+               )
+
+        @assert(!occursin(r"[:\\/\?\*\[\]]+", n),
+                "Sheetname cannot contain characters: ':', '\\', '/', '?', '*', '[', ']'."
+               )
+    end
+
+    check_valid_sheetname(name)
+
     # generate sheetId
     current_sheet_ids = [ ws.sheetId for ws in wb.sheets ]
     sheetId = max(current_sheet_ids...) + 1
