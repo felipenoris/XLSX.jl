@@ -20,7 +20,7 @@
 [docs-dev-url]: https://felipenoris.github.io/XLSX.jl/dev
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square
 [docs-stable-url]: https://felipenoris.github.io/XLSX.jl/stable
-[donate-img]: https://img.shields.io/badge/Donate-%245-orange.svg?style=flat-square
+[donate-img]: https://img.shields.io/badge/Donate%20%E2%9D%A4-%245-orange.svg?style=flat-square
 [donate-url]: https://buymeacoff.ee/c4Y6ku9p5
 
 Excel file reader/writer coded in pure Julia.
