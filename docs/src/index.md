@@ -3,10 +3,14 @@
 
 ## Introduction
 
-**XLSX.jl** is a Julia package to read and write [Excel](https://products.office.com/excel) spreadsheet files.
+**XLSX.jl** is a Julia package to read and write
+[Excel](https://products.office.com/excel) spreadsheet files.
 
-Internally, an Excel XLSX file is just a [Zip](https://en.wikipedia.org/wiki/Zip_(file_format)) file with a set of [XML](https://en.wikipedia.org/wiki/XML) files inside.
-The formats for these XML files are described in the [Standard ECMA-376](https://www.ecma-international.org/publications/standards/Ecma-376.htm).
+Internally, an Excel XLSX file is just a
+[Zip](https://en.wikipedia.org/wiki/Zip_(file_format)) file with a set of
+[XML](https://en.wikipedia.org/wiki/XML) files inside.
+The formats for these XML files are described in
+the [Standard ECMA-376](https://www.ecma-international.org/publications/standards/Ecma-376.htm).
 
 This package follows the EMCA-376 to parse and generate XLSX files.
 
@@ -28,11 +32,28 @@ julia> Pkg.add("XLSX")
 
 ## Source Code
 
-The source code for this package is hosted at [https://github.com/felipenoris/XLSX.jl](https://github.com/felipenoris/XLSX.jl).
+The source code for this package is hosted at
+[https://github.com/felipenoris/XLSX.jl](https://github.com/felipenoris/XLSX.jl).
 
 ## License
 
-The source code for the package **XLSX.jl** is licensed under the [MIT License](https://raw.githubusercontent.com/felipenoris/XLSX.jl/master/LICENSE).
+The source code for the package **XLSX.jl** is licensed under
+the [MIT License](https://raw.githubusercontent.com/felipenoris/XLSX.jl/master/LICENSE).
+
+## Getting Help
+
+If you're having any trouble, have any questions about this package
+or want to ask for a new feature,
+just open a new [issue](https://github.com/felipenoris/XLSX.jl/issues).
+
+## Contributing
+
+Contributions are always welcome!
+
+To contribute, fork the project on [GitHub](https://github.com/felipenoris/XLSX.jl)
+and send a Pull Request.
+
+[![donate-img](https://img.shields.io/badge/Donate%20%E2%9D%A4-%245-orange.svg?style=flat-square)](https://buymeacoff.ee/c4Y6ku9p5)
 
 ## References
 
