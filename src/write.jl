@@ -339,7 +339,7 @@ function setdata!(sheet::Worksheet, rows::UnitRange{T}, col::Integer, data::Abst
     setdata!(sheet, anchor_cell_ref, data, 1)
 end
 
-function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T, 2}) where {T<:CellValueType}
+function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T, 2}) where {T}
     if is_valid_cellrange(ref_or_rng)
         setdata!(sheet, CellRange(ref_or_rng), matrix)
     elseif is_valid_cellname(ref_or_rng)
@@ -349,7 +349,7 @@ function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T,
     end
 end
 
-function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T<:CellValueType}
+function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T}
     rows, cols = size(matrix)
     anchor_row = row_number(ref)
     anchor_col = column_number(ref)
@@ -359,7 +359,7 @@ function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T<
     end
 end
 
-function setdata!(sheet::Worksheet, rng::CellRange, matrix::Array{T, 2}) where {T<:CellValueType}
+function setdata!(sheet::Worksheet, rng::CellRange, matrix::Array{T, 2}) where {T}
     @assert size(rng) == size(matrix) "Target range $rng size ($(size(rng))) must be equal to the input matrix size ($(size(matrix))) "
     setdata!(sheet, rng.start, matrix)
 end

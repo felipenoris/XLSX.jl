@@ -1535,6 +1535,27 @@ end
         end
     end
 
+    @testset "write matrix with heterogeneous data types" begin
+        # issue #97
+        test_data = ["A" "B"; 1 2; "a" "b"; 0 "x"]
+        XLSX.openxlsx(filename, mode="w") do xf
+            sheet = xf[1]
+            sheet["B2"] = test_data
+        end
+
+        XLSX.openxlsx(filename, mode="r") do xf
+            sheet = xf[1]
+            @test sheet["B2"] == "A"
+            @test sheet["C2"] == "B"
+            @test sheet["B3"] == 1
+            @test sheet["C3"] == 2
+            @test sheet["B4"] == "a"
+            @test sheet["C4"] == "b"
+            @test sheet["B5"] == 0
+            @test sheet["C5"] == "x"
+        end
+    end
+
     @testset "doctest for writetable!" begin
         columns = Vector()
         push!(columns, [1, 2, 3])
