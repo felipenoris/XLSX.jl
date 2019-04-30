@@ -168,4 +168,4 @@ julia&gt; df2 = DataFrames.DataFrame(AA=[&quot;aa&quot;, &quot;bb&quot;], AB=[10
 │ 1   │ aa │ 10.1 │
 │ 2   │ bb │ 10.2 │
 
-julia&gt; XLSX.writetable(&quot;report.xlsx&quot;, REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))</code></pre><footer><hr/><a class="previous" href="../"><span class="direction">Previous</span><span class="title">Home</span></a><a class="next" href="../api/"><span class="direction">Next</span><span class="title">API Reference</span></a></footer></article></body></html>
+julia&gt; XLSX.writetable(&quot;report.xlsx&quot;, REPORT_A=( collect(DataFrames.eachcolumn(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcolumn(df2)), DataFrames.names(df2) ))</code></pre><footer><hr/><a class="previous" href="../"><span class="direction">Previous</span><span class="title">Home</span></a><a class="next" href="../api/"><span class="direction">Next</span><span class="title">API Reference</span></a></footer></article></body></html>
