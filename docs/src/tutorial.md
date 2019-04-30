@@ -270,5 +270,5 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 │ 1   │ aa │ 10.1 │
 │ 2   │ bb │ 10.2 │
 
-julia> XLSX.writetable("report.xlsx", REPORT_A=( DataFrames.columns(df1), DataFrames.names(df1) ), REPORT_B=( DataFrames.columns(df2), DataFrames.names(df2) ))
+julia> XLSX.writetable("report.xlsx", REPORT_A=( collect(DataFrames.eachcolumn(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcolumn(df2)), DataFrames.names(df2) ))
 ```
