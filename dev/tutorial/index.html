@@ -151,7 +151,7 @@ julia&gt; df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=[&quot;Hey&qu
 │ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
 │ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
 
-julia&gt; XLSX.writetable(&quot;df.xlsx&quot;, DataFrames.columns(df), DataFrames.names(df))</code></pre><p>You can also export multiple tables to Excel, each table in a separate worksheet.</p><pre><code class="language-julia">julia&gt; import DataFrames, XLSX
+julia&gt; XLSX.writetable(&quot;df.xlsx&quot;, collect(DataFrames.eachcol(df)), DataFrames.names(df))</code></pre><p>You can also export multiple tables to Excel, each table in a separate worksheet.</p><pre><code class="language-julia">julia&gt; import DataFrames, XLSX
 
 julia&gt; df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=[&quot;Fist&quot;, &quot;Sec&quot;, &quot;Third&quot;])
 3×2 DataFrames.DataFrame
@@ -168,4 +168,4 @@ julia&gt; df2 = DataFrames.DataFrame(AA=[&quot;aa&quot;, &quot;bb&quot;], AB=[10
 │ 1   │ aa │ 10.1 │
 │ 2   │ bb │ 10.2 │
 
-julia&gt; XLSX.writetable(&quot;report.xlsx&quot;, REPORT_A=( collect(DataFrames.eachcolumn(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcolumn(df2)), DataFrames.names(df2) ))</code></pre><footer><hr/><a class="previous" href="../"><span class="direction">Previous</span><span class="title">Home</span></a><a class="next" href="../api/"><span class="direction">Next</span><span class="title">API Reference</span></a></footer></article></body></html>
+julia&gt; XLSX.writetable(&quot;report.xlsx&quot;, REPORT_A=( collect(DataFrames.eachcol(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcol(df2)), DataFrames.names(df2) ))</code></pre><footer><hr/><a class="previous" href="../"><span class="direction">Previous</span><span class="title">Home</span></a><a class="next" href="../api/"><span class="direction">Next</span><span class="title">API Reference</span></a></footer></article></body></html>
