@@ -495,6 +495,36 @@ Returns EzXML.root(xl.data[filename]) if it exists.
 # Helper Functions
 #
 
+"""
+    readdata(filepath, sheet, ref)
+    readdata(filepath, sheetref)
+
+Returns a scalar or matrix with values from a spreadsheet.
+
+# Examples
+
+These function calls are equivalent.
+
+```julia
+julia> XLSX.readdata("myfile.xlsx", "mysheet", "A2:B4")
+3×2 Array{Any,2}:
+ 1  "first"
+ 2  "second"
+ 3  "third"
+
+julia> XLSX.readdata("myfile.xlsx", 1, "A2:B4")
+3×2 Array{Any,2}:
+ 1  "first"
+ 2  "second"
+ 3  "third"
+
+julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
+3×2 Array{Any,2}:
+ 1  "first"
+ 2  "second"
+ 3  "third"
+```
+"""
 function readdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
     c = openxlsx(filepath, enable_cache=false) do xf
         getdata(getsheet(xf, sheet), ref)
