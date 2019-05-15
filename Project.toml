@@ -12,7 +12,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 
 [compat]
-julia = "^1"
+julia = "0.7, 1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
