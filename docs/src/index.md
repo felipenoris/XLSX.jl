@@ -53,6 +53,8 @@ Contributions are always welcome!
 To contribute, fork the project on [GitHub](https://github.com/felipenoris/XLSX.jl)
 and send a Pull Request.
 
+[![donate-img](https://img.shields.io/badge/Donate%20%E2%9D%A4-%245-orange.svg?style=flat-square)](https://buymeacoff.ee/c4Y6ku9p5)
+
 ## References
 
 * [ECMA Open XML White Paper](https://www.ecma-international.org/news/TC45_current_work/OpenXML%20White%20Paper.pdf)
