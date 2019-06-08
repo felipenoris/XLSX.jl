@@ -181,13 +181,10 @@ function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dat
     end
 end
 
-"""
-Converts Excel number to Time.
-`x` must be between 0 and 1.
-
-To represent Time, Excel uses the decimal part
-of a floating point number. `1` equals one day.
-"""
+# Converts Excel number to Time.
+# `x` must be between 0 and 1.
+# To represent Time, Excel uses the decimal part
+# of a floating point number. `1` equals one day.
 function excel_value_to_time(x::Float64) :: Dates.Time
     @assert x >= 0 && x <= 1
     return Dates.Time(Dates.Nanosecond(round(Int, x * 86400) * 1E9 ))
@@ -195,11 +192,7 @@ end
 
 time_to_excel_value(x::Dates.Time) :: Float64 = Dates.value(x) / ( 86400 * 1E9 )
 
-"""
-Converts Excel number to Date.
-
-See also: [`XLSX.isdate1904`](@ref) function.
-"""
+# Converts Excel number to Date. See also XLSX.isdate1904.
 function excel_value_to_date(x::Int, _is_date_1904::Bool) :: Dates.Date
     if _is_date_1904
         return Dates.Date(Dates.rata2datetime(x + 695056))
@@ -216,14 +209,10 @@ function date_to_excel_value(date::Dates.Date, _is_date_1904::Bool) :: Int
     end
 end
 
-"""
-Converts Excel number to DateTime.
-
-The decimal part represents the Time (see `_time` function).
-The integer part represents the Date.
-
-See also: [`XLSX.isdate1904`](@ref).
-"""
+# Converts Excel number to DateTime.
+# The decimal part represents the Time (see `_time` function).
+# The integer part represents the Date.
+# See also XLSX.isdate1904.
 function excel_value_to_datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
     @assert x >= 0
 

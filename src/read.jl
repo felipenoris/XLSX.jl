@@ -32,7 +32,7 @@ Main function for reading an Excel file.
 This function will read the whole Excel file into memory
 and return a closed XLSXFile.
 
-Consider using `openxlsx` for lazy loading of Excel file contents.
+Consider using [`XLSX.openxlsx`](@ref) for lazy loading of Excel file contents.
 """
 @inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, false)
 
@@ -273,10 +273,8 @@ function check_minimum_requirements(xf::XLSXFile)
     nothing
 end
 
-"""
-Parses package level relationships defined in `_rels/.rels`.
-Prases workbook level relationships defined in `xl/_rels/workbook.xml.rels`.
-"""
+# Parses package level relationships defined in `_rels/.rels`.
+# Parses workbook level relationships defined in `xl/_rels/workbook.xml.rels`.
 function parse_relationships!(xf::XLSXFile)
 
     # package level relationships
@@ -297,11 +295,7 @@ function parse_relationships!(xf::XLSXFile)
     nothing
 end
 
-"""
-  parse_workbook!(xf::XLSXFile)
-
-Updates xf.workbook from xf.data[\"xl/workbook.xml\"]
-"""
+# Updates xf.workbook from xf.data[\"xl/workbook.xml\"]
 function parse_workbook!(xf::XLSXFile)
     xroot = xmlroot(xf, "xl/workbook.xml")
     @assert EzXML.nodename(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(EzXML.nodename(xroot))'."
@@ -420,14 +414,10 @@ end
 
 # Lazy loading of XML files
 
-"""
-Lists internal files from the XLSX package.
-"""
+# Lists internal files from the XLSX package.
 @inline filenames(xl::XLSXFile) = keys(xl.files)
 
-"""
-Returns true if the file data was read into xl.data.
-"""
+# Returns true if the file data was read into xl.data.
 @inline internal_xml_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
 @inline internal_xml_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
 
@@ -475,20 +465,12 @@ end
 
 Base.isopen(xl::XLSXFile) = xl.io_is_open
 
-"""
-    xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document
-
-Utility method to find the XMLDocument associated with a given package filename.
-Returns xl.data[filename] if it exists. Throws an error if it doesn't.
-"""
+# Utility method to find the XMLDocument associated with a given package filename.
+# Returns xl.data[filename] if it exists. Throws an error if it doesn't.
 @inline xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document = internal_xml_file_read(xl, filename)
 
-"""
-    xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node
-
-Utility method to return the root element of a given XMLDocument from the package.
-Returns EzXML.root(xl.data[filename]) if it exists.
-"""
+# Utility method to return the root element of a given XMLDocument from the package.
+# Returns EzXML.root(xl.data[filename]) if it exists.
 @inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
 
 #
@@ -500,6 +482,8 @@ Returns EzXML.root(xl.data[filename]) if it exists.
     readdata(filepath, sheetref)
 
 Returns a scalar or matrix with values from a spreadsheet.
+
+See also [`XLSX.getdata`](@ref).
 
 # Examples
 

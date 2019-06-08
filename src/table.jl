@@ -3,11 +3,7 @@
 # Table
 #
 
-"""
-   column_bounds(sr::SheetRow)
-
-Returns a tuple with the first and last index of the columns for a `SheetRow`.
-"""
+# Returns a tuple with the first and last index of the columns for a `SheetRow`.
 function column_bounds(sr::SheetRow)
 
     @assert !isempty(sr) "Can't get column bounds from an empty row."
@@ -198,20 +194,14 @@ end
 
 @inline get_worksheet(tri::TableRowIterator) = get_worksheet(tri.itr)
 
-"""
-Returns real sheet column numbers (based on cellref)
-"""
+# Returns real sheet column numbers (based on cellref)
 @inline sheet_column_numbers(i::Index) = values(i.column_map)
 
-"""
-Returns an iterator for table column numbers.
-"""
+# Returns an iterator for table column numbers.
 @inline table_column_numbers(i::Index) = eachindex(i.column_labels)
 @inline table_column_numbers(r::TableRow) = table_column_numbers(r.index)
 
-"""
-Maps table column index (1-based) -> sheet column index (cellref based)
-"""
+# Maps table column index (1-based) -> sheet column index (cellref based)
 @inline table_column_to_sheet_column_number(index::Index, table_column_number::Int) = index.column_map[table_column_number]
 @inline table_columns_count(i::Index) = length(i.column_labels)
 @inline table_columns_count(itr::TableRowIterator) = table_columns_count(itr.index)

@@ -3,17 +3,18 @@ EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false,
     Vector{Relationship}(), SharedStringTable(), Dict{Int, Bool}(), Dict{Int, Bool}(),
     Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), nothing)
 
-"""
-    is_writable(xl::XLSXFile)
-
+#=
 Indicates wether this XLSX file can be edited.
 This controls if assignment to worksheet cells is allowed.
 Writable XLSXFile instances are opened with `XLSX.open_xlsx_template` method.
-"""
+=#
 is_writable(xl::XLSXFile) = xl.is_writable
 
 """
-Lists Worksheet names for this Workbook.
+    sheetnames(xl::XLSXFile)
+    sheetnames(wb::Workbook)
+
+Returns a vector with Worksheet names for this Workbook.
 """
 sheetnames(wb::Workbook) = [ s.name for s in wb.sheets ]
 @inline sheetnames(xl::XLSXFile) = sheetnames(xl.workbook)
@@ -30,16 +31,14 @@ end
 @inline hassheet(xl::XLSXFile, sheetname::AbstractString) = hassheet(xl.workbook, sheetname)
 
 """
+    sheetcount(xlsfile) :: Int
+
 Counts the number of sheets in the Workbook.
 """
 @inline sheetcount(wb::Workbook) = length(wb.sheets)
 @inline sheetcount(xl::XLSXFile) = sheetcount(xl.workbook)
 
-"""
-    isdate1904(wb) :: Bool
-
-Returns true if workbook follows date1904 convention.
-"""
+# Returns true if workbook follows date1904 convention.
 @inline isdate1904(wb::Workbook) :: Bool = wb.date1904
 @inline isdate1904(xf::XLSXFile) :: Bool = isdate1904(get_workbook(xf))
 

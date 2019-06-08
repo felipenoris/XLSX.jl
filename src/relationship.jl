@@ -61,9 +61,7 @@ function get_workbook_relationship_root(xf::XLSXFile) :: EzXML.Node
     return xroot
 end
 
-"""
-Adds new relationship. Returns new generated rId.
-"""
+# Adds new relationship. Returns new generated rId.
 function add_relationship!(wb::Workbook, target::String, _type::String) :: String
     xf = get_xlsxfile(wb)
     @assert is_writable(xf) "XLSXFile instance is not writable."

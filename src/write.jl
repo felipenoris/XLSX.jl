@@ -1,22 +1,22 @@
 
-"""
+#=
     open_xlsx_template(filepath::AbstractString) :: XLSXFile
 
 Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
 
 The returned `XLSXFile` instance is in closed state.
-"""
+=#
 @inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
 
 const EMPTY_EXCEL_TEMPLATE = joinpath(@__DIR__, "..", "data", "blank.xlsx")
 
-"""
+#=
     open_empty_template(sheetname::AbstractString="") :: XLSXFile
 
 Returns an empty, writable `XLSXFile` with 1 worksheet.
 
 `sheetname` is the name of the worksheet, defaults to `Sheet1`.
-"""
+=#
 function open_empty_template(sheetname::AbstractString="") :: XLSXFile
     @assert isfile(EMPTY_EXCEL_TEMPLATE) "Couldn't find template file $EMPTY_EXCEL_TEMPLATE."
     xf = open_xlsx_template(EMPTY_EXCEL_TEMPLATE)
@@ -273,9 +273,7 @@ function xlsx_escape(str::AbstractString)
     return String(take!(buffer))
 end
 
-"""
-Returns the datatype and value for `val` to be inserted into `ws`.
-"""
+# Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
@@ -422,6 +420,11 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     end
 end
 
+"""
+    rename!(ws::Worksheet, name::AbstractString)
+
+Renames a `Worksheet`.
+"""
 function rename!(ws::Worksheet, name::AbstractString)
     xf = get_xlsxfile(ws)
     @assert is_writable(xf) "XLSXFile instance is not writable."
@@ -457,7 +460,6 @@ addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_wo
 
 Create a new worksheet with named `name`.
 If `name` is not provided, a unique name is created.
-
 """
 function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
 

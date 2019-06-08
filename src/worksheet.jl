@@ -42,12 +42,8 @@ end
 
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
 
-"""
-    get_dimension(ws::Worksheet) :: Union{Nothing, CellRange}
-
-Retuns the dimension of this worksheet as a CellRange.
-Returns `nothing` if the dimension is unknown.
-"""
+# Retuns the dimension of this worksheet as a CellRange.
+# Returns `nothing` if the dimension is unknown.
 @inline get_dimension(ws::Worksheet) :: Union{Nothing, CellRange} = ws.dimension
 
 function set_dimension!(ws::Worksheet, rng::CellRange)

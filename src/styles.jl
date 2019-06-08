@@ -31,9 +31,7 @@ const DEFAULT_DATE_numFmtId = 14 # dd-mm-yyyy
 const DEFAULT_TIME_numFmtId = 20 # h:mm
 const DEFAULT_DATETIME_numFmtId = 22 # dd-mm-yyyy h:mm
 
-"""
-Returns the default `CellDataFormat` for a type
-"""
+# Returns the default `CellDataFormat` for a type
 default_cell_format(::Worksheet, ::CellValueType) = EmptyCellDataFormat()
 default_cell_format(ws::Worksheet, ::Dates.Date) = get_num_style_index(ws, DEFAULT_DATE_numFmtId)
 default_cell_format(ws::Worksheet, ::Dates.Time) = get_num_style_index(ws, DEFAULT_TIME_numFmtId)
@@ -74,26 +72,22 @@ function styles_xmlroot(workbook::Workbook)
     return workbook.styles_xroot
 end
 
-"""
-Returns the xf XML node element for style `index`.
-`index` is 0-based.
-"""
+# Returns the xf XML node element for style `index`.
+# `index` is 0-based.
 function styles_cell_xf(wb::Workbook, index::Int) :: EzXML.Node
     xroot = styles_xmlroot(wb)
     xf_elements = findall("/xpath:styleSheet/xpath:cellXfs/xpath:xf", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     return xf_elements[index+1]
 end
 
-"Queries numFmtId from cellXfs -> xf nodes."
+# Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
     el = styles_cell_xf(wb, index)
     return parse(Int, el["numFmtId"])
 end
 
-"""
-Defines a custom number format to render numbers, dates or text.
-Returns the index to be used as the `numFmtId` in a cellXf definition.
-"""
+# Defines a custom number format to render numbers, dates or text.
+# Returns the index to be used as the `numFmtId` in a cellXf definition.
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
 
@@ -117,9 +111,7 @@ end
 
 const FontAttribute = Union{AbstractString, Pair{String, Pair{String, String}}}
 
-"""
-Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
-"""
+# Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
 function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
     xroot = styles_xmlroot(wb)
     fonts_element = findfirst("/xpath:styleSheet/xpath:fonts", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
@@ -140,9 +132,7 @@ function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
 end
 
 
-"""
-Queries numFmt formatCode field by numFmtId.
-"""
+# Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = styles_xmlroot(wb)
     elements_found = findall("/xpath:styleSheet/xpath:numFmts/xpath:numFmt[@numFmtId='$(numFmtId)']", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
@@ -234,7 +224,7 @@ end
 styles_is_float(wb::Workbook, fmt::CellDataFormat) = styles_is_float(wb, Int(fmt.id))
 styles_is_float(ws::Worksheet, index) = styles_is_float(get_workbook(ws), index)
 
-"""
+#=
 Cell Xf element follows the XML format below.
 This function queries the 0-based index of the first xf element that has the provided numFmtId.
 Returns -1 if not found.
@@ -247,7 +237,7 @@ Returns -1 if not found.
             <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="20" xfId="0"/>
             <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="22" xfId="0"/>
 ```
-"""
+=#
 function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
     elements_found = findall("/xpath:styleSheet/xpath:cellXfs/xpath:xf", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
