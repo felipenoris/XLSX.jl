@@ -41,9 +41,7 @@ The iterator element is a SheetRow.
 
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( is open = $(state.is_open) , row = $(state.row) )")
 
-"""
-Open a file for streaming.
-"""
+# Opens a file for streaming.
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipFile.Reader, EzXML.StreamReader}
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
     @assert isfile(xf.filepath) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
@@ -70,14 +68,9 @@ end
 end
 
 
-"""
-    SheetRowStreamIterator(ws::Worksheet)
-
-Creates a reader for row elements in the Worksheet's XML.
-Will return a stream reader positioned in the first row element if it exists.
-
-If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.
-"""
+# Creates a reader for row elements in the Worksheet's XML.
+# Will return a stream reader positioned in the first row element if it exists.
+# If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.
 function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
 
     if state == nothing # first iteration. Will open a stream and create the first state instance
@@ -173,18 +166,14 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     return sheet_row, state
 end
 
-"""
-Detects a closing sheetData element
-"""
+#Detects a closing sheetData element
 @inline is_end_of_sheet_data(r::EzXML.StreamReader) = (EzXML.nodedepth(r) <= 1) || (EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && EzXML.nodename(r) == "sheetData")
 
 #
 # WorksheetCache
 #
 
-"""
-Indicates wether worksheet cache will be fed while reading worksheet cells.
-"""
+# Indicates wether worksheet cache will be fed while reading worksheet cells.
 @inline is_cache_enabled(ws::Worksheet) = is_cache_enabled(get_xlsxfile(ws))
 @inline is_cache_enabled(wb::Workbook) = is_cache_enabled(get_xlsxfile(wb))
 @inline is_cache_enabled(xl::XLSXFile) = xl.use_cache_for_sheet_data
@@ -263,6 +252,16 @@ end
 
 row_number(sr::SheetRow) = sr.row
 
+"""
+    getcell(xlsxfile, cell_reference_name) :: AbstractCell
+    getcell(worksheet, cell_reference_name) :: AbstractCell
+    getcell(sheetrow, column_name) :: AbstractCell
+    getcell(sheetrow, column_number) :: AbstractCell
+
+Returns the internal representation of a worksheet cell.
+
+Returns `XLSX.EmptyCell` if the cell has no data.
+"""
 function getcell(r::SheetRow, column_index::Int) :: AbstractCell
     if haskey(r.rowcells, column_index)
         return r.rowcells[column_index]

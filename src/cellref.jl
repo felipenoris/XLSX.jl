@@ -11,18 +11,7 @@ end
 @inline column_number(p::CellPosition) = p.column
 @inline CellRef(p::CellPosition) = CellRef(row_number(p), column_number(p))
 
-"""
-    decode_column_number(column_name::AbstractString) :: Int
-
-Converts column name to a column number.
-
-```julia
-julia> XLSX.decode_column_number("D")
-4
-```
-
-See also: [`XLSX.encode_column_number`](@ref).
-"""
+# Converts column name to a column number. See also XLSX.encode_column_number.
 function decode_column_number(column_name::AbstractString) :: Int
     local result::Int = 0
 
@@ -39,20 +28,7 @@ function decode_column_number(column_name::AbstractString) :: Int
     return result
 end
 
-"""
-    encode_column_number(column_number::Int) :: String
-
-Converts column number to a column name.
-
-# Example
-
-```julia
-julia> XLSX.encode_column_number(4)
-"D"
-```
-
-See also: [`XLSX.decode_column_number`](@ref).
-"""
+# Converts column number to a column name. See also XLSX.decode_column_number.
 function encode_column_number(column_number::Int) :: String
     @assert column_number > 0 && column_number <= 16384 "Column number should be in the range from 1 to 16384."
 
@@ -103,18 +79,7 @@ end
 const RGX_CELLNAME_LEFT = r"^[A-Z]+"
 const RGX_CELLNAME_RIGHT = r"[0-9]+$"
 
-"""
-    split_cellname(n::AbstractString) -> column_name, row_number
-
-Splits a string representing a cell name to its column name and row number.
-
-# Example
-
-```julia
-julia> XLSX.split_cellname("AB:12")
-("AB:", 12)
-```
-"""
+# Splits a string representing a cell name to its column name and row number.
 @inline function split_cellname(n::AbstractString)
     @assert isascii(n) "$n is not a valid cell name."
     for (i, c) in enumerate(n)
@@ -129,13 +94,7 @@ julia> XLSX.split_cellname("AB:12")
     error("Couldn't split (column_name, row) for cellname $n.")
 end
 
-"""
-    is_valid_cellname(n::AbstractString) :: Bool
-
-Checks wether `n` is a valid name for a cell.
-
-Cell names are bounded by `A1 : XFD1048576`.
-"""
+# Checks wether `n` is a valid name for a cell.
 function is_valid_cellname(n::AbstractString) :: Bool
 
     if !occursin(RGX_CELLNAME, n)
@@ -158,7 +117,7 @@ end
 const RGX_CELLRANGE_START = r"^[A-Z]+[0-9]+"
 const RGX_CELLRANGE_STOP = r"[A-Z]+[0-9]+$"
 
-"""
+#=
     split_cellrange(n::AbstractString) -> start_name, stop_name
 
 Splits a string representing a cell range into its cell names.
@@ -169,7 +128,7 @@ Splits a string representing a cell range into its cell names.
 julia> XLSX.split_cellrange("AB12:CD24")
 ("AB12", "CD24")
 ```
-"""
+=#
 @inline function split_cellrange(n::AbstractString)
     s = split(n, ":")
     @assert length(s) == 2 "$n is not a valid cell range."
@@ -216,11 +175,7 @@ macro range_str(cellrange)
     CellRange(cellrange)
 end
 
-"""
-    Base.in(ref::CellRef, rng::CellRange) :: Bool
-
-Checks wether `ref` is a cell reference inside a range given by `rng`.
-"""
+# Checks wether `ref` is a cell reference inside a range given by `rng`.
 function Base.in(ref::CellRef, rng::CellRange) :: Bool
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
@@ -239,11 +194,7 @@ function Base.in(ref::CellRef, rng::CellRange) :: Bool
     return false
 end
 
-"""
-    Base.issubset(subrng::CellRange, rng::CellRange)
-
-Checks wether `subrng` is a cell range contained in `rng`.
-"""
+# Checks wether `subrng` is a cell range contained in `rng`.
 Base.issubset(subrng::CellRange, rng::CellRange) :: Bool = in(subrng.start, rng) && in(subrng.stop, rng)
 
 function Base.size(rng::CellRange)
@@ -271,7 +222,7 @@ column_number(c::CellRef) :: Int = c.column_number
 
 column_name(c::CellRef) :: String = encode_column_number(column_number(c))
 
-"""
+#=
 Returns (row, column) representing a `ref` position relative to `rng`.
 
 For example, for a range "B2:D4", we have:
@@ -283,8 +234,7 @@ For example, for a range "B2:D4", we have:
 * "C4" relative position is (3, 2)
 
 * "D4" relative position is (3, 3)
-
-"""
+=#
 function relative_cell_position(ref::CellRef, rng::CellRange)
     @assert ref ∈ rng "$ref is outside range $rng."
 
@@ -318,9 +268,7 @@ const RGX_COLUMN_RANGE_START = r"^[A-Z]+"
 const RGX_COLUMN_RANGE_STOP = r"[A-Z]+$"
 const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
 
-"""
-Returns tuple (column_name_start, column_name_stop).
-"""
+# Returns tuple (column_name_start, column_name_stop).
 @inline function split_column_range(n::AbstractString)
     if length(n) == 1
         return n, n

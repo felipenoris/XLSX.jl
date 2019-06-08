@@ -4,7 +4,7 @@ struct CellPosition
     column::Int
 end
 
-"""
+#=
 A `CellRef` represents a cell location given by row and column identifiers.
 
 `CellRef("A6")` indicates a cell located at column `1` and row `6`.
@@ -26,7 +26,7 @@ println( XLSX.row_number(cn) ) # will print 1
 println( XLSX.column_number(cn) ) # will print 28
 println( string(cn) ) # will print out AB1
 ```
-"""
+=#
 struct CellRef
     name::String
     row_number::Int
@@ -51,24 +51,20 @@ abstract type AbstractCellDataFormat end
 
 struct EmptyCellDataFormat <: AbstractCellDataFormat end
 
-"""
-Keeps track of formatting information.
-"""
+# Keeps track of formatting information.
 struct CellDataFormat <: AbstractCellDataFormat
     id::UInt
 end
 
 const CellValueType = Union{String, Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
-"""
-CellValue is a Julia type of a value read from a Spreadsheet.
-"""
+# CellValue is a Julia type of a value read from a Spreadsheet.
 struct CellValue
     value::CellValueType
     styleid::AbstractCellDataFormat
 end
 
-"""
+#=
 A `CellRange` represents a rectangular range of cells in a spreadsheet.
 
 `CellRange("A1:C4")` denotes cells ranging from `A1` (upper left corner) to `C4` (bottom right corner).
@@ -78,7 +74,7 @@ As a convenience, `@range_str` macro is provided.
 ```julia
 cr = XLSX.range"A1:C4"
 ```
-"""
+=#
 struct CellRange
     start::CellRef
     stop::CellRef
@@ -126,7 +122,7 @@ abstract type MSOfficePackage end
 struct EmptyMSOfficePackage <: MSOfficePackage
 end
 
-"""
+#=
 Relationships are defined in ECMA-376-1 Section 9.2.
 This struct matches the `Relationship` tag attribute names.
 
@@ -138,7 +134,7 @@ Regarding Spreadsheets, there are two kinds of relationships:
 
 The function `parse_relationships!(xf::XLSXFile)` is used to parse
 package and workbook level relationships.
-"""
+=#
 struct Relationship
     Id::String
     Type::String
@@ -147,12 +143,12 @@ end
 
 const CellCache = Dict{Int, Dict{Int, Cell}} # row -> ( column -> cell )
 
-"""
+#=
 Iterates over Worksheet cells. See `eachrow` method docs.
 Each element is a `SheetRow`.
 
 Implementations: SheetRowStreamIterator, WorksheetCache.
-"""
+=#
 abstract type SheetRowIterator end
 
 mutable struct SheetRowStreamIteratorState
@@ -170,6 +166,22 @@ mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
     stream_state::Union{Nothing, SheetRowStreamIteratorState}
 end
 
+"""
+A `Worksheet` represents a reference to an Excel Worksheet.
+
+From a `Worksheet` you can query for Cells, cell values and ranges.
+
+# Example
+
+```julia
+xf = XLSX.readxlsx("myfile.xlsx")
+sh = xf["mysheet"] # get a reference to a Worksheet
+println( sh[2, 2] ) # access element "B2" (2nd row, 2nd column)
+println( sh["B2"] ) # you can also use the cell name
+println( sh["A2:B4"] ) # or a cell range
+println( sh[:] ) # all data inside worksheet's dimension
+```
+"""
 mutable struct Worksheet
     package::MSOfficePackage # parent XLSXFile
     sheetId::Int
@@ -187,9 +199,6 @@ struct SheetRowStreamIterator <: SheetRowIterator
     sheet::Worksheet
 end
 
-"""
-Shared String Table
-"""
 mutable struct SharedStringTable
     unformatted_strings::Vector{String}
     formatted_strings::Vector{String}
@@ -198,9 +207,7 @@ end
 
 const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missing}
 
-"""
-Workbook is the result of parsing file `xl/workbook.xml`.
-"""
+# Workbook is the result of parsing file `xl/workbook.xml`.
 mutable struct Workbook
     package::MSOfficePackage # parent XLSXFile
     sheets::Vector{Worksheet} # workbook -> sheets -> <sheet name="Sheet1" r:id="rId1" sheetId="1"/>. sheetId determines the index of the WorkSheet in this vector.
@@ -215,11 +222,19 @@ mutable struct Workbook
 end
 
 """
-`XLSXFile` stores all XML data from an Excel file.
+`XLSXFile` represents a reference to an Excel file.
 
-`filepath` is the filepath of the source file for this XLSXFile.
-`data` stored the raw XML data. It maps internal XLSX filenames to XMLDocuments.
-`workbook` is the result of parsing `xl/workbook.xml`.
+It is created by using [`XLSX.readxlsx`](@ref) or [`XLSX.openxlsx`](@ref).
+
+From a `XLSXFile` you can navigate to a `XLSX.Worksheet` reference
+as shown in the example below.
+
+# Example
+
+```julia
+xf = XLSX.readxlsx("myfile.xlsx")
+sh = xf["mysheet"] # get a reference to a Worksheet
+```
 """
 mutable struct XLSXFile <: MSOfficePackage
     filepath::AbstractString

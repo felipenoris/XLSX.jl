@@ -75,7 +75,6 @@ julia> xf["mysheet!A:B"] # Column ranges are also supported
  1           "first"
  2           "second"
  3           "third"
-
 ```
 
 To inspect the internal representation of each cell, use the `getcell` or `getcellrange` methods.

@@ -6,11 +6,9 @@ SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), fals
 @inline Base.length(sst::SharedStringTable) = length(sst.formatted_strings)
 @inline Base.isempty(sst::SharedStringTable) = isempty(sst.formatted_strings)
 
-"""
-Checks if string is inside shared string table.
-Returns `nothing` if it's not in the shared string table.
-Returns the index of the string in the shared string table. The index is 0-based.
-"""
+# Checks if string is inside shared string table.
+# Returns `nothing` if it's not in the shared string table.
+# Returns the index of the string in the shared string table. The index is 0-based.
 function get_shared_string_index(sst::SharedStringTable, str_formatted::AbstractString) :: Union{Nothing, Int}
     @assert sst.is_loaded "Can't query shared string table because it's not loaded into memory."
 
@@ -37,11 +35,7 @@ function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractStr
     end
 end
 
-"""
-    add_shared_string!(sheet, str_unformatted, [str_formatted]) :: Int
-
-Add string to shared string table. Returns the 0-based index of the shared string in the shared string table.
-"""
+# Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
     @assert is_writable(get_xlsxfile(wb)) "XLSXFile instance is not writable."
     @assert !(isempty(str_unformatted) || isempty(str_formatted)) "Can't add empty string to Shared String Table."
@@ -100,23 +94,15 @@ function sst_load!(workbook::Workbook)
     end
 end
 
-"""
-    has_sst(workbook::Workbook)
-
-Checks wether this workbook has a Shared String Table.
-"""
+# Checks wether this workbook has a Shared String Table.
 function has_sst(workbook::Workbook) :: Bool
     relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
     return has_relationship_by_type(workbook, relationship_type)
 end
 
-"""
-    unformatted_text(el::EzXML.Node) :: String
-
-Helper function to gather unformatted text from Excel data files.
-It looks at all childs of `el` for tag name `t` and returns
-a join of all the strings found.
-"""
+# Helper function to gather unformatted text from Excel data files.
+# It looks at all childs of `el` for tag name `t` and returns
+# a join of all the strings found.
 function unformatted_text(el::EzXML.Node) :: String
 
     function gather_strings!(v::Vector{String}, e::EzXML.Node)
@@ -136,23 +122,15 @@ function unformatted_text(el::EzXML.Node) :: String
     return join(v_string)
 end
 
-"""
-    sst_unformatted_string(wb, index) :: String
-
-Looks for a string inside the Shared Strings Table (sst).
-`index` starts at 0.
-"""
+# Looks for a string inside the Shared Strings Table (sst).
+# `index` starts at 0.
 @inline function sst_unformatted_string(wb::Workbook, index::Int)
     sst_load!(wb)
     return get_sst(wb).unformatted_strings[index+1]
 end
 
-"""
-    sst_formatted_string(wb, index) :: String
-
-Looks for a formatted string inside the Shared Strings Table (sst).
-`index` starts at 0.
-"""
+# Looks for a formatted string inside the Shared Strings Table (sst).
+# `index` starts at 0.
 @inline function sst_formatted_string(wb::Workbook, index::Int)
     sst_load!(wb)
     return get_sst(wb).formatted_strings[index+1]
