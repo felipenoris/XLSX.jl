@@ -104,6 +104,11 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     end
 
     if cell.datatype == "s"
+
+        if isempty(cell.value)
+            return missing
+        end
+
         # use sst
         str = sst_unformatted_string(ws, cell.value)
 
