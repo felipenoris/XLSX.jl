@@ -3,7 +3,7 @@ uuid = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 license = "MIT"
 authors = ["Felipe Noronha <felipenoris@gmail.com>"]
 repo = "https://github.com/felipenoris/XLSX.jl.git"
-version = "0.5.4"
+version = "0.5.5"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
