@@ -220,6 +220,8 @@ function getcell(ws::Worksheet, ref::AbstractString)
     end
 end
 
+getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
+
 """
     getcellrange(sheet, rng)
 
