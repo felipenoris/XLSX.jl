@@ -296,6 +296,8 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     setdata!(ws, cell)
 end
 
+setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
+
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
 
