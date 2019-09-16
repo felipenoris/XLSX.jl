@@ -1258,6 +1258,10 @@ end
     @test sheet["B2"] == "hello world"
     @test XLSX.getcell(sheet, "B2").style == id(textstyle)
 
+    sheet[3, 1] = CellValue("hello friend", textstyle)
+    @test sheet[3, 1] == "hello friend"
+    @test XLSX.getcell(sheet, 3, 1).style == id(textstyle)
+
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
 
