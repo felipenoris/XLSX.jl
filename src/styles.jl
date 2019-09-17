@@ -94,7 +94,12 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     numfmts = findall("/xpath:styleSheet/xpath:numFmts", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
     if isempty(numfmts)
         stylesheet = findfirst("/xpath:styleSheet", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+
+        # We need to add the numFmts node directly after the styleSheet node
+        child = EzXML.firstelement(stylesheet)
         numfmts = EzXML.addelement!(stylesheet, "numFmts")
+        EzXML.unlink!(numfmts)
+        EzXML.linkprev!(child, numfmts)
     else
         numfmts = numfmts[1]
     end
