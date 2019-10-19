@@ -127,24 +127,25 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     # iterate thru row cells
     while EzXML.iterate(reader) != nothing
 
+        if is_end_of_sheet_data(reader)
+            close(state)
+            break
+        end
+
         # If this is the end of this row, will point to the next row or set the end of this stream
         if EzXML.nodetype(reader) == EzXML.READER_END_ELEMENT && EzXML.nodename(reader) == "row"
 
-            # go to the next node, but also checks if we reached EOF (in the case of malformed XML)
-            if EzXML.iterate(reader) == nothing
-                close(state)
-                error("Error processing Worksheet $(ws.name): Malformed Excel file.")
+            while true
+                if is_end_of_sheet_data(reader)
+                    close(state)
+                    break
+                elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
+                    break
+                end
+
+                @assert EzXML.iterate(reader) != nothing
             end
 
-            if is_end_of_sheet_data(reader)
-
-                # marks the end of the stream of rows
-                close(state)
-
-            else
-                # make sure we're pointing to the next row node
-                @assert EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row" "Error processing Worksheet $(ws.name): row iterator should be pointing to the next row node, but it is pointing to a node named $(EzXML.nodename(reader)) of type $(EzXML.nodetype(reader))."
-            end
 
             # breaks while loop to return current row
             break
