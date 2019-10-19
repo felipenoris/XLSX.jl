@@ -1682,3 +1682,16 @@ end
 
     @test collect(keys(xf.binary_data)) == ["xl/printerSettings/printerSettings1.bin"]
 end
+
+# issue #117
+@testset "whitespace nodes" begin
+    xf = XLSX.readxlsx(joinpath(data_directory, "noutput_first_second_third.xlsx"))
+    @test XLSX.sheetnames(xf) == [ "NOTES", "DATA" ]
+    @test xf["NOTES"]["A1"] == "Nominal GNP/GDP"
+    @test xf["NOTES"]["A9"] == "Last updated on: August 29, 2019"
+    @test xf["DATA"]["A5"] == "Date"
+    @test xf["DATA"]["A6"] == "1965:Q3"
+    @test xf["DATA"]["B6"] ≈ 6.7731
+    @test xf["DATA"]["E5"] == "Most_Recent"
+    @test xf["DATA"]["E7"] ≈ 12.6215
+end
