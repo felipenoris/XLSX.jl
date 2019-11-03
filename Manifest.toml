@@ -1,10 +1,10 @@
 # This file is machine-generated - editing it directly is not advised
 
 [[BinaryProvider]]
-deps = ["Libdl", "Logging", "SHA"]
-git-tree-sha1 = "c7361ce8a2129f20b0e05a89f7070820cfed6648"
+deps = ["Libdl", "SHA"]
+git-tree-sha1 = "29995a7b317bbd06be147e1974a3541ce2502dca"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-version = "0.5.6"
+version = "0.5.7"
 
 [[Dates]]
 deps = ["Printf"]
@@ -18,9 +18,6 @@ version = "0.9.4"
 
 [[Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
-
-[[Logging]]
-uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[Printf]]
 deps = ["Unicode"]
