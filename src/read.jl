@@ -303,12 +303,13 @@ function parse_workbook!(xf::XLSXFile)
     # workbook to be parsed
     workbook = get_workbook(xf)
 
-    # workbookPr
-    local foundworkbookPr::Bool = false
-    for node in EzXML.eachelement(xroot)
+    # workbookPr -> date1904
+    # does not have attribute => is not date1904
+    workbook.date1904 = false
 
+    # changes workbook.date1904 if there is a setting in the workbookPr node
+    for node in EzXML.eachelement(xroot)
         if EzXML.nodename(node) == "workbookPr"
-            foundworkbookPr = true
 
             # read date1904 attribute
             if haskey(node, "date1904")
@@ -321,15 +322,11 @@ function parse_workbook!(xf::XLSXFile)
                 else
                     error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
                 end
-            else
-                # does not have attribute => is not date1904
-                workbook.date1904 = false
             end
 
             break
         end
     end
-    @assert foundworkbookPr "Malformed: couldn't find workbookPr node element in 'xl/workbook.xml'."
 
     # sheets
     sheets = Vector{Worksheet}()
