@@ -1480,12 +1480,7 @@ end
             sheet = xf[1]
             sheet[:, 2] = col_data
             sheet[51:100, 3] = col_data
-
-            @static if VERSION < v"1.0"
-                setindex!(sheet, col_data, 2, 4, dim=1)
-            else
-                sheet[2, 4, dim=1] = col_data
-            end
+            sheet[2, 4, dim=1] = col_data
         end
 
         XLSX.openxlsx(filename) do xf
