@@ -18,6 +18,21 @@ Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.val
 Base.:(==)(c1::EmptyCell, c2::EmptyCell) = c1.ref == c2.ref
 Base.hash(c::EmptyCell) = hash(c.ref) + 10
 
+function find_t_node_recursively(n::EzXML.Node) :: Union{Nothing, EzXML.Node}
+    if EzXML.nodename(n) == "t"
+        return n
+    else
+        for child in EzXML.eachelement(n)
+            result = find_t_node_recursively(child)
+            if result != nothing
+                return result
+            end
+        end
+    end
+
+    return nothing
+end
+
 function Cell(c::EzXML.Node)
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
@@ -48,26 +63,38 @@ function Cell(c::EzXML.Node)
     local found_f::Bool = false
 
     for c_child_element in EzXML.eachelement(c)
-        if EzXML.nodename(c_child_element) == "v"
 
-            # we should have only one v element
-            if found_v
-                error("Unsupported: cell $(ref) has more than 1 `v` elements.")
-            else
-                found_v = true
+        if t == "inlineStr"
+
+            if EzXML.nodename(c_child_element) == "is"
+                t_node = find_t_node_recursively(c_child_element)
+                if t_node != nothing
+                    v = EzXML.nodecontent(t_node)
+                end
             end
 
-            v = EzXML.nodecontent(c_child_element)
-        elseif EzXML.nodename(c_child_element) == "f"
+        else
+            if EzXML.nodename(c_child_element) == "v"
 
-            # we should have only one f element
-            if found_f
-                error("Unsupported: cell $(ref) has more than 1 `f` elements.")
-            else
-                found_f = true
+                # we should have only one v element
+                if found_v
+                    error("Unsupported: cell $(ref) has more than 1 `v` elements.")
+                else
+                    found_v = true
+                end
+
+                v = EzXML.nodecontent(c_child_element)
+            elseif EzXML.nodename(c_child_element) == "f"
+
+                # we should have only one f element
+                if found_f
+                    error("Unsupported: cell $(ref) has more than 1 `f` elements.")
+                else
+                    found_f = true
+                end
+
+                f = EzXML.nodecontent(c_child_element)
             end
-
-            f = EzXML.nodecontent(c_child_element)
         end
     end
 
@@ -100,7 +127,13 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     end
 
     if cell.datatype == "inlineStr"
-        error("Excel data type inlineStr is not supported.")
+
+        if isempty(cell.value)
+            return missing
+        else
+            return cell.value
+        end
+
     end
 
     if cell.datatype == "s"
@@ -162,7 +195,6 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
 
     error("Couldn't parse data for $cell.")
 end
-
 
 function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}
 
