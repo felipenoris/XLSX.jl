@@ -105,6 +105,20 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
 │ 3   │ 3       │ "third"  │
 ```
 
+## Reading Cells as a Julia Matrix
+
+Use [`XLSX.readdata`](@ref) or [`XLSX.getdata`](@ref) to read content as a Julia matrix.
+
+```julia
+julia> import XLSX
+
+julia> m = XLSX.readdata("myfile.xlsx", "mysheet!A1:B3")
+3×2 Array{Any,2}:
+  "HeaderA"  "HeaderB"
+ 1           "first"
+ 2           "second"
+```
+
 ## Reading Large Excel Files and Caching
 
 The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cells caching.
