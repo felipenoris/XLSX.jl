@@ -85,11 +85,11 @@ You can also use `XLSX.openxlsx` to read file contents as needed (see [Reading L
 
 ## Read Tabular Data
 
-The `gettable` method returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
+The [`XLSX.gettable`](@ref) method returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
-There's also a helper method `readtable` to read from file directly, as shown in the following example.
+There's also a helper method [`XLSX.readtable`](@ref) to read from file directly, as shown in the following example.
 In this case, the [... operator](https://docs.julialang.org/en/v1/base/base/#...)
 will splat the tuple `(data, column_labels)` into the constructor of `DataFrame`.
 
@@ -151,6 +151,20 @@ But indexing in a single cell will return a single value instead of a matrix.
 ```julia
 julia> sheet["A1"]
 "HeaderA"
+```
+
+If you don't know the desired range in advance, you can take advantage of the
+[`XLSX.readtable`](@ref) and [`XLSX.gettable`](@ref) methods.
+
+```julia
+julia> columns, labels = XLSX.readtable("myfile.xlsx", "mysheet")
+(Any[Any[1, 2, 3], Any["first", "second", "third"]], Symbol[:HeaderA, :HeaderB])
+
+julia> m = hcat(columns...)
+3×2 Array{Any,2}:
+ 1  "first"
+ 2  "second"
+ 3  "third"
 ```
 
 ## Reading Large Excel Files and Caching
