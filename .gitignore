@@ -1,3 +1,5 @@
 **/.DS_Store
 docs/build/*
 **/*.swp
+Manifest.toml
+docs/Manifest.toml
