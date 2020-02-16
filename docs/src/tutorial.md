@@ -119,6 +119,40 @@ julia> m = XLSX.readdata("myfile.xlsx", "mysheet!A1:B3")
  2           "second"
 ```
 
+Indexing in a `Worksheet` will dispatch to [`XLSX.getdata`](@ref) method.
+
+```julia
+julia> xf = XLSX.readxlsx("myfile.xlsx")
+XLSXFile("myfile.xlsx") containing 3 Worksheets
+            sheetname size          range
+-------------------------------------------------
+              mysheet 4x2           A1:B4
+           othersheet 1x1           A1:A1
+                named 1x1           B4:B4
+
+julia> xf["mysheet!A1:B3"]
+3×2 Array{Any,2}:
+  "HeaderA"  "HeaderB"
+ 1           "first"
+ 2           "second"
+
+julia> sheet = xf["mysheet"]
+4×2 XLSX.Worksheet: ["mysheet"](A1:B4)
+
+julia> sheet["A1:B3"]
+3×2 Array{Any,2}:
+  "HeaderA"  "HeaderB"
+ 1           "first"
+ 2           "second"
+```
+
+But indexing in a single cell will return a single value instead of a matrix.
+
+```julia
+julia> sheet["A1"]
+"HeaderA"
+```
+
 ## Reading Large Excel Files and Caching
 
 The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cells caching.
