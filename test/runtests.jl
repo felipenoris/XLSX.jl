@@ -1650,6 +1650,18 @@ end
     rm(filename)
 end
 
+@testset "show xlsx" begin
+    @testset "single sheet" begin
+        xf = XLSX.readxlsx(joinpath(data_directory, "blank.xlsx"))
+        show(IOBuffer(), xf)
+    end
+
+    @testset "multiple sheets" begin
+        xf = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
+        show(IOBuffer(), xf)
+    end
+end
+
 # issues #62, #75
 @testset "relative paths" begin
     let

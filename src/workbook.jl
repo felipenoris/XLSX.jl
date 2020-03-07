@@ -56,9 +56,19 @@ end
 @inline getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = getsheet(xl.workbook, sheet_index)
 
 function Base.show(io::IO, xf::XLSXFile)
+
+    function sheetcountstr(workbook)
+        sc = sheetcount(workbook)
+        if sc == 1
+            return "1 Worksheet"
+        else
+            return "$sc Worksheets"
+        end
+    end
+
     wb = xf.workbook
     print(io, "XLSXFile(\"$(basename(xf.filepath))\") ",
-              "containing $(sheetcount(wb)) Worksheets\n")
+              "containing $(sheetcountstr(wb))\n")
     @printf(io, "%21s %-13s %-13s\n", "sheetname", "size", "range")
     println(io, "-"^(21+1+13+1+13))
 
