@@ -607,7 +607,7 @@ end
 getvector(x::AbstractVector) = x
 getvector(x) = collect(x)
 writetable(filename::AbstractString, x; kw...) =
-    writetable(filename, Any[getvector(c) for c in Tables.eachcolumn(x)], collect(Symbol, propertynames(x)); kw...)
+    writetable(filename, Any[getvector(c) for c in Tables.Columns(x)], collect(Symbol, Tables.columnnames(x)); kw...)
 
 """
     writetable(filename::AbstractString; overwrite::Bool=false, kw...)

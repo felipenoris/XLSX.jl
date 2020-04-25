@@ -519,11 +519,8 @@ end
 
 # Tables.jl interface
 using Tables
-Tables.istable(::Type{<:TableRowIterator}) = true
-Tables.rowaccess(::Type{<:TableRowIterator}) = true
-Tables.schema(tri::TableRowIterator) = nothing
-Tables.rows(tri::TableRowIterator) = tri
+Tables.rowtable(::Type{<:TableRowIterator}) = true
 
 Base.IteratorSize(::Type{<:TableRowIterator}) = Base.SizeUnknown()
-Base.propertynames(tr::TableRow) = Tuple(getfield(tr, :index).column_labels)
-Base.getproperty(tr::TableRow, nm::Symbol) = getdata(tr, nm)
+Tables.columnnames(tr::TableRow) = Tuple(getfield(tr, :index).column_labels)
+Tables.getcolumn(tr::TableRow, nm::Symbol) = getdata(tr, nm)
