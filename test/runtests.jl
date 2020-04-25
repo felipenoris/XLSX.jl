@@ -1639,7 +1639,6 @@ end
     @test r2_col_names[1] == Symbol( esc_col_names[1] )
 end
 
-<<<<<<< HEAD
 # issue #67
 @testset "row_index" begin
     filename = "test_pr67.xlsx"
