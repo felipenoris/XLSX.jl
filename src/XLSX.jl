@@ -5,7 +5,6 @@ import Dates
 import Printf.@printf
 import ZipFile
 import EzXML
-import Parsers
 
 # https://github.com/fhs/ZipFile.jl/issues/39
 if !hasmethod(Base.bytesavailable, Tuple{ZipFile.ReadableFile})

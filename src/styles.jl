@@ -83,7 +83,7 @@ end
 # Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
     el = styles_cell_xf(wb, index)
-    return Parsers.parse(Int, el["numFmtId"])
+    return parse(Int, el["numFmtId"])
 end
 
 # Defines a custom number format to render numbers, dates or text.
@@ -188,7 +188,7 @@ styles_is_datetime(wb::Workbook, fmt::CellDataFormat) = styles_is_datetime(wb, I
 
 function styles_is_datetime(wb::Workbook, index::AbstractString)
     @assert !isempty(index)
-    styles_is_datetime(wb, Parsers.parse(Int, index))
+    styles_is_datetime(wb, parse(Int, index))
 end
 
 styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(get_workbook(ws), index)
@@ -223,7 +223,7 @@ end
 
 function styles_is_float(wb::Workbook, index::AbstractString)
     @assert !isempty(index)
-    styles_is_float(wb, Parsers.parse(Int, index))
+    styles_is_float(wb, parse(Int, index))
 end
 
 styles_is_float(wb::Workbook, fmt::CellDataFormat) = styles_is_float(wb, Int(fmt.id))
@@ -253,7 +253,7 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
         for i in 1:length(elements_found)
             el = elements_found[i]
             if haskey(el, "numFmtId")
-                if Parsers.parse(Int, el["numFmtId"]) == numFmtId
+                if parse(Int, el["numFmtId"]) == numFmtId
                     return CellDataFormat(i-1)
                 end
             end

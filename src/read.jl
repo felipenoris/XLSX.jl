@@ -363,9 +363,9 @@ function parse_workbook!(xf::XLSXFile)
                     if isempty(defined_value)
                         defined_value = missing
                     end
-                elseif Parsers.tryparse(Int, defined_value_string)
+                elseif tryparse(Int, defined_value_string)
                     defined_value = parse(Int, defined_value_string)
-                elseif Parsers.tryparse(Float64, defined_value_string)
+                elseif tryparse(Float64, defined_value_string)
                     defined_value = parse(Float64, defined_value_string)
                 elseif isempty(defined_value_string)
                     defined_value = missing

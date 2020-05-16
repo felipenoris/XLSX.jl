@@ -1,7 +1,7 @@
 
 function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     @assert EzXML.nodename(sheet_element) == "sheet"
-    sheetId = Parsers.parse(Int, sheet_element["sheetId"])
+    sheetId = parse(Int, sheet_element["sheetId"])
     relationship_id = sheet_element["r:id"]
     name = sheet_element["name"]
     dim = read_worksheet_dimension(xf, relationship_id, name)
