@@ -363,9 +363,9 @@ function parse_workbook!(xf::XLSXFile)
                     if isempty(defined_value)
                         defined_value = missing
                     end
-                elseif tryparse(Int, defined_value_string)
+                elseif tryparse(Int, defined_value_string) != nothing
                     defined_value = parse(Int, defined_value_string)
-                elseif tryparse(Float64, defined_value_string)
+                elseif tryparse(Float64, defined_value_string) != nothing
                     defined_value = parse(Float64, defined_value_string)
                 elseif isempty(defined_value_string)
                     defined_value = missing
@@ -398,15 +398,6 @@ function parse_workbook!(xf::XLSXFile)
     end
 
     nothing
-end
-
-function tryparse(t::Type, s::String)
-    try
-        parse(t, s)
-        return true
-    catch
-        return false
-    end
 end
 
 # Lazy loading of XML files
