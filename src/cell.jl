@@ -164,14 +164,14 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         elseif !isempty(cell.style) && styles_is_float(ws, cell.style)
 
             # float
-            return parse(Float64, cell.value)
+            return Parsers.parse(Float64, cell.value)
 
         else
             # fallback to unformatted number
             if occursin(RGX_INTEGER, cell.value)  # if contains only numbers
-                v_num = parse(Int, cell.value)
+                v_num = Parsers.parse(Int, cell.value)
             else
-                v_num = parse(Float64, cell.value)
+                v_num = Parsers.parse(Float64, cell.value)
             end
 
             return v_num
@@ -202,7 +202,7 @@ function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dat
     @assert !isempty(v) "Cannot convert an empty string into a datetime value."
 
     if occursin(".", v) || v == "0"
-        time_value = parse(Float64, v)
+        time_value = Parsers.parse(Float64, v)
         @assert time_value >= 0
 
         if time_value <= 1
@@ -214,7 +214,7 @@ function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dat
         end
     else
         # Date
-        return excel_value_to_date(parse(Int, v), _is_date_1904)
+        return excel_value_to_date(Parsers.parse(Int, v), _is_date_1904)
     end
 end
 
