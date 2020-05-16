@@ -121,7 +121,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     # will read next row from stream.
     # The stream should be already positioned in the next row
     @assert EzXML.nodename(reader) == "row"
-    current_row = parse(Int, reader["r"])
+    current_row = Parsers.parse(Int, reader["r"])
     rowcells = Dict{Int, Cell}() # column -> cell
 
     # iterate thru row cells

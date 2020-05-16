@@ -85,7 +85,7 @@ const RGX_CELLNAME_RIGHT = r"[0-9]+$"
     for (i, c) in enumerate(n)
         if isdigit(c) # this block is safe since n is encoded as ASCII
             column_name = SubString(n, 1, i-1)
-            row = parse(Int, SubString(n, i, length(n)))
+            row = Parsers.parse(Int, SubString(n, i, length(n)))
 
             return column_name, row
         end
