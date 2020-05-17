@@ -580,14 +580,18 @@ See also: [`XLSX.gettable`](@ref).
 """
 function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
     xf = openxlsx(filepath, enable_cache=enable_cache) 
-    c = gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
-    close(xf)
-    return c
+    try
+        gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+    finally
+        close(xf)
+    end
 end
 
 function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels::Vector{Symbol}=Vector{Symbol}(), header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
     xf = openxlsx(filepath, enable_cache=enable_cache)
-    c = gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
-    close(xf)
-    return c
+    try
+        gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+    finally
+        close(xf)
+    end
 end
