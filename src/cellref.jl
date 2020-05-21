@@ -270,7 +270,7 @@ const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
 
 # Returns tuple (column_name_start, column_name_stop).
 @inline function split_column_range(n::AbstractString)
-    if length(n) == 1
+    if !occursin(":", n)
         return n, n
     else
         s = split(n, ":")
