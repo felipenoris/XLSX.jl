@@ -5,6 +5,7 @@ import Dates
 import Printf.@printf
 import ZipFile
 import EzXML
+import Tables
 
 # https://github.com/fhs/ZipFile.jl/issues/39
 if !hasmethod(Base.bytesavailable, Tuple{ZipFile.ReadableFile})
@@ -18,6 +19,7 @@ include("cellref.jl")
 include("sst.jl")
 include("stream.jl")
 include("table.jl")
+include("tables_interface.jl")
 include("relationship.jl")
 include("read.jl")
 include("workbook.jl")
