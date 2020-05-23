@@ -1815,16 +1815,22 @@ end
     XLSX.writetable("output_table.xlsx", table, overwrite=true, sheetname="report", anchor_cell="B2")
     @test isfile("output_table.xlsx")
 
-    f = XLSX.readxlsx("output_table.xlsx")
-    s = f["report"]
-    table2 = XLSX.eachtablerow(s) |> Tables.columntable
-    @test isequal(table, table2)
-    rm("output_table.xlsx")
+    try
+        f = XLSX.readxlsx("output_table.xlsx")
+        s = f["report"]
+        table2 = XLSX.eachtablerow(s) |> Tables.columntable
+        @test isequal(table, table2)
+    finally
+        rm("output_table.xlsx")
+    end
 
     @testset "Tables.jl with DataFrames" begin
         f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
         s = f["table"]
         df = XLSX.eachtablerow(s) |> DataFrames.DataFrame
-        show(df)
+        @test size(df) == (8, 6)
+        @test df[!, "Column B"] == collect(1:8)
+        @test df[!, "Column D"] == collect(Date(2018, 4, 21):Dates.Day(1):Date(2018, 4, 28))
+        @test all(ismissing.(df[!, "Column G"]))
     end
 end

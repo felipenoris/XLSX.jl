@@ -297,6 +297,8 @@ You can also use `XLSX.writetable` to write directly to a new file (see next sec
 To export tabular data to Excel, use `XLSX.writetable` method.
 
 ```julia
+julia> using Dates
+
 julia> import DataFrames, XLSX
 
 julia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
@@ -332,4 +334,52 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 │ 2   │ bb │ 10.2 │
 
 julia> XLSX.writetable("report.xlsx", REPORT_A=( collect(DataFrames.eachcol(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcol(df2)), DataFrames.names(df2) ))
+```
+
+## Tables.jl interface
+
+The type `XLSX.TableRowIterator` conforms to `Tables.jl` interface.
+An instance of `XLSX.TableRowIterator` is created by the function `XLSX.eachtablerow`.
+
+Also, `XLSX.writetable` accepts an argument that conforms to the `Tables.jl` interface.
+
+As an example, the type `DataFrame` supports the `Tables.jl` interface.
+The following code writes and reads back a `DataFrame` to an Excel file.
+
+```julia
+julia> using Dates
+
+julia> import DataFrames, XLSX
+
+julia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5], dates=[Date(2018,2,20), Date(2018,2,21), Date(2018,2,22), Date(2018,2,23)], times=[Dates.Time(19,10), Dates.Time(19,20), Dates.Time(19,30), Dates.Time(19,40)], datetimes=[Dates.DateTime(2018,5,20,19,10), Dates.DateTime(2018,5,20,19,20), Dates.DateTime(2018,5,20,19,30), Dates.DateTime(2018,5,20,19,40)])
+4×6 DataFrames.DataFrame
+│ Row │ integers │ strings │ floats  │ dates      │ times    │ datetimes           │
+│     │ Int64    │ String  │ Float64 │ Date       │ Time     │ DateTime            │
+├─────┼──────────┼─────────┼─────────┼────────────┼──────────┼─────────────────────┤
+│ 1   │ 1        │ Hey     │ 10.2    │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │
+│ 2   │ 2        │ You     │ 20.3    │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │
+│ 3   │ 3        │ Out     │ 30.4    │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
+│ 4   │ 4        │ There   │ 40.5    │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
+
+julia> XLSX.writetable("output_table.xlsx", df, overwrite=true, sheetname="report", anchor_cell="B2")
+
+julia> f = XLSX.readxlsx("output_table.xlsx")
+XLSXFile("output_table.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               report 6x7           A1:G6
+
+
+julia> s = f["report"]
+6×7 XLSX.Worksheet: ["report"](A1:G6)
+
+julia> df2 = XLSX.eachtablerow(s) |> DataFrames.DataFrame
+4×6 DataFrames.DataFrame
+│ Row │ integers │ strings │ floats  │ dates      │ times    │ datetimes           │
+│     │ Int64    │ String  │ Float64 │ Date       │ Time     │ DateTime            │
+├─────┼──────────┼─────────┼─────────┼────────────┼──────────┼─────────────────────┤
+│ 1   │ 1        │ Hey     │ 10.2    │ 2018-02-20 │ 19:10:00 │ 2018-05-20T19:10:00 │
+│ 2   │ 2        │ You     │ 20.3    │ 2018-02-21 │ 19:20:00 │ 2018-05-20T19:20:00 │
+│ 3   │ 3        │ Out     │ 30.4    │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
+│ 4   │ 4        │ There   │ 40.5    │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
 ```
