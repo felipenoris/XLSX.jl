@@ -337,10 +337,26 @@ end
     end
 
     @testset "ColumnRange" begin
-        c = XLSX.ColumnRange("C")
-        @test c.start == 3
-        @test c.stop == 3
-        show(IOBuffer(), c)
+        @testset "Single Column" begin
+            c = XLSX.ColumnRange("C")
+            @test c.start == 3
+            @test c.stop == 3
+            show(IOBuffer(), c)
+
+            c = XLSX.ColumnRange("AA")
+            @test c.start == 27
+            @test c.stop == 27
+        end
+
+        @testset "Multiple Columns" begin
+            c = XLSX.ColumnRange("A:Z")
+            @test c.start == 1
+            @test c.stop == 26
+
+            c = XLSX.ColumnRange("A:AA")
+            @test c.start == 1
+            @test c.stop == 27
+        end
     end
 
     @testset "CellRef" begin
@@ -416,6 +432,22 @@ end
     @test ref.colrng == XLSX.ColumnRange("A:B")
     @test XLSX.SheetColumnRange("Sheet1!A:B") == XLSX.SheetColumnRange("Sheet1!A:B")
     @test hash(XLSX.SheetColumnRange("Sheet1!A:B")) == hash(XLSX.SheetColumnRange("Sheet1!A:B"))
+    show(IOBuffer(), ref)
+
+    ref = XLSX.SheetColumnRange("Sheet1!A:AA")
+    @test string(ref) == "Sheet1!A:AA"
+    @test ref.sheet == "Sheet1"
+    @test ref.colrng == XLSX.ColumnRange("A:AA")
+    @test XLSX.SheetColumnRange("Sheet1!A:AA") == XLSX.SheetColumnRange("Sheet1!A:AA")
+    @test hash(XLSX.SheetColumnRange("Sheet1!A:AA")) == hash(XLSX.SheetColumnRange("Sheet1!A:AA"))
+    show(IOBuffer(), ref)
+
+    ref = XLSX.SheetColumnRange("Sheet1!AA:AA")
+    @test string(ref) == "Sheet1!AA:AA"
+    @test ref.sheet == "Sheet1"
+    @test ref.colrng == XLSX.ColumnRange("AA:AA")
+    @test XLSX.SheetColumnRange("Sheet1!AA:AA") == XLSX.SheetColumnRange("Sheet1!AA:AA")
+    @test hash(XLSX.SheetColumnRange("Sheet1!AA:AA")) == hash(XLSX.SheetColumnRange("Sheet1!AA:AA"))
     show(IOBuffer(), ref)
 
     @test XLSX.is_valid_fixed_sheet_cellname("named_ranges!\$A\$2")
