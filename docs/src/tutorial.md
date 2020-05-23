@@ -338,13 +338,13 @@ julia> XLSX.writetable("report.xlsx", REPORT_A=( collect(DataFrames.eachcol(df1)
 
 ## Tables.jl interface
 
-The type `XLSX.TableRowIterator` conforms to `Tables.jl` interface.
+The type `XLSX.TableRowIterator` conforms to [Tables.jl](https://github.com/JuliaData/Tables.jl) interface.
 An instance of `XLSX.TableRowIterator` is created by the function `XLSX.eachtablerow`.
 
 Also, `XLSX.writetable` accepts an argument that conforms to the `Tables.jl` interface.
 
-As an example, the type `DataFrame` supports the `Tables.jl` interface.
-The following code writes and reads back a `DataFrame` to an Excel file.
+As an example, the type `DataFrame` from [DataFrames](https://github.com/JuliaData/DataFrames.jl) package
+supports the `Tables.jl` interface. The following code writes and reads back a `DataFrame` to an Excel file.
 
 ```julia
 julia> using Dates
