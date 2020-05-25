@@ -273,12 +273,13 @@ struct Index # based on DataFrames.jl
     column_labels::Vector{Symbol}
     column_map::Dict{Int, Int} # table column index (1-based) -> sheet column index (cellref based)
 
-    function Index(column_range::Union{ColumnRange, AbstractString}, column_labels::Vector{Symbol})
+    function Index(column_range::Union{ColumnRange, AbstractString}, column_labels)
+        column_labels_as_syms = [ Symbol(i) for i in column_labels ]
         column_range = convert(ColumnRange, column_range)
-        @assert length(unique(column_labels)) == length(column_labels) "Column labels must be unique."
+        @assert length(unique(column_labels_as_syms)) == length(column_labels_as_syms) "Column labels must be unique."
 
         lookup = Dict{Symbol, Int}()
-        for (i, n) in enumerate(column_labels)
+        for (i, n) in enumerate(column_labels_as_syms)
             lookup[n] = i
         end
 
@@ -286,7 +287,7 @@ struct Index # based on DataFrames.jl
         for (i, n) in enumerate(column_range)
             column_map[i] = decode_column_number(n)
         end
-        return new(lookup, column_labels, column_map)
+        return new(lookup, column_labels_as_syms, column_map)
     end
 end
 

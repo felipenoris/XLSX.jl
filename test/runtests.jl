@@ -689,7 +689,7 @@ end
 @testset "Table" begin
 
     @testset "Index" begin
-        index = XLSX.Index("A:B", [:First, :Second])
+        index = XLSX.Index("A:B", ["First", "Second"])
         @test index.column_labels == [:First, :Second]
         @test index.lookup[:First] == 1
         @test index.lookup[:Second] == 2
@@ -863,8 +863,10 @@ end
         @test_throws ErrorException XLSX.getdata(rowdata, :INVALID_COLUMN)
     end
 
-    override_col_names = [:ColumnA, :ColumnB, :ColumnC]
-    data, col_names = XLSX.gettable(s, column_labels=override_col_names)
+    override_col_names_strs = [ "ColumnA", "ColumnB", "ColumnC" ]
+    override_col_names = [ Symbol(i) for i in override_col_names_strs ]
+
+    data, col_names = XLSX.gettable(s, column_labels=override_col_names_strs)
 
     @test col_names == override_col_names
     check_test_data(data, test_data)
