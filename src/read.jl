@@ -515,7 +515,7 @@ end
     readtable(filepath, sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels
 
 Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
-`data` is a vector of columns. `column_labels` is a vector of symbols.
+`data` is a vector of columns. `column_labels` is an iterable object with column labels.
 Use this function to create a `DataFrame` from package `DataFrames.jl`.
 
 Use `columns` argument to specify which columns to get.
@@ -534,7 +534,7 @@ for the table will be read from the first row of the table.
 If `header=false` and `column_labels` is not specified, the algorithm
 will generate column labels. The default value is `header=true`.
 
-Use `column_labels` as a vector of symbols to specify names for the header of the table.
+Use `column_labels` to specify names for the header of the table.
 
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
 The default value is `infer_eltypes=false`.
