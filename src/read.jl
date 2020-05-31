@@ -37,7 +37,7 @@ Consider using [`XLSX.openxlsx`](@ref) for lazy loading of Excel file contents.
 @inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, false)
 
 """
-    openxlsx(f::Function, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true)
+    openxlsx(f::F, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
 Open XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying `f` to the file.
 
@@ -113,8 +113,8 @@ end
 
 See also [`XLSX.readxlsx`](@ref).
 """
-function openxlsx(f::Function, filepath::AbstractString;
-                  mode::AbstractString="r", enable_cache::Bool=true)
+function openxlsx(f::F, filepath::AbstractString;
+                  mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
     _read, _write = parse_file_mode(mode)
 
