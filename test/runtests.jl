@@ -1092,7 +1092,10 @@ end
     f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
     s = f["general"]
     @test_throws ErrorException s["A1"] = :sym
+    XLSX.rename!(s, "general") # no-op
+    @test_throws AssertionError XLSX.rename!(s, "table") # name is taken
     XLSX.rename!(s, "renamed_sheet")
+    @test s.name == "renamed_sheet"
     s["A1"] = "Hey You!"
     s["B1"] = "Out there in the cold..."
     s["A2"] = "Getting lonely getting old..."

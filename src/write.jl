@@ -428,8 +428,15 @@ end
 Renames a `Worksheet`.
 """
 function rename!(ws::Worksheet, name::AbstractString)
+
+    # no-op if the name is not changed
+    if ws.name == name
+        return
+    end
+
     xf = get_xlsxfile(ws)
     @assert is_writable(xf) "XLSXFile instance is not writable."
+    @assert name ∉ sheetnames(xf) "Sheetname $name is already in use."
 
     # updates XML
     xroot = xmlroot(xf, "xl/workbook.xml")
