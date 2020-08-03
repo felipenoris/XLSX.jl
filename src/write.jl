@@ -429,7 +429,7 @@ Renames a `Worksheet`.
 """
 function rename!(ws::Worksheet, name::AbstractString)
 
-    # no-op if the name is not changed
+    # no-op if the name has not changed
     if ws.name == name
         return
     end
