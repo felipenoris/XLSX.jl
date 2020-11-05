@@ -654,11 +654,11 @@ end
 end
 
 # Checks wether `data` equals `test_data`
-function check_test_data(data::Vector{Any}, test_data::Vector{Any})
+function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S<:Any, T<:Any}
 
     @test length(data) == length(test_data)
 
-    function size_of_data(d::Vector{Any})
+    function size_of_data(d::Vector{T}) where {T<:Any}
         isempty(d) && return (0, 0)
         return length(d[1]), length(d)
     end
@@ -1193,6 +1193,26 @@ end
 
         report_1_column_names = [:HEADER_A, :HEADER_B]
         report_2_column_names = [:COLUMN_A, :COLUMN_B]
+
+        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
+
+        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        @test labels[1] == :HEADER_A
+        @test labels[2] == :HEADER_B
+        check_test_data(data, report_1_data)
+
+        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        @test labels[1] == :COLUMN_A
+        @test labels[2] == :COLUMN_B
+        check_test_data(data, report_2_data)
+
+        report_1_column_names = ["HEADER_A", "HEADER_B"]
+        report_1_data = [["1", "2", "3"], ["A", "B", ""]]
+
+        report_2_column_names = ["COLUMN_A", "COLUMN_B"]
+        report_2_data = Vector{Any}(undef, 2)
+        report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
+        report_2_data[2] = [10.2, 10.3]
 
         XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
 
