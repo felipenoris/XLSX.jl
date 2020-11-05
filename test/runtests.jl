@@ -654,11 +654,11 @@ end
 end
 
 # Checks wether `data` equals `test_data`
-function check_test_data(data::Vector{Any}, test_data::Vector{Any})
+function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S<:Any, T<:Any}
 
     @test length(data) == length(test_data)
 
-    function size_of_data(d::Vector{Any})
+    function size_of_data(d::Vector{T}) where {T<:Any}
         isempty(d) && return (0, 0)
         return length(d[1]), length(d)
     end
