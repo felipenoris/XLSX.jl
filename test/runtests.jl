@@ -1225,6 +1225,32 @@ end
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
+
+        XLSX.writetable("output_tables.xlsx", [("REPORT_A", DataFrames.DataFrame(report_1_data, report_1_column_names)), ("REPORT_B", DataFrames.DataFrame(report_2_data, report_2_column_names))]; overwrite=true, )
+        @test isfile("output_tables.xlsx")
+
+        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        @test labels[1] == :HEADER_A
+        @test labels[2] == :HEADER_B
+        check_test_data(data, report_1_data)
+
+        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        @test labels[1] == :COLUMN_A
+        @test labels[2] == :COLUMN_B
+        check_test_data(data, report_2_data)
+
+        XLSX.writetable("output_tables.xlsx", Dict("REPORT_A"=>DataFrames.DataFrame(report_1_data, report_1_column_names), "REPORT_B"=>DataFrames.DataFrame(report_2_data, report_2_column_names)); overwrite=true)
+        @test isfile("output_tables.xlsx")
+
+        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        @test labels[1] == :HEADER_A
+        @test labels[2] == :HEADER_B
+        check_test_data(data, report_1_data)
+
+        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        @test labels[1] == :COLUMN_A
+        @test labels[2] == :COLUMN_B
+        check_test_data(data, report_2_data)
     end
 
     # delete files created by this testset
