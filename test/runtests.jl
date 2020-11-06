@@ -1251,6 +1251,7 @@ end
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
+    
     end
 
     # delete files created by this testset
