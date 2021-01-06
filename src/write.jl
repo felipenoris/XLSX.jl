@@ -236,10 +236,11 @@ function setdata!(ws::Worksheet, cell::Cell)
 
     if !haskey(cache.cells, r)
         push!(cache.rows_in_cache, r)
-        sort!(cache.rows_in_cache)
+        #sort!(cache.rows_in_cache)
         cache.cells[r] = Dict{Int, Cell}()
 
-        cache.row_index = Dict{Int, Int}(cache.rows_in_cache[i] => i for i in 1:length(cache.rows_in_cache))
+        #cache.row_index = Dict{Int, Int}(cache.rows_in_cache[i] => i for i in 1:length(cache.rows_in_cache))
+        cache.dirty = true
     end
     cache.cells[r][c] = cell
     add_cell_to_worksheet_dimension!(ws, cell)

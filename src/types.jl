@@ -164,6 +164,7 @@ mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
     row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
     stream_iterator::I
     stream_state::Union{Nothing, SheetRowStreamIteratorState}
+    dirty::Bool #indicate that data are not sorted, avoid sorting if we dont use the iterator
 end
 
 """
@@ -202,6 +203,7 @@ end
 mutable struct SharedStringTable
     unformatted_strings::Vector{String}
     formatted_strings::Vector{String}
+    index::Dict{String, Int64} #for unformatted_strings search optimisation
     is_loaded::Bool # for lazy-loading of sst XML file (implies that this struct must be mutable)
 end
 
