@@ -1,9 +1,13 @@
 
 # Tables.jl interface
 
-Tables.isrowtable(::Type{<:TableRowIterator}) = true
-Tables.columnnames(tr::TableRow) = Tuple(tr.index.column_labels)
+Tables.istable(::Type{<:TableRowIterator}) = true
+Tables.rowaccess(::Type{<:TableRowIterator}) = true
+Tables.rows(itr::TableRowIterator) = itr
+Tables.schema(itr::TableRowIterator) = Tables.Schema(itr.index.column_labels, fill(Any, length(itr.index.column_labels)))
+Tables.columnnames(tr::TableRow) = tr.index.column_labels
 Tables.getcolumn(tr::TableRow, nm::Symbol) = getdata(tr, nm)
+Tables.getcolumn(tr::TableRow, i::Integer) = getdata(tr, i)
 
 function writetable(filename::AbstractString, x; kw...)
 
