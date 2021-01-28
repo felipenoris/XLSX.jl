@@ -1820,7 +1820,8 @@ end
     @test length(ct) == 1
     @test length(ct[1]) == 5
     ct = XLSX.eachtablerow(f["table6"]) |> Tables.columntable
-    @test length(ct) == 0
+    @test length(ct) == 1
+    @test isempty(ct.hey)
     ct = XLSX.eachtablerow(f["table7"]) |> Tables.columntable
     @test length(ct) == 1
     @test length(ct[1]) == 1
