@@ -1,5 +1,5 @@
 
-SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), false)
+SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), Dict{String, Int64}(), false)
 
 @inline get_sst(wb::Workbook) = wb.sst
 @inline get_sst(xl::XLSXFile) = get_sst(get_workbook(xl))
@@ -12,11 +12,11 @@ SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), fals
 function get_shared_string_index(sst::SharedStringTable, str_formatted::AbstractString) :: Union{Nothing, Int}
     @assert sst.is_loaded "Can't query shared string table because it's not loaded into memory."
 
-    i = findfirst(s -> s == str_formatted, sst.formatted_strings)
-    if i == nothing
-        return nothing
+    #using a Dict is much more efficient than the findfirst approach especially on large datasets
+    if haskey(sst.index, str_formatted)
+        return sst.index[str_formatted] - 1
     else
-        return i - 1
+        return nothing
     end
 
 end
@@ -29,6 +29,7 @@ function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractStr
     else
         push!(sst.unformatted_strings, str_unformatted)
         push!(sst.formatted_strings, str_formatted)
+        sst.index[str_formatted] = length(sst.formatted_strings)
         new_index = length(sst.formatted_strings) - 1 # 0-based
         @assert new_index == get_shared_string_index(sst, str_formatted) "Inconsistent state after adding a string to the Shared String Table."
         return new_index
@@ -56,6 +57,7 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
         override_node = EzXML.addelement!(ctype_root, "Override")
         override_node["ContentType"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"
         override_node["PartName"] = "/xl/sharedStrings.xml"
+        initIndex(sst)
     end
 
     return add_shared_string!(sst, str_unformatted, str_formatted)
@@ -85,7 +87,7 @@ function sst_load!(workbook::Workbook)
                 print(formatted_string_buffer, el)
                 push!(sst.formatted_strings, String(take!(formatted_string_buffer)))
             end
-
+            initIndex(sst)
             sst.is_loaded=true
             return
         end
@@ -139,3 +141,12 @@ end
 @inline sst_unformatted_string(xl::XLSXFile, index::Int) :: String = sst_unformatted_string(get_workbook(xl), index)
 @inline sst_unformatted_string(ws::Worksheet, index::Int) :: String = sst_unformatted_string(get_xlsxfile(ws), index)
 @inline sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) :: String = sst_unformatted_string(target, parse(Int, index_str))
+
+
+#init the index table
+function initIndex(sst::SharedStringTable)
+    sst.index = Dict{String, Int64}()
+    for i in 1:length(sst.formatted_strings)
+        sst.index[sst.formatted_strings[i]] = i
+    end
+end

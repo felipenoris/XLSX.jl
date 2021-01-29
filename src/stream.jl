@@ -203,7 +203,7 @@ end
 
 function WorksheetCache(ws::Worksheet)
     itr = SheetRowStreamIterator(ws)
-    return WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, nothing)
+    return WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, nothing, true)
 end
 
 @inline get_worksheet(r::SheetRow) = r.sheet
@@ -211,6 +211,13 @@ end
 
 # In the WorksheetCache iterator, the element is a SheetRow, the state is the row number
 function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
+
+    #the sorting operation are very costly when adding row  and only needed if we use the row iterator
+    if ws_cache.dirty
+        sort!(ws_cache.rows_in_cache)
+        ws_cache.row_index = Dict{Int, Int}(ws_cache.rows_in_cache[i] => i for i in 1:length(ws_cache.rows_in_cache))
+        ws_cache.dirty = false
+    end
 
     if row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
 

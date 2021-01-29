@@ -236,10 +236,8 @@ function setdata!(ws::Worksheet, cell::Cell)
 
     if !haskey(cache.cells, r)
         push!(cache.rows_in_cache, r)
-        sort!(cache.rows_in_cache)
         cache.cells[r] = Dict{Int, Cell}()
-
-        cache.row_index = Dict{Int, Int}(cache.rows_in_cache[i] => i for i in 1:length(cache.rows_in_cache))
+        cache.dirty = true
     end
     cache.cells[r][c] = cell
     add_cell_to_worksheet_dimension!(ws, cell)
@@ -545,7 +543,7 @@ function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
     zip_io, reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
     state = SheetRowStreamIteratorState(zip_io, reader, true, 0)
     close(state)
-    ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state)
+    ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
