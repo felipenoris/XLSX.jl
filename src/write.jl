@@ -656,7 +656,7 @@ function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
     nothing
 end
 
-function writetable(filename::AbstractString, tables::Vector{Tuple{String, S, Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where U<:Any, T<:Union{String, Symbol}}
+function writetable(filename::AbstractString, tables::Vector{Tuple{String, S, Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where U, T<:Union{String, Symbol}}
 
     if !overwrite
         @assert !isfile(filename) "$filename already exists."
