@@ -203,7 +203,7 @@ end
 mutable struct SharedStringTable
     unformatted_strings::Vector{String}
     formatted_strings::Vector{String}
-    index::Dict{String, Int64} #for unformatted_strings search optimisation
+    index::Dict{String, Int64} # for unformatted_strings search optimisation
     is_loaded::Bool # for lazy-loading of sst XML file (implies that this struct must be mutable)
 end
 

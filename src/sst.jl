@@ -57,7 +57,7 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
         override_node = EzXML.addelement!(ctype_root, "Override")
         override_node["ContentType"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"
         override_node["PartName"] = "/xl/sharedStrings.xml"
-        initIndex(sst)
+        init_sst_index(sst)
     end
 
     return add_shared_string!(sst, str_unformatted, str_formatted)
@@ -87,7 +87,7 @@ function sst_load!(workbook::Workbook)
                 print(formatted_string_buffer, el)
                 push!(sst.formatted_strings, String(take!(formatted_string_buffer)))
             end
-            initIndex(sst)
+            init_sst_index(sst)
             sst.is_loaded=true
             return
         end
@@ -143,9 +143,9 @@ end
 @inline sst_unformatted_string(target::Union{Workbook, XLSXFile, Worksheet}, index_str::String) :: String = sst_unformatted_string(target, parse(Int, index_str))
 
 
-#init the index table
-function initIndex(sst::SharedStringTable)
-    sst.index = Dict{String, Int64}()
+# init the index table
+function init_sst_index(sst::SharedStringTable)
+    empty!(sst.index)
     for i in 1:length(sst.formatted_strings)
         sst.index[sst.formatted_strings[i]] = i
     end
