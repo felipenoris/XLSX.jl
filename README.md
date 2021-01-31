@@ -2,17 +2,14 @@
 # XLSX.jl
 
 [![License][license-img]](LICENSE)
-[![travis][travis-img]][travis-url]
-[![appveyor][appveyor-img]][appveyor-url]
+[![CI][ci-img]][ci-url]
 [![codecov][codecov-img]][codecov-url]
 [![dev][docs-dev-img]][docs-dev-url]
 [![stable][docs-stable-img]][docs-stable-url]
 
 [license-img]: http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square
-[travis-img]: https://img.shields.io/travis/felipenoris/XLSX.jl/master.svg?logo=travis&label=Linux+/+macOS&style=flat-square
-[travis-url]: https://travis-ci.org/felipenoris/XLSX.jl
-[appveyor-img]: https://img.shields.io/appveyor/ci/felipenoris/xlsx-jl/master.svg?logo=appveyor&label=Windows&style=flat-square
-[appveyor-url]: https://ci.appveyor.com/project/felipenoris/xlsx-jl/branch/master
+[ci-img]: https://github.com/felipenoris/XLSX.jl/workflows/CI/badge.svg
+[ci-url]: https://github.com/felipenoris/XLSX.jl/actions?query=workflow%3ACI
 [codecov-img]: https://img.shields.io/codecov/c/github/felipenoris/XLSX.jl/master.svg?label=codecov&style=flat-square
 [codecov-url]: http://codecov.io/github/felipenoris/XLSX.jl?branch=master
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg?style=flat-square
