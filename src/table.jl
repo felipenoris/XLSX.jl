@@ -95,8 +95,8 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
     #helper function to manage problematics collumns labels 
     #Empty cell -> "Empty"
     #No_unique_label -> No_unique_label#2
-    function pushUnique!(vect, cell, iter=1)
-        name = Symbol(isempty(cell) ? "Empty" : getdata(sheet, cell), iter == 1 ? "" : "#" * string(iter))
+    function pushUnique!(vect, cell, iter = 1)
+        name = Symbol((isempty(cell) ? "Empty" : getdata(sheet, cell)), (iter == 1 ? "" : "#" * string(iter)))
         return name in vect ? pushUnique!(vect, cell, iter + 1) : push!(vect, name)
     end
 
