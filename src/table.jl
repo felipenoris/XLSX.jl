@@ -116,7 +116,7 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
                 #@assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
-                pushUnique!(column_labels, sheet, cell)
+                pushUnique!(column_labels, cell)
             end
         else
             # generate column_labels if there's no header information anywhere
