@@ -93,11 +93,12 @@ See also [`XLSX.gettable`](@ref).
 function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing) :: TableRowIterator
 
     #helper function to manage problematics collumns labels 
-    #Empty cell -> "Empty"
+    #Empty cell -> "#Empty"
     #No_unique_label -> No_unique_label#2
     function pushUnique!(vect, cell, iter = 1)
-        name = Symbol((isempty(cell) ? "Empty" : getdata(sheet, cell)), (iter == 1 ? "" : "#" * string(iter)))
-        return name in vect ? pushUnique!(vect, cell, iter + 1) : push!(vect, name)
+        name = Symbol((isempty(cell) ? "#Empty" : getdata(sheet, cell)), (iter == 1 ? "" : "#" * string(iter)))
+        if name in vect pushUnique!(vect, cell, iter + 1) else push!(vect, name) end
+        return
     end
 
     if first_row == nothing
@@ -115,7 +116,7 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
                 #@assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
-                pushUnique!(column_labels, Symbol(getdata(sheet, cell)))
+                pushUnique!(column_labels, sheet, cell)
             end
         else
             # generate column_labels if there's no header information anywhere
