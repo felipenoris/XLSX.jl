@@ -967,8 +967,8 @@ end
         header_error_sheet = f["header_error"]
         #@test_throws AssertionError XLSX.gettable(header_error_sheet)
         data, col_names = XLSX.gettable(header_error_sheet)
-        @test col_names == [:COLUMN_A, :COLUMN_B, :Symbol("COLUMN_A#2"), :Symbol("#Empty")]
-        
+        @test col_names == [:COLUMN_A, :COLUMN_B, Symbol("COLUMN_A#2"), Symbol("#Empty")]
+
     end
 
     @testset "Consecutive passes" begin
