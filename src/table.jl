@@ -92,6 +92,14 @@ See also [`XLSX.gettable`](@ref).
 """
 function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing) :: TableRowIterator
 
+    #helper function to manage problematics collumns labels 
+    #Empty cell -> "Empty"
+    #No_unique_label -> No_unique_label#2
+    function pushUnique!(vect, cell, iter=1)
+        name = Symbol(isempty(cell) ? "Empty" : getdata(sheet, cell), iter == 1 ? "" : "#" * string(iter))
+        return name in vect ? pushUnique!(vect, cell, iter + 1) : push!(vect, name)
+    end
+
     if first_row == nothing
         first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
     end
@@ -122,11 +130,6 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
 
     first_data_row = header ? first_row + 1 : first_row
     return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
-
-    function pushUnique!(vect, cell, iter=1)
-        name = Symbol(isempty(cell) ? "Empty" : getdata(sheet, cell), iter == 1 ? "" : "#" * string(iter))
-        return name in vect ? pushUnique!(vect, cell, iter + 1) : push!(vect, name)
-    end
 
 end
 
