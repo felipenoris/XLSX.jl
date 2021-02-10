@@ -106,8 +106,8 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
             for column_index in column_range.start:column_range.stop
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
-                @assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
-                push!(column_labels, Symbol(getdata(sheet, cell)))
+                #@assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
+                pushUnique!(column_labels, Symbol(getdata(sheet, cell)))
             end
         else
             # generate column_labels if there's no header information anywhere
@@ -122,6 +122,12 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
 
     first_data_row = header ? first_row + 1 : first_row
     return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
+
+    function pushUnique!(vect, cell, iter=1)
+        name = Symbol(isempty(cell) ? "Empty" : getdata(sheet, cell), iter == 1 ? "" : "#" * string(iter))
+        return name in vect ? pushUnique!(vect, cell, iter + 1) : push!(vect, name)
+    end
+
 end
 
 function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing)
