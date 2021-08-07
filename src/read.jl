@@ -135,10 +135,8 @@ function openxlsx(f::F, filepath::AbstractString;
             close(xf)
         end
 
-        # fix libuv issue on windows (#42)
-        @static if Sys.iswindows()
-            GC.gc()
-        end
+        # fix libuv issue on windows (#42) and other systems (#173)
+        GC.gc()
     end
 end
 
