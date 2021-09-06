@@ -83,6 +83,9 @@ end
 # Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
     el = styles_cell_xf(wb, index)
+    if !haskey(el, "numFmtId")
+        return 0
+    end
     return parse(Int, el["numFmtId"])
 end
 
