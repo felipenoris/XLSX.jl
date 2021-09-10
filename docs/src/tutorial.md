@@ -258,7 +258,7 @@ end
 
 !!! warning
 
-    The `read-write` feature is known to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159).
+    The `read-write` mode is known to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159).
 
     Simple data should work fine. Users are advised to use this feature with caution when working with formulas and charts.
 
