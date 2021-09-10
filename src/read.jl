@@ -61,6 +61,12 @@ The `mode` argument controls how the file is opened. The following modes are all
 
 * `rw` : edit mode. Opens `filepath` for editing. The file will be saved to disk when the function ends.
 
+!!! warning
+
+    The `rw` mode is known to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159).
+
+    Simple data should work fine. Users are advised to use this feature with caution when working with formulas and charts.
+
 # Arguments
 
 * `filepath` is the complete path to the file.
