@@ -256,6 +256,12 @@ XLSX.openxlsx("my_new_file.xlsx", mode="rw") do xf
 end
 ```
 
+!!! warning
+
+    The `read-write` mode is known to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159).
+
+    Simple data should work fine. Users are advised to use this feature with caution when working with formulas and charts.
+
 ### Export Tabular Data
 
 Given a sheet reference, use the `XLSX.writetable!` method. Anchor cell defaults to cell `"A1"`.
