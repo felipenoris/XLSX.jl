@@ -352,7 +352,7 @@ function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T}
     anchor_row = row_number(ref)
     anchor_col = column_number(ref)
 
-    @inbounds for c in 1:cols, r in 1:rows
+     @inbounds for c in 1:cols, r in 1:rows
         setdata!(sheet, anchor_row + r - 1, anchor_col + c - 1, matrix[r, c])
     end
 end
@@ -381,7 +381,7 @@ function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim:
 end
 
 """
-    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), keep_formats_if_possible=false)
 
 Writes tabular data `data` with labels given by `columnnames` to `sheet`,
 starting at `anchor_cell`.
@@ -389,9 +389,16 @@ starting at `anchor_cell`.
 `data` must be a vector of columns.
 `columnnames` must be a vector of column labels.
 
+`keep_formats_if_possible`, if true, keeps the values of the `datatype` and `style` fields from the underlying cells.
+(This option may be useful for worksheets intended for presenting to others, and is not likely to be useful where
+Excel is being used simply as a data source/sink.) The values of the `value` and `formula` fields are NOT kept
+from the underlying cells, as that would be counter to the point of writing the table. Setting this parameter to
+true may result in slow writes for large datasets, as each cell's existing values must be checked. The default value
+of `keep_formats_if_possible` is false.
+
 See also: [`XLSX.writetable`](@ref).
 """
-function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), retain_cell_formatting=false)
 
     # read dimensions
     col_count = length(data)
@@ -416,7 +423,16 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     # write table data
     for r in 1:row_count, c in 1:col_count
         target_cell_ref = CellRef(r + anchor_row, c + anchor_col - 1)
-        sheet[target_cell_ref] = data[c][r]
+        if keep_formats_if_possible
+            # Get the old datatype and style, change the value, then add the
+            # datatype and style back in
+            cell_values = getcell(sheet, target_cell_ref)
+            sheet[target_cell_ref] = data[c][r]
+            sheet[target_cell_ref].datatype = cell_values.datatype
+            sheet[target_cell_ref].style = cell_values.style
+        else
+            sheet[target_cell_ref] = data[c][r]
+        end
     end
 end
 
