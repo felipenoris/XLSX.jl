@@ -376,12 +376,25 @@ function target_cell_ref_from_offset(anchor_row::Integer, anchor_col::Integer, o
     end
 end
 
+"""setdata_keep_style!(ws::Worksheet, ref::CellRef, val::CellValue)
+
+Set the data in `ws` cell `ref` to `value`, retaining the style that was assigned
+to cell `ref` previously.
+"""
+function setdata_keep_style!(ws::Worksheet, ref::CellRef, val::CellValue)
+    t, v = xlsx_encode(ws, val.value)
+    orig_style = getcell(ws, ref).style
+    cell = Cell(ref, t, orig_style, v, "")
+
+    setdata!(ws, cell)
+end
+
 function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim::Integer) :: CellRef
     return target_cell_ref_from_offset(row_number(anchor_cell), column_number(anchor_cell), offset, dim)
 end
 
 """
-    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), keep_formats_if_possible=false)
+    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), keep_style=false)
 
 Writes tabular data `data` with labels given by `columnnames` to `sheet`,
 starting at `anchor_cell`.
@@ -389,16 +402,16 @@ starting at `anchor_cell`.
 `data` must be a vector of columns.
 `columnnames` must be a vector of column labels.
 
-`keep_formats_if_possible`, if true, keeps the values of the `datatype` and `style` fields from the underlying cells.
+`keep_style`, if true, keeps the values of the `style` field from the underlying cells.
 (This option may be useful for worksheets intended for presenting to others, and is not likely to be useful where
 Excel is being used simply as a data source/sink.) The values of the `value` and `formula` fields are NOT kept
 from the underlying cells, as that would be counter to the point of writing the table. Setting this parameter to
 true may result in slow writes for large datasets, as each cell's existing values must be checked. The default value
-of `keep_formats_if_possible` is false.
+of `keep_style` is false.
 
 See also: [`XLSX.writetable`](@ref).
 """
-function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), retain_cell_formatting=false)
+function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), keep_style=false)
 
     # read dimensions
     col_count = length(data)
@@ -417,19 +430,24 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     # write table header
     for c in 1:col_count
         target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-        sheet[target_cell_ref] = string(columnnames[c])
+        if keep_style
+            # Change the value, keep the style
+            # Here we wrap string(columnames[c]) in a CellValue with CellDataFormat(0) --
+            # we just want to keep the original style anyway
+            setdata_keep_style!(sheet, target_cell_ref, CellValue(string(columnnames[c]), CellDataFormat(0)))
+        else
+           sheet[target_cell_ref] = string(columnnames[c])
+        end
     end
 
     # write table data
     for r in 1:row_count, c in 1:col_count
         target_cell_ref = CellRef(r + anchor_row, c + anchor_col - 1)
-        if keep_formats_if_possible
-            # Get the old datatype and style, change the value, then add the
-            # datatype and style back in
-            cell_values = getcell(sheet, target_cell_ref)
-            sheet[target_cell_ref] = data[c][r]
-            sheet[target_cell_ref].datatype = cell_values.datatype
-            sheet[target_cell_ref].style = cell_values.style
+        if keep_style
+            # Change the value, keep the style
+            # Here we wrap data[c][r] in a CellValue with CellDataFormat(0) --
+            # we just want to keep the original style anyway
+            setdata_keep_style!(sheet, target_cell_ref, CellValue(data[c][r], CellDataFormat(0)))
         else
             sheet[target_cell_ref] = data[c][r]
         end

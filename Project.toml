@@ -6,6 +6,7 @@ repo = "https://github.com/felipenoris/XLSX.jl.git"
 version = "0.7.8"
 
 [deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"

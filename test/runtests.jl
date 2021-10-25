@@ -1228,11 +1228,47 @@ end
         check_test_data(data, report_2_data)
     end
 
+    @testset "basic formatting" begin
+        XLSX.openxlsx(joinpath(data_directory, "formatted_writable.xlsx"), mode="rw") do xf
+            sheet = xf["Sheet1"]
+            range_desc="B5:F6"
+            orig_range = XLSX.getcellrange(sheet, range_desc)
+            new_df = DataFrames.DataFrame("2021 YTD \$" => 750,
+                "2020 YTD \$" => 500, "2019 YTD \$" => 440)
+            new_df[!, "\$ CHG"] .= new_df."2021 YTD \$" .- new_df."2020 YTD \$"
+            new_df[!, "% CHG"] .= new_df."\$ CHG" ./ new_df."2020 YTD \$"
+            XLSX.writetable!(sheet, collect(eachcol(new_df)), names(new_df);
+                anchor_cell=XLSX.CellRef(range_desc[1:2]), keep_style=true)
+            new_range = XLSX.getcellrange(sheet, range_desc)
+
+            for (i, c) in enumerate(XLSX.CellRange(range_desc))
+                @test orig_range[i].datatype == new_range[i].datatype
+                @test orig_range[i].style == new_range[i].style
+                @test new_range[i].formula == ""
+            end
+
+            @test sheet[XLSX.CellRef("B5")] == "2021 YTD \$"
+            @test sheet[XLSX.CellRef("C5")] == "2020 YTD \$"
+            @test sheet[XLSX.CellRef("D5")] == "2019 YTD \$"
+            @test sheet[XLSX.CellRef("E5")] == "\$ CHG"
+            @test sheet[XLSX.CellRef("F5")] == "% CHG"
+            @test sheet[XLSX.CellRef("B6")] == 750.0
+            @test sheet[XLSX.CellRef("C6")] == 500.0
+            @test sheet[XLSX.CellRef("D6")] == 440.0
+            @test sheet[XLSX.CellRef("E6")] == 250.0
+            @test sheet[XLSX.CellRef("F6")] == 0.5
+
+        end
+    end
+
     # delete files created by this testset
     delete_files = ["output_table.xlsx", "output_tables.xlsx"]
     for f in delete_files
         isfile(f) && rm(f)
     end
+    # Overwrite the test file to reset it for the next run
+    cp(joinpath(data_directory, "formatted_writable_original.xlsx"),
+        joinpath(data_directory, "formatted_writable.xlsx"), force=true)
 end
 
 @testset "Styles" begin
