@@ -189,10 +189,11 @@ mutable struct Worksheet
     relationship_id::String # r:id="rId1"
     name::String
     dimension::Union{Nothing, CellRange}
+    is_hidden::Bool
     cache::Union{WorksheetCache, Nothing}
 
-    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::Union{Nothing, CellRange})
-        return new(package, sheetId, relationship_id, name, dimension, nothing)
+    function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::Union{Nothing, CellRange}, is_hidden::Bool)
+        return new(package, sheetId, relationship_id, name, dimension, is_hidden, nothing)
     end
 end
 

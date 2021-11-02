@@ -533,7 +533,7 @@ function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
     rId = add_relationship!(wb, xml_filename[4:end], "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet")
 
     # creates Worksheet instance
-    ws = Worksheet(xf, sheetId, rId, name, CellRange("A1:A1"))
+    ws = Worksheet(xf, sheetId, rId, name, CellRange("A1:A1"), false)
 
     # creates a mock WorksheetCache
     # because we can't write to sheet with empty cache (see setdata!(ws::Worksheet, cell::Cell))
