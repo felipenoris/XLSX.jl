@@ -55,7 +55,7 @@ end
     getdata(sheet, ref)
     getdata(sheet, row, column)
 
-Returns a escalar or a matrix with values from a spreadsheet.
+Returns a scalar or a matrix with values from a spreadsheet.
 `ref` can be a cell reference or a range.
 
 Indexing in a `Worksheet` will dispatch to `getdata` method.
