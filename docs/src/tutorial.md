@@ -262,7 +262,7 @@ end
 
     Simple data should work fine. Users are advised to use this feature with caution when working with formulas and charts.
 
-### Export Tabular Data
+### Export Tabular Data from a Worksheet
 
 Given a sheet reference, use the `XLSX.writetable!` method. Anchor cell defaults to cell `"A1"`.
 
@@ -298,7 +298,7 @@ end
 
 You can also use `XLSX.writetable` to write directly to a new file (see next section).
 
-### Export Tabular Data as a DataFrame
+### Export Tabular Data from a DataFrame
 
 To export tabular data to Excel, use `XLSX.writetable` method.
 

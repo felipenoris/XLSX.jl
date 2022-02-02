@@ -4,9 +4,10 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     sheetId = parse(Int, sheet_element["sheetId"])
     relationship_id = sheet_element["r:id"]
     name = sheet_element["name"]
+    is_hidden = haskey(sheet_element, "state") && sheet_element["state"] in ["hidden", "veryHidden"]
     dim = read_worksheet_dimension(xf, relationship_id, name)
 
-    return Worksheet(xf, sheetId, relationship_id, name, dim)
+    return Worksheet(xf, sheetId, relationship_id, name, dim, is_hidden)
 end
 
 # 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
@@ -55,7 +56,7 @@ end
     getdata(sheet, ref)
     getdata(sheet, row, column)
 
-Returns a escalar or a matrix with values from a spreadsheet.
+Returns a scalar or a matrix with values from a spreadsheet.
 `ref` can be a cell reference or a range.
 
 Indexing in a `Worksheet` will dispatch to `getdata` method.
@@ -177,12 +178,13 @@ Base.getindex(ws::Worksheet, r, c) = getdata(ws, r, c)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 function Base.show(io::IO, ws::Worksheet)
+    hidden_string = ws.is_hidden ? "(hidden)" : ""
     if get_dimension(ws) != nothing
         rg = get_dimension(ws)
         nrow, ncol = size(rg)
-        @printf(io, "%d×%d %s: [\"%s\"](%s)", nrow, ncol, typeof(ws), ws.name, rg)
+        @printf(io, "%d×%d %s: [\"%s\"](%s) %s", nrow, ncol, typeof(ws), ws.name, rg, hidden_string)
     else
-        @printf(io, "%s: [\"%s\"]", typeof(ws), ws.name)
+        @printf(io, "%s: [\"%s\"] %s", typeof(ws), ws.name, hidden_string)
     end
 end
 
