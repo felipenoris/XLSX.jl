@@ -92,6 +92,15 @@ See also [`XLSX.gettable`](@ref).
 """
 function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing) :: TableRowIterator
 
+    #helper function to manage problematics collumns labels 
+    #Empty cell -> "#Empty"
+    #No_unique_label -> No_unique_label#2
+    function pushUnique!(vect, cell, iter = 1)
+        name = Symbol((isempty(cell) ? "#Empty" : getdata(sheet, cell)), (iter == 1 ? "" : "#" * string(iter)))
+        if name in vect pushUnique!(vect, cell, iter + 1) else push!(vect, name) end
+        return
+    end
+
     if first_row == nothing
         first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
     end
@@ -106,8 +115,8 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
             for column_index in column_range.start:column_range.stop
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
-                @assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
-                push!(column_labels, Symbol(getdata(sheet, cell)))
+                #@assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
+                pushUnique!(column_labels, cell)
             end
         else
             # generate column_labels if there's no header information anywhere
@@ -122,6 +131,7 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
 
     first_data_row = header ? first_row + 1 : first_row
     return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
+
 end
 
 function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing)
