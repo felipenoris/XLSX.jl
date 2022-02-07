@@ -51,6 +51,28 @@ function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
     return last_column_index
 end
 
+_colname_prefix_symbol(sheet::Worksheet, cell::Cell) = Symbol(getdata(sheet, cell))
+_colname_prefix_symbol(sheet::Worksheet, ::EmptyCell) = Symbol("#Empty")
+
+# helper function to manage problematics collumns labels
+# Empty cell -> "#Empty"
+# No_unique_label -> No_unique_label_2
+function push_unique!(vect::Vector{Symbol}, sheet::Worksheet, cell::AbstractCell, iter::Int=1)
+    name = _colname_prefix_symbol(sheet, cell)
+
+    if iter > 1
+        name = Symbol(name, '_', iter)
+    end
+
+    if name in vect
+        push_unique!(vect, sheet, cell, iter + 1)
+    else
+        push!(vect, name)
+    end
+
+    nothing
+end
+
 """
     eachtablerow(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row], [stop_in_row_function])
 
@@ -58,10 +80,12 @@ Constructs an iterator of table rows. Each element of the iterator is of type `T
 
 `header` is a boolean indicating wether the first row of the table is a table header.
 
-If `header == false` and no `names` were supplied, column names will be generated following the column names found in the Excel file.
-Also, the column range will be inferred by the non-empty contiguous cells in the first row of the table.
+If `header == false` and no `column_labels` were supplied, column names will be generated following the column names found in the Excel file.
 
-The user can replace column names by assigning the optional `names` input variable with a `Vector{Symbol}`.
+The `columns` argument is a column range, as in `"B:E"`.
+If `columns` is not supplied, the column range will be inferred by the non-empty contiguous cells in the first row of the table.
+
+The user can replace column names by assigning the optional `column_labels` input variable with a `Vector{Symbol}`.
 
 `stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
 If `stop_in_empty_row=false`, the iterator will continue to fetch rows until there's no more rows in the Worksheet.
@@ -90,16 +114,15 @@ end
 
 See also [`XLSX.gettable`](@ref).
 """
-function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing) :: TableRowIterator
-
-    #helper function to manage problematics collumns labels 
-    #Empty cell -> "#Empty"
-    #No_unique_label -> No_unique_label#2
-    function pushUnique!(vect, cell, iter = 1)
-        name = Symbol((isempty(cell) ? "#Empty" : getdata(sheet, cell)), (iter == 1 ? "" : "#" * string(iter)))
-        if name in vect pushUnique!(vect, cell, iter + 1) else push!(vect, name) end
-        return
-    end
+function eachtablerow(
+            sheet::Worksheet,
+            cols::Union{ColumnRange, AbstractString};
+            first_row::Union{Nothing, Int}=nothing,
+            column_labels=nothing,
+            header::Bool=true,
+            stop_in_empty_row::Bool=true,
+            stop_in_row_function::Union{Nothing, Function}=nothing
+        ) :: TableRowIterator
 
     if first_row == nothing
         first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
@@ -115,8 +138,7 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
             for column_index in column_range.start:column_range.stop
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
-                #@assert !isempty(cell) "Header cell can't be empty ($(cell.ref))."
-                pushUnique!(column_labels, cell)
+                push_unique!(column_labels, sheet, cell)
             end
         else
             # generate column_labels if there's no header information anywhere
@@ -131,7 +153,6 @@ function eachtablerow(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}
 
     first_data_row = header ? first_row + 1 : first_row
     return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
-
 end
 
 function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing)
