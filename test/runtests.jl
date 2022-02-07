@@ -1843,13 +1843,37 @@ end
     XLSX.writetable("output_table.xlsx", table, overwrite=true, sheetname="report", anchor_cell="B2")
     @test isfile("output_table.xlsx")
 
-    try
-        f = XLSX.readxlsx("output_table.xlsx")
-        s = f["report"]
-        table2 = XLSX.eachtablerow(s) |> Tables.columntable
-        @test isequal(table, table2)
-    finally
-        rm("output_table.xlsx")
+    XLSX.openxlsx("output_table2.xlsx", mode="w") do xf
+        sheet = XLSX.getsheet(xf, 1)
+        XLSX.rename!(sheet, "report")
+        XLSX.writetable!(sheet, table)
+    end
+
+    for file in ["output_table.xlsx", "output_table2.xlsx"]
+        try
+            f = XLSX.readxlsx(file)
+            s = f["report"]
+            table2 = XLSX.eachtablerow(s) |> Tables.columntable
+            @test isequal(table, table2)
+        finally
+            rm(file)
+        end
+    end
+
+    # multiple tables in same file
+    table2 = (a = [1, 2, 3, 4], b=["a", "b", "c", "d"])
+    XLSX.writetable("output_table3.xlsx", "report1" => table, "report2" => table2)
+    XLSX.writetable("output_table4.xlsx", ["report1" => table, "report2" => table2])
+    for file in ["output_table4.xlsx", "output_table3.xlsx"]
+        try
+            f = XLSX.readxlsx(file)
+            result1 = Tables.columntable(XLSX.eachtablerow(f["report1"]))
+            result2 = Tables.columntable(XLSX.eachtablerow(f["report2"]))
+            @test isequal(table, result1)
+            @test isequal(table2, result2)
+        finally
+            rm(file)
+        end
     end
 
     @testset "Tables.jl with DataFrames" begin

@@ -300,7 +300,8 @@ You can also use `XLSX.writetable` to write directly to a new file (see next sec
 
 ### Export Tabular Data from a DataFrame
 
-To export tabular data to Excel, use `XLSX.writetable` method.
+To export tabular data to Excel, use `XLSX.writetable` method, which accepts either columns and column names,
+or any `Tables.jl` table.
 
 ```julia
 julia> using Dates
@@ -316,10 +317,13 @@ julia> df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "
 │ 3   │ 3        │ Out     │ 30.4   │ 2018-02-22 │ 19:30:00 │ 2018-05-20T19:30:00 │
 │ 4   │ 4        │ There   │ 40.5   │ 2018-02-23 │ 19:40:00 │ 2018-05-20T19:40:00 │
 
+julia> XLSX.writetable("df.xlsx", df)
+
 julia> XLSX.writetable("df.xlsx", collect(DataFrames.eachcol(df)), DataFrames.names(df))
 ```
 
-You can also export multiple tables to Excel, each table in a separate worksheet.
+You can also export multiple tables to Excel, each table in a separate worksheet, by either passing a tuple (columns, names)
+to a keyword argument for each sheet name, or a list `"sheet name" => table` pairs for any Tables.jl compatible source.
 
 ```julia
 julia> import DataFrames, XLSX
@@ -340,6 +344,8 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 │ 2   │ bb │ 10.2 │
 
 julia> XLSX.writetable("report.xlsx", REPORT_A=( collect(DataFrames.eachcol(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcol(df2)), DataFrames.names(df2) ))
+
+julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df1)
 ```
 
 ## Tables.jl interface
