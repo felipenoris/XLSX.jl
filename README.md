@@ -17,7 +17,7 @@
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square
 [docs-stable-url]: https://felipenoris.github.io/XLSX.jl/stable
 
-Excel file reader/writer coded in pure Julia.
+Excel file reader/writer for the Julia language.
 
 ## Installation
 
