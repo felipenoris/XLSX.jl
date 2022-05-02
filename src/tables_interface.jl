@@ -40,4 +40,4 @@ writetable(filename::AbstractString, tables::Pair{<:String, <:Any}...; kw...) = 
 
 Write Tables.jl `table` to the specified sheet
 """
-writetable!(sheet::Worksheet, x, kw...) = writetable!(sheet, table_to_arrays(x)...; kw...)
+writetable!(sheet::Worksheet, x; kw...) = writetable!(sheet, table_to_arrays(x)...; kw...)
