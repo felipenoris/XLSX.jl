@@ -208,6 +208,11 @@ function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_ca
                         continue
                     end
 
+                    # ignore custom XML internal files
+                    if startswith(f.name, "customXml")
+                        continue
+                    end
+
                     internal_xml_file_read(xf, f.name)
                 end
             elseif read_as_template
@@ -428,7 +433,14 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: EzXML.Documen
         for f in xf.io.files
             if f.name == filename
                 xf.files[filename] = true # set file as read
-                xf.data[filename] = EzXML.readxml(f)
+
+                try
+                    xf.data[filename] = EzXML.readxml(f)
+                catch err
+                    @error("Failed to parse internal XML file `$filename`")
+                    rethrow()
+                end
+
                 file_not_found = false
                 break
             end
