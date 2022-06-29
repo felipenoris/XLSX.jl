@@ -1,6 +1,7 @@
 
 module XLSX
 
+import Artifacts
 import Dates
 import Printf.@printf
 import ZipFile
