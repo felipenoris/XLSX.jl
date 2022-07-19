@@ -8,7 +8,7 @@ The returned `XLSXFile` instance is in closed state.
 =#
 @inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
 
-const EMPTY_EXCEL_TEMPLATE = joinpath(Artifacts.artifact"relocatable_data", "blank.xlsx")
+const EMPTY_EXCEL_TEMPLATE = joinpath(Artifacts.artifact"XLSX_relocatable_data", "blank.xlsx")
 
 #=
     open_empty_template(sheetname::AbstractString="") :: XLSXFile
