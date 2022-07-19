@@ -1,6 +1,6 @@
-[relocatable_data]
+[XLSX_relocatable_data]
 git-tree-sha1 = "0031b564617555f26e81a315c16a213a54f1fad0"
 
-    [[relocatable_data.download]]
-    sha256 = "89ed730911bd9eed7568d14b6e334e733e129abd79d3b06a12c2822dd510fb49"
-    url = "https://gist.github.com/guilhermebodin/8a2d5c443fa0143e029c4c23173b4568/raw/0031b564617555f26e81a315c16a213a54f1fad0.tar.gz"
+    [[XLSX_relocatable_data.download]]
+    sha256 = "b9b07267d2e7ed6528c5baf453cb5cb7fbaf7f3ffc2132445fb9e0a9c2ade41f"
+    url = "https://www.dropbox.com/s/r8o8am888zzctgd/xlsx_artifacts.tar.gz?dl=1"

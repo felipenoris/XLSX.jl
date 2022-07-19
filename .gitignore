@@ -4,3 +4,4 @@ docs/build/*
 Manifest.toml
 docs/Manifest.toml
 .vscode
+*.gz

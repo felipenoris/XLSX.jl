@@ -1,9 +1,19 @@
 using ArtifactUtils
+using Pkg
+using Pkg.PlatformEngines
+using Tar
 
 artifact_content = joinpath(@__DIR__() |> dirname, "relocatable_data")
-@assert isdir(artifact_content)
+artifact_toml_path = joinpath(@__DIR__() |> dirname, "Artifacts.toml")
+tar_path = joinpath(@__DIR__(), "xlsx_artifacts.tar.gz")
 
-artifact_id = artifact_from_directory(artifact_content)
-# For this to work we have to be logged in Github with the Github CLI
-gist = upload_to_gist(artifact_id)
-add_artifact!(joinpath(@__DIR__() |> dirname, "Artifacts.toml"), "relocatable_data", gist)
+@assert isdir(artifact_content)
+package(artifact_content, tar_path)
+
+add_artifact!(
+    artifact_toml_path,
+    "XLSX_relocatable_data",
+    "https://www.dropbox.com/s/r8o8am888zzctgd/xlsx_artifacts.tar.gz?dl=1";
+    force = true,
+    lazy = false
+)
