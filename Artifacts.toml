@@ -3,4 +3,4 @@ git-tree-sha1 = "0031b564617555f26e81a315c16a213a54f1fad0"
 
     [[XLSX_relocatable_data.download]]
     sha256 = "b9b07267d2e7ed6528c5baf453cb5cb7fbaf7f3ffc2132445fb9e0a9c2ade41f"
-    url = "https://www.dropbox.com/s/r8o8am888zzctgd/xlsx_artifacts.tar.gz?dl=1"
+    url = "https://github.com/felipenoris/XLSX.jl/releases/download/artifact-v0.8/xlsx_artifact_v0.8.tar.gz"
