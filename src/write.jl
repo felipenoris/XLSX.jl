@@ -294,6 +294,9 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     setdata!(ws, cell)
 end
 
+# Convert AbstractString to concrete String
+setdata!(ws::Worksheet, ref::CellRef, val::AbstractString) = setdata!(ws, ref, CellValue(ws, convert(String, val)))
+
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
