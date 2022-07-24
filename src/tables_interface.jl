@@ -41,3 +41,22 @@ writetable(filename::AbstractString, tables::Pair{<:String, <:Any}...; kw...) = 
 Write Tables.jl `table` to the specified sheet
 """
 writetable!(sheet::Worksheet, x; kw...) = writetable!(sheet, table_to_arrays(x)...; kw...)
+
+#
+# DataTable
+#
+
+Tables.istable(::Type{DataTable}) = true
+Tables.columnaccess(::Type{DataTable}) = true
+Tables.columns(dt::DataTable) = dt # DataTable implements Tables.AbstractColumns interface
+Tables.columnnames(dt::DataTable) = dt.column_labels
+Tables.getcolumn(dt::DataTable, i::Int) = dt.data[i]
+
+function Tables.getcolumn(dt::DataTable, column_label::Symbol)
+    if !haskey(dt.column_label_index, column_label)
+        error("Column `$column_label` not found.")
+    end
+
+    column_index = dt.column_label_index[column_label]
+    return Tables.getcolumn(dt, column_index)
+end

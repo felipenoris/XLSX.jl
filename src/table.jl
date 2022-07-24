@@ -440,7 +440,7 @@ function check_table_data_dimension(data::Vector)
     nothing
 end
 
-function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
+function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)
     data = Vector{Any}(undef, columns_count)
@@ -479,11 +479,20 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false)
 
     check_table_data_dimension(data)
 
-    return data, column_labels
+    return DataTable(data, column_labels)
 end
 
 """
-    gettable(sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels
+    gettable(
+        sheet,
+        [columns];
+        [first_row],
+        [column_labels],
+        [header],
+        [infer_eltypes],
+        [stop_in_empty_row],
+        [stop_in_row_function]
+    ) -> DataTable
 
 Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 `data` is a vector of columns. `column_labels` is a vector of symbols.

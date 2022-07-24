@@ -313,3 +313,25 @@ struct TableRowIteratorState{S}
     sheet_row_index::Int
     sheet_row_iterator_state::S
 end
+
+struct DataTable
+    data::Vector{Any} # columns
+    column_labels::Vector{Symbol}
+    column_label_index::Dict{Symbol, Int} # column_label -> column_index
+
+    function DataTable(
+            data::Vector{Any}, # columns
+            column_labels::Vector{Symbol},
+        )
+
+        @assert length(data) == length(column_labels) "data has $(length(data)) columns but $(length(column_labels)) column labels."
+
+        column_label_index = Dict{Symbol, Int}()
+        for (i, sym) in enumerate(column_labels)
+            @assert !haskey(column_label_index, sym) "DataTable has repeated label for column `$sym`"
+            column_label_index[sym] = i
+        end
+
+        return new(data, column_labels, column_label_index)
+    end
+end

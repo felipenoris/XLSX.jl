@@ -694,6 +694,8 @@ end
 
 @testset "Table" begin
 
+    @test Tables.istable(XLSX.DataTable)
+
     @testset "Index" begin
         index = XLSX.Index("A:B", ["First", "Second"])
         @test index.column_labels == [:First, :Second]
@@ -738,7 +740,8 @@ end
     f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
     s = f["table"]
     s[:];
-    data, col_names = XLSX.gettable(s)
+    dtable = XLSX.gettable(s)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
@@ -760,7 +763,8 @@ end
     @test XLSX.infer_eltype([1, "1", 10.2]) == Any
     @test XLSX.infer_eltype(Vector{Int}()) == Int
 
-    data_inferred, col_names = XLSX.gettable(s, infer_eltypes=true)
+    dtable_inferred = XLSX.gettable(s, infer_eltypes=true)
+    data_inferred, col_names = dtable_inferred.data, dtable_inferred.column_labels
     @test eltype(data_inferred[1]) == Int
     @test eltype(data_inferred[2]) == Union{Missing, String}
     @test eltype(data_inferred[3]) == Date
@@ -778,10 +782,12 @@ end
         return !ismissing(v) && v == "never was found"
     end
 
-    data, col_names = XLSX.gettable(s, stop_in_row_function=never_reaches_stop)
+    dtable = XLSX.gettable(s, stop_in_row_function=never_reaches_stop)
+    data, col_names = dtable.data, dtable.column_labels
     check_test_data(data, test_data)
 
-    data, col_names = XLSX.gettable(s, stop_in_row_function=stop_function)
+    dtable = XLSX.gettable(s, stop_in_row_function=stop_function)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
@@ -794,7 +800,8 @@ end
 
     check_test_data(data, test_data)
 
-    data, col_names = XLSX.gettable(s, stop_in_empty_row=false)
+    dtable = XLSX.gettable(s, stop_in_empty_row=false)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
@@ -847,7 +854,8 @@ end
     test_data[2] = [ "B1", "B2", missing, "B4"]
     test_data[3] = [ missing, missing, missing, missing ]
 
-    data, col_names = XLSX.gettable(s)
+    dtable = XLSX.gettable(s)
+    data, col_names = dtable.data, dtable.column_labels
 
     @test col_names == [:HA, :HB, :HC]
     check_test_data(data, test_data)
@@ -872,39 +880,45 @@ end
     override_col_names_strs = [ "ColumnA", "ColumnB", "ColumnC" ]
     override_col_names = [ Symbol(i) for i in override_col_names_strs ]
 
-    data, col_names = XLSX.gettable(s, column_labels=override_col_names_strs)
+    dtable = XLSX.gettable(s, column_labels=override_col_names_strs)
+    data, col_names = dtable.data, dtable.column_labels
 
     @test col_names == override_col_names
     check_test_data(data, test_data)
 
-    data, col_names = XLSX.gettable(s, "A:B", first_row=1)
+    dtable = XLSX.gettable(s, "A:B", first_row=1)
+    data, col_names = dtable.data, dtable.column_labels
     test_data_AB_cols = Vector{Any}(undef, 2)
     test_data_AB_cols[1] = test_data[1]
     test_data_AB_cols[2] = test_data[2]
     @test col_names == [:HA, :HB]
     check_test_data(data, test_data_AB_cols)
 
-    data, col_names = XLSX.gettable(s, "A:B")
+    dtable = XLSX.gettable(s, "A:B")
+    data, col_names = dtable.data, dtable.column_labels
     test_data_AB_cols = Vector{Any}(undef, 2)
     test_data_AB_cols[1] = test_data[1]
     test_data_AB_cols[2] = test_data[2]
     @test col_names == [:HA, :HB]
     check_test_data(data, test_data_AB_cols)
 
-    data, col_names = XLSX.gettable(s, "B:B", first_row=2)
+    dtable = XLSX.gettable(s, "B:B", first_row=2)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:B1]
     @test length(data) == 1
     @test length(data[1]) == 1
     @test data[1][1] == "B2"
 
-    data, col_names = XLSX.gettable(s, "B:C")
+    dtable = XLSX.gettable(s, "B:C")
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ :HB, :HC ]
     test_data_BC_cols = Vector{Any}(undef, 2)
     test_data_BC_cols[1] = ["B1", "B2"]
     test_data_BC_cols[2] = [ missing, missing]
     check_test_data(data, test_data_BC_cols)
 
-    data, col_names = XLSX.gettable(s, "B:C", first_row=2, header=false)
+    dtable = XLSX.gettable(s, "B:C", first_row=2, header=false)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ :B, :C ]
     check_test_data(data, test_data_BC_cols)
 
@@ -913,7 +927,8 @@ end
     test_data[1] = [ missing, missing, "B5" ]
     test_data[2] = [ "C3", missing, missing ]
     test_data[3] = [ missing, "D4", missing ]
-    data, col_names = XLSX.gettable(s)
+    dtable = XLSX.gettable(s)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
     check_test_data(data, test_data)
     @test_throws ErrorException XLSX.find_row(XLSX.eachrow(s), 20)
@@ -930,7 +945,8 @@ end
     @test_throws ErrorException XLSX._find_first_row_with_data(s, 7)
 
     s = f["table4"]
-    data, col_names = XLSX.gettable(s)
+    dtable = XLSX.gettable(s)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
     check_test_data(data, test_data)
 
@@ -949,15 +965,18 @@ end
         tb5 = f["table5"]
         test_data = Vector{Any}(undef, 1)
         test_data[1] = [1, 2, 3, 4, 5]
-        data, col_names = XLSX.gettable(tb5)
+        dtable = XLSX.gettable(tb5)
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [ :HEADER ]
         check_test_data(data, test_data)
         tb6 = f["table6"]
-        data, col_names = XLSX.gettable(tb6, first_row=3)
+        dtable = XLSX.gettable(tb6, first_row=3)
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [ :HEADER ]
         check_test_data(data, test_data)
         tb7 = f["table7"]
-        data, col_names = XLSX.gettable(tb7, first_row=3)
+        dtable = XLSX.gettable(tb7, first_row=3)
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [ :HEADER ]
         check_test_data(data, test_data)
 
@@ -966,12 +985,14 @@ end
         test_data[1] = [ 10, 20, 30]
         test_data[2] = [ "name1", "name2", "name3" ]
         test_data[3] = [ 100, 200, 300 ]
-        data, col_names = XLSX.gettable(sheet_lookup)
+        dtable = XLSX.gettable(sheet_lookup)
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [:ID, :NAME, :VALUE]
         check_test_data(data, test_data)
 
         header_error_sheet = f["header_error"]
-        data, col_names = XLSX.gettable(header_error_sheet, "B:E")
+        dtable = XLSX.gettable(header_error_sheet, "B:E")
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [:COLUMN_A, :COLUMN_B, Symbol("COLUMN_A_2"), Symbol("#Empty")]
     end
 
@@ -979,11 +1000,13 @@ end
         # Consecutive passes should yield the same results
         XLSX.openxlsx(joinpath(data_directory, "general.xlsx")) do f
             sl = f["lookup"]
-            data, col_names = XLSX.gettable(sl)
+            dtable = XLSX.gettable(sl)
+            data, col_names = dtable.data, dtable.column_labels
             @test col_names == [:ID, :NAME, :VALUE]
             check_test_data(data, test_data)
 
-            data, col_names = XLSX.gettable(sl)
+            dtable = XLSX.gettable(sl)
+            data, col_names = dtable.data, dtable.column_labels
             @test col_names == [:ID, :NAME, :VALUE]
             check_test_data(data, test_data)
         end
@@ -997,8 +1020,20 @@ end
     test_data[2] = [ "C3", missing, missing ]
     test_data[3] = [ missing, "D4", missing ]
 
-    data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4")
+    dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4")
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
+
+    @testset "Tables.jl DataTable interface" begin
+        df = DataFrames.DataFrame(dtable)
+        @test DataFrames.names(df) == ["H1", "H2", "H3"]
+        @test size(df) == (3, 3)
+        @test df[1, :H2] == "C3"
+        @test df[3, :H1] == "B5"
+        @test df[2, :H3] == "D4"
+        @test ismissing(df[1, 1])
+    end
+
     check_test_data(data, test_data)
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "E12") == "H1"
@@ -1009,13 +1044,15 @@ end
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "F12:F13") == test_data
 
     @testset "readtable select single column" begin
-        data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F")
+        dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F")
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [ :H2 ]
         @test data == Any[Any["C3"]]
     end
 
     @testset "readtable select column range" begin
-        data, col_names = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F:G")
+        dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F:G")
+        data, col_names = dtable.data, dtable.column_labels
         @test col_names == [ :H2, :H3 ]
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
@@ -1032,7 +1069,8 @@ end
 
     s = f_copy["table"]
     s[:];
-    data, col_names = XLSX.gettable(s)
+    dtable = XLSX.gettable(s)
+    data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
@@ -1157,7 +1195,8 @@ end
         XLSX.writetable("output_table.xlsx", data, col_names, overwrite=true, sheetname="report", anchor_cell="B2")
         @test isfile("output_table.xlsx")
 
-        read_data, read_column_names = XLSX.readtable("output_table.xlsx", "report")
+        dtable = XLSX.readtable("output_table.xlsx", "report")
+        read_data, read_column_names = dtable.data, dtable.column_labels
         @test length(read_column_names) == length(col_names)
         for c in 1:length(col_names)
             @test Symbol(col_names[c]) == read_column_names[c]
@@ -1179,24 +1218,28 @@ end
         XLSX.writetable("output_tables.xlsx", overwrite=true, REPORT_A=(report_1_data, report_1_column_names), REPORT_B=(report_2_data, report_2_column_names))
         @test isfile("output_tables.xlsx")
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :HEADER_A
         @test labels[2] == :HEADER_B
         check_test_data(data, report_1_data)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
 
         XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :HEADER_A
         @test labels[2] == :HEADER_B
         check_test_data(data, report_1_data)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
@@ -1206,12 +1249,14 @@ end
 
         XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :HEADER_A
         @test labels[2] == :HEADER_B
         check_test_data(data, report_1_data)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
@@ -1226,12 +1271,14 @@ end
 
         XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :HEADER_A
         @test labels[2] == :HEADER_B
         check_test_data(data, report_1_data)
 
-        data, labels = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        dtable = XLSX.readtable("output_tables.xlsx", "REPORT_B")
+        data, labels = dtable.data, dtable.column_labels
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
@@ -1690,7 +1737,8 @@ end
     esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
     XLSX.writetable(esc_filename, esc_data, esc_col_names, overwrite=true, sheetname=esc_sheetname)
 
-    r1_data, r1_col_names = XLSX.readtable(esc_filename, esc_sheetname)
+    dtable = XLSX.readtable(esc_filename, esc_sheetname)
+    r1_data, r1_col_names = dtable.data, dtable.column_labels
     check_test_data(r1_data, esc_data)
     @test r1_col_names[4] == Symbol( esc_col_names[4] )
     @test r1_col_names[3] == Symbol( esc_col_names[3] )
@@ -1699,7 +1747,8 @@ end
     rm(esc_filename)
 
     # compare to the backup version: escape.xlsx
-    r2_data, r2_col_names = XLSX.readtable(joinpath(data_directory, "escape.xlsx"), esc_sheetname)
+    dtable = XLSX.readtable(joinpath(data_directory, "escape.xlsx"), esc_sheetname)
+    r2_data, r2_col_names = dtable.data, dtable.column_labels
     check_test_data(r2_data, esc_data)
     check_test_data(r2_data, r1_data)
     @test r2_col_names[4] == Symbol( esc_col_names[4] )
@@ -1744,7 +1793,8 @@ end
     end
 
     let
-        data, col_names = XLSX.readtable(joinpath(data_directory, "openpyxl.xlsx"), "Test1")
+        dtable = XLSX.readtable(joinpath(data_directory, "openpyxl.xlsx"), "Test1")
+        data, col_names = dtable.data, dtable.column_labels
         @test data == [ [1, 3], [2, 4]]
         @test col_names == [:One, :Two]
     end

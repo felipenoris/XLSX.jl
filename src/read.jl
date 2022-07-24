@@ -528,7 +528,17 @@ function readdata(filepath::AbstractString, sheetref::AbstractString)
 end
 
 """
-    readtable(filepath, sheet, [columns]; [first_row], [column_labels], [header], [infer_eltypes], [stop_in_empty_row], [stop_in_row_function]) -> data, column_labels
+    readtable(
+        filepath,
+        sheet,
+        [columns];
+        [first_row],
+        [column_labels],
+        [header],
+        [infer_eltypes],
+        [stop_in_empty_row],
+        [stop_in_row_function]
+    ) -> DataTable
 
 Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
 `data` is a vector of columns. `column_labels` is an iterable object with column labels.
