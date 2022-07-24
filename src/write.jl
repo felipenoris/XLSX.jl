@@ -294,6 +294,10 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     setdata!(ws, cell)
 end
 
+# convert AbstractTypes to concrete
+setdata!(ws::Worksheet, ref::CellRef, val::AbstractString) = setdata!(ws, ref, CellValue(ws, convert(String, val)))
+setdata!(ws::Worksheet, ref::CellRef, val::Real) = setdata!(ws, ref, CellValue(ws, convert(Float64, val)))
+
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)

@@ -676,7 +676,7 @@ function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S, T}
         if ismissing(test_value) || ( isa(test_value, AbstractString) && isempty(test_value) )
             @test ismissing(value) || ( isa(value, AbstractString) && isempty(value) )
         else
-            if isa(test_value, Float64)
+            if isa(test_value, Real)
                 @test isapprox(value, test_value)
             else
                 @test value == test_value
@@ -1136,8 +1136,8 @@ end
 @testset "writetable" begin
 
     @testset "single" begin
-        col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
-        data = Vector{Any}(undef, 7)
+        col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals"]
+        data = Vector{Any}(undef, 10)
         data[1] = [1, 2, missing, 4]
         data[2] = ["Hey", "You", "Out", "There"]
         data[3] = [101.5, 102.5, missing, 104.5]
@@ -1145,6 +1145,9 @@ end
         data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
         data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0) ]
         data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+        data[8] = SubString.(["Hey", "You", "Out", "There"], 1, 2)
+        data[9] = [1//2, 1//3, missing, 22//3]
+        data[10] = [pi, sqrt(2), missing, sqrt(5)]
 
         XLSX.writetable("output_table.xlsx", data, col_names, overwrite=true, sheetname="report", anchor_cell="B2")
         @test isfile("output_table.xlsx")
