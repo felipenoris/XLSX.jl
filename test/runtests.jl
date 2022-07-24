@@ -676,7 +676,12 @@ function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S, T}
         if ismissing(test_value) || ( isa(test_value, AbstractString) && isempty(test_value) )
             @test ismissing(value) || ( isa(value, AbstractString) && isempty(value) )
         else
-            if isa(test_value, Real)
+            if isa(test_value, Integer) || isa(value, Integer)
+                @test isa(test_value, Integer)
+                @test isa(value, Integer)
+            end
+
+            if isa(test_value, Real) && !isa(test_value, Integer)
                 @test isapprox(value, test_value)
             else
                 @test value == test_value
@@ -1138,7 +1143,7 @@ end
     @testset "single" begin
         col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals"]
         data = Vector{Any}(undef, 10)
-        data[1] = [1, 2, missing, 4]
+        data[1] = [1, 2, missing, UInt8(4)]
         data[2] = ["Hey", "You", "Out", "There"]
         data[3] = [101.5, 102.5, missing, 104.5]
         data[4] = [ true, false, missing, true]
