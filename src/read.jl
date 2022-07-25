@@ -540,8 +540,7 @@ end
         [stop_in_row_function]
     ) -> DataTable
 
-Returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
-`data` is a vector of columns. `column_labels` is an iterable object with column labels.
+Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
 Use this function to create a `DataFrame` from package `DataFrames.jl`.
 
 Use `columns` argument to specify which columns to get.
@@ -584,13 +583,10 @@ Rows where all column values are equal to `missing` are dropped.
 
 # Example
 
-In this example, the [... operator](https://docs.julialang.org/en/v1/base/base/#...)
-will splat the tuple `(data, column_labels)` into the constructor of `DataFrame`.
-
 ```julia
 julia> using DataFrames, XLSX
 
-julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
+julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 ```
 
 See also: [`XLSX.gettable`](@ref).
