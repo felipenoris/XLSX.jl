@@ -85,18 +85,17 @@ You can also use `XLSX.openxlsx` to read file contents as needed (see [Reading L
 
 ## Read Tabular Data
 
-The [`XLSX.gettable`](@ref) method returns tabular data from a spreadsheet as a tuple `(data, column_labels)`.
+The [`XLSX.gettable`](@ref) method returns tabular data from a spreadsheet as a struct `XLSX.DataTable`
+that implements [`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
 There's also a helper method [`XLSX.readtable`](@ref) to read from file directly, as shown in the following example.
-In this case, the [... operator](https://docs.julialang.org/en/v1/base/base/#...)
-will splat the tuple `(data, column_labels)` into the constructor of `DataFrame`.
 
 ```julia
 julia> using DataFrames, XLSX
 
-julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")...)
+julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 3×2 DataFrames.DataFrame
 │ Row │ HeaderA │ HeaderB  │
 ├─────┼─────────┼──────────┤
@@ -157,11 +156,11 @@ If you don't know the desired range in advance, you can take advantage of the
 [`XLSX.readtable`](@ref) and [`XLSX.gettable`](@ref) methods.
 
 ```julia
-julia> columns, labels = XLSX.readtable("myfile.xlsx", "mysheet")
-(Any[Any[1, 2, 3], Any["first", "second", "third"]], Symbol[:HeaderA, :HeaderB])
+julia> dtable = XLSX.readtable("myfile.xlsx", "mysheet")
+XLSX.DataTable(Any[Any[1, 2, 3], Any["first", "second", "third"]], [:HeaderA, :HeaderB], Dict(:HeaderB => 2, :HeaderA => 1))
 
-julia> m = hcat(columns...)
-3×2 Array{Any,2}:
+julia> m = hcat(dtable.data...)
+3×2 Matrix{Any}:
  1  "first"
  2  "second"
  3  "third"
@@ -350,7 +349,7 @@ julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df1)
 
 ## Tables.jl interface
 
-The type `XLSX.TableRowIterator` conforms to [Tables.jl](https://github.com/JuliaData/Tables.jl) interface.
+Both types `XLSX.DataTable` and `XLSX.TableRowIterator` conforms to [Tables.jl](https://github.com/JuliaData/Tables.jl) interface.
 An instance of `XLSX.TableRowIterator` is created by the function `XLSX.eachtablerow`.
 
 Also, `XLSX.writetable` accepts an argument that conforms to the `Tables.jl` interface.
