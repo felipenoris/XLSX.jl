@@ -2,7 +2,7 @@
 
 ## Migrating Legacy Code to v0.8
 
-Version `v0.8` introduced a breaking change on methods [`XLSX.gettable`] and [`XLSX.readtable`].
+Version `v0.8` introduced a breaking change on methods [`XLSX.gettable`](@ref) and [`XLSX.readtable`](@ref).
 
 These methods used to return a tuple `data, column_labels`.
 On XLSX `v0.8` these methods return a `XLSX.DataTable` struct that implements [`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface.
