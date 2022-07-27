@@ -579,17 +579,18 @@ end
 """
     writetable(filename, data, columnnames; [overwrite], [sheetname])
 
-`data` is a vector of columns.
-`columnames` is a vector of column labels.
-`overwrite` is a `Bool` to control if `filename` should be overwritten if already exists.
-`sheetname` is the name for the worksheet.
+- `data` is a vector of columns.
+- `columnames` is a vector of column labels.
+- `overwrite` is a `Bool` to control if `filename` should be overwritten if already exists.
+- `sheetname` is the name for the worksheet.
 
-Example using `DataFrames.jl`:
+# Example
 
 ```julia
-import DataFrames, XLSX
-df = DataFrames.DataFrame(integers=[1, 2, 3, 4], strings=["Hey", "You", "Out", "There"], floats=[10.2, 20.3, 30.4, 40.5])
-XLSX.writetable("df.xlsx", collect(DataFrames.eachcol(df)), DataFrames.names(df))
+import XLSX
+columns = [ [1, 2, 3, 4], ["Hey", "You", "Out", "There"], [10.2, 20.3, 30.4, 40.5] ]
+colnames = [ "integers", "strings", "floats" ]
+XLSX.writetable("table.xlsx", columns, colnames)
 ```
 
 See also: [`XLSX.writetable!`](@ref).
@@ -626,12 +627,13 @@ where `data` is a vector of columns and `column_names` is a vector of column lab
 Example:
 
 ```julia
-import DataFrames, XLSX
+julia> import DataFrames, XLSX
 
-df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
-df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+julia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
 
-XLSX.writetable("report.xlsx", REPORT_A=( collect(DataFrames.eachcol(df1)), DataFrames.names(df1) ), REPORT_B=( collect(DataFrames.eachcol(df2)), DataFrames.names(df2) ))
+julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+
+julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df1)
 ```
 """
 function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
