@@ -340,7 +340,7 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 │ 1   │ aa │ 10.1 │
 │ 2   │ bb │ 10.2 │
 
-julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df1)
+julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df2)
 ```
 
 ## Tables.jl interface
