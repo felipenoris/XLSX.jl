@@ -12,15 +12,13 @@ Tables.getcolumn(tr::TableRow, i::Integer) = getdata(tr, i)
 _as_vector(y::AbstractVector) = y
 _as_vector(y) = collect(y)
 
-@generated function _table_to_arrays(x)
+function _table_to_arrays(x)
     if Tables.istable(x)
-        return quote
             columns = Any[_as_vector(c) for c in Tables.Columns(x)]
-            names = collect(Symbol, Tables.columnnames(x))
-            return columns, names
-        end
+            colnames = collect(Symbol, Tables.columnnames(x))
+            return columns, colnames
     else
-        error("$x does not implement Tables.jl interface.")
+        error("$(typeof(x)) does not implement Tables.jl interface.")
     end
 end
 
