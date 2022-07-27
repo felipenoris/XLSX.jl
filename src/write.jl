@@ -633,7 +633,7 @@ julia> df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"]
 
 julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 
-julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df1)
+julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df2)
 ```
 """
 function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
