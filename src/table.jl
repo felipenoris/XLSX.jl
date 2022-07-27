@@ -524,9 +524,9 @@ The default behavior is `stop_in_empty_row=true`.
 
 `stop_in_row_function` is a Function that receives a `TableRow` and returns a `Bool` indicating if the end of the table was reached.
 
-Example for `stop_in_row_function`:
+# Example for `stop_in_row_function`
 
-```
+```julia
 function stop_function(r)
     v = r[:col_label]
     return !ismissing(v) && v == "unwanted value"
@@ -541,8 +541,8 @@ Rows where all column values are equal to `missing` are dropped.
 julia> using DataFrames, XLSX
 
 julia> df = XLSX.openxlsx("myfile.xlsx") do xf
-                DataFrame(XLSX.gettable(xf["mysheet"]))
-            end
+        DataFrame(XLSX.gettable(xf["mysheet"]))
+    end
 ```
 
 See also: [`XLSX.readtable`](@ref).
