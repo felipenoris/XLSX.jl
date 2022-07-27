@@ -1081,7 +1081,7 @@ end
     test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
     test_data[6] = [ missing for i in 1:8 ]
     check_test_data(data, test_data)
-    rm(filename_copy)
+    isfile(filename_copy) && rm(filename_copy)
 end
 
 @testset "Edit Template" begin
@@ -1720,7 +1720,7 @@ end
         end
     end
 
-    rm(filename)
+    isfile(filename) && rm(filename)
 end
 
 @testset "escape" begin
@@ -1765,7 +1765,7 @@ end
         xf[1]["A1"] = 7
     end
     @test isfile(filename)
-    rm(filename)
+    isfile(filename) && rm(filename)
 end
 
 @testset "show xlsx" begin
@@ -1914,7 +1914,7 @@ end
             table2 = XLSX.eachtablerow(s) |> Tables.columntable
             @test isequal(table, table2)
         finally
-            rm(file)
+            isfile(file) && rm(file)
         end
     end
 
@@ -1930,7 +1930,7 @@ end
             @test isequal(table, result1)
             @test isequal(table2, result2)
         finally
-            rm(file)
+            isfile(file) && rm(file)
         end
     end
 
@@ -1942,5 +1942,15 @@ end
         @test df[!, "Column B"] == collect(1:8)
         @test df[!, "Column D"] == collect(Date(2018, 4, 21):Dates.Day(1):Date(2018, 4, 28))
         @test all(ismissing.(df[!, "Column G"]))
+
+        file = joinpath(@__DIR__, "test_report.xlsx")
+
+        try
+            df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
+            df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
+            XLSX.writetable(file, "REPORT_A" => df1, "REPORT_B" => df2, overwrite=true)
+        finally
+            isfile(file) && rm(file)
+        end
     end
 end
