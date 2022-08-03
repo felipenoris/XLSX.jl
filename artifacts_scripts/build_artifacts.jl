@@ -13,7 +13,7 @@ package(artifact_content, tar_path)
 add_artifact!(
     artifact_toml_path,
     "XLSX_relocatable_data",
-    "https://www.dropbox.com/s/r8o8am888zzctgd/xlsx_artifacts.tar.gz?dl=1";
+    "https://www.dropbox.com/s/9rgm3pnd1dmzmy9/xlsx_artifacts.tar.gz?dl=1";
     force = true,
     lazy = false
 )

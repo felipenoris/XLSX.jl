@@ -8,7 +8,9 @@ The returned `XLSXFile` instance is in closed state.
 =#
 @inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
 
-const EMPTY_EXCEL_TEMPLATE = joinpath(Artifacts.artifact"XLSX_relocatable_data", "blank.xlsx")
+function _relocatable_data_path(;path::String = Artifacts.artifact"XLSX_relocatable_data")
+    return path
+end
 
 #=
     open_empty_template(sheetname::AbstractString="") :: XLSXFile
@@ -17,9 +19,10 @@ Returns an empty, writable `XLSXFile` with 1 worksheet.
 
 `sheetname` is the name of the worksheet, defaults to `Sheet1`.
 =#
-function open_empty_template(sheetname::AbstractString="") :: XLSXFile
-    @assert isfile(EMPTY_EXCEL_TEMPLATE) "Couldn't find template file $EMPTY_EXCEL_TEMPLATE."
-    xf = open_xlsx_template(EMPTY_EXCEL_TEMPLATE)
+function open_empty_template(sheetname::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: XLSXFile
+    empty_excel_template = joinpath(relocatable_data_path, "blank.xlsx")
+    @assert isfile(empty_excel_template) "Couldn't find template file $empty_excel_template."
+    xf = open_xlsx_template(empty_excel_template)
 
     if sheetname != ""
         rename!(xf[1], sheetname)
@@ -464,8 +467,6 @@ function rename!(ws::Worksheet, name::AbstractString)
     nothing
 end
 
-const FILEPATH_SHEET_TEMPLATE = joinpath(@__DIR__, "..", "data", "sheet_template.xml")
-
 addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_workbook(xl), name)
 
 """
@@ -474,12 +475,13 @@ addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_wo
 Create a new worksheet with named `name`.
 If `name` is not provided, a unique name is created.
 """
-function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
+function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: Worksheet
 
     xf = get_xlsxfile(wb)
     @assert is_writable(xf) "XLSXFile instance is not writable."
 
-    @assert isfile(FILEPATH_SHEET_TEMPLATE) "Couldn't find template file $FILEPATH_SHEET_TEMPLATE."
+    file_sheet_template = joinpath(relocatable_data_path, "sheet_template.xml")
+    @assert isfile(file_sheet_template) "Couldn't find template file $file_sheet_template."
 
     if name == ""
         # name was not provided. Will find a unique name.
@@ -517,7 +519,7 @@ function addsheet!(wb::Workbook, name::AbstractString="") :: Worksheet
     current_sheet_ids = [ ws.sheetId for ws in wb.sheets ]
     sheetId = max(current_sheet_ids...) + 1
 
-    xdoc = EzXML.readxml(FILEPATH_SHEET_TEMPLATE)
+    xdoc = EzXML.readxml(file_sheet_template)
 
     # generate a unique name for the XML
     local xml_filename::String
