@@ -8,18 +8,29 @@ The returned `XLSXFile` instance is in closed state.
 =#
 @inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
 
-function _relocatable_data_path(;path::String = Artifacts.artifact"XLSX_relocatable_data")
+function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
     return path
 end
 
 #=
-    open_empty_template(sheetname::AbstractString="") :: XLSXFile
+    open_empty_template(
+        sheetname::AbstractString="";
+        relocatable_data_path::AbstractString=_relocatable_data_path()
+    ) :: XLSXFile
 
 Returns an empty, writable `XLSXFile` with 1 worksheet.
 
-`sheetname` is the name of the worksheet, defaults to `Sheet1`.
+# Arguments
+
+* `sheetname` is the name of the worksheet. When provided with an empty string `""`, this routine selects the first sheet of the workbook.
+
+* `relocatable_data_path` is the filepath for a blank workbook template. It defaults to the template provided by the package artifact.
 =#
-function open_empty_template(sheetname::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: XLSXFile
+function open_empty_template(
+            sheetname::AbstractString="";
+            relocatable_data_path::AbstractString=_relocatable_data_path()
+        ) :: XLSXFile
+
     empty_excel_template = joinpath(relocatable_data_path, "blank.xlsx")
     @assert isfile(empty_excel_template) "Couldn't find template file $empty_excel_template."
     xf = open_xlsx_template(empty_excel_template)
