@@ -75,7 +75,6 @@ function Base.show(io::IO, xf::XLSXFile)
     for s in wb.sheets
         sheetname = s.name 
         if textwidth(sheetname) > 20 
-            sheetname_index = eachindex(s.name)
             sheetname = sheetname[collect(eachindex(s.name))[1:20]] * "…"
         end
 
