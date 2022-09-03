@@ -113,7 +113,9 @@ function unformatted_text(el::EzXML.Node) :: String
         end
 
         for ch in EzXML.eachelement(e)
-            gather_strings!(v, ch)
+            if EzXML.nodename(e) != "rPh"
+                gather_strings!(v, ch)
+            end 
         end
 
         nothing
