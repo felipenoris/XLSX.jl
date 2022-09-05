@@ -83,6 +83,18 @@ The example above used `xf = XLSX.readxlsx(filename)` to open a file, so all fil
 
 You can also use `XLSX.openxlsx` to read file contents as needed (see [Reading Large Excel Files and Caching](@ref)).
 
+## Data Types
+
+This package uses the following concrete types when handling XLSX files.
+
+```@docs
+XLSX.CellValueType
+```
+
+- Abstract types of these concrete types are converted to the appropriate concrete type when writing.
+
+- `Nothing` values are converted to `Missing` when writing.
+
 ## Read Tabular Data
 
 The [`XLSX.gettable`](@ref) method returns tabular data from a spreadsheet as a struct `XLSX.DataTable`
@@ -218,18 +230,6 @@ v1=3, v2=third
 ```
 
 ## Writing Excel Files
-
-### Data Types
-
-This package uses the following concrete types when handling XLSX files.
-
-```@docs
-XLSX.CellValueType
-```
-
-- Abstract types of these concrete types are converted to the appropriate concrete type when writing.
-
-- `Nothing` values are converted to `Missing` when writing.
 
 ### Create New Files
 
