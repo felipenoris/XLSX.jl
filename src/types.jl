@@ -56,6 +56,15 @@ struct CellDataFormat <: AbstractCellDataFormat
     id::UInt
 end
 
+"""
+    CellValueType
+
+Concrete supported data-types.
+
+```julia
+Union{String, Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
+```
+"""
 const CellValueType = Union{String, Missing, Float64, Int, Bool, Dates.Date, Dates.Time, Dates.DateTime}
 
 # CellValue is a Julia type of a value read from a Spreadsheet.
