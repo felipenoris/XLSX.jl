@@ -673,7 +673,10 @@ function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S, T}
     for row in 1:rows, col in 1:cols
         test_value = test_data[col][row]
         value = data[col][row]
-        if ismissing(test_value) || ( isa(test_value, AbstractString) && isempty(test_value) )
+
+        if test_value === nothing
+            @test ismissing(value)
+        elseif ismissing(test_value) || ( isa(test_value, AbstractString) && isempty(test_value) )
             @test ismissing(value) || ( isa(value, AbstractString) && isempty(value) )
         else
             if isa(test_value, Integer) || isa(value, Integer)
@@ -1179,8 +1182,8 @@ end
 @testset "writetable" begin
 
     @testset "single" begin
-        col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals"]
-        data = Vector{Any}(undef, 10)
+        col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals", "MixedStringNothingMissing"]
+        data = Vector{Any}(undef, 11)
         data[1] = [1, 2, missing, UInt8(4)]
         data[2] = ["Hey", "You", "Out", "There"]
         data[3] = [101.5, 102.5, missing, 104.5]
@@ -1191,6 +1194,7 @@ end
         data[8] = SubString.(["Hey", "You", "Out", "There"], 1, 2)
         data[9] = [1//2, 1//3, missing, 22//3]
         data[10] = [pi, sqrt(2), missing, sqrt(5)]
+        data[11] = [ nothing, "middle", missing, nothing ]
 
         XLSX.writetable("output_table.xlsx", data, col_names, overwrite=true, sheetname="report", anchor_cell="B2")
         @test isfile("output_table.xlsx")

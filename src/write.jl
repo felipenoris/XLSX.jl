@@ -304,7 +304,6 @@ xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
     cell = Cell(ref, t, id(val.styleid), v, "")
-
     setdata!(ws, cell)
 end
 
@@ -313,6 +312,9 @@ setdata!(ws::Worksheet, ref::CellRef, val::AbstractString) = setdata!(ws, ref, C
 setdata!(ws::Worksheet, ref::CellRef, val::Bool) = setdata!(ws, ref, CellValue(ws, val))
 setdata!(ws::Worksheet, ref::CellRef, val::Integer) = setdata!(ws, ref, CellValue(ws, convert(Int, val)))
 setdata!(ws::Worksheet, ref::CellRef, val::Real) = setdata!(ws, ref, CellValue(ws, convert(Float64, val)))
+
+# convert nothing to missing when writing
+setdata!(ws::Worksheet, ref::CellRef, ::Nothing) = setdata!(ws, ref, CellValue(ws, missing))
 
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
@@ -325,7 +327,7 @@ Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata
 setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
 setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
 setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
-setdata!(ws::Worksheet, row::Integer, col::Integer, data::CellValueType) = setdata!(ws, CellRef(row, col), data)
+setdata!(ws::Worksheet, row::Integer, col::Integer, data) = setdata!(ws, CellRef(row, col), data)
 setdata!(ws::Worksheet, ref::CellRef, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue).")
 setdata!(ws::Worksheet, row::Integer, col::Integer, data::AbstractVector, dim::Integer) = setdata!(ws, CellRef(row, col), data, dim)
 
