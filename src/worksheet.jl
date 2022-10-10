@@ -83,7 +83,7 @@ function getdata(ws::Worksheet, row::Integer, ::Colon)
 end
 function getdata(ws::Worksheet, ::Colon, col::Integer)
     dim = get_dimension(ws)
-    getdata(ws, CellRange(CellRef(dim.start.row_number, col), CellRef(dim.stop.row_number)))
+    getdata(ws, CellRange(CellRef(dim.start.row_number, col), CellRef(dim.stop.row_number, col)))
 end
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
