@@ -79,11 +79,21 @@ getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
 function getdata(ws::Worksheet, row::Integer, ::Colon)
     dim = get_dimension(ws)
-    getdata(ws, CellRange(CellRef(row, dim.start.column_number), CellRef(row, dim.stop.column_number)))
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
+    else
+        getdata(ws, CellRange(CellRef(row, dim.start.column_number), CellRef(row, dim.stop.column_number)))
+    end
 end
 function getdata(ws::Worksheet, ::Colon, col::Integer)
     dim = get_dimension(ws)
-    getdata(ws, CellRange(CellRef(dim.start.row_number, col), CellRef(dim.stop.row_number, col)))
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
+    else
+        getdata(ws, CellRange(CellRef(dim.start.row_number, col), CellRef(dim.stop.row_number, col)))
+    end
 end
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
