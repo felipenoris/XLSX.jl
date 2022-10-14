@@ -7,26 +7,32 @@
 const ZIP_FILE_HEADER = [ 0x50, 0x4b, 0x03, 0x04 ]
 const XLS_FILE_HEADER = [ 0xd0, 0xcf, 0x11, 0xe0 ]
 
-function check_for_xlsx_file_format(filepath::AbstractString)
-    @assert isfile(filepath) "File $filepath not found."
-
+function check_for_xlsx_file_format(source::IO, label::AbstractString="input")
     local header::Vector{UInt8}
 
-    open(filepath, "r") do io
-        header = Base.read(io, 4)
-    end
+    mark(source)
+    header = Base.read(source, 4)
+    reset(source)
 
     if header == ZIP_FILE_HEADER # valid Zip file header
         return
     elseif header == XLS_FILE_HEADER # old XLS file
-        error("$filepath looks like an old XLS file (not XLSX). This package does not support XLS file format.")
+        error("$label looks like an old XLS file (not XLSX). This package does not support XLS file format.")
     else
-        error("$filepath is not a valid XLSX file.")
+        error("$label is not a valid XLSX file.")
+    end
+end
+
+function check_for_xlsx_file_format(filepath::AbstractString)
+    @assert isfile(filepath) "File $filepath not found."
+
+    open(filepath, "r") do io
+        check_for_xlsx_file_format(io, filepath)
     end
 end
 
 """
-    readxlsx(filepath) :: XLSXFile
+    readxlsx(source::Union{AbstractString, IO}) :: XLSXFile
 
 Main function for reading an Excel file.
 This function will read the whole Excel file into memory
@@ -34,10 +40,10 @@ and return a closed XLSXFile.
 
 Consider using [`XLSX.openxlsx`](@ref) for lazy loading of Excel file contents.
 """
-@inline readxlsx(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, false)
+@inline readxlsx(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, false)
 
 """
-    openxlsx(f::F, filepath::AbstractString; mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
+    openxlsx(f::F, source::Union{AbstractString, IO}; mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
 Open XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying `f` to the file.
 
@@ -55,11 +61,11 @@ end
 
 The `mode` argument controls how the file is opened. The following modes are allowed:
 
-* `r` : read mode. The existing data in `filepath` will be accessible for reading. This is the **default** mode.
+* `r` : read mode. The existing data in `source` will be accessible for reading. This is the **default** mode.
 
-* `w` : write mode. Opens an empty file that will be written to `filepath`.
+* `w` : write mode. Opens an empty file that will be written to `source`.
 
-* `rw` : edit mode. Opens `filepath` for editing. The file will be saved to disk when the function ends.
+* `rw` : edit mode. Opens `source` for editing. The file will be saved to disk when the function ends.
 
 !!! warning
 
@@ -69,7 +75,7 @@ The `mode` argument controls how the file is opened. The following modes are all
 
 # Arguments
 
-* `filepath` is the complete path to the file.
+* `source` is IO or the complete path to the file.
 
 * `mode` is the file mode, as explained in the last section.
 
@@ -119,14 +125,14 @@ end
 
 See also [`XLSX.readxlsx`](@ref).
 """
-function openxlsx(f::F, filepath::AbstractString;
+function openxlsx(f::F, source::Union{AbstractString, IO};
                   mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
     _read, _write = parse_file_mode(mode)
 
     if _read
-        @assert isfile(filepath) "File $filepath not found."
-        xf = open_or_read_xlsx(filepath, _write, enable_cache, _write)
+        @assert source isa IO || isfile(source) "File $source not found."
+        xf = open_or_read_xlsx(source, _write, enable_cache, _write)
     else
         xf = open_empty_template()
     end
@@ -136,7 +142,7 @@ function openxlsx(f::F, filepath::AbstractString;
     finally
 
         if _write
-            writexlsx(filepath, xf, overwrite=true)
+            writexlsx(source, xf, overwrite=true)
         else
             close(xf)
         end
@@ -147,7 +153,7 @@ function openxlsx(f::F, filepath::AbstractString;
 end
 
 """
-    openxlsx(filepath; mode="r", enable_cache=true) :: XLSXFile
+    openxlsx(source::Union{AbstractString, IO}; mode="r", enable_cache=true) :: XLSXFile
 
 Supports opening a XLSX file without using do-syntax.
 In this case, the user is responsible for closing the `XLSXFile`
@@ -155,15 +161,15 @@ using `close` or writing it to file using `XLSX.writexlsx`.
 
 See also [`XLSX.writexlsx`](@ref).
 """
-function openxlsx(filepath::AbstractString;
+function openxlsx(source::Union{AbstractString, IO};
                   mode::AbstractString="r",
                   enable_cache::Bool=true) :: XLSXFile
 
     _read, _write = parse_file_mode(mode)
 
     if _read
-        @assert isfile(filepath) "File $filepath not found."
-        return open_or_read_xlsx(filepath, _write, enable_cache, _write)
+        @assert source isa IO || isfile(source) "File $source not found."
+        return open_or_read_xlsx(source, _write, enable_cache, _write)
     else
         return open_empty_template()
     end
@@ -181,13 +187,13 @@ function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
     end
 end
 
-function open_or_read_xlsx(filepath::AbstractString, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
+function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
     # sanity check
     if read_as_template
         @assert read_files && enable_cache
     end
 
-    xf = XLSXFile(filepath, enable_cache, read_as_template)
+    xf = XLSXFile(source, enable_cache, read_as_template)
 
     try
         for f in xf.io.files
@@ -425,7 +431,7 @@ function internal_xml_file_add!(xl::XLSXFile, filename::String)
 end
 
 function internal_xml_file_read(xf::XLSXFile, filename::String) :: EzXML.Document
-    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
+    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
 
     if !internal_xml_file_isread(xf, filename)
         @assert isopen(xf) "Can't read from a closed XLSXFile."
@@ -482,8 +488,8 @@ Base.isopen(xl::XLSXFile) = xl.io_is_open
 #
 
 """
-    readdata(filepath, sheet, ref)
-    readdata(filepath, sheetref)
+    readdata(source, sheet, ref)
+    readdata(source, sheetref)
 
 Returns a scalar or matrix with values from a spreadsheet.
 
@@ -513,15 +519,15 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
  3  "third"
 ```
 """
-function readdata(filepath::AbstractString, sheet::Union{AbstractString, Int}, ref)
-    c = openxlsx(filepath, enable_cache=false) do xf
+function readdata(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, ref)
+    c = openxlsx(source, enable_cache=false) do xf
         getdata(getsheet(xf, sheet), ref)
     end
     return c
 end
 
-function readdata(filepath::AbstractString, sheetref::AbstractString)
-    c = openxlsx(filepath, enable_cache=false) do xf
+function readdata(source::Union{AbstractString, IO}, sheetref::AbstractString)
+    c = openxlsx(source, enable_cache=false) do xf
         getdata(xf, sheetref)
     end
     return c
@@ -529,7 +535,7 @@ end
 
 """
     readtable(
-        filepath,
+        source,
         sheet,
         [columns];
         [first_row],
@@ -591,15 +597,15 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
-    c = openxlsx(filepath, enable_cache=enable_cache) do xf
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
+    c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     end
     return c
 end
 
-function readtable(filepath::AbstractString, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
-    c = openxlsx(filepath, enable_cache=enable_cache) do xf
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
+    c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
     end
     return c

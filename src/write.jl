@@ -1,12 +1,12 @@
 
 #=
-    open_xlsx_template(filepath::AbstractString) :: XLSXFile
+    open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile
 
 Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
 
 The returned `XLSXFile` instance is in closed state.
 =#
-@inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
+@inline open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
 
 function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
     return path
@@ -51,24 +51,24 @@ function addzipfile(xlsx, f)
 end
 
 """
-    writexlsx(output_filepath, xlsx_file; [overwrite=false])
+    writexlsx(output_source, xlsx_file; [overwrite=false])
 
-Writes an Excel file given by `xlsx_file::XLSXFile` to file at path `output_filepath`.
+Writes an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
 
-If `overwrite=true`, `output_filepath` will be overwritten if it exists.
+If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it exists.
 """
-function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Bool=false)
+function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overwrite::Bool=false)
 
     @assert is_writable(xf) "XLSXFile instance is not writable."
     @assert !isopen(xf) "Can't save an open XLSXFile."
     @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"
-    if !overwrite
-        @assert !isfile(output_filepath) "Output file $output_filepath already exists."
+    if output_source isa AbstractString && !overwrite
+        @assert !isfile(output_source) "Output file $output_source already exists."
     end
 
     update_worksheets_xml!(xf)
 
-    xlsx = ZipFile.Writer(output_filepath)
+    xlsx = ZipFile.Writer(output_source)
 
     # write XML files
     for f in keys(xf.files)

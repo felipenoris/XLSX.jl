@@ -249,7 +249,7 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 ```
 """
 mutable struct XLSXFile <: MSOfficePackage
-    filepath::AbstractString
+    source::Union{AbstractString, IO}
     use_cache_for_sheet_data::Bool # indicates wether Worksheet.cache will be fed while reading worksheet cells.
     io::ZipFile.Reader
     io_is_open::Bool
@@ -260,10 +260,10 @@ mutable struct XLSXFile <: MSOfficePackage
     relationships::Vector{Relationship} # contains package level relationships
     is_writable::Bool # indicates wether this XLSX file can be edited
 
-    function XLSXFile(filepath::AbstractString, use_cache::Bool, is_writable::Bool)
-        check_for_xlsx_file_format(filepath)
-        io = ZipFile.Reader(filepath)
-        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+    function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
+        check_for_xlsx_file_format(source)
+        io = ZipFile.Reader(source)
+        xl = new(source, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         finalizer(close, xl)
         return xl
