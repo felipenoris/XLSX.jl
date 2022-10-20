@@ -76,23 +76,23 @@ julia> single_value = sheet[2, 2] # B2
 See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
-getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
+getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Integer) = getdata(ws, CellRef(row, col))
 function getdata(ws::Worksheet, row::Integer, ::Colon)
     dim = get_dimension(ws)
     return if dim === nothing
         @warn "No worksheet dimension found"
         []
     else
-        getdata(ws, CellRange(CellRef(row, dim.start.column_number), CellRef(row, dim.stop.column_number)))
+        getdata(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
     end
 end
-function getdata(ws::Worksheet, ::Colon, col::Integer)
+function getdata(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
     dim = get_dimension(ws)
     return if dim === nothing
         @warn "No worksheet dimension found"
         []
     else
-        getdata(ws, CellRange(CellRef(dim.start.row_number, col), CellRef(dim.stop.row_number, col)))
+        getdata(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
     end
 end
 
