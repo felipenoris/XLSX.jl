@@ -16,6 +16,8 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     ef_book_sparse_2 = XLSX.readxlsx(joinpath(data_directory, "book_sparse_2.xlsx"))
     XLSX.readxlsx(joinpath(data_directory, "missing_numFmtId.xlsx"))["Koldioxid (CO2)"][7,5]
 
+    @test open(joinpath(data_directory, "blank_ptbr_1904.xlsx")) do io XLSX.readxlsx(io) end isa XLSX.XLSXFile
+
     @test ef_Book1.source == joinpath(data_directory, "Book1.xlsx")
     @test length(keys(ef_Book1.data)) > 0
 
