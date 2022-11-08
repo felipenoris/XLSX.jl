@@ -10,6 +10,19 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     return Worksheet(xf, sheetId, relationship_id, name, dim, is_hidden)
 end
 
+function Base.axes(ws::Worksheet, d)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(DimensionMismatch("Worksheet $ws has no dimension"))
+    elseif d == 1
+        return dim.start.row_number:dim.stop.row_number
+    elseif d == 2
+        return dim.start.column_number:dim:stop.column_number
+    else
+        throw(ArgumentError("Unsupported dimension $d"))
+    end
+end
+
 # 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{Nothing, CellRange}
     local result::Union{Nothing, CellRange} = nothing
