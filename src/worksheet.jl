@@ -17,7 +17,7 @@ function Base.axes(ws::Worksheet, d)
     elseif d == 1
         return dim.start.row_number:dim.stop.row_number
     elseif d == 2
-        return dim.start.column_number:dim:stop.column_number
+        return dim.start.column_number:dim.stop.column_number
     else
         throw(ArgumentError("Unsupported dimension $d"))
     end
