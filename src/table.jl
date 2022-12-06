@@ -74,7 +74,7 @@ function push_unique!(vect::Vector{Symbol}, sheet::Worksheet, cell::AbstractCell
 end
 
 """
-    eachtablerow(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row], [stop_in_row_function])
+    eachtablerow(sheet, [columns]; [first_row], [column_labels], [header], [stop_in_empty_row], [stop_in_row_function], [keep_empty_rows])
 
 Constructs an iterator of table rows. Each element of the iterator is of type `TableRow`.
 
@@ -101,6 +101,11 @@ function stop_function(r)
     return !ismissing(v) && v == "unwanted value"
 end
 ```
+
+`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or skipped (`false`) by the row iterator. 
+`keep_empty_rows` never affects the *bounds* of the iterator; the number of rows read from a sheet is only affected by `first_row`, `stop_in_empty_row` and `stop_in_row_function` (if specified).
+`keep_empty_rows` is only checked once the first and last row of the table have been determined, to see whether to keep or drop empty rows between the first and the last row.
+
 
 Example code:
 ```
@@ -490,7 +495,8 @@ end
         [header],
         [infer_eltypes],
         [stop_in_empty_row],
-        [stop_in_row_function]
+        [stop_in_row_function],
+        [keep_empty_rows]
     ) -> DataTable
 
 Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
@@ -532,7 +538,10 @@ function stop_function(r)
 end
 ```
 
-Rows where all column values are equal to `missing` are dropped.
+`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
+`keep_empty_rows` never affects the *bounds* of the table; the number of rows read from a sheet is only affected by `first_row`, `stop_in_empty_row` and `stop_in_row_function` (if specified).
+`keep_empty_rows` is only checked once the first and last row of the table have been determined, to see whether to keep or drop empty rows between the first and the last row.
+
 
 # Example
 
