@@ -121,7 +121,8 @@ function eachtablerow(
             column_labels=nothing,
             header::Bool=true,
             stop_in_empty_row::Bool=true,
-            stop_in_row_function::Union{Nothing, Function}=nothing
+            stop_in_row_function::Union{Nothing, Function}=nothing,
+            keep_empty_rows::Bool=false,
         ) :: TableRowIterator
 
     if first_row == nothing
@@ -152,14 +153,14 @@ function eachtablerow(
     end
 
     first_data_row = header ? first_row + 1 : first_row
-    return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function)
+    return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function, keep_empty_rows)
 end
 
-function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing)
-    return TableRowIterator(eachrow(sheet), index, first_data_row, stop_in_empty_row, stop_in_row_function)
+function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, keep_empty_rows::Bool=false)
+    return TableRowIterator(eachrow(sheet), index, first_data_row, stop_in_empty_row, stop_in_row_function, keep_empty_rows)
 end
 
-function eachtablerow(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing) :: TableRowIterator
+function eachtablerow(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false) :: TableRowIterator
 
     if first_row == nothing
         # if no columns were given,
@@ -170,43 +171,41 @@ function eachtablerow(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, 
 
     for r in eachrow(sheet)
 
-        # skip rows until we reach first_row
-        if row_number(r) < first_row
+        # skip rows until we reach first_row, and if !keep_empty_rows then skip empty rows
+        if row_number(r) < first_row || isempty(r) && !keep_empty_rows
             continue
         end
 
-        if !isempty(r)
-            columns_ordered = sort(collect(keys(r.rowcells)))
+        columns_ordered = sort(collect(keys(r.rowcells)))
 
-            for (ci, cn) in enumerate(columns_ordered)
-                if !ismissing(getdata(r, cn))
-                    # found a row with data. Will get ColumnRange from non-empty consecutive cells
-                    first_row = row_number(r)
-                    column_start = cn
-                    column_stop = cn
+        for (ci, cn) in enumerate(columns_ordered)
+            if !ismissing(getdata(r, cn))
+                # found a row with data. Will get ColumnRange from non-empty consecutive cells
+                first_row = row_number(r)
+                column_start = cn
+                column_stop = cn
 
-                    if length(columns_ordered) == 1
-                        # there's only one column
-                        column_range = ColumnRange(column_start, column_stop)
-                        return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
-                    else
-                        # will figure out the column range
-                        for ci_stop in (ci+1):length(columns_ordered)
-                            cn_stop = columns_ordered[ci_stop]
-
-                            # Will stop if finds an empty cell or a skipped column
-                            if ismissing(getdata(r, cn_stop)) || (cn_stop - 1 != column_stop)
-                                column_range = ColumnRange(column_start, column_stop)
-                                return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
-                            end
-                            column_stop = cn_stop
-                        end
-                    end
-
-                    # if got here, it's because all columns are non-empty
+                if length(columns_ordered) == 1
+                    # there's only one column
                     column_range = ColumnRange(column_start, column_stop)
-                    return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+                    return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+                else
+                    # will figure out the column range
+                    for ci_stop in (ci+1):length(columns_ordered)
+                        cn_stop = columns_ordered[ci_stop]
+
+                        # Will stop if finds an empty cell or a skipped column
+                        if ismissing(getdata(r, cn_stop)) || (cn_stop - 1 != column_stop)
+                            column_range = ColumnRange(column_start, column_stop)
+                            return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+                        end
+                        column_stop = cn_stop
+                    end
                 end
+
+                # if got here, it's because all columns are non-empty
+                column_range = ColumnRange(column_start, column_stop)
+                return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
             end
         end
     end
@@ -354,7 +353,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
         if itr.stop_in_empty_row
             # user asked to stop fetching table rows if we find an empty row
             return nothing
-        else
+        elseif !itr.keep_empty_rows
             # keep looking for a non-empty row
             next = iterate(itr.itr, sheet_row_iterator_state)
             while next != nothing
@@ -547,12 +546,12 @@ julia> df = XLSX.openxlsx("myfile.xlsx") do xf
 
 See also: [`XLSX.readtable`](@ref).
 """
-function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing)
-    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false)
+    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
 
-function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing)
-    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false)
+    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end

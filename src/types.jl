@@ -309,6 +309,7 @@ struct TableRowIterator{I<:SheetRowIterator}
     first_data_row::Int
     stop_in_empty_row::Bool
     stop_in_row_function::Union{Nothing, Function}
+    keep_empty_rows::Bool
 end
 
 struct TableRow
