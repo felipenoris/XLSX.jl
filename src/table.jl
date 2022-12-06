@@ -375,8 +375,9 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
             end
         end
     end
-
-    @assert !is_empty_table_row(sheet_row) # if the `is_empty_table_row` check above was successful, we can't get empty sheet_row here
+    
+    # if the `is_empty_table_row` check above was successful, we can't get empty sheet_row here
+    @assert !is_empty_table_row(sheet_row) || itr.keep_empty_rows
     table_row = TableRow(table_row_index, itr.index, sheet_row)
 
     # user asked to stop
@@ -463,7 +464,7 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
         end
 
         # undo insert row in case of empty rows
-        if is_empty_row
+        if is_empty_row && !itr.keep_empty_rows
             for c in 1:columns_count
                 pop!(data[c])
             end

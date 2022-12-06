@@ -807,6 +807,18 @@ end
     data, col_names = dtable.data, dtable.column_labels
     @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
+    # test keep_empty_rows
+    for (stop_in_empty_row, keep_empty_rows, n_rows) in [
+        (false, false, 9),
+        (false, true, 10),
+        (true, false, 8),
+        (true, true, 8)
+    ]
+        dtable = XLSX.gettable(s; stop_in_empty_row, keep_empty_rows)
+        @test all(col_name -> length(Tables.getcolumn(dtable, col_name)) == n_rows, Tables.columnnames(dtable))
+    end
+    
+
     test_data = Vector{Any}(undef, 6)
     test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash" ]
     test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2", missing ]
