@@ -48,7 +48,7 @@ function getsheet(wb::Workbook, sheetname::String) :: Worksheet
             return ws
         end
     end
-    error("$(get_xlsxfile(wb).filepath) does not have a Worksheet named $sheetname.")
+    error("$(get_xlsxfile(wb).source) does not have a Worksheet named $sheetname.")
 end
 
 @inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]
@@ -67,7 +67,7 @@ function Base.show(io::IO, xf::XLSXFile)
     end
 
     wb = xf.workbook
-    print(io, "XLSXFile(\"$(basename(xf.filepath))\") ",
+    print(io, "XLSXFile(\"$(xf.source)\") ",
               "containing $(sheetcountstr(wb))\n")
     @printf(io, "%21s %-13s %-13s\n", "sheetname", "size", "range")
     println(io, "-"^(21+1+13+1+13))
