@@ -366,9 +366,7 @@ dataframes = [ df1, df2 ]
 
 @assert length(sheet_names) == length(dataframes)
 
-output_xlsx_filepath = joinpath(@__DIR__, "report.xlsx")
-
-XLSX.openxlsx(output_xlsx_filepath, mode="w") do xf
+XLSX.openxlsx("report.xlsx", mode="w") do xf
     for i in eachindex(sheet_names)
         sheet_name = sheet_names[i]
         df = dataframes[i]
