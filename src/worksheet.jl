@@ -89,6 +89,7 @@ julia> single_value = sheet[2, 2] # B2
 See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
+getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
 getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function getdata(ws::Worksheet, row::Integer, ::Colon)
     dim = get_dimension(ws)
