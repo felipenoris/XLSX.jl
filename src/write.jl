@@ -125,6 +125,22 @@ function generate_sst_xml_string(sst::SharedStringTable) :: String
     return String(take!(buff))
 end
 
+function addNode!(node, f::Formula)
+    f_node = EzXML.addelement!(node, "f")
+    EzXML.setnodecontent!(f_node, f.formula)
+end
+function addNode!(node, f::FormulaReference)
+    f_node = EzXML.addelement!(node, "f")
+    f_node["t"] = "shared"
+    f_node["si"] = string(f.id)
+end
+function addNode!(node, f::ReferencedFormula)
+    f_node = EzXML.addelement!(node, "f")
+    f_node["t"] = "shared"
+    f_node["si"] = string(f.id)
+    f_node["ref"] = f.ref
+    EzXML.setnodecontent!(f_node, f.formula)
+end
 function update_worksheets_xml!(xl::XLSXFile)
     buff = IOBuffer()
 
@@ -185,9 +201,8 @@ function update_worksheets_xml!(xl::XLSXFile)
                     c_element["s"] = cell.style
                 end
 
-                if cell.formula != ""
-                    f_node = EzXML.addelement!(c_element, "f")
-                    EzXML.setnodecontent!(f_node, cell.formula)
+                if !isempty(cell.formula)
+                    addNode!(c_element, cell.formula)
                 end
 
                 if cell.value != ""
@@ -303,7 +318,7 @@ xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
-    cell = Cell(ref, t, id(val.styleid), v, "")
+    cell = Cell(ref, t, id(val.styleid), v, Formula(""))
     setdata!(ws, cell)
 end
 

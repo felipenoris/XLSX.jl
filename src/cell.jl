@@ -58,7 +58,7 @@ function Cell(c::EzXML.Node)
 
     # iterate v and f elements
     local v::String = ""
-    local f::String = ""
+    local f::AbstractFormula = Formula("")
     local found_v::Bool = false
     local found_f::Bool = false
 
@@ -92,8 +92,22 @@ function Cell(c::EzXML.Node)
                 else
                     found_f = true
                 end
-
-                f = EzXML.nodecontent(c_child_element)
+                formula_string = EzXML.nodecontent(c_child_element)
+                f = if haskey(c_child_element, "ref")
+                    haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+                    ReferencedFormula(
+                        formula_string,
+                        parse(Int, c_child_element["si"]),
+                        c_child_element["ref"],
+                    )
+                elseif haskey(c_child_element, "t") && c_child_element["t"] == "shared"
+                    haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+                    FormulaReference(
+                        parse(Int, c_child_element["si"])
+                    )
+                else
+                    Formula(formula_string)
+                end
             end
         end
     end

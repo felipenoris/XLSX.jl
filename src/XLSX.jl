@@ -17,6 +17,7 @@ end
 const SPREADSHEET_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]
 
 include("types.jl")
+include("formula.jl")
 include("cellref.jl")
 include("sst.jl")
 include("stream.jl")
