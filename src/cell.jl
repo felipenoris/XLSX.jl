@@ -93,7 +93,7 @@ function Cell(c::EzXML.Node)
                     found_f = true
                 end
                 formula_string = EzXML.nodecontent(c_child_element)
-                f = if haskey(c_child_element, "ref")
+                f = if haskey(c_child_element, "ref") && haskey(c_child_element, "t") && c_child_element["t"] == "shared"
                     haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
                     ReferencedFormula(
                         formula_string,
