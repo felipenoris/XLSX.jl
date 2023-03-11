@@ -114,6 +114,10 @@ function Cell(c::EzXML.Node)
 
     return Cell(ref, t, s, v, f)
 end
+# Constructor with simple formula string for backward compatibility
+function Cell(ref::CellRef, datatype::String, style::String, value::String, formula::String)
+    return Cell(ref, datatype, style, value, Formula(formula))
+end
 
 @inline getdata(ws::Worksheet, empty::EmptyCell) = missing
 
