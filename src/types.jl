@@ -33,6 +33,31 @@ struct CellRef
     column_number::Int
 end
 
+abstract type AbstractFormula end
+
+"""
+A default formula simply storing the formula string.
+"""
+struct Formula <: AbstractFormula
+    formula::String
+end
+
+"""
+The formula in this cell was defined somewhere else; we simply reference its ID.
+"""
+struct FormulaReference <: AbstractFormula
+    id::Int
+end
+
+"""
+Formula that is defined once and referenced in all cells given by the cell range given in `ref`.
+"""
+struct ReferencedFormula <: AbstractFormula
+    formula::String
+    id::Int
+    ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae
+end
+
 abstract type AbstractCell end
 
 mutable struct Cell <: AbstractCell
@@ -40,7 +65,7 @@ mutable struct Cell <: AbstractCell
     datatype::String
     style::String
     value::String
-    formula::String
+    formula::AbstractFormula
 end
 
 struct EmptyCell <: AbstractCell
