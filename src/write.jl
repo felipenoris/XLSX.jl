@@ -125,26 +125,29 @@ function generate_sst_xml_string(sst::SharedStringTable) :: String
     return String(take!(buff))
 end
 
-function addNode!(node, f::Formula)
+function add_node_formula!(node, f::Formula)
     f_node = EzXML.addelement!(node, "f")
     EzXML.setnodecontent!(f_node, f.formula)
 end
-function addNode!(node, f::FormulaReference)
+
+function add_node_formula!(node, f::FormulaReference)
     f_node = EzXML.addelement!(node, "f")
     f_node["t"] = "shared"
     f_node["si"] = string(f.id)
 end
-function addNode!(node, f::ReferencedFormula)
+
+function add_node_formula!(node, f::ReferencedFormula)
     f_node = EzXML.addelement!(node, "f")
     f_node["t"] = "shared"
     f_node["si"] = string(f.id)
     f_node["ref"] = f.ref
     EzXML.setnodecontent!(f_node, f.formula)
 end
+
 function update_worksheets_xml!(xl::XLSXFile)
     buff = IOBuffer()
-
     wb = get_workbook(xl)
+
     for i in 1:sheetcount(wb)
         sheet = getsheet(wb, i)
         doc = get_worksheet_xml_document(sheet)
@@ -162,17 +165,23 @@ function update_worksheets_xml!(xl::XLSXFile)
         # |- Column formatting is preserved in the <cols> subtree.
         # |- Row formatting would get lost if we simply remove the children of <sheetData> storing the rows
         unhandled_attributes = Dict{Int, Dict{String,String}}() # from row number to attribute and its value
+
         # The following attributes will be overwritten by us and need not be preserved
         handled_attributes = Set{String}([
             "r",  # the row number
-            "spans" # the columns the row spans
+            "spans", # the columns the row spans
         ])
+
         let
             child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
-            for c in child_nodes # the <row> elements
+
+            for c in child_nodes # all elements under sheetData should be <row> elements
+
                 if EzXML.nodename(c) == "row"
+
                     attributes = EzXML.findall("@*", c, SPREADSHEET_NAMESPACE_XPATH_ARG)
                     unhandled_attributes_ = filter(attribute -> !in(attribute.name, handled_attributes), attributes)
+
                     if !isempty(unhandled_attributes_)
                         row_nr = parse(Int, c["r"])
                         unhandled_attributes[row_nr] = Dict{String,String}(
@@ -180,8 +189,10 @@ function update_worksheets_xml!(xl::XLSXFile)
                         )
                     end
                 else
-                    @warn "Unexpected node under sheetData: $(EzXML.nodename(c))"
+                    @warn("Unexpected node under sheetData: $(EzXML.nodename(c))")
                 end
+
+                # deletes all elements under sheetData
                 EzXML.unlink!(c)
             end
         end
@@ -230,7 +241,7 @@ function update_worksheets_xml!(xl::XLSXFile)
                 end
 
                 if !isempty(cell.formula)
-                    addNode!(c_element, cell.formula)
+                    add_node_formula!(c_element, cell.formula)
                 end
 
                 if cell.value != ""
