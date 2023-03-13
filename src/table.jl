@@ -200,7 +200,7 @@ function eachtablerow(
                 if length(columns_ordered) == 1
                     # there's only one column
                     column_range = ColumnRange(column_start, column_stop)
-                    return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+                    return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
                 else
                     # will figure out the column range
                     for ci_stop in (ci+1):length(columns_ordered)
@@ -209,7 +209,7 @@ function eachtablerow(
                         # Will stop if finds an empty cell or a skipped column
                         if ismissing(getdata(r, cn_stop)) || (cn_stop - 1 != column_stop)
                             column_range = ColumnRange(column_start, column_stop)
-                            return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+                            return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
                         end
                         column_stop = cn_stop
                     end
@@ -217,7 +217,7 @@ function eachtablerow(
 
                 # if got here, it's because all columns are non-empty
                 column_range = ColumnRange(column_start, column_stop)
-                return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+                return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
             end
         end
     end
