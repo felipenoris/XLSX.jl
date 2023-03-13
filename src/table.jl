@@ -102,10 +102,9 @@ function stop_function(r)
 end
 ```
 
-`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or skipped (`false`) by the row iterator. 
+`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or skipped (`false`) by the row iterator.
 `keep_empty_rows` never affects the *bounds* of the iterator; the number of rows read from a sheet is only affected by `first_row`, `stop_in_empty_row` and `stop_in_row_function` (if specified).
 `keep_empty_rows` is only checked once the first and last row of the table have been determined, to see whether to keep or drop empty rows between the first and the last row.
-
 
 Example code:
 ```
@@ -165,7 +164,15 @@ function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, s
     return TableRowIterator(eachrow(sheet), index, first_data_row, stop_in_empty_row, stop_in_row_function, keep_empty_rows)
 end
 
-function eachtablerow(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false) :: TableRowIterator
+function eachtablerow(
+            sheet::Worksheet;
+            first_row::Union{Nothing, Int}=nothing,
+            column_labels=nothing,
+            header::Bool=true,
+            stop_in_empty_row::Bool=true,
+            stop_in_row_function::Union{Function, Nothing}=nothing,
+            keep_empty_rows::Bool=false,
+        ) :: TableRowIterator
 
     if first_row == nothing
         # if no columns were given,
@@ -375,7 +382,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
             end
         end
     end
-    
+
     # if the `is_empty_table_row` check above was successful, we can't get empty sheet_row here
     @assert !is_empty_table_row(sheet_row) || itr.keep_empty_rows
     table_row = TableRow(table_row_index, itr.index, sheet_row)
@@ -539,10 +546,9 @@ function stop_function(r)
 end
 ```
 
-`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
+`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or dropped (`false`) from the resulting table.
 `keep_empty_rows` never affects the *bounds* of the table; the number of rows read from a sheet is only affected by `first_row`, `stop_in_empty_row` and `stop_in_row_function` (if specified).
 `keep_empty_rows` is only checked once the first and last row of the table have been determined, to see whether to keep or drop empty rows between the first and the last row.
-
 
 # Example
 
