@@ -1,12 +1,12 @@
 
 #=
-    open_xlsx_template(filepath::AbstractString) :: XLSXFile
+    open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile
 
 Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
 
 The returned `XLSXFile` instance is in closed state.
 =#
-@inline open_xlsx_template(filepath::AbstractString) :: XLSXFile = open_or_read_xlsx(filepath, true, true, true)
+@inline open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
 
 function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
     return path
@@ -51,24 +51,24 @@ function addzipfile(xlsx, f)
 end
 
 """
-    writexlsx(output_filepath, xlsx_file; [overwrite=false])
+    writexlsx(output_source, xlsx_file; [overwrite=false])
 
-Writes an Excel file given by `xlsx_file::XLSXFile` to file at path `output_filepath`.
+Writes an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
 
-If `overwrite=true`, `output_filepath` will be overwritten if it exists.
+If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it exists.
 """
-function writexlsx(output_filepath::AbstractString, xf::XLSXFile; overwrite::Bool=false)
+function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overwrite::Bool=false)
 
     @assert is_writable(xf) "XLSXFile instance is not writable."
     @assert !isopen(xf) "Can't save an open XLSXFile."
     @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"
-    if !overwrite
-        @assert !isfile(output_filepath) "Output file $output_filepath already exists."
+    if output_source isa AbstractString && !overwrite
+        @assert !isfile(output_source) "Output file $output_source already exists."
     end
 
     update_worksheets_xml!(xf)
 
-    xlsx = ZipFile.Writer(output_filepath)
+    xlsx = ZipFile.Writer(output_source)
 
     # write XML files
     for f in keys(xf.files)
@@ -125,10 +125,29 @@ function generate_sst_xml_string(sst::SharedStringTable) :: String
     return String(take!(buff))
 end
 
+function add_node_formula!(node, f::Formula)
+    f_node = EzXML.addelement!(node, "f")
+    EzXML.setnodecontent!(f_node, f.formula)
+end
+
+function add_node_formula!(node, f::FormulaReference)
+    f_node = EzXML.addelement!(node, "f")
+    f_node["t"] = "shared"
+    f_node["si"] = string(f.id)
+end
+
+function add_node_formula!(node, f::ReferencedFormula)
+    f_node = EzXML.addelement!(node, "f")
+    f_node["t"] = "shared"
+    f_node["si"] = string(f.id)
+    f_node["ref"] = f.ref
+    EzXML.setnodecontent!(f_node, f.formula)
+end
+
 function update_worksheets_xml!(xl::XLSXFile)
     buff = IOBuffer()
-
     wb = get_workbook(xl)
+
     for i in 1:sheetcount(wb)
         sheet = getsheet(wb, i)
         doc = get_worksheet_xml_document(sheet)
@@ -142,10 +161,38 @@ function update_worksheets_xml!(xl::XLSXFile)
         EzXML.print(buff, doc)
         doc_copy = EzXML.parsexml(String(take!(buff)))
 
-        # deletes all elements under sheetData
+        # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
+        # |- Column formatting is preserved in the <cols> subtree.
+        # |- Row formatting would get lost if we simply remove the children of <sheetData> storing the rows
+        unhandled_attributes = Dict{Int, Dict{String,String}}() # from row number to attribute and its value
+
+        # The following attributes will be overwritten by us and need not be preserved
+        handled_attributes = Set{String}([
+            "r",  # the row number
+            "spans", # the columns the row spans
+        ])
+
         let
             child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
-            for c in child_nodes
+
+            for c in child_nodes # all elements under sheetData should be <row> elements
+
+                if EzXML.nodename(c) == "row"
+
+                    attributes = EzXML.findall("@*", c, SPREADSHEET_NAMESPACE_XPATH_ARG)
+                    unhandled_attributes_ = filter(attribute -> !in(attribute.name, handled_attributes), attributes)
+
+                    if !isempty(unhandled_attributes_)
+                        row_nr = parse(Int, c["r"])
+                        unhandled_attributes[row_nr] = Dict{String,String}(
+                            [Pair(unhandled_attribute.name, unhandled_attribute.content) for unhandled_attribute in unhandled_attributes_]...
+                        )
+                    end
+                else
+                    @warn("Unexpected node under sheetData: $(EzXML.nodename(c))")
+                end
+
+                # deletes all elements under sheetData
                 EzXML.unlink!(c)
             end
         end
@@ -155,19 +202,27 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         local spans_str::String = ""
 
-        if get_dimension(sheet) != nothing
+        # Every row has the `spans=1:<n_cols>` property. Set it to the whole range of columns by default
+        if !isnothing(get_dimension(sheet))
             spans_str = string(column_number(get_dimension(sheet).start), ":", column_number(get_dimension(sheet).stop))
         end
 
         # iterates over WorksheetCache cells and write the XML
         for r in eachrow(sheet)
+            row_nr = row_number(r)
             ordered_column_indexes = sort(collect(keys(r.rowcells)))
 
             row_node = EzXML.addelement!(sheetData_node, "row")
-            row_node["r"] = string(row_number(r))
+            row_node["r"] = string(row_nr)
 
             if spans_str != ""
                 row_node["spans"] = spans_str
+            end
+
+            if haskey(unhandled_attributes, row_nr)
+                for (attribute, value) in unhandled_attributes[row_nr]
+                    row_node[attribute] = value
+                end
             end
 
             # add cells to row
@@ -185,9 +240,8 @@ function update_worksheets_xml!(xl::XLSXFile)
                     c_element["s"] = cell.style
                 end
 
-                if cell.formula != ""
-                    f_node = EzXML.addelement!(c_element, "f")
-                    EzXML.setnodecontent!(f_node, cell.formula)
+                if !isempty(cell.formula)
+                    add_node_formula!(c_element, cell.formula)
                 end
 
                 if cell.value != ""
@@ -303,7 +357,7 @@ xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
-    cell = Cell(ref, t, id(val.styleid), v, "")
+    cell = Cell(ref, t, id(val.styleid), v, Formula(""))
     setdata!(ws, cell)
 end
 

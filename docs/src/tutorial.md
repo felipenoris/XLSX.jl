@@ -309,7 +309,7 @@ end
 
 You can also use `XLSX.writetable` to write directly to a new file (see next section).
 
-### Export Tabular Data from a DataFrame
+### Export Tabular Data from any `Tables.jl` compatible source
 
 To export tabular data to Excel, use `XLSX.writetable` method, which accepts either columns and column names,
 or any `Tables.jl` table.
@@ -353,6 +353,34 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 │ 2   │ bb │ 10.2 │
 
 julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df2)
+```
+
+This last example shows how to do the same thing, but when you don't know how many tables you'll be exporting in advance.
+
+```julia
+df1 = DataFrame(A=[1,2], B=[3,4])
+df2 = DataFrame(C=["Hey", "you"], D=["out", "there"])
+
+sheet_names = [ "1st", "2nd" ]
+dataframes = [ df1, df2 ]
+
+@assert length(sheet_names) == length(dataframes)
+
+XLSX.openxlsx("report.xlsx", mode="w") do xf
+    for i in eachindex(sheet_names)
+        sheet_name = sheet_names[i]
+        df = dataframes[i]
+        
+        if i == firstindex(sheet_names)
+            sheet = xf[1]
+            XLSX.rename!(sheet, sheet_name)
+            XLSX.writetable!(sheet, df)
+        else
+            sheet = XLSX.addsheet!(xf, sheet_name)
+            XLSX.writetable!(sheet, df)        
+        end
+    end
+end
 ```
 
 ## Tables.jl interface

@@ -43,9 +43,9 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
 # Opens a file for streaming.
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipFile.Reader, EzXML.StreamReader}
-    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.filepath)."
-    @assert isfile(xf.filepath) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
-    io = ZipFile.Reader(xf.filepath)
+    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
+    @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
+    io = ZipFile.Reader(xf.source)
 
     for f in io.files
         if f.name == filename
@@ -53,7 +53,7 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
         end
     end
 
-    error("Couldn't find $filename in $(xf.filepath).")
+    error("Couldn't find $filename in $(xf.source).")
 end
 
 @inline Base.isopen(s::SheetRowStreamIteratorState) = s.is_open

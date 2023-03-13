@@ -33,6 +33,31 @@ struct CellRef
     column_number::Int
 end
 
+abstract type AbstractFormula end
+
+"""
+A default formula simply storing the formula string.
+"""
+struct Formula <: AbstractFormula
+    formula::String
+end
+
+"""
+The formula in this cell was defined somewhere else; we simply reference its ID.
+"""
+struct FormulaReference <: AbstractFormula
+    id::Int
+end
+
+"""
+Formula that is defined once and referenced in all cells given by the cell range given in `ref`.
+"""
+struct ReferencedFormula <: AbstractFormula
+    formula::String
+    id::Int
+    ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae
+end
+
 abstract type AbstractCell end
 
 mutable struct Cell <: AbstractCell
@@ -40,7 +65,7 @@ mutable struct Cell <: AbstractCell
     datatype::String
     style::String
     value::String
-    formula::String
+    formula::AbstractFormula
 end
 
 struct EmptyCell <: AbstractCell
@@ -249,7 +274,7 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 ```
 """
 mutable struct XLSXFile <: MSOfficePackage
-    filepath::AbstractString
+    source::Union{AbstractString, IO}
     use_cache_for_sheet_data::Bool # indicates wether Worksheet.cache will be fed while reading worksheet cells.
     io::ZipFile.Reader
     io_is_open::Bool
@@ -260,10 +285,10 @@ mutable struct XLSXFile <: MSOfficePackage
     relationships::Vector{Relationship} # contains package level relationships
     is_writable::Bool # indicates wether this XLSX file can be edited
 
-    function XLSXFile(filepath::AbstractString, use_cache::Bool, is_writable::Bool)
-        check_for_xlsx_file_format(filepath)
-        io = ZipFile.Reader(filepath)
-        xl = new(filepath, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+    function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
+        check_for_xlsx_file_format(source)
+        io = ZipFile.Reader(source)
+        xl = new(source, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         finalizer(close, xl)
         return xl
