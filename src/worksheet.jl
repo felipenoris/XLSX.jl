@@ -91,7 +91,7 @@ See also [`XLSX.readdata`](@ref).
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
 getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
-function getdata(ws::Worksheet, row::Integer, ::Colon)
+function getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
     return if dim === nothing
         @warn "No worksheet dimension found"
