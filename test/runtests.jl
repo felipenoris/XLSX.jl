@@ -816,10 +816,9 @@ end
         (true, false, 8),
         (true, true, 8)
     ]
-        dtable = XLSX.gettable(s; stop_in_empty_row, keep_empty_rows)
+        dtable = XLSX.gettable(s; stop_in_empty_row=stop_in_empty_row, keep_empty_rows=keep_empty_rows)
         @test all(col_name -> length(Tables.getcolumn(dtable, col_name)) == n_rows, Tables.columnnames(dtable))
     end
-    
 
     test_data = Vector{Any}(undef, 6)
     test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash" ]
