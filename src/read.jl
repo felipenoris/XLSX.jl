@@ -543,7 +543,8 @@ end
         [header],
         [infer_eltypes],
         [stop_in_empty_row],
-        [stop_in_row_function]
+        [stop_in_row_function],
+        [keep_empty_rows]
     ) -> DataTable
 
 Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
@@ -585,7 +586,9 @@ function stop_function(r)
 end
 ```
 
-Rows where all column values are equal to `missing` are dropped.
+`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
+`keep_empty_rows` never affects the *bounds* of the table; the number of rows read from a sheet is only affected by, `first_row`, `stop_in_empty_row` and `stop_in_row_function` (if specified).
+`keep_empty_rows` is only checked once the first and last row of the table have been determined, to see whether to keep or drop empty rows between the first and the last row.
 
 # Example
 
@@ -597,16 +600,16 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
-        gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+        gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
-        gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function)
+        gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
     end
     return c
 end
