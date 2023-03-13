@@ -170,7 +170,7 @@ function eachtablerow(
             column_labels=nothing,
             header::Bool=true,
             stop_in_empty_row::Bool=true,
-            stop_in_row_function::Union{Function, Nothing}=nothing,
+            stop_in_row_function::Union{Nothing, Function}=nothing,
             keep_empty_rows::Bool=false,
         ) :: TableRowIterator
 
