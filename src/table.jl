@@ -563,11 +563,11 @@ julia> df = XLSX.openxlsx("myfile.xlsx") do xf
 See also: [`XLSX.readtable`](@ref).
 """
 function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false)
-    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
 
 function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false)
-    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows)
+    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
