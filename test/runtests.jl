@@ -586,7 +586,7 @@ end
     @test_throws ArgumentError axes(sheet2, 3)
     @test sheet2[1, :] == Any[1 2 3]
     @test sheet2[1:2, :] == Any[1 2 3; 4 5 6]
-    @test sheet2[:, 2] == Any[2; 5; 8;;]
+    @test sheet2[:, 2] == permutedims(Any[2 5 8])
     @test sheet2[:, 2:3] == Any[2 3; 5 6; 8 9]
     @test sheet2[1:2, 2:3] == Any[2 3; 5 6]
 
