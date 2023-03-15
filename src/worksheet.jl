@@ -10,6 +10,19 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     return Worksheet(xf, sheetId, relationship_id, name, dim, is_hidden)
 end
 
+function Base.axes(ws::Worksheet, d)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(DimensionMismatch("Worksheet $ws has no dimension"))
+    elseif d == 1
+        return dim.start.row_number:dim.stop.row_number
+    elseif d == 2
+        return dim.start.column_number:dim.stop.column_number
+    else
+        throw(ArgumentError("Unsupported dimension $d"))
+    end
+end
+
 # 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{Nothing, CellRange}
     local result::Union{Nothing, CellRange} = nothing
@@ -77,6 +90,25 @@ See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
+getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+function getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
+    dim = get_dimension(ws)
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
+    else
+        getdata(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
+    end
+end
+function getdata(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
+    dim = get_dimension(ws)
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
+    else
+        getdata(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
+    end
+end
 
 function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     result = Array{Any, 2}(undef, size(rng))

@@ -579,6 +579,19 @@ end
     @test sheet["C7"] == 2
     @test sheet["B8"] == "palavra1"
     @test sheet["C8"] == "palavra2"
+    @test_broken XLSX.get_dimension(sheet) == XSLX.CellRange("A1:B7")
+
+    sheet2 = f["Sheet2"]
+    @test XLSX.get_dimension(sheet2) == XLSX.CellRange("A1:C3")
+    @test axes(sheet2, 1) == 1:3
+    @test axes(sheet2, 2) == 1:3
+    @test_throws ArgumentError axes(sheet2, 3)
+    @test sheet2[1, :] == Any[1 2 3]
+    @test sheet2[1:2, :] == Any[1 2 3; 4 5 6]
+    @test sheet2[:, 2] == permutedims(Any[2 5 8])
+    @test sheet2[:, 2:3] == Any[2 3; 5 6; 8 9]
+    @test sheet2[1:2, 2:3] == Any[2 3; 5 6]
+
 
     @test XLSX.getdata(f, XLSX.SheetCellRef("Sheet1!B2")) == "B2"
     @test XLSX.getdata(f, XLSX.SheetCellRange("Sheet1!B2:B3"))[1] == "B2"
