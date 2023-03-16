@@ -579,7 +579,7 @@ end
     @test sheet["C7"] == 2
     @test sheet["B8"] == "palavra1"
     @test sheet["C8"] == "palavra2"
-    @test_broken XLSX.get_dimension(sheet) == XSLX.CellRange("A1:B7")
+    @test XLSX.get_dimension(sheet) == XLSX.CellRange("B2:C8")
 
     sheet2 = f["Sheet2"]
     @test XLSX.get_dimension(sheet2) == XLSX.CellRange("A1:C3")
