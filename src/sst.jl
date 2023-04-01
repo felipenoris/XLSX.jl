@@ -96,14 +96,14 @@ function sst_load!(workbook::Workbook)
     end
 end
 
-# Checks wether this workbook has a Shared String Table.
+# Checks whether this workbook has a Shared String Table.
 function has_sst(workbook::Workbook) :: Bool
     relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
     return has_relationship_by_type(workbook, relationship_type)
 end
 
 # Helper function to gather unformatted text from Excel data files.
-# It looks at all childs of `el` for tag name `t` and returns
+# It looks at all children of `el` for tag name `t` and returns
 # a join of all the strings found.
 function unformatted_text(el::EzXML.Node) :: String
 

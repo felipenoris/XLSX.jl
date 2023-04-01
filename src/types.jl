@@ -275,7 +275,7 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 """
 mutable struct XLSXFile <: MSOfficePackage
     source::Union{AbstractString, IO}
-    use_cache_for_sheet_data::Bool # indicates wether Worksheet.cache will be fed while reading worksheet cells.
+    use_cache_for_sheet_data::Bool # indicates whether Worksheet.cache will be fed while reading worksheet cells.
     io::ZipFile.Reader
     io_is_open::Bool
     files::Dict{String, Bool} # maps filename => isread bool
@@ -283,7 +283,7 @@ mutable struct XLSXFile <: MSOfficePackage
     binary_data::Dict{String, Vector{UInt8}} # maps filename => file content in bytes
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
-    is_writable::Bool # indicates wether this XLSX file can be edited
+    is_writable::Bool # indicates whether this XLSX file can be edited
 
     function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
         check_for_xlsx_file_format(source)

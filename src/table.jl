@@ -54,7 +54,7 @@ end
 _colname_prefix_symbol(sheet::Worksheet, cell::Cell) = Symbol(getdata(sheet, cell))
 _colname_prefix_symbol(sheet::Worksheet, ::EmptyCell) = Symbol("#Empty")
 
-# helper function to manage problematics collumns labels
+# helper function to manage problematic column labels
 # Empty cell -> "#Empty"
 # No_unique_label -> No_unique_label_2
 function push_unique!(vect::Vector{Symbol}, sheet::Worksheet, cell::AbstractCell, iter::Int=1)
@@ -78,7 +78,7 @@ end
 
 Constructs an iterator of table rows. Each element of the iterator is of type `TableRow`.
 
-`header` is a boolean indicating wether the first row of the table is a table header.
+`header` is a boolean indicating whether the first row of the table is a table header.
 
 If `header == false` and no `column_labels` were supplied, column names will be generated following the column names found in the Excel file.
 
@@ -87,7 +87,7 @@ If `columns` is not supplied, the column range will be inferred by the non-empty
 
 The user can replace column names by assigning the optional `column_labels` input variable with a `Vector{Symbol}`.
 
-`stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
+`stop_in_empty_row` is a boolean indicating whether an empty row marks the end of the table.
 If `stop_in_empty_row=false`, the iterator will continue to fetch rows until there's no more rows in the Worksheet.
 The default behavior is `stop_in_empty_row=true`. Empty rows may be returned by the iterator when `stop_in_empty_row=false`.
 
@@ -531,7 +531,7 @@ Use `column_labels` as a vector of symbols to specify names for the header of th
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
 The default value is `infer_eltypes=false`.
 
-`stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
+`stop_in_empty_row` is a boolean indicating whether an empty row marks the end of the table.
 If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
 The default behavior is `stop_in_empty_row=true`.
 

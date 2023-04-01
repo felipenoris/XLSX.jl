@@ -669,7 +669,7 @@ end
     @test collect(rng) == [ XLSX.CellRef("A2"), XLSX.CellRef("B2"), XLSX.CellRef("C2"), XLSX.CellRef("A3"), XLSX.CellRef("B3"), XLSX.CellRef("C3"), XLSX.CellRef("A4"), XLSX.CellRef("B4"), XLSX.CellRef("C4") ]
 end
 
-# Checks wether `data` equals `test_data`
+# Checks whether `data` equals `test_data`
 function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S, T}
 
     @test length(data) == length(test_data)
