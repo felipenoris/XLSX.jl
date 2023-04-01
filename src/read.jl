@@ -571,7 +571,7 @@ Use `column_labels` to specify names for the header of the table.
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
 The default value is `infer_eltypes=false`.
 
-`stop_in_empty_row` is a boolean indicating wether an empty row marks the end of the table.
+`stop_in_empty_row` is a boolean indicating whether an empty row marks the end of the table.
 If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
 The default behavior is `stop_in_empty_row=true`.
 

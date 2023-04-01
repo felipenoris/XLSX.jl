@@ -94,7 +94,7 @@ const RGX_CELLNAME_RIGHT = r"[0-9]+$"
     error("Couldn't split (column_name, row) for cellname $n.")
 end
 
-# Checks wether `n` is a valid name for a cell.
+# Checks whether `n` is a valid name for a cell.
 function is_valid_cellname(n::AbstractString) :: Bool
 
     if !occursin(RGX_CELLNAME, n)
@@ -175,7 +175,7 @@ macro range_str(cellrange)
     CellRange(cellrange)
 end
 
-# Checks wether `ref` is a cell reference inside a range given by `rng`.
+# Checks whether `ref` is a cell reference inside a range given by `rng`.
 function Base.in(ref::CellRef, rng::CellRange) :: Bool
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
@@ -194,7 +194,7 @@ function Base.in(ref::CellRef, rng::CellRange) :: Bool
     return false
 end
 
-# Checks wether `subrng` is a cell range contained in `rng`.
+# Checks whether `subrng` is a cell range contained in `rng`.
 Base.issubset(subrng::CellRange, rng::CellRange) :: Bool = in(subrng.start, rng) && in(subrng.stop, rng)
 
 function Base.size(rng::CellRange)

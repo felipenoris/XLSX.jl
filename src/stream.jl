@@ -177,7 +177,7 @@ end
 # WorksheetCache
 #
 
-# Indicates wether worksheet cache will be fed while reading worksheet cells.
+# Indicates whether worksheet cache will be fed while reading worksheet cells.
 @inline is_cache_enabled(ws::Worksheet) = is_cache_enabled(get_xlsxfile(ws))
 @inline is_cache_enabled(wb::Workbook) = is_cache_enabled(get_xlsxfile(wb))
 @inline is_cache_enabled(xl::XLSXFile) = xl.use_cache_for_sheet_data

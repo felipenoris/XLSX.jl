@@ -4,7 +4,7 @@ EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false,
     Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), nothing)
 
 #=
-Indicates wether this XLSX file can be edited.
+Indicates whether this XLSX file can be edited.
 This controls if assignment to worksheet cells is allowed.
 Writable XLSXFile instances are opened with `XLSX.open_xlsx_template` method.
 =#
