@@ -57,7 +57,7 @@ end
 function get_workbook_relationship_root(xf::XLSXFile) :: EzXML.Node
     xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
     @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.source). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"]
+    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"] "Unexpected namespace at relationship file: `$(EzXML.namespaces(xroot))`."
     return xroot
 end
 
