@@ -1318,14 +1318,11 @@ end
         dt = XLSX.DataTable(Any[Any[1, 2, 3], Any[4, 5, 6]], [:a, :b])
         io = IOBuffer()
         XLSX.writetable(io, "Test" => dt)
-        mktempdir() do dir
-            filename = joinpath(dir, "test.xlsx")
-            write(filename, take!(io))
-            dt_read = XLSX.readtable(filename, "Test")
-            @test dt_read.data == dt.data
-            @test dt_read.column_labels == dt.column_labels
-            @test dt_read.column_label_index == dt.column_label_index
-        end
+        seek(io, 0)
+        dt_read = XLSX.readtable(io, "Test")
+        @test dt_read.data == dt.data
+        @test dt_read.column_labels == dt.column_labels
+        @test dt_read.column_label_index == dt.column_label_index
     end
     
     # delete files created by this testset
