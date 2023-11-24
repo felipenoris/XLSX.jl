@@ -27,18 +27,18 @@ end
 
 Write Tables.jl `table` to the specified filename.
 """
-writetable(filename::AbstractString, x; kw...) = writetable(filename, _table_to_arrays(x)...; kw...)
+writetable(filename::Union{AbstractString, IO}, x; kw...) = writetable(filename, _table_to_arrays(x)...; kw...)
 
 """
-    writetable(filename::AbstractString, tables::Vector{Pair{String, T}}; overwrite::Bool=false)
-    writetable(filename::AbstractString, tables::Pair{String, Any}...; overwrite::Bool=false)
+    writetable(filename::Union{AbstractString, IO}, tables::Vector{Pair{String, T}}; overwrite::Bool=false)
+    writetable(filename::Union{AbstractString, IO}, tables::Pair{String, Any}...; overwrite::Bool=false)
 """
-function writetable(filename::AbstractString, tables::Vector{<:Pair}; kw...)
+function writetable(filename::Union{AbstractString, IO}, tables::Vector{<:Pair}; kw...)
     data = [(name, _table_to_arrays(x)...) for (name, x) in tables]
     return writetable(filename, data; kw...)
 end
 
-writetable(filename::AbstractString, tables::Pair{<:String, <:Any}...; kw...) = writetable(filename, collect(tables); kw...)
+writetable(filename::Union{AbstractString, IO}, tables::Pair{<:String, <:Any}...; kw...) = writetable(filename, collect(tables); kw...)
 
 """
     writetable!(sheet::Worksheet, table; anchor_cell::CellRef=CellRef("A1")))
