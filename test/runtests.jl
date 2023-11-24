@@ -1314,6 +1314,20 @@ end
         check_test_data(data, report_2_data)
     end
 
+    @testset "writetable to IO" begin
+        dt = XLSX.DataTable(Any[Any[1, 2, 3], Any[4, 5, 6]], [:a, :b])
+        io = IOBuffer()
+        XLSX.writetable(io, "Test" => dt)
+        mktempdir() do dir
+            filename = joinpath(dir, "test.xlsx")
+            write(filename, take!(io))
+            dt_read = XLSX.readtable(filename, "Test")
+            @test dt_read.data == dt.data
+            @test dt_read.column_labels == dt.column_labels
+            @test dt_read.column_label_index == dt.column_label_index
+        end
+    end
+    
     # delete files created by this testset
     delete_files = ["output_table.xlsx", "output_tables.xlsx"]
     for f in delete_files
