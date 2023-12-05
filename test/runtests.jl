@@ -127,8 +127,8 @@ end
     cn = XLSX.CellRef("XFD1048576")
     @test string(cn) == "XFD1048576"
     @test XLSX.column_name(cn) == "XFD"
-    @test XLSX.row_number(cn) == 1048576
-    @test XLSX.column_number(cn) == 16384
+    @test XLSX.row_number(cn) == XLSX.EXCEL_MAX_ROWS
+    @test XLSX.column_number(cn) == XLSX.EXCEL_MAX_COLS
 
     v_column_numbers = [1
     ,    15

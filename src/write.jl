@@ -473,7 +473,9 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     col_count = length(data)
     @assert col_count == length(columnnames) "Column count mismatch between `data` ($col_count columns) and `columnnames` ($(length(columnnames)) columns)."
     @assert col_count > 0 "Can't write table with no columns."
+    @assert col_count <= EXCEL_MAX_COLS "`data` contains $col_count columns, but Excel only supports up to $EXCEL_MAX_COLS; must reduce `data` size"
     row_count = length(data[1])
+    @assert row_count <= EXCEL_MAX_ROWS-1 "`data` contains $row_count rows, but Excel only supports up to $(EXCEL_MAX_ROWS-1); must reduce `data` size"
     if col_count > 1
         for c in 2:col_count
             @assert length(data[c]) == row_count "Row count mismatch between column 1 ($row_count rows) and column $c ($(length(data[c])) rows)."
