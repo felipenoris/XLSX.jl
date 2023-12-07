@@ -666,9 +666,9 @@ XLSX.writetable("table.xlsx", columns, colnames)
 
 See also: [`XLSX.writetable!`](@ref).
 """
-function writetable(filename::AbstractString, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
+function writetable(filename::Union{AbstractString, IO}, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
 
-    if !overwrite
+    if filename isa AbstractString && !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
 
@@ -687,8 +687,8 @@ function writetable(filename::AbstractString, data, columnnames; overwrite::Bool
 end
 
 """
-    writetable(filename::AbstractString; overwrite::Bool=false, kw...)
-    writetable(filename::AbstractString, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; overwrite::Bool=false)
+    writetable(filename::Union{AbstractString, IO}; overwrite::Bool=false, kw...)
+    writetable(filename::Union{AbstractString, IO}, tables::Vector{Tuple{String, Vector{Any}, Vector{String}}}; overwrite::Bool=false)
 
 Write multiple tables.
 
@@ -707,9 +707,9 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df2)
 ```
 """
-function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
+function writetable(filename::Union{AbstractString, IO}; overwrite::Bool=false, kw...)
 
-    if !overwrite
+    if filename isa AbstractString && !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
 
@@ -735,9 +735,9 @@ function writetable(filename::AbstractString; overwrite::Bool=false, kw...)
     nothing
 end
 
-function writetable(filename::AbstractString, tables::Vector{Tuple{String, S, Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where U, T<:Union{String, Symbol}}
+function writetable(filename::Union{AbstractString, IO}, tables::Vector{Tuple{String, S, Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where U, T<:Union{String, Symbol}}
 
-    if !overwrite
+    if filename isa AbstractString && !overwrite
         @assert !isfile(filename) "$filename already exists."
     end
 
