@@ -30,7 +30,7 @@ end
 
 # Converts column number to a column name. See also XLSX.decode_column_number.
 function encode_column_number(column_number::Int) :: String
-    @assert column_number > 0 && column_number <= EXCEL_MAX_COLS "Column number should be in the range from 1 to 16384."
+    @assert column_number > 0 && column_number <= EXCEL_MAX_COLS "Column number should be in the range from 1 to $EXCEL_MAX_COLS."
 
     third_letter_sequence = div(column_number - 26 - 1, 26*26)
     column_number = column_number - third_letter_sequence*(26*26)
