@@ -50,14 +50,14 @@ end
 function get_package_relationship_root(xf::XLSXFile) :: EzXML.Node
     xroot = xmlroot(xf, "_rels/.rels")
     @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.source). _rels/.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"] "Unexpected namespace at relationship file: `$(EzXML.namespaces(xroot))`."
+    @assert (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∈ EzXML.namespaces(xroot) "Unexpected namespace at workbook relationship file: `$(EzXML.namespaces(xroot))`."
     return xroot
 end
 
 function get_workbook_relationship_root(xf::XLSXFile) :: EzXML.Node
     xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
     @assert EzXML.nodename(xroot) == "Relationships" "Malformed XLSX file $(xf.source). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(EzXML.nodename(xroot))."
-    @assert EzXML.namespaces(xroot) == Pair{String,String}[""=>"http://schemas.openxmlformats.org/package/2006/relationships"] "Unexpected namespace at workbook relationship file: `$(EzXML.namespaces(xroot))`."
+    @assert (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∈ EzXML.namespaces(xroot) "Unexpected namespace at workbook relationship file: `$(EzXML.namespaces(xroot))`."
     return xroot
 end
 
