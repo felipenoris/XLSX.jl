@@ -8,6 +8,7 @@ XLSX.openxlsx
 XLSX.writexlsx
 XLSX.sheetnames
 XLSX.sheetcount
+XLSX.hassheet
 XLSX.Worksheet
 XLSX.readdata
 XLSX.getdata
