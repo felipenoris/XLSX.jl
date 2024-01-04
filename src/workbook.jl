@@ -19,6 +19,11 @@ Returns a vector with Worksheet names for this Workbook.
 sheetnames(wb::Workbook) = [ s.name for s in wb.sheets ]
 @inline sheetnames(xl::XLSXFile) = sheetnames(xl.workbook)
 
+"""
+    hassheet(wb::Workbook, sheetname::AbstractString) :: Bool
+
+Returns `true` if `wb` contains a sheet named `sheetname`.
+"""
 function hassheet(wb::Workbook, sheetname::AbstractString) :: Bool
     for s in wb.sheets
         if s.name == sheetname
