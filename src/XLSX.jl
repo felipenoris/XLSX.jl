@@ -32,5 +32,6 @@ include("worksheet.jl")
 include("cell.jl")
 include("styles.jl")
 include("write.jl")
+include("delete.jl")
 
 end # module XLSX
