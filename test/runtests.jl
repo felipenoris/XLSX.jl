@@ -1995,3 +1995,23 @@ end
         end
     end
 end
+
+
+
+@testset "delete.jl Worksheet by Name" begin
+    wb = XLSX.readxlsx("data\\deletingWs.xlsx")
+    XLSX.delete_ws_by_name("data\\deletingWs.xlsx", "Sheet1", "data\\testDeletingWsByName.xlsx")
+    wb_after_deleting = XLSX.readxlsx("data\\testDeletingWsByName.xlsx")
+    sheet_count = XLSX.sheetcount(wb)
+    new_file_sheet_count = XLSX.sheetcount(wb_after_deleting)
+    @test sheet_count == new_file_sheet_count + 1
+end
+
+@testset "delete.jl Worksheet by Id" begin
+    wb = XLSX.readxlsx("data\\deletingWs.xlsx")
+    XLSX.delete_ws_by_id("data\\deletingWs.xlsx", 1, "data\\testDeletingWsById.xlsx")
+    wb_after_deleting = XLSX.readxlsx("data\\testDeletingWsById.xlsx")
+    sheet_count = XLSX.sheetcount(wb)
+    new_file_sheet_count = XLSX.sheetcount(wb_after_deleting)
+    @test sheet_count == new_file_sheet_count + 1
+end
