@@ -6,6 +6,7 @@ and the relationships between worksheets will not be preserved in the new file.
 =#
 
 # https://github.com/felipenoris/XLSX.jl/issues/80
+using XLSX
 function delete_ws_by_name(file_path::AbstractString, sheet_name::AbstractString, new_file::AbstractString)
     wb = readxlsx(file_path)
     if hassheet(wb, sheet_name)
