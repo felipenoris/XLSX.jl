@@ -4,29 +4,37 @@ struct CellPosition
     column::Int
 end
 
-#=
+"""
+    CellRef(n::AbstractString)
+    CellRef(row::Int, col::Int)
+
 A `CellRef` represents a cell location given by row and column identifiers.
 
-`CellRef("A6")` indicates a cell located at column `1` and row `6`.
+`CellRef("B6")` indicates a cell located at column `2` and row `6`.
 
-Example:
+These row and column integers can also be passed directly to the `CellRef` constructor: `CellRef(6,2) == CellRef("B6")`.
+
+Finally, a convenience macro `@ref_str` is provided: `ref"B6" == CellRef("B6")`.
+
+# Examples
 
 ```julia
 cn = XLSX.CellRef("AB1")
 println( XLSX.row_number(cn) ) # will print 1
 println( XLSX.column_number(cn) ) # will print 28
 println( string(cn) ) # will print out AB1
-```
 
-As a convenience, `@ref_str` macro is provided.
+cn = XLSX.CellRef(1, 28)
+println( XLSX.row_number(cn) ) # will print 1
+println( XLSX.column_number(cn) ) # will print 28
+println( string(cn) ) # will print out AB1
 
-```julia
 cn = XLSX.ref"AB1"
 println( XLSX.row_number(cn) ) # will print 1
 println( XLSX.column_number(cn) ) # will print 28
 println( string(cn) ) # will print out AB1
 ```
-=#
+"""
 struct CellRef
     name::String
     row_number::Int
