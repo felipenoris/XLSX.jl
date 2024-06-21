@@ -203,7 +203,10 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
                 continue
             end
 
-            if endswith(f.name, ".xml") || endswith(f.name, ".rels")
+            # Rather than ignore custom XML internal files here, let them get passed through to write like binaries are.
+            if !startswith(f.name, "customXml") && (endswith(f.name, ".xml") || endswith(f.name, ".rels"))
+            #if endswith(f.name, ".xml") || endswith(f.name, ".rels")
+                
                 # XML file
                 internal_xml_file_add!(xf, f.name)
                 if read_files
@@ -215,9 +218,10 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
                     end
 
                     # ignore custom XML internal files
-                    if startswith(f.name, "customXml")
-                        continue
-                    end
+                    # no longer needed if these files are passed through like binary files
+                    #if startswith(f.name, "customXml")
+                    #    continue
+                    #end
 
                     internal_xml_file_read(xf, f.name)
                 end
@@ -225,6 +229,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
 
                 # Binary file
                 # we only read binary files to save the Excel file later
+                # Custom XML files also now get passed through this way, too
                 bytes = ZipFile.read(f)
                 @assert sizeof(bytes) == f.uncompressedsize
                 xf.binary_data[f.name] = bytes
