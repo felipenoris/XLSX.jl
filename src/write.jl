@@ -467,7 +467,7 @@ starting at `anchor_cell`.
 
 See also: [`XLSX.writetable`](@ref).
 """
-function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"); write_columnnames::Bool=true)
 
     # read dimensions
     col_count = length(data)
@@ -486,9 +486,11 @@ function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=C
     anchor_col = column_number(anchor_cell)
 
     # write table header
-    for c in 1:col_count
-        target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-        sheet[target_cell_ref] = string(columnnames[c])
+    if write_columnnames
+        for c in 1:col_count
+            target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
+            sheet[target_cell_ref] = string(columnnames[c])
+        end
     end
 
     # write table data
