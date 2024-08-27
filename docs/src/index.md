@@ -55,11 +55,11 @@ and send a Pull Request.
 
 ## References
 
-* [ECMA Open XML White Paper](https://www.ecma-international.org/news/TC45_current_work/OpenXML%20White%20Paper.pdf)
+* [ECMA Open XML White Paper](https://www.ecma-international.org/wp-content/uploads/OpenXML-White-Paper.pdf)
 
-* [ECMA-376](https://www.ecma-international.org/publications/standards/Ecma-376.htm)
+* [ECMA-376](https://ecma-international.org/publications-and-standards/standards/ecma-376/)
 
-* [Excel file limits](https://support.office.com/en-gb/article/excel-specifications-and-limits-1672b34d-7043-467e-8e27-269d656771c3)
+* [Excel file limits](https://support.microsoft.com/en-us/office/excel-specifications-and-limits-1672b34d-7043-467e-8e27-269d656771c3)
 
 ## Alternative Packages
 
