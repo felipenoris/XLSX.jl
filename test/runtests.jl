@@ -1113,6 +1113,31 @@ end
     isfile(filename_copy) && rm(filename_copy)
 end
 
+@testset "CustomXml" begin
+    # issue #210
+    # None of the example .xlsx files in the test suite include custoimXml internal files
+    # but customXml.xlsx does
+    template = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx")) 
+    filename_copy = "customXml_copy.xlsx"
+    for sn in XLSX.sheetnames(template)
+        sheet = template[sn]
+        sheet["Q1"] = "Cant" # using an apostrophe here causes a test failure reading the copy - "Evaluated: "Can&apos;t" == "Can't""
+        sheet["Q2"] = "write"
+        sheet["Q3"] = "this"
+        sheet["Q4"] = "template"
+    end
+    @test XLSX.writexlsx(filename_copy, template, overwrite=true) == nothing # This is where the bug will throw if custoimXml internal files present.
+    @test isfile(filename_copy)
+    f_copy = XLSX.readxlsx(filename_copy) # Don't really think this second part is necessary.
+    test_Xmlread = [["Cant", "write", "this", "template"]]
+    for sn in XLSX.sheetnames(f_copy)
+        sheet = template[sn]
+        data = [[sheet["Q1"], sheet["Q2"], sheet["Q3"], sheet["Q4"]]]
+        check_test_data(data, test_Xmlread)
+    end
+    isfile(filename_copy) && rm(filename_copy)
+end
+
 @testset "Edit Template" begin
     new_filename = "new_file_from_empty_template.xlsx"
     f = XLSX.open_empty_template()
