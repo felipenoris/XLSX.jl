@@ -457,7 +457,13 @@ function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim:
 end
 
 """
-    writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"))
+    writetable!(
+        sheet::Worksheet,
+        data,
+        columnnames;
+        anchor_cell::CellRef=CellRef("A1"),
+        write_columnnames::Bool=true,
+    )
 
 Writes tabular data `data` with labels given by `columnnames` to `sheet`,
 starting at `anchor_cell`.
@@ -467,7 +473,13 @@ starting at `anchor_cell`.
 
 See also: [`XLSX.writetable`](@ref).
 """
-function writetable!(sheet::Worksheet, data, columnnames; anchor_cell::CellRef=CellRef("A1"), write_columnnames::Bool=true)
+function writetable!(
+            sheet::Worksheet,
+            data,
+            columnnames;
+            anchor_cell::CellRef=CellRef("A1"),
+            write_columnnames::Bool=true,
+        )
 
     # read dimensions
     col_count = length(data)
