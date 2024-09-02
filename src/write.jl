@@ -42,14 +42,6 @@ function open_empty_template(
     return xf
 end
 
-function addzipfile(xlsx, f)
-    @static if Sys.iswindows() && VERSION < v"1.2"
-        return ZipFile.addfile(xlsx, f)
-    else
-        return ZipFile.addfile(xlsx, f, method=ZipFile.Deflate)
-    end
-end
-
 """
     writexlsx(output_source, xlsx_file; [overwrite=false])
 
@@ -68,34 +60,32 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
 
     update_worksheets_xml!(xf)
 
-    xlsx = ZipFile.Writer(output_source)
+    ZipArchives.ZipWriter(output_source) do xlsx
+        # write XML files
+        for f in keys(xf.files)
+            if f == "xl/sharedStrings.xml"
+                # sst will be generated below
+                continue
+            end
 
-    # write XML files
-    for f in keys(xf.files)
-        if f == "xl/sharedStrings.xml"
-            # sst will be generated below
-            continue
+            ZipArchives.zip_newfile(xlsx, f; compress=true)
+            EzXML.print(xlsx, xf.data[f])
         end
 
-        io = addzipfile(xlsx, f)
-        EzXML.print(io, xf.data[f])
+        # write binary files
+        for f in keys(xf.binary_data)
+            ZipArchives.zip_newfile(xlsx, f; compress=true)
+            write(xlsx, xf.binary_data[f])
+        end
+
+        if !isempty(get_sst(xf))
+            ZipArchives.zip_newfile(xlsx, "xl/sharedStrings.xml"; compress=true)
+            print(xlsx, generate_sst_xml_string(get_sst(xf)))
+        end
     end
-
-    # write binary files
-    for f in keys(xf.binary_data)
-        io = addzipfile(xlsx, f)
-        ZipFile.write(io, xf.binary_data[f])
-    end
-
-    if !isempty(get_sst(xf))
-        io = addzipfile(xlsx, "xl/sharedStrings.xml")
-        print(io, generate_sst_xml_string(get_sst(xf)))
-    end
-
-    close(xlsx)
-
     # fix libuv issue on windows (#42)
     @static Sys.iswindows() ? GC.gc() : nothing
+    nothing
 end
 
 get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)

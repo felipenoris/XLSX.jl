@@ -5,6 +5,7 @@ import Artifacts
 import Dates
 import Printf.@printf
 import ZipFile
+import ZipArchives
 import EzXML
 import Tables
 import Base.convert
