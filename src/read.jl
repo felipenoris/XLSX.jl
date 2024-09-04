@@ -269,7 +269,12 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
 end
 
 function get_default_namespace(r::EzXML.Node) :: String
-    for (prefix, ns) in EzXML.namespaces(r)
+    nss = EzXML.namespaces(r)
+    # in case that only one namespace is defined, assume that it is the default one
+    # even if it has a prefix
+    length(nss) == 1 && return nss[1][2]
+    # otherwise, look for the default namespace (without prefix)
+    for (prefix, ns) in nss
         if prefix == ""
             return ns
         end

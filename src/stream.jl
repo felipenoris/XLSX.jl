@@ -36,6 +36,11 @@ It's state is the SheetRowStreamIteratorState.
 The iterator element is a SheetRow.
 =#
 
+# strip off namespace prefix of nodename
+function nodename(x::EzXML.StreamReader)
+    split(EzXML.nodename(x), ':')[end]
+end
+
 @inline get_worksheet(itr::SheetRowStreamIterator) = itr.sheet
 @inline row_number(state::SheetRowStreamIteratorState) = state.row
 
@@ -82,17 +87,17 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             # The reader will be positioned in the first row element inside sheetData
             # First, let's look for sheetData opening element
             while EzXML.iterate(reader) != nothing
-                if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "sheetData"
+                if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "sheetData"
                     @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(EzXML.nodedepth(reader))."
                     break
                 end
             end
 
-            @assert EzXML.nodename(reader) == "sheetData" "Malformed Worksheet \"$(ws.name)\": Couldn't find sheetData element."
+            @assert nodename(reader) == "sheetData" "Malformed Worksheet \"$(ws.name)\": Couldn't find sheetData element."
 
             # Now let's look for a row element, if it exists
             while EzXML.iterate(reader) != nothing # go next node
-                if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
+                if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
                     break
                 elseif is_end_of_sheet_data(reader)
                     # this Worksheet has no rows
@@ -120,7 +125,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
     # will read next row from stream.
     # The stream should be already positioned in the next row
-    @assert EzXML.nodename(reader) == "row"
+    @assert nodename(reader) == "row"
     current_row = parse(Int, reader["r"])
     rowcells = Dict{Int, Cell}() # column -> cell
 
@@ -133,13 +138,13 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
         end
 
         # If this is the end of this row, will point to the next row or set the end of this stream
-        if EzXML.nodetype(reader) == EzXML.READER_END_ELEMENT && EzXML.nodename(reader) == "row"
+        if EzXML.nodetype(reader) == EzXML.READER_END_ELEMENT && nodename(reader) == "row"
 
             while true
                 if is_end_of_sheet_data(reader)
                     close(state)
                     break
-                elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
+                elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
                     break
                 end
 
@@ -150,14 +155,14 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             # breaks while loop to return current row
             break
 
-        elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "c"
+        elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "c"
 
             # reads current cell to rowcells
             cell = Cell( EzXML.expandtree(reader) )
             @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
             rowcells[column_number(cell)] = cell
 
-        elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "row"
+        elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
             # last row has no child elements, so we're already pointing to the next row
             break
         end
@@ -171,7 +176,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 end
 
 # Detects a closing sheetData element
-@inline is_end_of_sheet_data(r::EzXML.StreamReader) = (EzXML.nodedepth(r) <= 1) || (EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && EzXML.nodename(r) == "sheetData")
+@inline is_end_of_sheet_data(r::EzXML.StreamReader) = (EzXML.nodedepth(r) <= 1) || (EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && nodename(r) == "sheetData")
 
 #
 # WorksheetCache
