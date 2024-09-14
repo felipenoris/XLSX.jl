@@ -16,7 +16,7 @@ This package follows the EMCA-376 to parse and generate XLSX files.
 
 ## Requirements
 
-* Julia v1.3
+* Julia v1.6
 
 * Linux, macOS or Windows.
 
