@@ -409,7 +409,11 @@ function infer_eltype(v::Vector{Any})
             hasmissing = true
         else
             if t != Any && typeof(v[i]) != t
-                return Any
+                t = promote_type(t, typeof(v[i]))
+                if t == Any
+                    return t
+                end
+                # return Any
             else
                 t = typeof(v[i])
             end
