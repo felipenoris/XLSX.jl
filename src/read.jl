@@ -146,9 +146,6 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
         else
             close(xf)
         end
-
-        # fix libuv issue on windows (#42) and other systems (#173)
-        GC.gc()
     end
 end
 
