@@ -83,6 +83,8 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
             print(xlsx, generate_sst_xml_string(get_sst(xf)))
         end
     end
+    # fix libuv issue on windows (#42)
+    @static Sys.iswindows() ? GC.gc() : nothing
     nothing
 end
 
