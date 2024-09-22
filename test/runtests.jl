@@ -778,8 +778,13 @@ end
     @test XLSX.infer_eltype(data[4]) == Union{Missing, String}
     @test XLSX.infer_eltype(data[5]) == Float64
     @test XLSX.infer_eltype(data[6]) == Any
-    @test XLSX.infer_eltype([1, "1", 10.2]) == Any
     @test XLSX.infer_eltype(Vector{Int}()) == Int
+    @test XLSX.infer_eltype(Vector{Float64}()) == Float64
+    @test XLSX.infer_eltype(Vector{Any}()) == Any
+    @test XLSX.infer_eltype([1, "1", 10.2]) == Any
+    @test XLSX.infer_eltype([1, 10]) == Int64
+    @test XLSX.infer_eltype([1.0, 10.0]) == Float64
+    @test XLSX.infer_eltype([1, 10.2]) == Float64 # Promote mixed int/float columns to float (#192)
 
     dtable_inferred = XLSX.gettable(s, infer_eltypes=true)
     data_inferred, col_names = dtable_inferred.data, dtable_inferred.column_labels
