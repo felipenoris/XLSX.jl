@@ -147,8 +147,6 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
             close(xf)
         end
 
-        # fix libuv issue on windows (#42) and other systems (#173)
-        GC.gc()
     end
 end
 
@@ -203,9 +201,8 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
                 continue
             end
 
-            # Rather than ignore custom XML internal files here, let them get passed through to write like binaries are.
+            # let customXML files get passed through to write like binaries are (below).
             if !startswith(f.name, "customXml") && (endswith(f.name, ".xml") || endswith(f.name, ".rels"))
-            #if endswith(f.name, ".xml") || endswith(f.name, ".rels")
                 
                 # XML file
                 internal_xml_file_add!(xf, f.name)
@@ -217,19 +214,12 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
                         continue
                     end
 
-                    # ignore custom XML internal files
-                    # no longer needed if these files are passed through like binary files
-                    #if startswith(f.name, "customXml")
-                    #    continue
-                    #end
-
                     internal_xml_file_read(xf, f.name)
                 end
-            elseif read_as_template
 
-                # Binary file
-                # we only read binary files to save the Excel file later
-                # Custom XML files also now get passed through this way, too
+            elseif read_as_template
+                # Binary and customXML files
+                # we only read these files to save the Excel file later
                 bytes = ZipFile.read(f)
                 @assert sizeof(bytes) == f.uncompressedsize
                 xf.binary_data[f.name] = bytes
@@ -530,14 +520,13 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
 ```
 """
 function readdata(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, ref)
-    c = openxlsx(source, enable_cache=false) do xf
+    c = openxlsx(source, enable_cache=true) do xf
         getdata(getsheet(xf, sheet), ref)
     end
     return c
 end
-
 function readdata(source::Union{AbstractString, IO}, sheetref::AbstractString)
-    c = openxlsx(source, enable_cache=false) do xf
+    c = openxlsx(source, enable_cache=true) do xf
         getdata(xf, sheetref)
     end
     return c
@@ -610,14 +599,14 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
     end
