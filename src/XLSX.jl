@@ -9,7 +9,7 @@ import EzXML
 import Tables
 import Base.convert
 
-const SPREADSHEET_NAMESPACE_XPATH_ARG = ["xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main"]
+const SPREADSHEET_NAMESPACE_XPATH_ARG = [ "xpath" => "http://schemas.openxmlformats.org/spreadsheetml/2006/main" ]
 const EXCEL_MAX_COLS = 16_384     # total columns supported by Excel per sheet
 const EXCEL_MAX_ROWS = 1_048_576  # total rows supported by Excel per sheet (including headers)
 
@@ -27,7 +27,5 @@ include("worksheet.jl")
 include("cell.jl")
 include("styles.jl")
 include("write.jl")
-
-
 
 end # module XLSX
