@@ -4,7 +4,6 @@ module XLSX
 import Artifacts
 import Dates
 import Printf.@printf
-import ZipFile
 import ZipArchives
 import EzXML
 import Tables
@@ -33,5 +32,7 @@ include("worksheet.jl")
 include("cell.jl")
 include("styles.jl")
 include("write.jl")
+
+
 
 end # module XLSX
