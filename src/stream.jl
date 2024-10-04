@@ -47,14 +47,13 @@ end
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( is open = $(state.is_open) , row = $(state.row) )")
 
 # Opens a file for streaming.
-@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipFile.Reader, EzXML.StreamReader}
+@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipArchives.ZipReader, EzXML.StreamReader}
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
     @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
-    io = ZipFile.Reader(xf.source)
 
-    for f in io.files
-        if f.name == filename
-            return io, EzXML.StreamReader(f)
+    for f in ZipArchives.zip_names(xf.io)
+        if f == filename
+            return xf.io, EzXML.StreamReader(IOBuffer(ZipArchives.zip_readentry(xf.io, f, String)))
         end
     end
 
@@ -67,7 +66,7 @@ end
     if isopen(s)
         s.is_open = false
         close(s.xml_stream_reader)
-        close(s.zip_io)
+#        close(s.zip_io)
     end
     nothing
 end
@@ -102,7 +101,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                 elseif is_end_of_sheet_data(reader)
                     # this Worksheet has no rows
                     close(reader)
-                    close(zip_io)
+#                    close(zip_io)
                     return nothing
                 end
             end
@@ -117,7 +116,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
     reader = state.xml_stream_reader
     if is_end_of_sheet_data(reader)
-        @assert !isopen(state)
+#        @assert !isopen(state)
         return nothing
     else
         @assert isopen(state) "Error processing Worksheet $(ws.name): Can't fetch rows from a closed workbook."
@@ -133,7 +132,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     while EzXML.iterate(reader) != nothing
 
         if is_end_of_sheet_data(reader)
-            close(state)
+#            close(state)
             break
         end
 
@@ -142,7 +141,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
             while true
                 if is_end_of_sheet_data(reader)
-                    close(state)
+#                    close(state)
                     break
                 elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
                     break
