@@ -222,9 +222,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
             elseif read_as_template
                 # Binary and customXML files
                 # we only read these files to save the Excel file later
-                bytes = read(IOBuffer(ZipArchives.zip_readentry(xf.io, f, String)))
-                @assert sizeof(bytes) == ZipArchives.zip_uncompressed_size(xf.io, i)
-                xf.binary_data[f] = bytes
+                xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)
             end
         end
 
