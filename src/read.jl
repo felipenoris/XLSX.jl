@@ -196,8 +196,8 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     xf = XLSXFile(source, enable_cache, read_as_template)
 
     try
-        for (i, f) in enumerate(ZipArchives.zip_names(xf.io))
-
+        for i in 1:ZipArchives.zip_nentries(xf.io)
+            f = ZipArchives.zip_name(xf.io, i)
             # ignore xl/calcChain.xml in any case (#31)
             if f == "xl/calcChain.xml"
                 continue
