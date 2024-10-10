@@ -6,7 +6,6 @@ function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
     name = sheet_element["name"]
     is_hidden = haskey(sheet_element, "state") && sheet_element["state"] in ["hidden", "veryHidden"]
     dim = read_worksheet_dimension(xf, relationship_id, name)
-
     return Worksheet(xf, sheetId, relationship_id, name, dim, is_hidden)
 end
 
@@ -26,7 +25,6 @@ end
 # 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{Nothing, CellRange}
     local result::Union{Nothing, CellRange} = nothing
-
     wb = get_workbook(xf)
     target_file = get_relationship_target_by_id("xl", wb, relationship_id)
     zip_io, reader = open_internal_file_stream(xf, target_file)
@@ -48,7 +46,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
         end
     finally
         close(reader)
-        close(zip_io)
+#        close(zip_io)
     end
 
     return result

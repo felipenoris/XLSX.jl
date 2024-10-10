@@ -1354,14 +1354,21 @@ end
         @test dt_read.column_labels == dt.column_labels
         @test dt_read.column_label_index == dt.column_label_index
     end
+end
     
-    # delete files created by this testset
-    delete_files = ["output_table.xlsx", "output_tables.xlsx"]
-    for f in delete_files
-        isfile(f) && rm(f)
+@testset "rm after read" begin
+    @testset "with readtable" begin
+        f = "output_table.xlsx"
+        dtable = XLSX.readtable(f, "report", "F")
+        @test isfile(f) && rm(f)==nothing
+    end
+    @testset "with readdata" begin
+        f = "output_tables.xlsx"
+        dtable = XLSX.readdata(f, "REPORT_A", "A1:B3")
+        @test isfile(f) && rm(f)==nothing
     end
 end
-
+ 
 @testset "Styles" begin
 
     using XLSX: CellValue, id, getcell, setdata!, CellRef
