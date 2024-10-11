@@ -436,28 +436,17 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: EzXML.Documen
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
 
     if !internal_xml_file_isread(xf, filename)
+        
         @assert isopen(xf) "Can't read from a closed XLSXFile."
-        file_not_found = true
-        for f in ZipArchives.zip_names(xf.io)
-            if f == filename
-                xf.files[filename] = true # set file as read
 
-                try
-                    xf.data[filename] = EzXML.parsexml(ZipArchives.zip_readentry(xf.io, f, String))
-                catch err
-                    @error("Failed to parse internal XML file `$filename`")
-                    rethrow()
-                end
-
-                file_not_found = false
-                break
-            end
+        try
+            xf.data[filename] = EzXML.parsexml(ZipArchives.zip_readentry(xf.io, filename))
+            xf.files[filename] = true # set file as read
+        catch err
+            @error("Failed to parse internal XML file `$filename`")
+            rethrow()
         end
 
-        if file_not_found
-            # shouldn't happen
-            error("$filename not found in XLSX package.")
-        end
     end
 
     return xf.data[filename]
