@@ -48,7 +48,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
         end
     finally
         close(reader)
-        close(zip_io)
+        # close(zip_io)
     end
 
     return result

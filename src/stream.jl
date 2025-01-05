@@ -63,7 +63,7 @@ end
     if isopen(s)
         s.is_open = false
         close(s.xml_stream_reader)
-        close(s.zip_io)
+        # close(s.zip_io)
     end
     nothing
 end
@@ -98,7 +98,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                 elseif is_end_of_sheet_data(reader)
                     # this Worksheet has no rows
                     close(reader)
-                    close(zip_io)
+                    # close(zip_io)
                     return nothing
                 end
             end
