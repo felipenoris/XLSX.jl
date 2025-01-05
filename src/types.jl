@@ -284,7 +284,7 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 mutable struct XLSXFile <: MSOfficePackage
     source::Union{AbstractString, IO}
     use_cache_for_sheet_data::Bool # indicates whether Worksheet.cache will be fed while reading worksheet cells.
-    io::ZipFile.Reader
+    io::ZipArchives.ZipReader
     io_is_open::Bool
     files::Dict{String, Bool} # maps filename => isread bool
     data::Dict{String, EzXML.Document} # maps filename => XMLDocument
