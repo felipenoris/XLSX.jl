@@ -449,7 +449,7 @@ end
 
 function Base.close(xl::XLSXFile)
     xl.io_is_open = false
-    close(xl.io)
+    # close(xl.io)
 
     # close all internal file streams from worksheet caches
     for sheet in xl.workbook.sheets
