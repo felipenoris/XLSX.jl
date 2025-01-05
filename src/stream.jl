@@ -47,16 +47,12 @@ end
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( is open = $(state.is_open) , row = $(state.row) )")
 
 # Opens a file for streaming.
-@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipFile.Reader, EzXML.StreamReader}
+@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipArchives.ZipReader, EzXML.StreamReader}
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
     @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
-    io = ZipFile.Reader(xf.source)
 
-    for f in io.files
-        if f.name == filename
-            return io, EzXML.StreamReader(f)
-        end
-    end
+    f = ZipArchives.zip_openentry(xf.io, filename)
+    return xf.io, EzXML.StreamReader(f)
 
     error("Couldn't find $filename in $(xf.source).")
 end

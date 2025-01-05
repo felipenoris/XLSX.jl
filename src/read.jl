@@ -196,44 +196,32 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     xf = XLSXFile(source, enable_cache, read_as_template)
 
     try
-        for f in xf.io.files
-
+        for i in 1:ZipArchives.zip_nentries(xf.io)
+            f = ZipArchives.zip_name(xf.io, i)
             # ignore xl/calcChain.xml in any case (#31)
-            if f.name == "xl/calcChain.xml"
+            if f == "xl/calcChain.xml"
                 continue
             end
 
-            # Rather than ignore custom XML internal files here, let them get passed through to write like binaries are.
-            if !startswith(f.name, "customXml") && (endswith(f.name, ".xml") || endswith(f.name, ".rels"))
-            #if endswith(f.name, ".xml") || endswith(f.name, ".rels")
+            # let customXML files get passed through to write like binaries are (below).
+            if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
                 
                 # XML file
-                internal_xml_file_add!(xf, f.name)
+                internal_xml_file_add!(xf, f)
                 if read_files
 
                     # ignore worksheet files because they'll be read thru streaming
                     # If reading as template, it will be loaded in two places: here and WorksheetCache.
-                    if !read_as_template && startswith(f.name, "xl/worksheets") && endswith(f.name, ".xml")
+                    if !read_as_template && startswith(f, "xl/worksheets") && endswith(f, ".xml")
                         continue
                     end
 
-                    # ignore custom XML internal files
-                    # no longer needed if these files are passed through like binary files
-                    #if startswith(f.name, "customXml")
-                    #    continue
-                    #end
-
-                    internal_xml_file_read(xf, f.name)
+                    internal_xml_file_read(xf, f)
                 end
             elseif read_as_template
-
-                # Binary file
-                # we only read binary files to save the Excel file later
-                # Custom XML files also now get passed through this way, too
-                bytes = ZipFile.read(f)
-                @assert sizeof(bytes) == f.uncompressedsize
-                xf.binary_data[f.name] = bytes
-            end
+                # Binary and customXML files
+                # we only read these files to save the Excel file later
+                xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)            end
         end
 
         check_minimum_requirements(xf)
@@ -445,27 +433,15 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: EzXML.Documen
 
     if !internal_xml_file_isread(xf, filename)
         @assert isopen(xf) "Can't read from a closed XLSXFile."
-        file_not_found = true
-        for f in xf.io.files
-            if f.name == filename
-                xf.files[filename] = true # set file as read
+        try
+            xf.data[filename] = EzXML.parsexml(ZipArchives.zip_readentry(xf.io, filename))
+            xf.files[filename] = true # set file as read
+        catch err
+            @error("Failed to parse internal XML file `$filename`")
+            rethrow()
 
-                try
-                    xf.data[filename] = EzXML.readxml(f)
-                catch err
-                    @error("Failed to parse internal XML file `$filename`")
-                    rethrow()
-                end
-
-                file_not_found = false
-                break
-            end
         end
 
-        if file_not_found
-            # shouldn't happen
-            error("$filename not found in XLSX package.")
-        end
     end
 
     return xf.data[filename]

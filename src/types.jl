@@ -194,7 +194,7 @@ Implementations: SheetRowStreamIterator, WorksheetCache.
 abstract type SheetRowIterator end
 
 mutable struct SheetRowStreamIteratorState
-    zip_io::ZipFile.Reader
+    zip_io::ZipArchives.ZipReader
     xml_stream_reader::EzXML.StreamReader
     is_open::Bool # indicated if zip_io and xml_stream_reader are opened
     row::Int # number of current row. It´s set to 0 in the start state.
@@ -295,7 +295,7 @@ mutable struct XLSXFile <: MSOfficePackage
 
     function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
         check_for_xlsx_file_format(source)
-        io = ZipFile.Reader(source)
+        io = ZipArchives.ZipReader(read(source))
         xl = new(source, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         finalizer(close, xl)
