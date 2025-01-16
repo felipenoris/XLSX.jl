@@ -30,29 +30,29 @@ based on the `enable_cache` option used in `XLSX.openxlsx` method.
 =#
 
 #=
-# SheetRowStreamIterator
+# SheetRowIterator
 
 It's state is the SheetRowStreamIteratorState.
 The iterator element is a SheetRow.
 =#
 
 # strip off namespace prefix of nodename
-function nodename(x::EzXML.StreamReader)
-    split(EzXML.nodename(x), ':')[end]
+function nodename(x::XML.LazyNode)
+    split(XML.tag(x), ':')[end]
 end
 
-@inline get_worksheet(itr::SheetRowStreamIterator) = itr.sheet
-@inline row_number(state::SheetRowStreamIteratorState) = state.row
+@inline get_worksheet(itr::SheetRowIterator) = itr.sheet
+@inline row_number(state::SheetRowIteratorState) = state.row
 
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( is open = $(state.is_open) , row = $(state.row) )")
 
 # Opens a file for streaming.
-@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipArchives.ZipReader, EzXML.StreamReader}
+@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: Tuple{ZipArchives.ZipReader, XML.LazyNode}
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
     @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
 
     f = ZipArchives.zip_openentry(xf.io, filename)
-    return xf.io, EzXML.StreamReader(f)
+    return xf.io, XML.parse(ZipArchives.zip_readentry(zip, f, String), LazyNode)
 
     error("Couldn't find $filename in $(xf.source).")
 end
@@ -62,7 +62,7 @@ end
 @inline function Base.close(s::SheetRowStreamIteratorState)
     if isopen(s)
         s.is_open = false
-        close(s.xml_stream_reader)
+        #close(s.xml_stream_reader)
         # close(s.zip_io)
     end
     nothing
@@ -71,49 +71,59 @@ end
 # Creates a reader for row elements in the Worksheet's XML.
 # Will return a stream reader positioned in the first row element if it exists.
 # If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.
+
 function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
 
     ws = get_worksheet(itr)
 
-    if state == nothing # first iteration. Will open a stream and create the first state instance
+    if state === nothing # first iteration. Will open a stream and create the first state instance
         state = let
             target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             zip_io, reader = open_internal_file_stream(get_xlsxfile(ws), target_file)
 
             # The reader will be positioned in the first row element inside sheetData
             # First, let's look for sheetData opening element
-            while EzXML.iterate(reader) != nothing
-                if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "sheetData"
-                    @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(EzXML.nodedepth(reader))."
+            nexttnode = iterate(reader)
+            while nexttnode !== nothing
+                (tnode, tstate) = nexttnode
+                if XML.nodetype(tnode) == XML.Element && XML.tag(tnode) == "sheetData"
+                    @assert XML.depth(tnode) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(tnode))."
                     break
                 end
+                nexttnode = iterate(reader, tstate)
             end
 
-            @assert nodename(reader) == "sheetData" "Malformed Worksheet \"$(ws.name)\": Couldn't find sheetData element."
-
+            @assert XML.tag(nexttnode[begin]) == "sheetData" "Malformed Worksheet \"$(ws.name)\": Couldn't find sheetData element."
+            sheet_end = children(nexttnode[begin])[end]
+            nexttnode = iterate(reader, nexttnode[end])
             # Now let's look for a row element, if it exists
-            while EzXML.iterate(reader) != nothing # go next node
-                if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
+            while nexttnode !== nothing # go next node
+                (tnode, tstate) = nexttnode
+                if XML.nodetype(tnode) == XML.Element && XML.tag(tnode) == "row"
                     break
-                elseif is_end_of_sheet_data(reader)
+                end
+                if is_end_of_sheet_data(tnode, sheet_end)
                     # this Worksheet has no rows
-                    close(reader)
-                    # close(zip_io)
+                    # close(reader) # No longer necessary??
+                    # close(zip_io) # No longer necessary??
                     return nothing
                 end
+                nexttnode = iterate(reader, tstate)
             end
 
             # row number is set to 0 in the first state
-            SheetRowStreamIteratorState(zip_io, reader, true, 0)
+            SheetRowStreamIteratorState(zip_io, reader, sheet_end, true, 0)
         end
     end
 
     # given that the first iteration case is done in the code above, we shouldn't get it again in here
-    @assert state != nothing "Error processing Worksheet $(ws.name): shouldn't get first iteration case again."
+    @assert state !== nothing "Error processing Worksheet $(ws.name): shouldn't get first iteration case again."
+
 
     reader = state.xml_stream_reader
-    if is_end_of_sheet_data(reader)
-        @assert !isopen(state)
+    nexttnode = iterate(reader, state)
+    if is_end_of_sheet_data(nexttnode[begin], state.sheet_end)
+#        @assert !isopen(state)
         return nothing
     else
         @assert isopen(state) "Error processing Worksheet $(ws.name): Can't fetch rows from a closed workbook."
@@ -121,44 +131,44 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
     # will read next row from stream.
     # The stream should be already positioned in the next row
-    @assert nodename(reader) == "row"
-    current_row = parse(Int, reader["r"])
+    @assert XML.tag(nexttnode[begin]) == "row"
+    current_row = parse(Int, XML.attributes(nexttnode[begin])["r"])
     rowcells = Dict{Int, Cell}() # column -> cell
+    row_end = children(nexttnode[begin])[end]
 
     # iterate thru row cells
-    while EzXML.iterate(reader) != nothing
-
-        if is_end_of_sheet_data(reader)
-            close(state)
+    while nexttnode !== nothing
+        nexttnode = iterate(reader, state)
+        if is_end_of_sheet_data(nexttnode[begin], state.sheet_end)
+#            close(state)
             break
         end
 
         # If this is the end of this row, will point to the next row or set the end of this stream
-        if EzXML.nodetype(reader) == EzXML.READER_END_ELEMENT && nodename(reader) == "row"
+        if nexttnode[begin]==row_end
 
             while true
-                if is_end_of_sheet_data(reader)
-                    close(state)
+                if is_end_of_sheet_data(nexttnode[begin], state.sheet_end)
+#                    close(state)
                     break
-                elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
+                elseif XML.nodetype(nexttnode[begin]) == XML.Element && XML.tag(tnode) == "row"
                     break
                 end
-
-                @assert EzXML.iterate(reader) != nothing
+                nexttnode = iterate(reader, state)
+                @assert nexttnode !== nothing
             end
-
 
             # breaks while loop to return current row
             break
 
-        elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "c"
+        elseif XML.nodetype(nexttnode[begin]) == XML.Element && XML.tag(tnode) == "c"
 
             # reads current cell to rowcells
-            cell = Cell( EzXML.expandtree(reader) )
+            cell = Cell(nexttnode[begin])
             @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
             rowcells[column_number(cell)] = cell
 
-        elseif EzXML.nodetype(reader) == EzXML.READER_ELEMENT && nodename(reader) == "row"
+        elseif XML.nodetype(nexttnode[begin]) == XML.Element && XML.tag(tnode) == "row"
             # last row has no child elements, so we're already pointing to the next row
             break
         end
@@ -172,7 +182,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 end
 
 # Detects a closing sheetData element
-@inline is_end_of_sheet_data(r::EzXML.StreamReader) = (EzXML.nodedepth(r) <= 1) || (EzXML.nodetype(r) == EzXML.READER_END_ELEMENT && nodename(r) == "sheetData")
+@inline is_end_of_sheet_data(n::LazyNode, e::LazyNode) = (n == e)
 
 #
 # WorksheetCache
@@ -237,7 +247,7 @@ function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
     else
 
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
-        if next == nothing
+        if next === nothing
             return nothing
         end
 
@@ -311,7 +321,7 @@ end
 """
 function eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
-        if ws.cache == nothing
+        if ws.cache === nothing
             ws.cache = WorksheetCache(ws)
         end
         return ws.cache

@@ -1131,7 +1131,7 @@ end
         sheet["Q3"] = "this"
         sheet["Q4"] = "template"
     end
-    @test XLSX.writexlsx(filename_copy, template, overwrite=true) == nothing # This is where the bug will throw if custoimXml internal files present.
+    @test XLSX.writexlsx(filename_copy, template, overwrite=true) === nothing # This is where the bug will throw if custoimXml internal files present.
     @test isfile(filename_copy)
     f_copy = XLSX.readxlsx(filename_copy) # Don't really think this second part is necessary.
     test_Xmlread = [["Cant", "write", "this", "template"]]

@@ -69,7 +69,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
             end
 
             ZipArchives.zip_newfile(xlsx, f; compress=true)
-            EzXML.print(xlsx, xf.data[f])
+            XML.write(xlsx, xf.data[f])
         end
 
         # write binary files
@@ -89,11 +89,12 @@ end
 get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
 get_worksheet_xml_document(ws::Worksheet) = get_xlsxfile(ws).data[ get_worksheet_internal_file(ws) ]
 
-function set_worksheet_xml_document!(ws::Worksheet, xdoc::EzXML.Document)
+function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.LazyNode)
+    @assert nodetype(xdoc) == XML.Document "Expected an XML Document node, got $(nodetype(xdoc))."
     xf = get_xlsxfile(ws)
     filename = get_worksheet_internal_file(ws)
     @assert haskey(xf.data, filename) "Internal file not found for $(ws.name)."
-    xf.data[filename] = xdoc
+    xf.data[filename] = XML.parse(XML.Node, XML.write(xdoc)) # Convert from LazyNode to Node
 end
 
 function generate_sst_xml_string(sst::SharedStringTable) :: String
@@ -114,22 +115,18 @@ function generate_sst_xml_string(sst::SharedStringTable) :: String
 end
 
 function add_node_formula!(node, f::Formula)
-    f_node = EzXML.addelement!(node, "f")
-    EzXML.setnodecontent!(f_node, f.formula)
+    f_node = XML.Element("f", Text(f.formula))
+    push!(node, f_node)
 end
 
 function add_node_formula!(node, f::FormulaReference)
-    f_node = EzXML.addelement!(node, "f")
-    f_node["t"] = "shared"
-    f_node["si"] = string(f.id)
+    f_node = XML.Element!("f"; t = "shared", si = string(f.id))
+    push!(node, f_node)
 end
 
 function add_node_formula!(node, f::ReferencedFormula)
-    f_node = EzXML.addelement!(node, "f")
-    f_node["t"] = "shared"
-    f_node["si"] = string(f.id)
-    f_node["ref"] = f.ref
-    EzXML.setnodecontent!(f_node, f.formula)
+    f_node = XML.Element!("f", Text(f.formula); t = "shared", si = string(f.id), ref = f.ref)
+    push!(node, f_node)
 end
 
 function update_worksheets_xml!(xl::XLSXFile)
@@ -139,15 +136,15 @@ function update_worksheets_xml!(xl::XLSXFile)
     for i in 1:sheetcount(wb)
         sheet = getsheet(wb, i)
         doc = get_worksheet_xml_document(sheet)
-        xroot = EzXML.root(doc)
+        xroot = doc[end]
 
         # check namespace and root node name
         @assert get_default_namespace(xroot) == SPREADSHEET_NAMESPACE_XPATH_ARG[1][2] "Unsupported Spreadsheet XML namespace $(get_default_namespace(xroot))."
-        @assert EzXML.nodename(xroot) == "worksheet" "Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."
+        @assert XML.yag(xroot) == "worksheet" "Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."
 
         # forces a document copy to avoid crash: munmap_chunk(): invalid pointer
-        EzXML.print(buff, doc)
-        doc_copy = EzXML.parsexml(String(take!(buff)))
+        XML.write(buff, doc)
+        doc_copy = XML.parse(Node, String(take!(buff)))
 
         # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
         # |- Column formatting is preserved in the <cols> subtree.
@@ -161,11 +158,11 @@ function update_worksheets_xml!(xl::XLSXFile)
         ])
 
         let
-            child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
+            child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", doc_copy[end], SPREADSHEET_NAMESPACE_XPATH_ARG)
 
             for c in child_nodes # all elements under sheetData should be <row> elements
 
-                if EzXML.nodename(c) == "row"
+                if XML.tag(c) == "row"
 
                     attributes = EzXML.findall("@*", c, SPREADSHEET_NAMESPACE_XPATH_ARG)
                     unhandled_attributes_ = filter(attribute -> !in(attribute.name, handled_attributes), attributes)
@@ -177,7 +174,7 @@ function update_worksheets_xml!(xl::XLSXFile)
                         )
                     end
                 else
-                    @warn("Unexpected node under sheetData: $(EzXML.nodename(c))")
+                    @warn("Unexpected node under sheetData: $(XML.tag(c))")
                 end
 
                 # deletes all elements under sheetData
@@ -186,7 +183,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         end
 
         # updates sheetData
-        sheetData_node = EzXML.findfirst("/xpath:worksheet/xpath:sheetData", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
+        sheetData_node = EzXML.findfirst("/xpath:worksheet/xpath:sheetData", doc_copy[end], SPREADSHEET_NAMESPACE_XPATH_ARG)
 
         local spans_str::String = ""
 
@@ -200,9 +197,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             row_nr = row_number(r)
             ordered_column_indexes = sort(collect(keys(r.rowcells)))
 
-            row_node = EzXML.addelement!(sheetData_node, "row")
-            row_node["r"] = string(row_nr)
-
+            row_node = XML.Element!("row"; r = string(row_nr))
             if spans_str != ""
                 row_node["spans"] = spans_str
             end
@@ -216,9 +211,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             # add cells to row
             for c in ordered_column_indexes
                 cell = getcell(r, c)
-                c_element = EzXML.addelement!(row_node, "c")
-
-                c_element["r"] = cell.ref.name
+                c_element = XML.Element!("c"; r = cell.ref.name)
 
                 if cell.datatype != ""
                     c_element["t"] = cell.datatype
@@ -233,15 +226,19 @@ function update_worksheets_xml!(xl::XLSXFile)
                 end
 
                 if cell.value != ""
-                    v_node = EzXML.addelement!(c_element, "v")
-                    EzXML.setnodecontent!(v_node, cell.value)
+                    v_node = XML.Element!("v", Text(cell.value))
+                    push!(c_element, v_node)
                 end
+                push!(row_node, c_element)
             end
+
+            push!(sheetData_node, row_node)
+
         end
 
         # updates worksheet dimension
-        if get_dimension(sheet) != nothing
-            dimension_node = EzXML.findfirst("/xpath:worksheet/xpath:dimension", EzXML.root(doc_copy), SPREADSHEET_NAMESPACE_XPATH_ARG)
+        if get_dimension(sheet) !== nothing
+            dimension_node = EzXML.findfirst("/xpath:worksheet/xpath:dimension", doc_copy[end], SPREADSHEET_NAMESPACE_XPATH_ARG)
             dimension_node["ref"] = string(get_dimension(sheet))
         end
 
@@ -255,7 +252,7 @@ function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)
     # update worksheet dimension
     ws_dimension = get_dimension(ws)
 
-    if ws_dimension == nothing
+    if ws_dimension === nothing
         set_dimension!(ws, CellRange(cell.ref, cell.ref))
         return
     end
@@ -284,7 +281,7 @@ end
 
 function setdata!(ws::Worksheet, cell::Cell)
     @assert is_writable(get_xlsxfile(ws)) "XLSXFile instance is not writable."
-    @assert ws.cache != nothing "Can't write data to a Worksheet with empty cache."
+    @assert ws.cache !== nothing "Can't write data to a Worksheet with empty cache."
     cache = ws.cache
 
     r = row_number(cell)
@@ -519,10 +516,10 @@ function rename!(ws::Worksheet, name::AbstractString)
 
     # updates XML
     xroot = xmlroot(xf, "xl/workbook.xml")
-    for node in EzXML.eachelement(xroot)
-        if EzXML.nodename(node) == "sheets"
+    for node in children(xroot)
+        if XML.tag(node) == "sheets"
 
-            for sheet_node in EzXML.eachelement(node)
+            for sheet_node in children(node)
                 if sheet_node["name"] == ws.name
                     # assign new name
                     sheet_node["name"] = name
@@ -591,7 +588,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     current_sheet_ids = [ ws.sheetId for ws in wb.sheets ]
     sheetId = max(current_sheet_ids...) + 1
 
-    xdoc = EzXML.readxml(file_sheet_template)
+    xdoc = XML.read(file_sheet_template, Node)
 
     # generate a unique name for the XML
     local xml_filename::String
@@ -621,7 +618,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     itr = SheetRowStreamIterator(ws)
     zip_io, reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
-    state = SheetRowStreamIteratorState(zip_io, reader, true, 0)
+    state = SheetRowStreamIteratorState(zip_io, reader, children(reader)[end], true, 0)
     close(state)
     ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
 
@@ -630,15 +627,14 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     # updates workbook xml
     xroot = xmlroot(xf, "xl/workbook.xml")
-    for node in EzXML.eachelement(xroot)
-        if EzXML.nodename(node) == "sheets"
+    for node in children(xroot)
+        if XML.tag(node) == "sheets"
 
             #<sheet name="Sheet1" r:id="rId1" sheetId="1"/>
-            sheet_element = EzXML.addelement!(node, "sheet")
-            sheet_element["name"] = name
+            sheet_element = XML.Element!("sheet"; name = name)
             sheet_element["r:id"] = rId
             sheet_element["sheetId"] = string(sheetId)
-
+            push!(node, sheet_element)
             break
         end
     end

@@ -18,13 +18,13 @@ Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.val
 Base.:(==)(c1::EmptyCell, c2::EmptyCell) = c1.ref == c2.ref
 Base.hash(c::EmptyCell) = hash(c.ref) + 10
 
-function find_t_node_recursively(n::EzXML.Node) :: Union{Nothing, EzXML.Node}
-    if EzXML.nodename(n) == "t"
+function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode}
+    if XML.tag(n) == "t"
         return n
     else
-        for child in EzXML.eachelement(n)
+        for child in n
             result = find_t_node_recursively(child)
-            if result != nothing
+            if result !== nothing
                 return result
             end
         end
@@ -33,25 +33,27 @@ function find_t_node_recursively(n::EzXML.Node) :: Union{Nothing, EzXML.Node}
     return nothing
 end
 
-function Cell(c::EzXML.Node)
+function Cell(c::XML.LazyNode)
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert EzXML.nodename(c) == "c" "`Cell` Expects a `c` (cell) XML node."
+    @assert XML.tag(c) == "c" "`Cell` Expects a `c` (cell) XML node."
 
-    ref = CellRef(c["r"])
+    a = XML.attributes(c) # Dict of cell attributes
+
+    ref = CellRef(a["r"])
 
     # type
-    if haskey(c, "t")
-        t = c["t"]
+    if haskey(a, "t")
+        t = a["t"]
     else
         t = ""
     end
 
     # style
-    if haskey(c, "s")
-        s = c["s"]
+    if haskey(a, "s")
+        s = a["s"]
     else
         s = ""
     end
@@ -62,19 +64,19 @@ function Cell(c::EzXML.Node)
     local found_v::Bool = false
     local found_f::Bool = false
 
-    for c_child_element in EzXML.eachelement(c)
+    for c_child_element in c
 
         if t == "inlineStr"
 
-            if EzXML.nodename(c_child_element) == "is"
+            if XML.tag(c_child_element) == "is"
                 t_node = find_t_node_recursively(c_child_element)
-                if t_node != nothing
-                    v = EzXML.nodecontent(t_node)
+                if t_node !== nothing
+                    v = XML.value(t_node)
                 end
             end
 
         else
-            if EzXML.nodename(c_child_element) == "v"
+            if XML.tag(c_child_element) == "v"
 
                 # we should have only one v element
                 if found_v
@@ -83,8 +85,9 @@ function Cell(c::EzXML.Node)
                     found_v = true
                 end
 
-                v = EzXML.nodecontent(c_child_element)
-            elseif EzXML.nodename(c_child_element) == "f"
+                v = XML.value(c_child_element)
+
+            elseif XML.tag(c_child_element) == "f"
 
                 # we should have only one f element
                 if found_f
@@ -103,28 +106,30 @@ end
 
 function parse_formula_from_element(c_child_element) :: AbstractFormula
 
-    if EzXML.nodename(c_child_element) != "f"
-        error("Expected nodename `f`. Found: `$(EzXML.nodename(c_child_element))`")
+    if XML.tag(c_child_element) != "f"
+        error("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`")
     end
 
-    formula_string = EzXML.nodecontent(c_child_element)
+    formula_string = XML.value(c_child_element)
+    
+    a = XML.attributes(c_child_element)
 
-    if haskey(c_child_element, "ref") && haskey(c_child_element, "t") && c_child_element["t"] == "shared"
+    if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
 
-        haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+        haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
 
         return ReferencedFormula(
             formula_string,
-            parse(Int, c_child_element["si"]),
-            c_child_element["ref"],
+            parse(Int, a["si"]),
+            a["ref"],
         )
 
-    elseif haskey(c_child_element, "t") && c_child_element["t"] == "shared"
+    elseif haskey(a, "t") && a["t"] == "shared"
 
-        haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+        haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
 
         return FormulaReference(
-            parse(Int, c_child_element["si"]),
+            parse(Int, a["si"]),
         )
     else
         return Formula(formula_string)

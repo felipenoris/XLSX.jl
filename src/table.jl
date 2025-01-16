@@ -129,14 +129,14 @@ function eachtablerow(
             keep_empty_rows::Bool=false,
         ) :: TableRowIterator
 
-    if first_row == nothing
+    if first_row === nothing
         first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
     end
 
     itr = eachrow(sheet)
     column_range = convert(ColumnRange, cols)
 
-    if column_labels == nothing
+    if column_labels === nothing
         column_labels = Vector{Symbol}()
         if header
             # will use getdata to get column names
@@ -174,7 +174,7 @@ function eachtablerow(
             keep_empty_rows::Bool=false,
         ) :: TableRowIterator
 
-    if first_row == nothing
+    if first_row === nothing
         # if no columns were given,
         # first_row must be provided and cannot be inferred.
         # If it was not provided, will use first row as default value
@@ -259,7 +259,7 @@ end
 
 function Base.iterate(r::TableRow)
     next = iterate(table_column_numbers(r))
-    if next == nothing
+    if next === nothing
         return nothing
     else
         next_column_number, next_state = next
@@ -269,7 +269,7 @@ end
 
 function Base.iterate(r::TableRow, state)
     next = iterate(table_column_numbers(r), state)
-    if next == nothing
+    if next === nothing
         return nothing
     else
         next_column_number, next_state = next
@@ -310,7 +310,7 @@ function Base.iterate(itr::TableRowIterator)
     next = iterate(itr.itr)
 
     # go to the first_data_row
-    while next != nothing
+    while next !== nothing
         (sheet_row, sheet_row_iterator_state) = next
 
         if row_number(sheet_row) == itr.first_data_row
@@ -329,7 +329,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
     table_row_index = state.table_row_index + 1
     next = iterate(itr.itr, state.sheet_row_iterator_state) # iterate the SheetRowIterator
 
-    if next == nothing
+    if next === nothing
         return nothing
     end
 
@@ -368,7 +368,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
         elseif !itr.keep_empty_rows
             # keep looking for a non-empty row
             next = iterate(itr.itr, sheet_row_iterator_state)
-            while next != nothing
+            while next !== nothing
                 sheet_row, sheet_row_iterator_state = next
                 if !is_empty_table_row(sheet_row)
                     break
@@ -376,7 +376,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
                 next = iterate(itr.itr, sheet_row_iterator_state)
             end
 
-            if next == nothing
+            if next === nothing
                 # end of file
                 return nothing
             end
@@ -388,7 +388,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
     table_row = TableRow(table_row_index, itr.index, sheet_row)
 
     # user asked to stop
-    if itr.stop_in_row_function != nothing && itr.stop_in_row_function(table_row)
+    if itr.stop_in_row_function !== nothing && itr.stop_in_row_function(table_row)
         return nothing
     end
 

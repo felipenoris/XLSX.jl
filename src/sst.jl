@@ -23,7 +23,7 @@ end
 
 function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
     i = get_shared_string_index(sst, str_formatted)
-    if i != nothing
+    if i !== nothing
         # it's already in the table
         return i
     else
@@ -53,10 +53,12 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
 
         # add Content Type <Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" PartName="/xl/sharedStrings.xml"/>
         ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")
-        @assert EzXML.nodename(ctype_root) == "Types"
-        override_node = EzXML.addelement!(ctype_root, "Override")
-        override_node["ContentType"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"
-        override_node["PartName"] = "/xl/sharedStrings.xml"
+        @assert XML.tag(ctype_root) == "Types"
+        override_node = XML.Element("Override";
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml",
+            PartName = "/xl/sharedStrings.xml"
+        )
+        push!(ctype_root, override_node)
         init_sst_index(sst)
     end
 
@@ -77,11 +79,10 @@ function sst_load!(workbook::Workbook)
         if has_relationship_by_type(workbook, relationship_type)
             sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))
 
-            @assert EzXML.nodename(sst_root) == "sst"
-
+            @assert XML.tag(sst_root) == "sst"
             formatted_string_buffer = IOBuffer()
-            for el in EzXML.eachelement(sst_root)
-                @assert EzXML.nodename(el) == "si" "Unsupported node $(EzXML.nodename(el)) in sst table."
+            for el in sst_root
+                @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
                 push!(sst.unformatted_strings, unformatted_text(el))
 
                 print(formatted_string_buffer, el)
@@ -105,15 +106,15 @@ end
 # Helper function to gather unformatted text from Excel data files.
 # It looks at all children of `el` for tag name `t` and returns
 # a join of all the strings found.
-function unformatted_text(el::EzXML.Node) :: String
+function unformatted_text(el::XML.LazyNode) :: String
 
-    function gather_strings!(v::Vector{String}, e::EzXML.Node)
-        if EzXML.nodename(e) == "t"
-            push!(v, EzXML.nodecontent(e))
+    function gather_strings!(v::Vector{String}, e::XML.LazyNode)
+        if XML.tag(e) == "t"
+            push!(v, XML.value(e))
         end
 
-        for ch in EzXML.eachelement(e)
-            if EzXML.nodename(e) != "rPh"
+        for ch in e
+            if XML.tag(e) != "rPh"
                 gather_strings!(v, ch)
             end 
         end

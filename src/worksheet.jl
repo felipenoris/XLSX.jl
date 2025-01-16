@@ -1,10 +1,11 @@
 
-function Worksheet(xf::XLSXFile, sheet_element::EzXML.Node)
-    @assert EzXML.nodename(sheet_element) == "sheet"
-    sheetId = parse(Int, sheet_element["sheetId"])
-    relationship_id = sheet_element["r:id"]
-    name = sheet_element["name"]
-    is_hidden = haskey(sheet_element, "state") && sheet_element["state"] in ["hidden", "veryHidden"]
+function Worksheet(xf::XLSXFile, sheet_element::XML.LazyNode)
+    @assert XML.tag(sheet_element) == "sheet"
+    a = XML.attributes(sheet_element)
+    sheetId = parse(Int, a["sheetId"])
+    relationship_id = a["r:id"]
+    name = a["name"]
+    is_hidden = haskey(a, "state") && a["state"] in ["hidden", "veryHidden"]
     dim = read_worksheet_dimension(xf, relationship_id, name)
 
     return Worksheet(xf, sheetId, relationship_id, name, dim, is_hidden)
@@ -33,10 +34,13 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
 
     try
         # read Worksheet dimension
-        while EzXML.iterate(reader) != nothing
-            if EzXML.nodetype(reader) == EzXML.READER_ELEMENT && EzXML.nodename(reader) == "dimension"
-                @assert EzXML.nodedepth(reader) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(EzXML.nodedepth(reader))."
-                ref_str = reader["ref"]
+        nexttnode = iterate(reader)
+        # Now let's look for a row element, if it exists
+        while nexttnode !== nothing # go next node
+            (tnode, tstate) = nexttnode
+            if XML.nodetype(tnode) == XML.Element && XML.tag(reader) == "dimension"
+                @assert XML.depth(tnode) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(XML.depth(tnode))."
+                ref_str = attributes(tnode)["ref"]
                 if is_valid_cellname(ref_str)
                     result = CellRange("$(ref_str):$(ref_str)")
                 else
@@ -45,9 +49,10 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
 
                 break
             end
+            nexttnode = iterate(reader, tstate)
         end
     finally
-        close(reader)
+        # close(reader)
         # close(zip_io)
     end
 
@@ -198,7 +203,7 @@ end
 getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
 
 function getdata(ws::Worksheet)
-    if ws.dimension != nothing
+    if ws.dimension !== nothing
         return getdata(ws, get_dimension(ws))
     else
         error("Worksheet dimension is unknown.")
@@ -211,7 +216,7 @@ Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 function Base.show(io::IO, ws::Worksheet)
     hidden_string = ws.is_hidden ? "(hidden)" : ""
-    if get_dimension(ws) != nothing
+    if get_dimension(ws) !== nothing
         rg = get_dimension(ws)
         nrow, ncol = size(rg)
         @printf(io, "%d×%d %s: [\"%s\"](%s) %s", nrow, ncol, typeof(ws), ws.name, rg, hidden_string)

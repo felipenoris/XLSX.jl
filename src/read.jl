@@ -132,7 +132,7 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
 
     if _read
         @assert source isa IO || isfile(source) "File $source not found."
-        xf = open_or_read_xlsx(source, _write, enable_cache, _write)
+        xf = open_or_read_xlsx(source, _write, enable_cache, _write) # Why _write, _write here???
     else
         xf = open_empty_template()
     end
@@ -169,7 +169,7 @@ function openxlsx(source::Union{AbstractString, IO};
 
     if _read
         @assert source isa IO || isfile(source) "File $source not found."
-        return open_or_read_xlsx(source, _write, enable_cache, _write)
+        return open_or_read_xlsx(source, _write, enable_cache, _write) # Why _write, _write here???
     else
         return open_empty_template()
     end
@@ -255,12 +255,27 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
 
     return xf
 end
+function get_namespaces(r::XML.LazyNode) :: Dict{String, String}
+    nss = Dict{String, String}()
+    for (key, value) in XML.attributes(r)
+        if startswith(key, "xmlns")
+            prefix = split(key, ':')
+            if length(prefix) == 1
+                nss[""] = value  # Default namespace
+            else
+                nss[prefix[2]] = value
+            end
+        end
+    end
+    return nss
+end
+function get_default_namespace(r::XML.LazyNode) :: String
+    nss = get_namespaces(r)
 
-function get_default_namespace(r::EzXML.Node) :: String
-    nss = EzXML.namespaces(r)
     # in case that only one namespace is defined, assume that it is the default one
     # even if it has a prefix
-    length(nss) == 1 && return nss[1][2]
+    length(nss) == 1 && return first(values(nss))
+    
     # otherwise, look for the default namespace (without prefix)
     for (prefix, ns) in nss
         if prefix == ""
@@ -292,7 +307,7 @@ function parse_relationships!(xf::XLSXFile)
 
     # package level relationships
     xroot = get_package_relationship_root(xf)
-    for el in EzXML.eachelement(xroot)
+    for el in xroot
         push!(xf.relationships, Relationship(el))
     end
     @assert !isempty(xf.relationships) "Relationships not found in _rels/.rels!"
@@ -300,7 +315,7 @@ function parse_relationships!(xf::XLSXFile)
     # workbook level relationships
     wb = get_workbook(xf)
     xroot = get_workbook_relationship_root(xf)
-    for el in EzXML.eachelement(xroot)
+    for el in xroot
         push!(wb.relationships, Relationship(el))
     end
     @assert !isempty(wb.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
@@ -311,7 +326,7 @@ end
 # Updates xf.workbook from xf.data[\"xl/workbook.xml\"]
 function parse_workbook!(xf::XLSXFile)
     xroot = xmlroot(xf, "xl/workbook.xml")
-    @assert EzXML.nodename(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(EzXML.nodename(xroot))'."
+    @assert XML.tag(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(XML.tag(xroot))'."
 
     # workbook to be parsed
     workbook = get_workbook(xf)
@@ -321,13 +336,13 @@ function parse_workbook!(xf::XLSXFile)
     workbook.date1904 = false
 
     # changes workbook.date1904 if there is a setting in the workbookPr node
-    for node in EzXML.eachelement(xroot)
-        if EzXML.nodename(node) == "workbookPr"
+    for node in xroot
+        if XML.tag(node) == "workbookPr"
 
             # read date1904 attribute
-            if haskey(node, "date1904")
-                attribute_value_date1904 = node["date1904"]
-
+            d1904 = findfirst(y -> y=="date1904", [XML.tag.(x) for x in node])
+            if !isnothing(d1904)
+                attribute_value_date1904 = XML.attributes(node)["date1904"]
                 if attribute_value_date1904 == "1" || attribute_value_date1904 == "true"
                     workbook.date1904 = true
                 elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
@@ -343,11 +358,11 @@ function parse_workbook!(xf::XLSXFile)
 
     # sheets
     sheets = Vector{Worksheet}()
-    for node in EzXML.eachelement(xroot)
-        if EzXML.nodename(node) == "sheets"
+    for node in xroot
+        if XML.tag(node) == "sheets"
 
-            for sheet_node in EzXML.eachelement(node)
-                @assert EzXML.nodename(sheet_node) == "sheet" "Unsupported node $(EzXML.nodename(sheet_node)) in 'xl/workbook.xml'."
+           for sheet_node in node
+                @assert XML.tag(sheet_node) == "sheet" "Unsupported node $(XML.tag(sheet_node)) in 'xl/workbook.xml'."
                 worksheet = Worksheet(xf, sheet_node)
                 push!(sheets, worksheet)
             end
@@ -358,55 +373,57 @@ function parse_workbook!(xf::XLSXFile)
     workbook.sheets = sheets
 
     # named ranges
-    for node in EzXML.eachelement(xroot)
-        if EzXML.nodename(node) == "definedNames"
-            for defined_name_node in EzXML.eachelement(node)
-                @assert EzXML.nodename(defined_name_node) == "definedName"
-                defined_value_string = EzXML.nodecontent(defined_name_node)
-                name = defined_name_node["name"]
+    for node in root
+        if XML.tag(node) == "definedNames"
+            for defined_name_node in node
+                if XML.tag(defined_name_node) == "definedName"
+                    defined_value_string = XML.value(defined_name_node[1])
+                    name = XML.attributes(defined_name_node)["name"]
 
                 local defined_value::DefinedNameValueTypes
 
-                if is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
-                    defined_value = SheetCellRef(defined_value_string)
-                elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
-                    defined_value = SheetCellRange(defined_value_string)
-                elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
-                    defined_value = defined_value_string[2:end-1] # remove enclosing quotes
-                    if isempty(defined_value)
+                    if is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
+                        defined_value = SheetCellRef(defined_value_string)
+                    elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
+                        defined_value = SheetCellRange(defined_value_string)
+                    elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
+                        defined_value = defined_value_string[2:end-1] # remove enclosing quotes
+                        if isempty(defined_value)
+                            defined_value = missing
+                        end
+                    elseif tryparse(Int, defined_value_string) !== nothing
+                        defined_value = parse(Int, defined_value_string)
+                    elseif tryparse(Float64, defined_value_string) !== nothing
+                        defined_value = parse(Float64, defined_value_string)
+                    elseif isempty(defined_value_string)
                         defined_value = missing
+                    else
+
+                        # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
+                        continue
+
+                        # debug
+                        #error("Could not parse value $(defined_value_string) for definedName $name.")
                     end
-                elseif tryparse(Int, defined_value_string) != nothing
-                    defined_value = parse(Int, defined_value_string)
-                elseif tryparse(Float64, defined_value_string) != nothing
-                    defined_value = parse(Float64, defined_value_string)
-                elseif isempty(defined_value_string)
-                    defined_value = missing
-                else
 
-                    # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
-                    continue
+                    lsid = findfirst(y -> y=="localSheetId", [XML.tag.(x) for x in defined_name_node])
+                    if !isnothing(lsid)
+                        # is a Worksheet level name
 
-                    # debug
-                    #error("Could not parse value $(defined_value_string) for definedName $name.")
+                        # localSheetId is the 0-based index of the Worksheet in the order
+                        # that it is displayed on screen.
+                        # Which is the order of the elements under <sheets> element in workbook.xml .
+                        localSheetId = parse(Int, XML.value(defined_name_node[lsid])) + 1
+                        sheetId = workbook.sheets[localSheetId].sheetId
+                        workbook.worksheet_names[(sheetId, name)] = defined_value
+                    else
+                        # is a Workbook level name
+                        workbook.workbook_names[name] = defined_value
+                    end
                 end
 
-                if haskey(defined_name_node, "localSheetId")
-                    # is a Worksheet level name
-
-                    # localSheetId is the 0-based index of the Worksheet in the order
-                    # that it is displayed on screen.
-                    # Which is the order of the elements under <sheets> element in workbook.xml .
-                    localSheetId = parse(Int, defined_name_node["localSheetId"]) + 1
-                    sheetId = workbook.sheets[localSheetId].sheetId
-                    workbook.worksheet_names[(sheetId, name)] = defined_value
-                else
-                    # is a Workbook level name
-                    workbook.workbook_names[name] = defined_value
-                end
+                break
             end
-
-            break
         end
     end
 
@@ -428,13 +445,13 @@ function internal_xml_file_add!(xl::XLSXFile, filename::String)
     nothing
 end
 
-function internal_xml_file_read(xf::XLSXFile, filename::String) :: EzXML.Document
-    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
+function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.LazyNode
+        @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
 
     if !internal_xml_file_isread(xf, filename)
         @assert isopen(xf) "Can't read from a closed XLSXFile."
         try
-            xf.data[filename] = EzXML.parsexml(ZipArchives.zip_readentry(xf.io, filename))
+           xf.data[filename] = XML.parse(ZipArchives.zip_readentry(xf.io, filename), LazyNode)
             xf.files[filename] = true # set file as read
         catch err
             @error("Failed to parse internal XML file `$filename`")
@@ -453,7 +470,7 @@ function Base.close(xl::XLSXFile)
 
     # close all internal file streams from worksheet caches
     for sheet in xl.workbook.sheets
-        if sheet.cache != nothing && sheet.cache.stream_state != nothing
+        if sheet.cache !== nothing && sheet.cache.stream_state !== nothing
             close(sheet.cache.stream_state)
         end
     end
@@ -463,11 +480,10 @@ Base.isopen(xl::XLSXFile) = xl.io_is_open
 
 # Utility method to find the XMLDocument associated with a given package filename.
 # Returns xl.data[filename] if it exists. Throws an error if it doesn't.
-@inline xmldocument(xl::XLSXFile, filename::String) :: EzXML.Document = internal_xml_file_read(xl, filename)
+@inline xmldocument(xl::XLSXFile, filename::String) :: XML.LazyNode = internal_xml_file_read(xl, filename)
 
 # Utility method to return the root element of a given XMLDocument from the package.
-# Returns EzXML.root(xl.data[filename]) if it exists.
-@inline xmlroot(xl::XLSXFile, filename::String) :: EzXML.Node = EzXML.root(xmldocument(xl, filename))
+@inline xmlroot(xl::XLSXFile, filename::String) :: XML.LazyNode = xmldocument(xl, filename)[end]
 
 #
 # Helper Functions
