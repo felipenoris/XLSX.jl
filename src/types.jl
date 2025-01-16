@@ -195,8 +195,8 @@ abstract type SheetRowIterator end
 
 mutable struct SheetRowStreamIteratorState # Are zip_io and is_open necessary?
     zip_io::ZipArchives.ZipReader
-    xml_stream_reader::LazyNode
-    sheet_end::LazyNode
+    xml_stream_reader::XML.LazyNode
+    nexttnode::Union{Nothing, XML.LazyNode}
     is_open::Bool # indicated if zip_io and xml_stream_reader are opened
     row::Int # number of current row. It´s set to 0 in the start state.
 end
@@ -377,5 +377,14 @@ struct DataTable
         end
 
         return new(data, column_labels, column_label_index)
+    end
+end
+
+struct xpath
+    node::XML.Node
+    path::String
+
+    function xpath(node::XML.Node, path::String)
+        new(node, path)
     end
 end

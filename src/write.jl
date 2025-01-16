@@ -129,6 +129,41 @@ function add_node_formula!(node, f::ReferencedFormula)
     push!(node, f_node)
 end
 
+function find_all_nodes(givenpath::String, doc::XML.Node)::Vector{XML.Node}
+    @assert XML.nodetype(doc) == XML.Document
+    found_nodes = Vector{XML.Node}()
+    for xp in get_node_paths(doc)
+        if xp.path == givenpath
+            push!(found_nodes, xp.node)
+        end
+    end
+    return found_nodes
+end
+function get_node_paths(node::XML.Node)
+    @assert XML.nodetype(node) == XML.Document
+    default_ns = get_default_namespace(parse(XML.LazyNode, XML.write(node))[end])
+    xpaths = Vector{xpath}()
+    get_node_paths!(xpaths, node, default_ns, "")
+    return xpaths
+end
+
+function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path)
+    for c in XML.children(node)
+        if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
+            node_tag = XML.tag(c)
+            if !occursin(":", node_tag)
+                node_tag = default_ns * ":" * node_tag
+            end
+            npath = path * "/" * node_tag
+            push!(xpaths, xpath(c, npath))
+            if length(XML.children(c))>0
+                get_node_paths!(xpaths, c, default_ns, npath)
+            end
+        end
+    end 
+    return nothing
+end
+
 function update_worksheets_xml!(xl::XLSXFile)
     buff = IOBuffer()
     wb = get_workbook(xl)
@@ -158,7 +193,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         ])
 
         let
-            child_nodes = EzXML.findall("/xpath:worksheet/xpath:sheetData/xpath:row", doc_copy[end], SPREADSHEET_NAMESPACE_XPATH_ARG)
+            child_nodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData/$SPREADSHEET_NAMESPACE_XPATH_ARG:row", doc_copy)
 
             for c in child_nodes # all elements under sheetData should be <row> elements
 
@@ -516,10 +551,10 @@ function rename!(ws::Worksheet, name::AbstractString)
 
     # updates XML
     xroot = xmlroot(xf, "xl/workbook.xml")
-    for node in children(xroot)
+    for node in XML.children(xroot)
         if XML.tag(node) == "sheets"
 
-            for sheet_node in children(node)
+            for sheet_node in XML.children(node)
                 if sheet_node["name"] == ws.name
                     # assign new name
                     sheet_node["name"] = name
@@ -618,7 +653,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     itr = SheetRowStreamIterator(ws)
     zip_io, reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
-    state = SheetRowStreamIteratorState(zip_io, reader, children(reader)[end], true, 0)
+    state = SheetRowStreamIteratorState(zip_io, reader, XML.children(reader)[end], true, 0)
     close(state)
     ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
 
@@ -627,7 +662,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     # updates workbook xml
     xroot = xmlroot(xf, "xl/workbook.xml")
-    for node in children(xroot)
+    for node in XML.children(xroot)
         if XML.tag(node) == "sheets"
 
             #<sheet name="Sheet1" r:id="rId1" sheetId="1"/>

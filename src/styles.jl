@@ -77,7 +77,7 @@ end
 # `index` is 0-based.
 function styles_cell_xf(wb::Workbook, index::Int) :: XML.LazyNode
     xroot = styles_xmlroot(wb)
-    xf_elements = findall("/xpath:styleSheet/xpath:cellXfs/xpath:xf", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+    xf_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
     return xf_elements[index+1]
 end
 
@@ -95,9 +95,9 @@ end
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
 
-    numfmts = findall("/xpath:styleSheet/xpath:numFmts", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+    numfmts = find_all_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)
     if isempty(numfmts)
-        stylesheet = findfirst("/xpath:styleSheet", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+        stylesheet = find_all_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet", xroot)[begin] # find first
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
@@ -151,7 +151,8 @@ end
 # Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = styles_xmlroot(wb)
-    elements_found = findall("/xpath:styleSheet/xpath:numFmts/xpath:numFmt[@numFmtId='$(numFmtId)']", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+    nodes_found = find_all_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmt", xroot)
+    elements_found = filter(x->XML.attributes(x)["numFmtId"] == numFmtId, nodes_found)
     @assert length(elements_found) == 1 "numFmtId $numFmtId not found."
     return XML.attributes(elements_found[1])["formatCode"]
 end
@@ -256,7 +257,7 @@ Returns -1 if not found.
 =#
 function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
-    elements_found = findall("/xpath:styleSheet/xpath:cellXfs/xpath:xf", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+    elements_found = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
 
     if isempty(elements_found)
         return EmptyCellDataFormat()

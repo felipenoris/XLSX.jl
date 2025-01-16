@@ -361,8 +361,8 @@ function parse_workbook!(xf::XLSXFile)
     for node in xroot
         if XML.tag(node) == "sheets"
 
-           for sheet_node in node
-                @assert XML.tag(sheet_node) == "sheet" "Unsupported node $(XML.tag(sheet_node)) in 'xl/workbook.xml'."
+           for sheet_node in XML.children(node)
+                @assert XML.tag(sheet_node) == "sheet" "Unsupported node $(XML.tag(sheet_node)) in node $(XML.tag(node)) in 'xl/workbook.xml'."
                 worksheet = Worksheet(xf, sheet_node)
                 push!(sheets, worksheet)
             end
@@ -373,9 +373,9 @@ function parse_workbook!(xf::XLSXFile)
     workbook.sheets = sheets
 
     # named ranges
-    for node in root
+    for node in xroot
         if XML.tag(node) == "definedNames"
-            for defined_name_node in node
+            for defined_name_node in XML.children(node)
                 if XML.tag(defined_name_node) == "definedName"
                     defined_value_string = XML.value(defined_name_node[1])
                     name = XML.attributes(defined_name_node)["name"]
@@ -451,7 +451,7 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.LazyNode
     if !internal_xml_file_isread(xf, filename)
         @assert isopen(xf) "Can't read from a closed XLSXFile."
         try
-           xf.data[filename] = XML.parse(ZipArchives.zip_readentry(xf.io, filename), LazyNode)
+            xf.data[filename] = XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
             xf.files[filename] = true # set file as read
         catch err
             @error("Failed to parse internal XML file `$filename`")
@@ -483,7 +483,7 @@ Base.isopen(xl::XLSXFile) = xl.io_is_open
 @inline xmldocument(xl::XLSXFile, filename::String) :: XML.LazyNode = internal_xml_file_read(xl, filename)
 
 # Utility method to return the root element of a given XMLDocument from the package.
-@inline xmlroot(xl::XLSXFile, filename::String) :: XML.LazyNode = xmldocument(xl, filename)[end]
+@inline xmlroot(xl::XLSXFile, filename::String) :: XML.LazyNode = xmldocument(xl, filename)
 
 #
 # Helper Functions

@@ -42,7 +42,7 @@ function nodename(x::XML.LazyNode)
 end
 
 @inline get_worksheet(itr::SheetRowIterator) = itr.sheet
-@inline row_number(state::SheetRowIteratorState) = state.row
+@inline row_number(state::SheetRowStreamIteratorState) = state.row
 
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( is open = $(state.is_open) , row = $(state.row) )")
 
@@ -51,8 +51,8 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
     @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
 
-    f = ZipArchives.zip_openentry(xf.io, filename)
-    return xf.io, XML.parse(ZipArchives.zip_readentry(zip, f, String), LazyNode)
+#    zip = ZipArchives.ZipReader(xf)
+    return xf.io, XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
 
     error("Couldn't find $filename in $(xf.source).")
 end
@@ -94,7 +94,10 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             end
 
             @assert XML.tag(nexttnode[begin]) == "sheetData" "Malformed Worksheet \"$(ws.name)\": Couldn't find sheetData element."
-            sheet_end = children(nexttnode[begin])[end]
+#            se=XML.children(nexttnode[begin])
+#            println(se)
+            sheet_end = XML.children(nexttnode[begin])
+            
             nexttnode = iterate(reader, nexttnode[end])
             # Now let's look for a row element, if it exists
             while nexttnode !== nothing # go next node
@@ -112,7 +115,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             end
 
             # row number is set to 0 in the first state
-            SheetRowStreamIteratorState(zip_io, reader, sheet_end, true, 0)
+            SheetRowStreamIteratorState(zip_io, reader, isnothing(nexttnode) ? nothing : nexttnode[begin], true, 0)
         end
     end
 
@@ -121,7 +124,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
 
     reader = state.xml_stream_reader
-    nexttnode = iterate(reader, state)
+#    nexttnode = iterate(reader, state)
     if is_end_of_sheet_data(nexttnode[begin], state.sheet_end)
 #        @assert !isopen(state)
         return nothing
@@ -134,11 +137,13 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     @assert XML.tag(nexttnode[begin]) == "row"
     current_row = parse(Int, XML.attributes(nexttnode[begin])["r"])
     rowcells = Dict{Int, Cell}() # column -> cell
-    row_end = children(nexttnode[begin])[end]
+    row_end = XML.children(nexttnode[begin])[end]
+
+    nexttnode = iterate(reader, state)
 
     # iterate thru row cells
     while nexttnode !== nothing
-        nexttnode = iterate(reader, state)
+#        nexttnode = iterate(reader, state)
         if is_end_of_sheet_data(nexttnode[begin], state.sheet_end)
 #            close(state)
             break
@@ -182,7 +187,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 end
 
 # Detects a closing sheetData element
-@inline is_end_of_sheet_data(n::LazyNode, e::LazyNode) = (n == e)
+@inline is_end_of_sheet_data(n::XML.LazyNode, e::Vector{XML.LazyNode}) = length(e)==0 ? true : (n == e[end])
 
 #
 # WorksheetCache
