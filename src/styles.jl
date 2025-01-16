@@ -127,7 +127,7 @@ const FontAttribute = Union{AbstractString, Pair{String, Pair{String, String}}}
 # Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
 function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
     xroot = styles_xmlroot(wb)
-    fonts_element = findfirst("/xpath:styleSheet/xpath:fonts", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+    fonts_element = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts", xroot)[begin]
     existing_font_elements_count = length(XML.children(fonts_element))
 
     new_font = XML.Element("font")
@@ -278,7 +278,7 @@ end
 
 function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: CellDataFormat
     xroot = styles_xmlroot(wb)
-    cellXfs_element = findfirst("/xpath:styleSheet/xpath:cellXfs", xroot, SPREADSHEET_NAMESPACE_XPATH_ARG)
+    cellXfs_element = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs", xroot)[begin]
     existing_cellxf_elements_count = length(XML.children(cellXfs_element))
 
     new_xf = XML.Element("xf")
