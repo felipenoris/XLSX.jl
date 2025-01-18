@@ -163,6 +163,22 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
     end 
     return nothing
 end
+function unlink_rows!(node::XML.Node) # removes all rows from a worksheet XML node.
+    new_worksheet = XML.Element("worksheet")
+    a = XML.attributes(node)
+    if !isnothing(a)
+        for (k, v) in XML.attributes(node)
+            new_worksheet[k] = v
+        end
+    end
+    for child in XML.children(node)
+        if XML.tag(child) != "row"
+            push!(new_worksheet, child)
+        end
+    end
+    node = new_worksheet
+    return nothing
+end
 
 function update_worksheets_xml!(xl::XLSXFile)
     buff = IOBuffer()
@@ -175,11 +191,11 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # check namespace and root node name
         @assert get_default_namespace(xroot) == SPREADSHEET_NAMESPACE_XPATH_ARG[1][2] "Unsupported Spreadsheet XML namespace $(get_default_namespace(xroot))."
-        @assert XML.yag(xroot) == "worksheet" "Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."
+        @assert XML.tag(xroot) == "worksheet" "Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."
 
         # forces a document copy to avoid crash: munmap_chunk(): invalid pointer
-        XML.write(buff, doc)
-        doc_copy = XML.parse(Node, String(take!(buff)))
+        
+        doc_copy = XML.parse(Node, XML.write(doc)) # I doubt this remains necessary.
 
         # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
         # |- Column formatting is preserved in the <cols> subtree.
@@ -195,30 +211,33 @@ function update_worksheets_xml!(xl::XLSXFile)
         let
             child_nodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData/$SPREADSHEET_NAMESPACE_XPATH_ARG:row", doc_copy)
 
+            parent = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc_copy)
+            @assert length(parent) == 1 "Expected a single sheetData node in the worksheet XML file."
+
             for c in child_nodes # all elements under sheetData should be <row> elements
 
                 if XML.tag(c) == "row"
 
-                    attributes = EzXML.findall("@*", c, SPREADSHEET_NAMESPACE_XPATH_ARG)
-                    unhandled_attributes_ = filter(attribute -> !in(attribute.name, handled_attributes), attributes)
-
-                    if !isempty(unhandled_attributes_)
-                        row_nr = parse(Int, c["r"])
-                        unhandled_attributes[row_nr] = Dict{String,String}(
-                            [Pair(unhandled_attribute.name, unhandled_attribute.content) for unhandled_attribute in unhandled_attributes_]...
-                        )
+                    attributes = XML.attributes(c)
+                    if !isnothing(attributes)
+                        unhandled_attributes_ = filter(attribute -> !in(first[attribute], handled_attributes), attributes)
+                        if length(unhandled_attributes_)>0
+                            row_nr = parse(Int, c["r"])
+                            unhandled_attributes[row_nr] = unhandled_attributes_
+                        end
                     end
                 else
                     @warn("Unexpected node under sheetData: $(XML.tag(c))")
                 end
-
-                # deletes all elements under sheetData
-                EzXML.unlink!(c)
+              
             end
+
+            unlink_rows!(parent)
+
         end
 
         # updates sheetData
-        sheetData_node = EzXML.findfirst("/xpath:worksheet/xpath:sheetData", doc_copy[end], SPREADSHEET_NAMESPACE_XPATH_ARG)
+        sheetData_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc_copy)[begin]
 
         local spans_str::String = ""
 
@@ -273,7 +292,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # updates worksheet dimension
         if get_dimension(sheet) !== nothing
-            dimension_node = EzXML.findfirst("/xpath:worksheet/xpath:dimension", doc_copy[end], SPREADSHEET_NAMESPACE_XPATH_ARG)
+            dimension_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:dimension", doc_copy)[begin]
             dimension_node["ref"] = string(get_dimension(sheet))
         end
 
