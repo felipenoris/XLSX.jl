@@ -22,7 +22,7 @@ function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode
     if XML.tag(n) == "t"
         return n
     else
-        for child in n
+        for child in XML.children(n)
             result = find_t_node_recursively(child)
             if result !== nothing
                 return result
@@ -64,14 +64,16 @@ function Cell(c::XML.LazyNode)
     local found_v::Bool = false
     local found_f::Bool = false
 
-    for c_child_element in c
-
+    for c_child_element in XML.children(c)
+ 
         if t == "inlineStr"
 
             if XML.tag(c_child_element) == "is"
                 t_node = find_t_node_recursively(c_child_element)
                 if t_node !== nothing
-                    v = XML.value(t_node)
+                    a = XML.attributes(t_node)
+                    @assert length(a) == 1 "Expected only one attributes in `t` node. Found: $(length(a))"
+                    v= first(a)[2]
                 end
             end
 
@@ -84,8 +86,9 @@ function Cell(c::XML.LazyNode)
                 else
                     found_v = true
                 end
-
-                v = XML.value(c_child_element)
+                
+                #v = isnothing(XML.value(c_child_element)) ? "" : XML.value(c_child_element)
+                v = (XML.simple_value(c_child_element))
 
             elseif XML.tag(c_child_element) == "f"
 

@@ -78,10 +78,9 @@ function sst_load!(workbook::Workbook)
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
             sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))
-
             @assert XML.tag(sst_root) == "sst"
             formatted_string_buffer = IOBuffer()
-            for el in sst_root
+            for el in XML.children(sst_root)
                 @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
                 push!(sst.unformatted_strings, unformatted_text(el))
 
@@ -110,10 +109,10 @@ function unformatted_text(el::XML.LazyNode) :: String
 
     function gather_strings!(v::Vector{String}, e::XML.LazyNode)
         if XML.tag(e) == "t"
-            push!(v, XML.value(e))
+            push!(v, XML.simple_value(e))
         end
 
-        for ch in e
+        for ch in XML.children(e)
             if XML.tag(e) != "rPh"
                 gather_strings!(v, ch)
             end 

@@ -30,17 +30,17 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
 
     wb = get_workbook(xf)
     target_file = get_relationship_target_by_id("xl", wb, relationship_id)
-    zip_io, reader = open_internal_file_stream(xf, target_file)
+    zip_io, doc = open_internal_file_stream(xf, target_file)
 
     try
         # read Worksheet dimension
-        nexttnode = iterate(reader)
+        reader = iterate(doc)
         # Now let's look for a row element, if it exists
-        while nexttnode !== nothing # go next node
-            (tnode, tstate) = nexttnode
-            if XML.nodetype(tnode) == XML.Element && XML.tag(reader) == "dimension"
-                @assert XML.depth(tnode) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(XML.depth(tnode))."
-                ref_str = attributes(tnode)["ref"]
+        while reader !== nothing # go next node
+            (sheet_row, state) = reader
+            if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
+                @assert XML.depth(sheet_row) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."
+                ref_str = XML.attributes(sheet_row)["ref"]
                 if is_valid_cellname(ref_str)
                     result = CellRange("$(ref_str):$(ref_str)")
                 else
@@ -49,7 +49,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
 
                 break
             end
-            nexttnode = iterate(reader, tstate)
+            reader = iterate(doc, state)
         end
     finally
         # close(reader)
