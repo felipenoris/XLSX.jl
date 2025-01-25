@@ -65,7 +65,6 @@ function Cell(c::XML.LazyNode)
     local found_f::Bool = false
 
     for c_child_element in XML.children(c)
- 
         if t == "inlineStr"
 
             if XML.tag(c_child_element) == "is"
@@ -87,7 +86,6 @@ function Cell(c::XML.LazyNode)
                     found_v = true
                 end
                 
-                #v = isnothing(XML.value(c_child_element)) ? "" : XML.value(c_child_element)
                 v = (XML.simple_value(c_child_element))
 
             elseif XML.tag(c_child_element) == "f"
@@ -103,7 +101,6 @@ function Cell(c::XML.LazyNode)
             end
         end
     end
-
     return Cell(ref, t, s, v, f)
 end
 
@@ -113,31 +110,35 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
         error("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`")
     end
 
-    formula_string = XML.value(c_child_element)
+    formula_string = XML.is_simple(c_child_element) ? XML.simple_value(c_child_element) : XML.value(c_child_element[1])
     
     a = XML.attributes(c_child_element)
 
-    if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
+    if !isnothing(a)
 
-        haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+        if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
 
-        return ReferencedFormula(
-            formula_string,
-            parse(Int, a["si"]),
-            a["ref"],
-        )
+            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
 
-    elseif haskey(a, "t") && a["t"] == "shared"
+            return ReferencedFormula(
+                formula_string,
+                parse(Int, a["si"]),
+                a["ref"],
+            )
 
-        haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+        elseif haskey(a, "t") && a["t"] == "shared"
 
-        return FormulaReference(
-            parse(Int, a["si"]),
-        )
-    else
-        return Formula(formula_string)
+            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+
+            return FormulaReference(
+                parse(Int, a["si"]),
+            )
+        end
     end
+
+    return Formula(formula_string)
 end
+
 
 # Constructor with simple formula string for backward compatibility
 function Cell(ref::CellRef, datatype::String, style::String, value::String, formula::String)
@@ -205,15 +206,17 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
             return _celldata_datetime(cell.value, isdate1904(ws))
 
         elseif !isempty(cell.style) && styles_is_float(ws, cell.style)
-
+            println("cell209 : ", ws, " : ", cell.value, " ia a float" )
             # float
             return parse(Float64, cell.value)
 
         else
             # fallback to unformatted number
             if occursin(RGX_INTEGER, cell.value)  # if contains only numbers
+                println("cell216 : ", ws, " : ", cell.value, " ia an int" )
                 v_num = parse(Int, cell.value)
             else
+                println("cell218 : ", ws, " : ", cell.value, " ia a float" )
                 v_num = parse(Float64, cell.value)
             end
 

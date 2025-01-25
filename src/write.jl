@@ -94,7 +94,8 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.LazyNode)
     xf = get_xlsxfile(ws)
     filename = get_worksheet_internal_file(ws)
     @assert haskey(xf.data, filename) "Internal file not found for $(ws.name)."
-    xf.data[filename] = XML.parse(XML.Node, XML.write(xdoc)) # Convert from LazyNode to Node
+    xf.data[filename] = xdoc #As LazyNode
+#    xf.data[filename] = XML.parse(XML.LazyNode, XML.write(xdoc)) # Convert from LazyNode to Node
 end
 
 function generate_sst_xml_string(sst::SharedStringTable) :: String
@@ -141,12 +142,15 @@ function find_all_nodes(givenpath::String, doc::XML.Node)::Vector{XML.Node}
 end
 function get_node_paths(node::XML.Node)
     @assert XML.nodetype(node) == XML.Document
-    default_ns = get_default_namespace(parse(XML.LazyNode, XML.write(node))[end])
+    default_ns = get_default_namespace(node[end])
     xpaths = Vector{xpath}()
     get_node_paths!(xpaths, node, default_ns, "")
     return xpaths
 end
-
+#function lazy2node(n::XML.LazyNode) ::XML.Node
+#    println(n)
+#    return XML.parse(XML.Node, XML.write(n))
+#end
 function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path)
     for c in XML.children(node)
         if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
@@ -195,7 +199,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # forces a document copy to avoid crash: munmap_chunk(): invalid pointer
         
-        doc_copy = XML.parse(Node, XML.write(doc)) # I doubt this remains necessary.
+#        doc_copy = XML.parse(Node, XML.write(doc)) # I doubt this remains necessary.
 
         # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
         # |- Column formatting is preserved in the <cols> subtree.
@@ -209,9 +213,9 @@ function update_worksheets_xml!(xl::XLSXFile)
         ])
 
         let
-            child_nodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData/$SPREADSHEET_NAMESPACE_XPATH_ARG:row", doc_copy)
+            child_nodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData/$SPREADSHEET_NAMESPACE_XPATH_ARG:row", doc)
 
-            parent = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc_copy)
+            parent = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc)
             @assert length(parent) == 1 "Expected a single sheetData node in the worksheet XML file."
 
             for c in child_nodes # all elements under sheetData should be <row> elements
@@ -237,7 +241,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         end
 
         # updates sheetData
-        sheetData_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc_copy)[begin]
+        sheetData_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc)[begin]
 
         local spans_str::String = ""
 
@@ -292,11 +296,11 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # updates worksheet dimension
         if get_dimension(sheet) !== nothing
-            dimension_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:dimension", doc_copy)[begin]
+            dimension_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:dimension", doc)[begin]
             dimension_node["ref"] = string(get_dimension(sheet))
         end
 
-        set_worksheet_xml_document!(sheet, doc_copy)
+        set_worksheet_xml_document!(sheet, doc)
     end
 
     nothing
@@ -671,16 +675,16 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     itr = SheetRowStreamIterator(ws)
-    zip_io, reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
-    state = SheetRowStreamIteratorState(zip_io, reader, XML.children(reader)[end], true, 0)
-    close(state)
+    reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
+    state =  SheetRowStreamIteratorState(Vector{XML.LazyNode}(), 0, 0, 0)
+#           SheetRowStreamIteratorState(zip_io, reader, XML.children(reader)[end], true, 0)
     ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
 
     # updates workbook xml
-    xroot = xmlroot(xf, "xl/workbook.xml")
+    xroot = xmlroot(xf, "xl/workbook.xml")[end]
     for node in XML.children(xroot)
         if XML.tag(node) == "sheets"
 

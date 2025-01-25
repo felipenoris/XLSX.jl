@@ -1,5 +1,5 @@
 
-function Relationship(e::XML.LazyNode) :: Relationship
+function Relationship(e::XML.Node) :: Relationship
     @assert XML.tag(e) == "Relationship" "Unexpected XMLElement: $(XML.tag(e)). Expected: \"Relationship\"."
     a = XML.attributes(e)
     return Relationship(
@@ -47,15 +47,17 @@ function has_relationship_by_type(wb::Workbook, _type_::String) :: Bool
     false
 end
 
-function get_package_relationship_root(xf::XLSXFile) :: XML.LazyNode
-    xroot = xmlroot(xf, "_rels/.rels")
+function get_package_relationship_root(xf::XLSXFile) :: XML.Node
+    xroot = xmlroot(xf, "_rels/.rels")[end]
+#    println("relationship52: ", xf)
+#    println(xroot)
     @assert XML.tag(xroot) == "Relationships" "Malformed XLSX file $(xf.source). _rels/.rels root node name should be `Relationships`. Found $(XML.tag(xroot))."
     @assert (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∈ get_namespaces(xroot) "Unexpected namespace at workbook relationship file: `$(get_namespaces(xroot))`."
     return xroot
 end
 
-function get_workbook_relationship_root(xf::XLSXFile) :: XML.LazyNode
-    xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
+function get_workbook_relationship_root(xf::XLSXFile) :: XML.Node
+    xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")[end]
     @assert XML.tag(xroot) == "Relationships" "Malformed XLSX file $(xf.source). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(XML.tag(xroot))."
     @assert (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∈ get_namespaces(xroot) "Unexpected namespace at workbook relationship file: `$(get_namespaces(xroot))`."
     return xroot

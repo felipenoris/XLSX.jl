@@ -61,8 +61,10 @@ function styles_xmlroot(workbook::Workbook)
             styles_root = xmlroot(get_xlsxfile(workbook), styles_target)
 
             # check root node name for styles.xml
-            @assert get_default_namespace(styles_root) == SPREADSHEET_NAMESPACE_XPATH_ARG[1][2] "Unsupported styles XML namespace $(get_default_namespace(styles_root))."
-            @assert XML.tag(styles_root) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
+#            println("styles64 : ",get_default_namespace(styles_root[end]))
+#            println(SPREADSHEET_NAMESPACE_XPATH_ARG)
+            @assert get_default_namespace(styles_root[end]) == SPREADSHEET_NAMESPACE_XPATH_ARG "Unsupported styles XML namespace $(get_default_namespace(styles_root[end]))."
+            @assert XML.tag(styles_root[end]) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
             workbook.styles_xroot = styles_root
         else
             error("Styles not found for this workbook.")
@@ -75,8 +77,9 @@ end
             
 # Returns the xf XML node element for style `index`.
 # `index` is 0-based.
-function styles_cell_xf(wb::Workbook, index::Int) :: XML.LazyNode
+function styles_cell_xf(wb::Workbook, index::Int) :: XML.Node
     xroot = styles_xmlroot(wb)
+#    println(XML.nodetype(xroot))
     xf_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
     return xf_elements[index+1]
 end
@@ -95,9 +98,10 @@ end
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
 
-    numfmts = find_all_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)
+    numfmts = get_node_paths(node::XML.Node)
+        ("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)
     if isempty(numfmts)
-        stylesheet = find_all_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet", xroot)[begin] # find first
+        stylesheet = get_node_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet", xroot)[begin] # find first
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
@@ -151,7 +155,7 @@ end
 # Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = styles_xmlroot(wb)
-    nodes_found = find_all_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmt", xroot)
+    nodes_found = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmt", xroot)
     elements_found = filter(x->XML.attributes(x)["numFmtId"] == numFmtId, nodes_found)
     @assert length(elements_found) == 1 "numFmtId $numFmtId not found."
     return XML.attributes(elements_found[1])["formatCode"]

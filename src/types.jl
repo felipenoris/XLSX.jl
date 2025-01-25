@@ -193,13 +193,24 @@ Implementations: SheetRowStreamIterator, WorksheetCache.
 =#
 abstract type SheetRowIterator end
 
-mutable struct SheetRowStreamIteratorState # Are zip_io and is_open necessary?
-    zip_io::ZipArchives.ZipReader
-    xml_stream_reader::XML.LazyNode
-    nexttnode::Union{Nothing, XML.LazyNode}
-    is_open::Bool # indicated if zip_io and xml_stream_reader are opened
-    row::Int # number of current row. It´s set to 0 in the start state.
+mutable struct SheetRowStreamIteratorState
+    itr::XML.LazyNode # Worksheet being processed
+    itr_state::Union{Nothing, XML.LazyNode} # Worksheet state
+#    nelements::Int # number of elements in the sheetData node
+#    element_no::Int # current element number
+    row::Int # number of current row in the worksheet. It´s set to 0 in the start state.
 end
+
+#mutable struct SheetRowStreamIteratorState # Are zip_io and is_open necessary? 
+
+#    zip_io::ZipArchives.ZipReader
+#    xml_stream_reader::XML.LazyNode
+#    lzstate::Union{Nothing, XML.LazyNode}
+#    sheet_end::Union{Nothing, XML.LazyNode}
+#    is_open::Bool # indicated if zip_io and xml_stream_reader are opened
+#    row::Int # number of current row. It´s set to 0 in the start state.
+#end
+
 
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
     cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
@@ -264,7 +275,7 @@ mutable struct Workbook
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
     workbook_names::Dict{String, DefinedNameValueTypes} # definedName
     worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
-    styles_xroot::Union{XML.LazyNode, Nothing}
+    styles_xroot::Union{XML.Node, Nothing}
 end
 
 """
@@ -288,7 +299,7 @@ mutable struct XLSXFile <: MSOfficePackage
     io::ZipArchives.ZipReader
     io_is_open::Bool
     files::Dict{String, Bool} # maps filename => isread bool
-    data::Dict{String, XML.LazyNode} # maps filename => XMLDocument
+    data::Dict{String, XML.Node} # maps filename => XMLDocument
     binary_data::Dict{String, Vector{UInt8}} # maps filename => file content in bytes
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
@@ -297,9 +308,9 @@ mutable struct XLSXFile <: MSOfficePackage
     function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
         check_for_xlsx_file_format(source)
         io = ZipArchives.ZipReader(read(source))
-        xl = new(source, use_cache, io, true, Dict{String, Bool}(), Dict{String, XML.LazyNode}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+        xl = new(source, use_cache, io, true, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
-        finalizer(close, xl)
+#        finalizer(close, xl)
         return xl
     end
 end
@@ -310,7 +321,7 @@ end
 
 struct SheetRow
     sheet::Worksheet
-    row::Int
+    row::Int # index of the row in the worksheet
     rowcells::Dict{Int, Cell} # column -> value
 end
 

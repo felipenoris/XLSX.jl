@@ -83,7 +83,7 @@ The `mode` argument controls how the file is opened. The following modes are all
 
 If `enable_cache=true`, all read worksheet cells will be cached.
 If you read a worksheet cell twice it will use the cached value instead of reading from disk
-in the second time.
+the second time.
 
 If `enable_cache=false`, worksheet cells will always be read from disk.
 This is useful when you want to read a spreadsheet that doesn't fit into memory.
@@ -144,11 +144,11 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
         if _write
             writexlsx(source, xf, overwrite=true)
         else
-            close(xf)
+#            close(xf)
         end
 
         # fix libuv issue on windows (#42) and other systems (#173)
-        GC.gc()
+#        GC.gc()
     end
 end
 
@@ -194,10 +194,13 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     end
 
     xf = XLSXFile(source, enable_cache, read_as_template)
+#    println(xf)
 
     try
-        for i in 1:ZipArchives.zip_nentries(xf.io)
-            f = ZipArchives.zip_name(xf.io, i)
+#       for i in 1:ZipArchives.zip_nentries(xf.io)
+#            f = ZipArchives.zip_name(xf.io, i)
+        for f in ZipArchives.zip_names(xf.io)
+
             # ignore xl/calcChain.xml in any case (#31)
             if f == "xl/calcChain.xml"
                 continue
@@ -209,7 +212,6 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
                 # XML file
                 internal_xml_file_add!(xf, f)
                 if read_files
-
                     # ignore worksheet files because they'll be read thru streaming
                     # If reading as template, it will be loaded in two places: here and WorksheetCache.
                     if !read_as_template && startswith(f, "xl/worksheets") && endswith(f, ".xml")
@@ -227,7 +229,6 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
         check_minimum_requirements(xf)
         parse_relationships!(xf)
         parse_workbook!(xf)
-
         # read data from Worksheet streams
         if read_files
             for sheet_name in sheetnames(xf)
@@ -248,14 +249,14 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
         end
 
     finally
-        if read_files
-            close(xf)
-        end
+#        if read_files
+#            close(xf)
+#        end
     end
 
     return xf
 end
-function get_namespaces(r::XML.LazyNode) :: Dict{String, String}
+function get_namespaces(r::XML.Node) :: Dict{String, String}
     nss = Dict{String, String}()
     for (key, value) in XML.attributes(r)
         if startswith(key, "xmlns")
@@ -269,7 +270,7 @@ function get_namespaces(r::XML.LazyNode) :: Dict{String, String}
     end
     return nss
 end
-function get_default_namespace(r::XML.LazyNode) :: String
+function get_default_namespace(r::XML.Node) :: String
     nss = get_namespaces(r)
 
     # in case that only one namespace is defined, assume that it is the default one
@@ -307,7 +308,9 @@ function parse_relationships!(xf::XLSXFile)
 
     # package level relationships
     xroot = get_package_relationship_root(xf)
-    for el in xroot
+#    println("read314: ", XML.children(xroot))
+#    println(XML.write(xroot))
+    for el in XML.children(xroot)
         push!(xf.relationships, Relationship(el))
     end
     @assert !isempty(xf.relationships) "Relationships not found in _rels/.rels!"
@@ -315,7 +318,7 @@ function parse_relationships!(xf::XLSXFile)
     # workbook level relationships
     wb = get_workbook(xf)
     xroot = get_workbook_relationship_root(xf)
-    for el in xroot
+    for el in XML.children(xroot)
         push!(wb.relationships, Relationship(el))
     end
     @assert !isempty(wb.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
@@ -325,7 +328,8 @@ end
 
 # Updates xf.workbook from xf.data[\"xl/workbook.xml\"]
 function parse_workbook!(xf::XLSXFile)
-    xroot = xmlroot(xf, "xl/workbook.xml")
+    xroot = xmlroot(xf, "xl/workbook.xml")[end]
+    chn=XML.children(xroot)
     @assert XML.tag(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(XML.tag(xroot))'."
 
     # workbook to be parsed
@@ -336,21 +340,25 @@ function parse_workbook!(xf::XLSXFile)
     workbook.date1904 = false
 
     # changes workbook.date1904 if there is a setting in the workbookPr node
-    for node in xroot
+#    println("read349: \n", XML.write(xroot))
+    for node in chn
         if XML.tag(node) == "workbookPr"
 
             # read date1904 attribute
-            d1904 = findfirst(y -> y=="date1904", [XML.tag.(x) for x in node])
-            if !isnothing(d1904)
-                attribute_value_date1904 = XML.attributes(node)["date1904"]
-                if attribute_value_date1904 == "1" || attribute_value_date1904 == "true"
-                    workbook.date1904 = true
-                elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
-                    workbook.date1904 = false
-                else
-                    error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
+            attributes = XML.attributes(node)
+            if !isnothing(attributes)
+                if haskey(attributes, "date1904")
+                    attribute_value_date1904 = attributes["date1904"]
+                    if attribute_value_date1904 == "1" || attribute_value_date1904 == "true"
+                        workbook.date1904 = true
+                    elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
+                        workbook.date1904 = false
+                    else
+                        error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
+                    end
                 end
-            end
+             end
+
 
             break
         end
@@ -358,7 +366,7 @@ function parse_workbook!(xf::XLSXFile)
 
     # sheets
     sheets = Vector{Worksheet}()
-    for node in xroot
+    for node in chn
         if XML.tag(node) == "sheets"
 
            for sheet_node in XML.children(node)
@@ -373,14 +381,17 @@ function parse_workbook!(xf::XLSXFile)
     workbook.sheets = sheets
 
     # named ranges
-    for node in xroot
+    for node in chn
         if XML.tag(node) == "definedNames"
+
             for defined_name_node in XML.children(node)
+
                 if XML.tag(defined_name_node) == "definedName"
+                     
                     defined_value_string = XML.value(defined_name_node[1])
                     name = XML.attributes(defined_name_node)["name"]
 
-                local defined_value::DefinedNameValueTypes
+                    local defined_value::DefinedNameValueTypes
 
                     if is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
                         defined_value = SheetCellRef(defined_value_string)
@@ -405,15 +416,14 @@ function parse_workbook!(xf::XLSXFile)
                         # debug
                         #error("Could not parse value $(defined_value_string) for definedName $name.")
                     end
-
-                    lsid = findfirst(y -> y=="localSheetId", [XML.tag.(x) for x in defined_name_node])
-                    if !isnothing(lsid)
+                   a = XML.attributes(defined_name_node)
+                    if haskey(a,"localSheetId")
                         # is a Worksheet level name
 
                         # localSheetId is the 0-based index of the Worksheet in the order
                         # that it is displayed on screen.
                         # Which is the order of the elements under <sheets> element in workbook.xml .
-                        localSheetId = parse(Int, XML.value(defined_name_node[lsid])) + 1
+                        localSheetId = parse(Int, a["localSheetId"])+1
                         sheetId = workbook.sheets[localSheetId].sheetId
                         workbook.worksheet_names[(sheetId, name)] = defined_value
                     else
@@ -422,8 +432,8 @@ function parse_workbook!(xf::XLSXFile)
                     end
                 end
 
-                break
             end
+            break
         end
     end
 
@@ -445,13 +455,13 @@ function internal_xml_file_add!(xl::XLSXFile, filename::String)
     nothing
 end
 
-function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.LazyNode
+function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
         @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
 
     if !internal_xml_file_isread(xf, filename)
         @assert isopen(xf) "Can't read from a closed XLSXFile."
         try
-            xf.data[filename] = XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
+            xf.data[filename] = XML.parse(XML.Node, ZipArchives.zip_readentry(xf.io, filename, String))
             xf.files[filename] = true # set file as read
         catch err
             @error("Failed to parse internal XML file `$filename`")
@@ -460,7 +470,6 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.LazyNode
         end
 
     end
-
     return xf.data[filename]
 end
 
@@ -469,21 +478,21 @@ function Base.close(xl::XLSXFile)
     # close(xl.io)
 
     # close all internal file streams from worksheet caches
-    for sheet in xl.workbook.sheets
-        if sheet.cache !== nothing && sheet.cache.stream_state !== nothing
-            close(sheet.cache.stream_state)
-        end
-    end
+#    for sheet in xl.workbook.sheets
+#        if sheet.cache !== nothing && sheet.cache.stream_state !== nothing
+#            close(sheet.cache.stream_state)
+#        end
+#    end
 end
 
 Base.isopen(xl::XLSXFile) = xl.io_is_open
 
 # Utility method to find the XMLDocument associated with a given package filename.
 # Returns xl.data[filename] if it exists. Throws an error if it doesn't.
-@inline xmldocument(xl::XLSXFile, filename::String) :: XML.LazyNode = internal_xml_file_read(xl, filename)
+@inline xmldocument(xl::XLSXFile, filename::String) :: XML.Node = internal_xml_file_read(xl, filename)
 
 # Utility method to return the root element of a given XMLDocument from the package.
-@inline xmlroot(xl::XLSXFile, filename::String) :: XML.LazyNode = xmldocument(xl, filename)
+@inline xmlroot(xl::XLSXFile, filename::String) :: XML.Node = xmldocument(xl, filename)
 
 #
 # Helper Functions

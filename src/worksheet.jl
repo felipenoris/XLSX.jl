@@ -1,5 +1,5 @@
 
-function Worksheet(xf::XLSXFile, sheet_element::XML.LazyNode)
+function Worksheet(xf::XLSXFile, sheet_element::XML.Node)
     @assert XML.tag(sheet_element) == "sheet"
     a = XML.attributes(sheet_element)
     sheetId = parse(Int, a["sheetId"])
@@ -243,7 +243,11 @@ julia> cell = XLSX.getcell(sheet, "A1")
 function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
 
     for sheetrow in eachrow(ws)
+#        println("worksheet254 : ", ws)
+#        println("worksheet254 : ", sheetrow, " ", single)
+#        println("worksheet254 : ", row_number(sheetrow), " ", row_number(single))
         if row_number(sheetrow) == row_number(single)
+#            println("worksheet254 :\n", sheetrow, "\n", single)
             return getcell(sheetrow, column_number(single))
         end
     end
