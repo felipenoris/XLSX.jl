@@ -688,18 +688,18 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # because we can't write to sheet with empty cache (see setdata!(ws::Worksheet, cell::Cell))
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
-    itr = SheetRowStreamIterator(ws)
-    reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
-    state =  SheetRowStreamIteratorState(reader, nothing, 0)
-    ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
-#    ws.cache = XLSX.WorksheetCache(
- #       Dict{Int64, Dict{Int64, XLSX.Cell}}(),
-  #      Int64[],
-   #     Dict{Int64, Int64}(),
-    #    SheetRowStreamIterator(ws),
-     #   nothing,
-      #  false
-     #) 
+#    itr = SheetRowStreamIterator(ws)
+#    reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
+#    state =  SheetRowStreamIteratorState(reader, nothing, 0)
+#    ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
+    ws.cache = XLSX.WorksheetCache(
+        Dict{Int64, Dict{Int64, XLSX.Cell}}(),
+        Int64[],
+        Dict{Int64, Int64}(),
+        SheetRowStreamIterator(ws),
+        nothing,
+        false
+     ) 
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)

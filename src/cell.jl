@@ -16,7 +16,7 @@ Base.:(==)(c1::Cell, c2::Cell) = c1.ref == c2.ref && c1.datatype == c2.datatype 
 Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.value) + hash(c.formula)
 
 Base.:(==)(c1::EmptyCell, c2::EmptyCell) = c1.ref == c2.ref
- Base.hash(c::EmptyCell) = hash(c.ref) + 10
+Base.hash(c::EmptyCell) = hash(c.ref) + 10
 
 function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode}
     if XML.tag(n) == "t"

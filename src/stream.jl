@@ -146,7 +146,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     current_row = state.row
     
     rowcells = Dict{Int, Cell}() # column -> cell
-    println(state)
+
     next = iterate(reader, lzstate) # iterate through row cells
     while next !== nothing
         (lznode, lzstate) = next
