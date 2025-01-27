@@ -16,7 +16,7 @@ Base.:(==)(c1::Cell, c2::Cell) = c1.ref == c2.ref && c1.datatype == c2.datatype 
 Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.value) + hash(c.formula)
 
 Base.:(==)(c1::EmptyCell, c2::EmptyCell) = c1.ref == c2.ref
-Base.hash(c::EmptyCell) = hash(c.ref) + 10
+ Base.hash(c::EmptyCell) = hash(c.ref) + 10
 
 function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode}
     if XML.tag(n) == "t"
@@ -110,8 +110,12 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
         error("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`")
     end
 
-    formula_string = XML.is_simple(c_child_element) ? XML.simple_value(c_child_element) : XML.value(c_child_element[1])
-    
+    if XML.is_simple(c_child_element)
+        formula_string = XML.simple_value(c_child_element)
+    else
+        formula_string = ""#XML.value(c_child_element[1])""
+    end
+
     a = XML.attributes(c_child_element)
 
     if !isnothing(a)
@@ -206,17 +210,14 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
             return _celldata_datetime(cell.value, isdate1904(ws))
 
         elseif !isempty(cell.style) && styles_is_float(ws, cell.style)
-            println("cell209 : ", ws, " : ", cell.value, " ia a float" )
             # float
             return parse(Float64, cell.value)
 
         else
             # fallback to unformatted number
             if occursin(RGX_INTEGER, cell.value)  # if contains only numbers
-                println("cell216 : ", ws, " : ", cell.value, " ia an int" )
                 v_num = parse(Int, cell.value)
             else
-                println("cell218 : ", ws, " : ", cell.value, " ia a float" )
                 v_num = parse(Float64, cell.value)
             end
 

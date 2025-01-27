@@ -229,6 +229,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
         check_minimum_requirements(xf)
         parse_relationships!(xf)
         parse_workbook!(xf)
+
         # read data from Worksheet streams
         if read_files
             for sheet_name in sheetnames(xf)
@@ -308,8 +309,6 @@ function parse_relationships!(xf::XLSXFile)
 
     # package level relationships
     xroot = get_package_relationship_root(xf)
-#    println("read314: ", XML.children(xroot))
-#    println(XML.write(xroot))
     for el in XML.children(xroot)
         push!(xf.relationships, Relationship(el))
     end
@@ -475,15 +474,7 @@ end
 
 function Base.close(xl::XLSXFile)
     xl.io_is_open = false
-    # close(xl.io)
-
-    # close all internal file streams from worksheet caches
-#    for sheet in xl.workbook.sheets
-#        if sheet.cache !== nothing && sheet.cache.stream_state !== nothing
-#            close(sheet.cache.stream_state)
-#        end
-#    end
-end
+ end
 
 Base.isopen(xl::XLSXFile) = xl.io_is_open
 

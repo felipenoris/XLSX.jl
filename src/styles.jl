@@ -98,10 +98,9 @@ end
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
 
-    numfmts = get_node_paths(node::XML.Node)
-        ("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)
+    numfmts = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)
     if isempty(numfmts)
-        stylesheet = get_node_paths("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet", xroot)[begin] # find first
+        stylesheet = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet", xroot)[begin] # find first
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
@@ -168,14 +167,8 @@ const DATETIME_CODES = ["d", "m", "yy", "h", "s", "a/p", "am/pm"]
 function remove_formatting(code::AbstractString)
     # this regex should cover all the formatting cases found here(colors/conditionals/quotes/spacing):
     # https://support.office.com/en-us/article/create-or-delete-a-custom-number-format-78f2a361-936b-4c03-8772-09fab54be7f4
-    ignoredformatting = r"""
-        \[.{2,}?\]|
-        &quot;.+&quot;|
-        _.|
-        \\.|
-        \*.
-        """x
-    replace(code, ignoredformatting => "")
+    ignoredformatting = r"""\[.{2,}?\]|&quot;.+?&quot;|_.|\\.|\*."""x # Had to add ? to "&quot;.+&quot;" to make it work. Don't understand what made this necessary!
+        replace(code, ignoredformatting => "")
 end
 
 function styles_is_datetime(wb::Workbook, index::Int) :: Bool

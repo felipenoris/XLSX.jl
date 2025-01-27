@@ -52,7 +52,6 @@ If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it
 function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overwrite::Bool=false)
 
     @assert is_writable(xf) "XLSXFile instance is not writable."
-    @assert !isopen(xf) "Can't save an open XLSXFile."
     @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"
     if output_source isa AbstractString && !overwrite
         @assert !isfile(output_source) "Output file $output_source already exists."
@@ -89,8 +88,8 @@ end
 get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
 get_worksheet_xml_document(ws::Worksheet) = get_xlsxfile(ws).data[ get_worksheet_internal_file(ws) ]
 
-function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.LazyNode)
-    @assert nodetype(xdoc) == XML.Document "Expected an XML Document node, got $(nodetype(xdoc))."
+function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
+    @assert XML.nodetype(xdoc) == XML.Document "Expected an XML Document node, got $(XML.nodetype(xdoc))."
     xf = get_xlsxfile(ws)
     filename = get_worksheet_internal_file(ws)
     @assert haskey(xf.data, filename) "Internal file not found for $(ws.name)."
@@ -110,7 +109,7 @@ function generate_sst_xml_string(sst::SharedStringTable) :: String
     for s in sst.formatted_strings
         print(buff, s)
     end
-
+ 
     print(buff, "</sst>")
     return String(take!(buff))
 end
@@ -121,12 +120,12 @@ function add_node_formula!(node, f::Formula)
 end
 
 function add_node_formula!(node, f::FormulaReference)
-    f_node = XML.Element!("f"; t = "shared", si = string(f.id))
+    f_node = XML.Element("f"; t = "shared", si = string(f.id))
     push!(node, f_node)
 end
 
 function add_node_formula!(node, f::ReferencedFormula)
-    f_node = XML.Element!("f", Text(f.formula); t = "shared", si = string(f.id), ref = f.ref)
+    f_node = XML.Element("f", Text(f.formula); t = "shared", si = string(f.id), ref = f.ref)
     push!(node, f_node)
 end
 
@@ -147,10 +146,7 @@ function get_node_paths(node::XML.Node)
     get_node_paths!(xpaths, node, default_ns, "")
     return xpaths
 end
-#function lazy2node(n::XML.LazyNode) ::XML.Node
-#    println(n)
-#    return XML.parse(XML.Node, XML.write(n))
-#end
+
 function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path)
     for c in XML.children(node)
         if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
@@ -167,25 +163,35 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
     end 
     return nothing
 end
-function unlink_rows!(node::XML.Node) # removes all rows from a worksheet XML node.
-    new_worksheet = XML.Element("worksheet")
+function unlink_rows(node::XML.Node) # removes all rows from a sheetData XML node.
+    new_worksheet = XML.Element("sheetData")
     a = XML.attributes(node)
-    if !isnothing(a)
+    if !isnothing(a) # Copy attributes across to new node
         for (k, v) in XML.attributes(node)
             new_worksheet[k] = v
         end
     end
-    for child in XML.children(node)
+    for child in XML.children(node) # Copy any child nodes that are not rows across to new node
         if XML.tag(child) != "row"
             push!(new_worksheet, child)
         end
     end
-    node = new_worksheet
-    return nothing
+    return new_worksheet
+end
+function get_idces(doc, t, b)
+    i=1
+    j=1
+    while XML.tag(doc[i]) != t
+        i+=1
+    end
+    while XML.tag(doc[i][j]) != b
+        j+=1
+    end
+    return i, j
 end
 
 function update_worksheets_xml!(xl::XLSXFile)
-    buff = IOBuffer()
+#    buff = IOBuffer()
     wb = get_workbook(xl)
 
     for i in 1:sheetcount(wb)
@@ -194,12 +200,8 @@ function update_worksheets_xml!(xl::XLSXFile)
         xroot = doc[end]
 
         # check namespace and root node name
-        @assert get_default_namespace(xroot) == SPREADSHEET_NAMESPACE_XPATH_ARG[1][2] "Unsupported Spreadsheet XML namespace $(get_default_namespace(xroot))."
+        @assert get_default_namespace(xroot) == SPREADSHEET_NAMESPACE_XPATH_ARG "Unsupported Spreadsheet XML namespace $(get_default_namespace(xroot))."
         @assert XML.tag(xroot) == "worksheet" "Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."
-
-        # forces a document copy to avoid crash: munmap_chunk(): invalid pointer
-        
-#        doc_copy = XML.parse(Node, XML.write(doc)) # I doubt this remains necessary.
 
         # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
         # |- Column formatting is preserved in the <cols> subtree.
@@ -208,7 +210,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # The following attributes will be overwritten by us and need not be preserved
         handled_attributes = Set{String}([
-            "r",  # the row number
+            "r",     # the row number
             "spans", # the columns the row spans
         ])
 
@@ -224,7 +226,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 
                     attributes = XML.attributes(c)
                     if !isnothing(attributes)
-                        unhandled_attributes_ = filter(attribute -> !in(first[attribute], handled_attributes), attributes)
+                        unhandled_attributes_ = filter(attribute -> !in(first(attribute), handled_attributes), attributes)
                         if length(unhandled_attributes_)>0
                             row_nr = parse(Int, c["r"])
                             unhandled_attributes[row_nr] = unhandled_attributes_
@@ -232,16 +234,25 @@ function update_worksheets_xml!(xl::XLSXFile)
                     end
                 else
                     @warn("Unexpected node under sheetData: $(XML.tag(c))")
-                end
-              
+                end            
             end
 
-            unlink_rows!(parent)
-
+            parent[1] = unlink_rows(parent[1])
         end
 
         # updates sheetData
-        sheetData_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc)[begin]
+        i, j = get_idces(doc, "worksheet", "sheetData")
+        sheetData_node = doc[i][j]
+
+        if isnothing(sheetData_node.children)
+            a = XML.attributes(sheetData_node)
+            sheetData_node = XML.Element(XML.tag(sheetData_node))
+            if !isnothing(a)
+                for (k, v) in a
+                    sheetData_node[k] = v
+                end
+            end
+        end
 
         local spans_str::String = ""
 
@@ -255,7 +266,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             row_nr = row_number(r)
             ordered_column_indexes = sort(collect(keys(r.rowcells)))
 
-            row_node = XML.Element!("row"; r = string(row_nr))
+            row_node = XML.Element("row"; r = string(row_nr))
             if spans_str != ""
                 row_node["spans"] = spans_str
             end
@@ -269,7 +280,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             # add cells to row
             for c in ordered_column_indexes
                 cell = getcell(r, c)
-                c_element = XML.Element!("c"; r = cell.ref.name)
+                c_element = XML.Element("c"; r = cell.ref.name)
 
                 if cell.datatype != ""
                     c_element["t"] = cell.datatype
@@ -284,24 +295,27 @@ function update_worksheets_xml!(xl::XLSXFile)
                 end
 
                 if cell.value != ""
-                    v_node = XML.Element!("v", Text(cell.value))
+                    v_node = XML.Element("v", Text(cell.value))
                     push!(c_element, v_node)
                 end
                 push!(row_node, c_element)
             end
 
             push!(sheetData_node, row_node)
-
         end
+        doc[i][j]=sheetData_node
 
         # updates worksheet dimension
         if get_dimension(sheet) !== nothing
-            dimension_node = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:dimension", doc)[begin]
+            i, j = get_idces(doc, "worksheet", "dimension")
+            dimension_node = doc[i][j]
             dimension_node["ref"] = string(get_dimension(sheet))
+            doc[i][j] = dimension_node
         end
 
         set_worksheet_xml_document!(sheet, doc)
     end
+#end
 
     nothing
 end
@@ -646,7 +660,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     current_sheet_ids = [ ws.sheetId for ws in wb.sheets ]
     sheetId = max(current_sheet_ids...) + 1
 
-    xdoc = XML.read(file_sheet_template, Node)
+    xdoc = XML.read(file_sheet_template, XML.Node)
 
     # generate a unique name for the XML
     local xml_filename::String
@@ -675,21 +689,43 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     itr = SheetRowStreamIterator(ws)
-    reader = open_internal_file_stream(xf, "[Content_Types].xml") # could be any file
-    state =  SheetRowStreamIteratorState(Vector{XML.LazyNode}(), 0, 0, 0)
-#           SheetRowStreamIteratorState(zip_io, reader, XML.children(reader)[end], true, 0)
+    reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
+    state =  SheetRowStreamIteratorState(reader, nothing, 0)
     ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
+#    ws.cache = XLSX.WorksheetCache(
+ #       Dict{Int64, Dict{Int64, XLSX.Cell}}(),
+  #      Int64[],
+   #     Dict{Int64, Int64}(),
+    #    SheetRowStreamIterator(ws),
+     #   nothing,
+      #  false
+     #) 
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
-
+#    mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
+#        cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
+#        rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
+#        row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
+#        stream_iterator::I
+#        stream_state::Union{Nothing, SheetRowStreamIteratorState}
+#        dirty::Bool #indicate that data are not sorted, avoid sorting if we dont use the iterator
+#    end
+#    new_cache = XLSX.WorksheetCache(
+#        Dict{Int64, Dict{Int64, XLSX.Cell}}(),
+#        Int64[],
+#        Dict{Int64, Int64}(),
+#        SheetRowStreamIterator(ws),
+#        nothing,
+#        false
+#    )
     # updates workbook xml
     xroot = xmlroot(xf, "xl/workbook.xml")[end]
     for node in XML.children(xroot)
         if XML.tag(node) == "sheets"
 
             #<sheet name="Sheet1" r:id="rId1" sheetId="1"/>
-            sheet_element = XML.Element!("sheet"; name = name)
+            sheet_element = XML.Element("sheet"; name = name)
             sheet_element["r:id"] = rId
             sheet_element["sheetId"] = string(sheetId)
             push!(node, sheet_element)

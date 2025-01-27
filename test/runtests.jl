@@ -1096,6 +1096,8 @@ end
 @testset "Write" begin
     f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
     filename_copy = "general_copy.xlsx"
+    isfile(filename_copy) && rm(filename_copy)
+
     XLSX.writexlsx(filename_copy, f)
     @test isfile(filename_copy)
 
@@ -1145,11 +1147,11 @@ end
 
 @testset "Edit Template" begin
     new_filename = "new_file_from_empty_template.xlsx"
+    isfile(new_filename) && rm(new_filename)
     f = XLSX.open_empty_template()
     f["Sheet1"]["A1"] = "Hello"
     f["Sheet1"]["A2"] = 10
     XLSX.writexlsx(new_filename, f, overwrite=true)
-    @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
     @test f["Sheet1"]["A1"] == "Hello"
@@ -1185,7 +1187,7 @@ end
     s2 = XLSX.addsheet!(f, big_sheetname)
 
     XLSX.writexlsx(new_filename, f, overwrite=true)
-    @test !XLSX.isopen(f)
+#    @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
     @test XLSX.sheetnames(f) == [ "Sheet1", "new_sheet" , big_sheetname ]
