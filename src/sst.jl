@@ -79,33 +79,14 @@ function sst_load!(workbook::Workbook)
         if has_relationship_by_type(workbook, relationship_type)
             sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))[end]
             @assert XML.tag(sst_root) == "sst"
-#            formatted_string_buffer = IOBuffer()
-#            sst85 : there
-#            sst88 : <si><t>there</t></si>
-#            sst85 : single cell A2
-#            sst88 : <si><t>single cell A2</t></si>
-#            sst85 : range B4:C5
-#            sst88 : <si><t>range B4:C5</t></si>
-#            sst85 : local name
-#            sst88 : <si><t>local name</t></si>
+
             for el in XML.children(sst_root)
                 XML.nodetype(el) == XML.Text && continue
                 @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
                 push!(sst.unformatted_strings, unformatted_text(el))
-
-                unbuff_start = "<$(XML.tag(el))>"
-                unbuff_end = "</$(XML.tag(el))>"
-                for t_el in XML.children(el)
-                    @assert XML.tag(t_el) == "t" "Wrong tags! Do I need to think more about this...?"
-                    unbuff_start = unbuff_start*"<$(XML.tag(t_el))>"
-                    unbuff_end = "</$(XML.tag(t_el))>"*unbuff_end
-                    for (i, text_el) in enumerate(XML.children(t_el))
-                        @assert i==1 "Too many Text elements. Expecting only one."
-                        unbuff_start = unbuff_start*XML.value(text_el)
-                    end
-                end
-                push!(sst.formatted_strings, unbuff_start*unbuff_end)
+                push!(sst.formatted_strings, replace(XML.write(el), r"\n *| *\n" => ""))
             end
+
             init_sst_index(sst)
             sst.is_loaded=true
             return
@@ -129,8 +110,12 @@ function unformatted_text(el::XML.Node) :: String
     function gather_strings!(v::Vector{String}, e::XML.Node)
         if XML.tag(e) == "t"
             c = XML.children(e)
-            @assert length(c) == 1 "Expecting only one child in $e, got $(length(c))."
-            push!(v, XML.value(c[1]))
+#            if length(c) == 0
+            if length(c) == 1
+                push!(v, XML.value(c[1]))
+            else
+                push!(v, XML.write(e))
+            end
         end
 
         for ch in XML.children(e)

@@ -487,7 +487,8 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
         for c in 1:columns_count
             new_column_data = Vector{infer_eltype(data[c])}(undef, rows)
             for r in 1:rows
-                new_column_data[r] = data[c][r]
+                d=data[c][r]
+                new_column_data[r] = d isa String ? XML.unescape(d) : d
             end
             data[c] = new_column_data
         end

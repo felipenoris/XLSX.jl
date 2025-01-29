@@ -66,13 +66,17 @@ function Cell(c::XML.LazyNode)
 
     for c_child_element in XML.children(c)
         if t == "inlineStr"
-
             if XML.tag(c_child_element) == "is"
                 t_node = find_t_node_recursively(c_child_element)
                 if t_node !== nothing
-                    a = XML.attributes(t_node)
-                    @assert length(a) == 1 "Expected only one attributes in `t` node. Found: $(length(a))"
-                    v= first(a)[2]
+                    c = XML.children(t_node)
+                    if length(c) == 0
+                        v = ""
+                    elseif length(c) == 1
+                        v= XML.value(c[1])
+                    else
+                        error("Too amny children in `t` node. Expected >=1, found: $(length(c))")
+                    end
                 end
             end
 
@@ -86,7 +90,7 @@ function Cell(c::XML.LazyNode)
                     found_v = true
                 end
                 
-                v = (XML.simple_value(c_child_element))
+                v = XML.unescape(XML.simple_value(c_child_element))
 
             elseif XML.tag(c_child_element) == "f"
 

@@ -49,8 +49,6 @@ end
 
 function get_package_relationship_root(xf::XLSXFile) :: XML.Node
     xroot = xmlroot(xf, "_rels/.rels")[end]
-#    println("relationship52: ", xf)
-#    println(xroot)
     @assert XML.tag(xroot) == "Relationships" "Malformed XLSX file $(xf.source). _rels/.rels root node name should be `Relationships`. Found $(XML.tag(xroot))."
     @assert (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∈ get_namespaces(xroot) "Unexpected namespace at workbook relationship file: `$(get_namespaces(xroot))`."
     return xroot

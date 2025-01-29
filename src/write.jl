@@ -62,6 +62,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
         for f in keys(xf.files)
+
             if f == "xl/sharedStrings.xml"
                 # sst will be generated below
                 continue
@@ -93,7 +94,8 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
     xf = get_xlsxfile(ws)
     filename = get_worksheet_internal_file(ws)
     @assert haskey(xf.data, filename) "Internal file not found for $(ws.name)."
-    xf.data[filename] = xdoc #As LazyNode
+    xf.data[filename] = xdoc
+    
 #    xf.data[filename] = XML.parse(XML.LazyNode, XML.write(xdoc)) # Convert from LazyNode to Node
 end
 
@@ -217,8 +219,8 @@ function update_worksheets_xml!(xl::XLSXFile)
         let
             child_nodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData/$SPREADSHEET_NAMESPACE_XPATH_ARG:row", doc)
 
-            parent = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData", doc)
-            @assert length(parent) == 1 "Expected a single sheetData node in the worksheet XML file."
+            i, j = get_idces(doc, "worksheet", "sheetData")
+            parent = doc[i][j]
 
             for c in child_nodes # all elements under sheetData should be <row> elements
 
@@ -237,7 +239,7 @@ function update_worksheets_xml!(xl::XLSXFile)
                 end            
             end
 
-            parent[1] = unlink_rows(parent[1])
+            doc[i][j] = unlink_rows(parent)
         end
 
         # updates sheetData
@@ -312,7 +314,6 @@ function update_worksheets_xml!(xl::XLSXFile)
             dimension_node["ref"] = string(get_dimension(sheet))
             doc[i][j] = dimension_node
         end
-
         set_worksheet_xml_document!(sheet, doc)
     end
 #end
@@ -370,6 +371,7 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+#=
 function xlsx_escape(str::AbstractString)
     if isempty(str)
         return str
@@ -395,13 +397,14 @@ function xlsx_escape(str::AbstractString)
 
     return String(take!(buffer))
 end
+=#
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
-    sst_ind = add_shared_string!(get_workbook(ws), xlsx_escape(val))
+    sst_ind = add_shared_string!(get_workbook(ws), XML.escape(val))
     return ("s", string(sst_ind))
 end
 
@@ -576,7 +579,7 @@ end
 Renames a `Worksheet`.
 """
 function rename!(ws::Worksheet, name::AbstractString)
-
+    name=XML.escape(name)
     # no-op if the name has not changed
     if ws.name == name
         return
@@ -587,7 +590,7 @@ function rename!(ws::Worksheet, name::AbstractString)
     @assert name ∉ sheetnames(xf) "Sheetname $name is already in use."
 
     # updates XML
-    xroot = xmlroot(xf, "xl/workbook.xml")
+    xroot = xmlroot(xf, "xl/workbook.xml")[end]
     for node in XML.children(xroot)
         if XML.tag(node) == "sheets"
 
@@ -617,7 +620,6 @@ Create a new worksheet with named `name`.
 If `name` is not provided, a unique name is created.
 """
 function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: Worksheet
-
     xf = get_xlsxfile(wb)
     @assert is_writable(xf) "XLSXFile instance is not writable."
 
@@ -636,6 +638,8 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
             end
             i += 1
         end
+    else
+        name=XML.escape(name)
     end
 
     @assert name != ""
@@ -676,6 +680,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # adds doc do XLSXFile
     xf.files[xml_filename] = true # is read
     xf.data[xml_filename] = xdoc
+   
 
     # adds workbook-level relationship
     # <Relationship Id="rId1" Target="worksheets/sheet1.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/>
@@ -683,21 +688,18 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     # creates Worksheet instance
     ws = Worksheet(xf, sheetId, rId, name, CellRange("A1:A1"), false)
-
     # creates a mock WorksheetCache
     # because we can't write to sheet with empty cache (see setdata!(ws::Worksheet, cell::Cell))
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
-#    itr = SheetRowStreamIterator(ws)
-#    reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
-#    state =  SheetRowStreamIteratorState(reader, nothing, 0)
-#    ws.cache = WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, state, true)
+    reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
+    state =  SheetRowStreamIteratorState(reader, nothing, 0)
     ws.cache = XLSX.WorksheetCache(
         Dict{Int64, Dict{Int64, XLSX.Cell}}(),
         Int64[],
         Dict{Int64, Int64}(),
         SheetRowStreamIterator(ws),
-        nothing,
+        state,
         false
      ) 
 
@@ -837,7 +839,6 @@ function writetable(filename::Union{AbstractString, IO}, tables::Vector{Tuple{St
     xf = open_empty_template()
 
     is_first = true
-
     for (sheetname, data, column_names) in tables
         if is_first
             # first sheet already exists in template file

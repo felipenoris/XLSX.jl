@@ -61,8 +61,6 @@ function styles_xmlroot(workbook::Workbook)
             styles_root = xmlroot(get_xlsxfile(workbook), styles_target)
 
             # check root node name for styles.xml
-#            println("styles64 : ",get_default_namespace(styles_root[end]))
-#            println(SPREADSHEET_NAMESPACE_XPATH_ARG)
             @assert get_default_namespace(styles_root[end]) == SPREADSHEET_NAMESPACE_XPATH_ARG "Unsupported styles XML namespace $(get_default_namespace(styles_root[end]))."
             @assert XML.tag(styles_root[end]) == "styleSheet" "Malformed package. Expected root node named `styleSheet` in `styles.xml`."
             workbook.styles_xroot = styles_root
@@ -79,7 +77,6 @@ end
 # `index` is 0-based.
 function styles_cell_xf(wb::Workbook, index::Int) :: XML.Node
     xroot = styles_xmlroot(wb)
-#    println(XML.nodetype(xroot))
     xf_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
     return xf_elements[index+1]
 end
@@ -119,9 +116,9 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt = XML.Element("numFmt";
         numFmtId = fmt_code,
-        formatCode = xlsx_escape(format_code)
+        formatCode = XML.escape(format_code)
     )
-    push!(numFmts, new_fmt)
+    push!(numfmts, new_fmt)
     return fmt_code
 end
 

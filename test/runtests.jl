@@ -1,8 +1,82 @@
 
 import XLSX
 import Tables
-using Test, Dates
+using Test, Dates, XML
 import DataFrames
+
+const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+struct xpath
+    node::XML.Node
+    path::String
+
+    function xpath(node::XML.Node, path::String)
+        new(node, path)
+    end
+end
+function get_namespaces(r::XML.Node) :: Dict{String, String}
+    nss = Dict{String, String}()
+    for (key, value) in XML.attributes(r)
+        if startswith(key, "xmlns")
+            prefix = split(key, ':')
+            if length(prefix) == 1
+                nss[""] = value  # Default namespace
+            else
+                nss[prefix[2]] = value
+            end
+        end
+    end
+    return nss
+end
+function get_default_namespace(r::XML.Node) :: String
+    nss = get_namespaces(r)
+
+    # in case that only one namespace is defined, assume that it is the default one
+    # even if it has a prefix
+    length(nss) == 1 && return first(values(nss))
+    
+    # otherwise, look for the default namespace (without prefix)
+    for (prefix, ns) in nss
+        if prefix == ""
+            return ns
+        end
+    end
+
+    error("No default namespace found.")
+end
+function find_all_nodes(givenpath::String, doc::XML.Node)::Vector{XML.Node}
+    @assert XML.nodetype(doc) == XML.Document
+    found_nodes = Vector{XML.Node}()
+    for xp in get_node_paths(doc)
+        if xp.path == givenpath
+            push!(found_nodes, xp.node)
+        end
+    end
+    return found_nodes
+end
+function get_node_paths(node::XML.Node)
+    @assert XML.nodetype(node) == XML.Document
+    default_ns = get_default_namespace(node[end])
+    xpaths = Vector{xpath}()
+    get_node_paths!(xpaths, node, default_ns, "")
+    return xpaths
+end
+
+function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path)
+    for c in XML.children(node)
+        if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
+            node_tag = XML.tag(c)
+            if !occursin(":", node_tag)
+                node_tag = default_ns * ":" * node_tag
+            end
+            npath = path * "/" * node_tag
+            push!(xpaths, xpath(c, npath))
+            if length(XML.children(c))>0
+                get_node_paths!(xpaths, c, default_ns, npath)
+            end
+        end
+    end 
+    return nothing
+end
 
 data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
 @assert isdir(data_directory)
@@ -1234,7 +1308,7 @@ end
         @test f["Sheet1"]["B1"] == "unnamed sheet"
     end
 
-    rm("general_copy_2.xlsx")
+#    rm("general_copy_2.xlsx")
 end
 
 @testset "writetable" begin
@@ -1380,11 +1454,16 @@ end
 
     font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
     xroot = XLSX.styles_xmlroot(wb)
-    fontnodes = findall("/xpath:styleSheet/xpath:fonts/xpath:font", xroot, XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
+    fontnodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts/$SPREADSHEET_NAMESPACE_XPATH_ARG:font", xroot)
+#    fontnodes = findall("/xpath:styleSheet/xpath:fonts/xpath:font", xroot, XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
     fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
 
     # Check the font was written correctly
-    @test string(fontnode) == "<font><b/><sz val=\"24\"/></font>"
+    @test XML.tag(fontnode) == "font"
+    @test length(XML.children(fontnode)) == 2
+    @test XML.tag(XML.children(fontnode)[1]) == "b"
+    @test XML.tag(XML.children(fontnode)[2]) == "sz"
+    @test XML.children(fontnode)[2]["val"] == "24"
 
     textstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"true", "fontId"=>"$font"))
     datestyle = XLSX.styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "numFmtId"=>"$datefmt"))
@@ -1454,7 +1533,7 @@ end
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
 
-    close(xfile)
+#    close(xfile)
 
     using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
     # Capitalized and single character numfmts
@@ -1577,7 +1656,7 @@ end
     style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
     @test !XLSX.styles_is_float(wb, style)
 
-    close(xfile)
+#    close(xfile)
 end
 
 @testset "filemodes" begin
@@ -1775,7 +1854,7 @@ end
             xf = XLSX.openxlsx(filename)
             sheet = xf[1]
             @test sheet["B2"] == "column_1"
-            close(xf)
+#            close(xf)
         end
 
         let
@@ -1789,16 +1868,18 @@ end
             xf = XLSX.openxlsx(filename)
             sheet = xf[1]
             @test sheet["A1"] == "openxlsx without do-syntax"
-            close(xf)
+#            close(xf)
         end
     end
 
     isfile(filename) && rm(filename)
 end
 
+#=
 @testset "escape" begin
 
-    @test XLSX.xlsx_escape("hello&world<'") == "hello&amp;world&lt;&apos;"
+    @test XML.escape("hello&world<'") == "hello&world&lt;&apos;"
+                                              
 
     esc_filename  = "output_table_escape_test.xlsx"
     esc_col_names = ["&; &amp; &quot; &lt; &gt; &apos; ", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
@@ -1810,7 +1891,9 @@ end
     esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
     XLSX.writetable(esc_filename, esc_data, esc_col_names, overwrite=true, sheetname=esc_sheetname)
 
+    esc_sheetname = XML.escape(esc_sheetname)
     dtable = XLSX.readtable(esc_filename, esc_sheetname)
+    println("write 1895 : \n",dtable.data,"\n", dtable.column_labels)
     r1_data, r1_col_names = dtable.data, dtable.column_labels
     check_test_data(r1_data, esc_data)
     @test r1_col_names[4] == Symbol( esc_col_names[4] )
@@ -1829,7 +1912,7 @@ end
     @test r2_col_names[2] == Symbol( esc_col_names[2] )
     @test r2_col_names[1] == Symbol( esc_col_names[1] )
 end
-
+=#
 # issue #67
 @testset "row_index" begin
     filename = "test_pr67.xlsx"

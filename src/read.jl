@@ -194,65 +194,55 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     end
 
     xf = XLSXFile(source, enable_cache, read_as_template)
-#    println(xf)
 
-    try
-#       for i in 1:ZipArchives.zip_nentries(xf.io)
-#            f = ZipArchives.zip_name(xf.io, i)
-        for f in ZipArchives.zip_names(xf.io)
+    for f in ZipArchives.zip_names(xf.io)
 
-            # ignore xl/calcChain.xml in any case (#31)
-            if f == "xl/calcChain.xml"
-                continue
-            end
+        # ignore xl/calcChain.xml in any case (#31)
+        if f == "xl/calcChain.xml"
+            continue
+        end
 
-            # let customXML files get passed through to write like binaries are (below).
-            if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
-                
-                # XML file
-                internal_xml_file_add!(xf, f)
-                if read_files
-                    # ignore worksheet files because they'll be read thru streaming
-                    # If reading as template, it will be loaded in two places: here and WorksheetCache.
-                    if !read_as_template && startswith(f, "xl/worksheets") && endswith(f, ".xml")
-                        continue
-                    end
-
-                    internal_xml_file_read(xf, f)
+        # let customXML files get passed through to write like binaries are (below).
+        if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
+            
+            # XML file
+            internal_xml_file_add!(xf, f)
+            if read_files
+                # ignore worksheet files because they'll be read thru streaming
+                # If reading as template, it will be loaded in two places: here and WorksheetCache.
+                if !read_as_template && startswith(f, "xl/worksheets") && endswith(f, ".xml")
+                    continue
                 end
-            elseif read_as_template
-                # Binary and customXML files
-                # we only read these files to save the Excel file later
-                xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)            end
-        end
 
-        check_minimum_requirements(xf)
-        parse_relationships!(xf)
-        parse_workbook!(xf)
+                internal_xml_file_read(xf, f)
+            end
+        elseif read_as_template
+            # Binary and customXML files
+            # we only read these files to save the Excel file later
+            xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)            end
+    end
 
-        # read data from Worksheet streams
-        if read_files
-            for sheet_name in sheetnames(xf)
-                sheet = getsheet(xf, sheet_name)
+    check_minimum_requirements(xf)
+    parse_relationships!(xf)
+    parse_workbook!(xf)
 
-                # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
-                for r in eachrow(sheet)
-                    nothing
-                end
+    # read data from Worksheet streams
+    if read_files
+        for sheet_name in sheetnames(xf)
+            sheet = getsheet(xf, sheet_name)
+
+            # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
+            for r in eachrow(sheet)
+                nothing
             end
         end
+    end
 
-        if read_as_template
-            wb = get_workbook(xf)
-            if has_sst(wb)
-                sst_load!(wb)
-            end
+    if read_as_template
+        wb = get_workbook(xf)
+        if has_sst(wb)
+            sst_load!(wb)
         end
-
-    finally
-#        if read_files
-#            close(xf)
-#        end
     end
 
     return xf
@@ -339,7 +329,6 @@ function parse_workbook!(xf::XLSXFile)
     workbook.date1904 = false
 
     # changes workbook.date1904 if there is a setting in the workbookPr node
-#    println("read349: \n", XML.write(xroot))
     for node in chn
         if XML.tag(node) == "workbookPr"
 
@@ -445,7 +434,9 @@ end
 @inline filenames(xl::XLSXFile) = keys(xl.files)
 
 # Returns true if the file data was read into xl.data.
-@inline internal_xml_file_isread(xl::XLSXFile, filename::String) :: Bool = xl.files[filename]
+@inline function internal_xml_file_isread(xl::XLSXFile, filename::String) :: Bool
+    return xl.files[filename]
+end
 @inline internal_xml_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
 
 function internal_xml_file_add!(xl::XLSXFile, filename::String)
@@ -458,9 +449,9 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
         @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
 
     if !internal_xml_file_isread(xf, filename)
-        @assert isopen(xf) "Can't read from a closed XLSXFile."
+#        @assert isopen(xf) "Can't read from a closed XLSXFile."
         try
-            xf.data[filename] = XML.parse(XML.Node, ZipArchives.zip_readentry(xf.io, filename, String))
+            xf.data[filename] = XML.parse(XML.Node, (ZipArchives.zip_readentry(xf.io, filename, String)))
             xf.files[filename] = true # set file as read
         catch err
             @error("Failed to parse internal XML file `$filename`")
@@ -472,11 +463,11 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
     return xf.data[filename]
 end
 
-function Base.close(xl::XLSXFile)
-    xl.io_is_open = false
- end
+#function Base.close(xl::XLSXFile)
+#    xl.io_is_open = false
+# end
 
-Base.isopen(xl::XLSXFile) = xl.io_is_open
+#Base.isopen(xl::XLSXFile) = xl.io_is_open
 
 # Utility method to find the XMLDocument associated with a given package filename.
 # Returns xl.data[filename] if it exists. Throws an error if it doesn't.

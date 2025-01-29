@@ -92,11 +92,10 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             reader = open_internal_file_stream(get_xlsxfile(ws), target_file)
 
             @assert length(reader) > 0 "Couldn't open reader for Worksheet $(ws.name)."
-            @assert XML.tag(reader[2]) == "worksheet"
-            ws_elements = XML.children(reader[2])
+            @assert XML.tag(reader[end]) == "worksheet" "Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."
+            ws_elements = XML.children(reader[end])
             idx = findfirst(y -> y=="sheetData", [XML.tag(x) for x in ws_elements])
             next_element= idx===nothing ? "" : (ws_elements[idx+1])
-#            println(next_element)
             
             next = iterate(reader)
             while next !== nothing
@@ -146,12 +145,11 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     current_row = state.row
     
     rowcells = Dict{Int, Cell}() # column -> cell
-
+    isnothing(lzstate) && return nothing
     next = iterate(reader, lzstate) # iterate through row cells
     while next !== nothing
         (lznode, lzstate) = next
-       if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == next_element # This is the end of sheetData
-            println("Next element : = ", next_element )
+        if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == next_element # This is the end of sheetData
             return nothing
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row" # This is the next row
             current_row = parse(Int, XML.attributes(lznode)["r"])
@@ -180,187 +178,6 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     return sheet_row, state
 end
 
-#=
-function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
-
-    ws = get_worksheet(itr)
-
-    if state === nothing # first iteration. Will open a stream and create the first state instance
-        state = let
-            target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
-            zip_io, lzreader = open_internal_file_stream(get_xlsxfile(ws), target_file)
-
-            # The reader will be positioned in the first row element inside sheetData
-            # First, let's look for sheetData opening element
-            nextlznode = iterate(lzreader)
-            while nextlznode !== nothing
-                (lznode, lzstate) = nextlznode
-                if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "sheetData"
-                    @assert XML.depth(lznode) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."
-                    break
-                end
-                nextlznode = iterate(lzreader, lzstate)
-            end
-
-            @assert XML.tag(nextlznode[begin]) == "sheetData" "Malformed Worksheet \"$(ws.name)\": Couldn't find sheetData element."
-
-            se=XML.children(nextlznode[begin])
-            last_sheet_child = length(se)>0 ? filter(n -> XML.nodetype(n) == XML.Element, se)[end] : nothing
-
-            nextlznode = iterate(lzreader, nextlznode[end])
-            # Now let's look for a row element, if it exists
-            while nextlznode !== nothing # go next node
-                (lznode, lzstate) = nextlznode
-                if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row"
-                    break
-                end
-                    if is_end_of_sheet_data(lznode, last_sheet_child)
-                       # this Worksheet has no rows
-                       # close(reader) # No longer necessary??
-                       # close(zip_io) # No longer necessary??
-                        return nothing
-                    end
-                nextlznode = iterate(lzreader, lzstate)
-            end
-            println("stream188 : ", lzreader)
-            println("stream188 : ", nextlznode)
-            # row number is set to 0 in the first state
-            SheetRowStreamIteratorState(zip_io, lzreader, isnothing(nextlznode) ? nothing : nextlznode[end], last_sheet_child, true, 0)
-        end
-    end
-
-    # given that the first iteration case is done in the code above, we shouldn't get it again in here
-    @assert state !== nothing "Error processing Worksheet $(ws.name): shouldn't get first iteration case again."
-
-
-    lzreader = state.xml_stream_reader
-    lznode = state.lzstate
-#    nexttnode = iterate(reader, state)
-#    println(lznode)
-#    exit()
-println("stream207 : ", lznode)
-println("stream207 : ", state.sheet_end)
-    if is_end_of_sheet_data(lznode, state.sheet_end)
-#        @assert !isopen(state)
-        return nothing
-#    else
-#        @assert isopen(state) "Error processing Worksheet $(ws.name): Can't fetch rows from a closed workbook."
-    end
-
-    # will read next row from stream.
-    # The stream should be already positioned in the next row
-    @assert XML.tag(lznode) == "row"
-    current_row = parse(Int, XML.attributes(lznode)["r"])
-    rowcells = Dict{Int, Cell}() # column -> cell
-
-    row_end = XML.children(lznode)[end]
-
-    nextlznode = iterate(lzreader, lznode)
-
-    # iterate thru row cells
-    while nextlznode !== nothing
-#        nexttnode = iterate(reader, state)
-        if is_end_of_sheet_data(lznode, state.sheet_end)
-#            close(state)
-            break
-        end
-
-        # If this is the end of this row, will point to the next row or set the end of this stream
-        if lznode==row_end
-
-            while true
-                if is_end_of_sheet_data(lznode, state.sheet_end)
-#                    close(state)
-                    break
-                elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row"
-                    break
-                end
-                nextlznode = iterate(reader, lznode)
-                @assert nextlznode !== nothing
-            end
-
-            # breaks while loop to return current row
-            break
-
-        elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c"
-
-            # reads current cell to rowcells
-            cell = Cell(lznode)
-            @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
-            rowcells[column_number(cell)] = cell
-
-        elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row"
-            # last row has no child elements, so we're already pointing to the next row
-            break
-        end
-    end
-
-    sheet_row = SheetRow(get_worksheet(itr), current_row, rowcells)
-
-    # update state
-    return sheet_row, state
-end
-=#
-#=
-function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
-    ws = get_worksheet(itr)
-    sheetData_rows = Vector{XML.LazyNode}()
-
-    if isnothing(state)
-        state = let 
-            target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
-            doc = open_internal_file_stream(get_xlsxfile(ws), target_file)
-            if length(doc) > 0
-                for child in doc
-                    if XML.tag(child) == "sheetData"
-                        sheetData_rows = filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "row", XML.children(child))
-                        break
-                    end
-                end
-            end
-
-            nrows=length(sheetData_rows)
-            if nrows == 0
-                return nothing
-            end
-
-            SheetRowStreamIteratorState(sheetData_rows, nrows, 0, 0)
-
-        end
-    end
-
-    @assert state !== nothing "Error processing Worksheet $(ws.name): shouldn't get first iteration case again."
-
-    state.vrow += 1
-    if state.vrow > state.nrows
-        return nothing
-    end
-
-    current_row = state.sheetData_rows[state.vrow]
-
-    @assert XML.tag(current_row) == "row"
-
-    state.wsrow = parse(Int, XML.attributes(current_row)["r"])
-    rowcells = Dict{Int, Cell}() # column -> cell
-
-    for c in XML.children(current_row)
-        if XML.tag(c) == "c"
-            cell = Cell(c)
-            @assert row_number(cell) == state.wsrow "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(state.wsrow), but cell has row number $(row_number(cell))"
-            rowcells[column_number(cell)] = cell
-        end
-    end
-    sheet_row = SheetRow(ws, state.wsrow, state.vrow, rowcells)
-
-    # update state
-    return sheet_row, state
-
-end
-=#    
-
-
-# Detects a closing sheetData element
-#@inline is_end_of_sheet_data(n::XML.LazyNode, e::Union{Nothing, XML.LazyNode}) = isnothing(e)==0 ? true : (n == e)
 
 #
 # WorksheetCache
@@ -374,7 +191,6 @@ end
 
 @inline function push_sheetrow!(wc::WorksheetCache, sheet_row::SheetRow)
     r = row_number(sheet_row)
-#    println(r)
     if !haskey(wc.cells, r)
         # add new row to the cache
         wc.cells[r] = sheet_row.rowcells
