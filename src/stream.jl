@@ -60,17 +60,6 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
     error("Couldn't find $filename in $(xf.source).")
 end
 
-@inline Base.isopen(s::SheetRowStreamIteratorState) = s.is_open
-
-@inline function Base.close(s::SheetRowStreamIteratorState)
-#    if isopen(s)
-#        s.is_open = false
-        #close(s.xml_stream_reader)
-        # close(s.zip_io)
-#    end
-    nothing
-end
-
 # Creates a reader for row elements in the Worksheet's XML.
 # Will return a stream reader positioned in the first row element if it exists.
 # If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.

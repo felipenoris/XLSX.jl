@@ -1533,8 +1533,6 @@ end
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
 
-#    close(xfile)
-
     using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
     # Capitalized and single character numfmts
     xfile = XLSX.open_empty_template()
@@ -1656,7 +1654,6 @@ end
     style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
     @test !XLSX.styles_is_float(wb, style)
 
-#    close(xfile)
 end
 
 @testset "filemodes" begin
@@ -1854,7 +1851,6 @@ end
             xf = XLSX.openxlsx(filename)
             sheet = xf[1]
             @test sheet["B2"] == "column_1"
-#            close(xf)
         end
 
         let
@@ -1868,7 +1864,6 @@ end
             xf = XLSX.openxlsx(filename)
             sheet = xf[1]
             @test sheet["A1"] == "openxlsx without do-syntax"
-#            close(xf)
         end
     end
 

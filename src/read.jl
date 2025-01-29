@@ -143,12 +143,8 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
 
         if _write
             writexlsx(source, xf, overwrite=true)
-        else
-#            close(xf)
         end
 
-        # fix libuv issue on windows (#42) and other systems (#173)
-#        GC.gc()
     end
 end
 
@@ -449,7 +445,7 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
         @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
 
     if !internal_xml_file_isread(xf, filename)
-#        @assert isopen(xf) "Can't read from a closed XLSXFile."
+
         try
             xf.data[filename] = XML.parse(XML.Node, (ZipArchives.zip_readentry(xf.io, filename, String)))
             xf.files[filename] = true # set file as read
@@ -462,12 +458,6 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
     end
     return xf.data[filename]
 end
-
-#function Base.close(xl::XLSXFile)
-#    xl.io_is_open = false
-# end
-
-#Base.isopen(xl::XLSXFile) = xl.io_is_open
 
 # Utility method to find the XMLDocument associated with a given package filename.
 # Returns xl.data[filename] if it exists. Throws an error if it doesn't.
