@@ -215,7 +215,8 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
         elseif read_as_template
             # Binary and customXML files
             # we only read these files to save the Excel file later
-            xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)            end
+            xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)
+        end
     end
 
     check_minimum_requirements(xf)
@@ -358,7 +359,6 @@ function parse_workbook!(xf::XLSXFile)
                 worksheet = Worksheet(xf, sheet_node)
                 push!(sheets, worksheet)
             end
-
             break
         end
     end
@@ -423,8 +423,6 @@ function parse_workbook!(xf::XLSXFile)
 
     nothing
 end
-
-# Lazy loading of XML files
 
 # Lists internal files from the XLSX package.
 @inline filenames(xl::XLSXFile) = keys(xl.files)

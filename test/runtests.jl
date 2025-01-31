@@ -1170,7 +1170,6 @@ end
 @testset "Write" begin
     f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
     filename_copy = "general_copy.xlsx"
-    isfile(filename_copy) && rm(filename_copy)
 
     XLSX.writexlsx(filename_copy, f)
     @test isfile(filename_copy)
@@ -1308,7 +1307,7 @@ end
         @test f["Sheet1"]["B1"] == "unnamed sheet"
     end
 
-#    rm("general_copy_2.xlsx")
+    isfile("general_copy_2.xlsx") && rm("general_copy_2.xlsx")
 end
 
 @testset "writetable" begin
@@ -1455,7 +1454,6 @@ end
     font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
     xroot = XLSX.styles_xmlroot(wb)
     fontnodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts/$SPREADSHEET_NAMESPACE_XPATH_ARG:font", xroot)
-#    fontnodes = findall("/xpath:styleSheet/xpath:fonts/xpath:font", xroot, XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
     fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
 
     # Check the font was written correctly
@@ -1870,44 +1868,42 @@ end
     isfile(filename) && rm(filename)
 end
 
-#=
 @testset "escape" begin
 
     @test XML.escape("hello&world<'") == "hello&world&lt;&apos;"
                                               
-
     esc_filename  = "output_table_escape_test.xlsx"
-    esc_col_names = ["&; &amp; &quot; &lt; &gt; &apos; ", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
-    esc_sheetname = string( esc_col_names[1],esc_col_names[2],esc_col_names[3],esc_col_names[4])
-    esc_data = Vector{Any}(undef, 4)
-    esc_data[1] = ["11&amp;&",    "12&quot;&",    "13&lt;&",    "14&gt;&",    "15&apos;&"    ]
-    esc_data[2] = ["21&&amp;&&",  "22&&quot;&&",  "23&&lt;&&",  "24&&gt;&&",  "25&&apos;&&"  ]
-    esc_data[3] = ["31&&&amp;&&&","32&&&quot;&&&","33&&&lt;&&&","34&&&gt;&&&","35&&&apos;&&&"]
-    esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
-    XLSX.writetable(esc_filename, esc_data, esc_col_names, overwrite=true, sheetname=esc_sheetname)
+    isfile(esc_filename) && rm(esc_filename)
 
-    esc_sheetname = XML.escape(esc_sheetname)
+    esc_col_names = ["&' & \" < > '", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
+    esc_sheetname = XML.escape("& & \" > < ")
+    esc_data = Vector{Any}(undef, 4)
+    esc_data[1] = ["11&&",    "12\"&",    "13<&",    "14>&",    "15'&"    ]
+    esc_data[2] = ["21&&&&",  "22&\"&&",  "23&<&&",  "24&>&&",  "25&'&&"  ]
+    esc_data[3] = ["31&&&&&&","32&&\"&&&","33&&<&&&","34&&>&&&","35&&'&&&"]
+    esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
+    XLSX.writetable(esc_filename, esc_data, XML.escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
+
     dtable = XLSX.readtable(esc_filename, esc_sheetname)
-    println("write 1895 : \n",dtable.data,"\n", dtable.column_labels)
     r1_data, r1_col_names = dtable.data, dtable.column_labels
     check_test_data(r1_data, esc_data)
-    @test r1_col_names[4] == Symbol( esc_col_names[4] )
-    @test r1_col_names[3] == Symbol( esc_col_names[3] )
-    @test r1_col_names[2] == Symbol( esc_col_names[2] )
-    @test r1_col_names[1] == Symbol( esc_col_names[1] )
+    @test XML.unescape(string(r1_col_names[4])) == esc_col_names[4]
+    @test XML.unescape(string(r1_col_names[3])) == esc_col_names[3]
+    @test XML.unescape(string(r1_col_names[2])) == esc_col_names[2]
+    @test XML.unescape(string(r1_col_names[1])) == esc_col_names[1]
     rm(esc_filename)
 
     # compare to the backup version: escape.xlsx
     dtable = XLSX.readtable(joinpath(data_directory, "escape.xlsx"), esc_sheetname)
-    r2_data, r2_col_names = dtable.data, dtable.column_labels
+    r2_data, r2_col_names = [[x isa String ? XML.unescape(x) : x for x in y] for y in dtable.data], dtable.column_labels
     check_test_data(r2_data, esc_data)
     check_test_data(r2_data, r1_data)
-    @test r2_col_names[4] == Symbol( esc_col_names[4] )
-    @test r2_col_names[3] == Symbol( esc_col_names[3] )
-    @test r2_col_names[2] == Symbol( esc_col_names[2] )
-    @test r2_col_names[1] == Symbol( esc_col_names[1] )
+    @test XML.unescape(string(r2_col_names[4])) == esc_col_names[4]
+    @test XML.unescape(string(r2_col_names[3])) == esc_col_names[3]
+    @test XML.unescape(string(r2_col_names[2])) == esc_col_names[2]
+    @test XML.unescape(string(r2_col_names[1])) == esc_col_names[1]
 end
-=#
+
 # issue #67
 @testset "row_index" begin
     filename = "test_pr67.xlsx"

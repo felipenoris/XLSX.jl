@@ -110,7 +110,6 @@ function unformatted_text(el::XML.Node) :: String
     function gather_strings!(v::Vector{String}, e::XML.Node)
         if XML.tag(e) == "t"
             c = XML.children(e)
-#            if length(c) == 0
             if length(c) == 1
                 push!(v, XML.value(c[1]))
             else
@@ -129,6 +128,7 @@ function unformatted_text(el::XML.Node) :: String
 
     v_string = Vector{String}()
     gather_strings!(v_string, el)
+#    println("sst131 : ",join(v_string))
     return join(v_string)
 end
 

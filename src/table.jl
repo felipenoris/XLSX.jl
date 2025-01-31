@@ -51,7 +51,14 @@ function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
     return last_column_index
 end
 
-_colname_prefix_symbol(sheet::Worksheet, cell::Cell) = Symbol(getdata(sheet, cell))
+function _colname_prefix_symbol(sheet::Worksheet, cell::Cell)
+    d = getdata(sheet, cell)
+    if d isa String
+        return Symbol(XML.unescape(d))
+    else
+        return Symbol(d)
+    end
+end
 _colname_prefix_symbol(sheet::Worksheet, ::EmptyCell) = Symbol("#Empty")
 
 # helper function to manage problematic column labels
@@ -468,6 +475,7 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
         is_empty_row = true
 
         for (ci, cv) in enumerate(r) # iterate a TableRow to get column data
+            cv = cv isa String ? XML.unescape(cv) : cv
             push!(data[ci], cv)
             if !ismissing(cv)
                 is_empty_row = false
@@ -487,8 +495,7 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
         for c in 1:columns_count
             new_column_data = Vector{infer_eltype(data[c])}(undef, rows)
             for r in 1:rows
-                d=data[c][r]
-                new_column_data[r] = d isa String ? XML.unescape(d) : d
+                new_column_data[r] = data[c][r]
             end
             data[c] = new_column_data
         end

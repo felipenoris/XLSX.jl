@@ -57,7 +57,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
         @assert !isfile(output_source) "Output file $output_source already exists."
     end
 
-    update_worksheets_xml!(xf)
+   update_worksheets_xml!(xf)
 
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
@@ -67,7 +67,6 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
                 # sst will be generated below
                 continue
             end
-
             ZipArchives.zip_newfile(xlsx, f; compress=true)
             XML.write(xlsx, xf.data[f])
         end
@@ -245,7 +244,6 @@ function update_worksheets_xml!(xl::XLSXFile)
         # updates sheetData
         i, j = get_idces(doc, "worksheet", "sheetData")
         sheetData_node = doc[i][j]
-
         if isnothing(sheetData_node.children)
             a = XML.attributes(sheetData_node)
             sheetData_node = XML.Element(XML.tag(sheetData_node))
@@ -314,6 +312,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             dimension_node["ref"] = string(get_dimension(sheet))
             doc[i][j] = dimension_node
         end
+
         set_worksheet_xml_document!(sheet, doc)
     end
 #end
@@ -370,34 +369,6 @@ function setdata!(ws::Worksheet, cell::Cell)
 
     nothing
 end
-
-#=
-function xlsx_escape(str::AbstractString)
-    if isempty(str)
-        return str
-    end
-
-    buffer = IOBuffer()
-
-    for c in str
-        if c == '&'
-            write(buffer, "&amp;")
-        elseif c == '"'
-            write(buffer, "&quot;")
-        elseif c == '<'
-            write(buffer, "&lt;")
-        elseif c == '>'
-            write(buffer, "&gt;")
-        elseif c == '\''
-            write(buffer, "&apos;")
-        else
-            write(buffer, c)
-        end
-    end
-
-    return String(take!(buffer))
-end
-=#
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
@@ -561,7 +532,8 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-            sheet[target_cell_ref] = string(columnnames[c])
+            sheet[target_cell_ref] = XML.escape(string(columnnames[c]))
+#            sheet[target_cell_ref] = string(columnnames[c])
         end
         start_from_anchor = 0
     end
@@ -569,7 +541,7 @@ function writetable!(
     # write table data
     for r in 1:row_count, c in 1:col_count
         target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
-        sheet[target_cell_ref] = data[c][r]
+        sheet[target_cell_ref] = data[c][r] isa String ? XML.escape(data[c][r]) : data[c][r]
     end
 end
 
@@ -579,7 +551,7 @@ end
 Renames a `Worksheet`.
 """
 function rename!(ws::Worksheet, name::AbstractString)
-    name=XML.escape(name)
+
     # no-op if the name has not changed
     if ws.name == name
         return
@@ -639,7 +611,6 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
             i += 1
         end
     else
-        name=XML.escape(name)
     end
 
     @assert name != ""
