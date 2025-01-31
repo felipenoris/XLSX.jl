@@ -3,8 +3,6 @@
     open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile
 
 Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
-
-The returned `XLSXFile` instance is in closed state.
 =#
 @inline open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
 
@@ -95,7 +93,6 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
     @assert haskey(xf.data, filename) "Internal file not found for $(ws.name)."
     xf.data[filename] = xdoc
     
-#    xf.data[filename] = XML.parse(XML.LazyNode, XML.write(xdoc)) # Convert from LazyNode to Node
 end
 
 function generate_sst_xml_string(sst::SharedStringTable) :: String
@@ -192,7 +189,6 @@ function get_idces(doc, t, b)
 end
 
 function update_worksheets_xml!(xl::XLSXFile)
-#    buff = IOBuffer()
     wb = get_workbook(xl)
 
     for i in 1:sheetcount(wb)
@@ -315,7 +311,6 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         set_worksheet_xml_document!(sheet, doc)
     end
-#end
 
     nothing
 end
@@ -533,7 +528,6 @@ function writetable!(
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
             sheet[target_cell_ref] = XML.escape(string(columnnames[c]))
-#            sheet[target_cell_ref] = string(columnnames[c])
         end
         start_from_anchor = 0
     end
@@ -676,28 +670,11 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
-#    mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
-#        cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
-#        rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
-#        row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
-#        stream_iterator::I
-#        stream_state::Union{Nothing, SheetRowStreamIteratorState}
-#        dirty::Bool #indicate that data are not sorted, avoid sorting if we dont use the iterator
-#    end
-#    new_cache = XLSX.WorksheetCache(
-#        Dict{Int64, Dict{Int64, XLSX.Cell}}(),
-#        Int64[],
-#        Dict{Int64, Int64}(),
-#        SheetRowStreamIterator(ws),
-#        nothing,
-#        false
-#    )
+
     # updates workbook xml
     xroot = xmlroot(xf, "xl/workbook.xml")[end]
     for node in XML.children(xroot)
         if XML.tag(node) == "sheets"
-
-            #<sheet name="Sheet1" r:id="rId1" sheetId="1"/>
             sheet_element = XML.Element("sheet"; name = name)
             sheet_element["r:id"] = rId
             sheet_element["sheetId"] = string(sheetId)

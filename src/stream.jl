@@ -51,11 +51,9 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
     @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
     @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
 
-#    zip = ZipArchives.ZipReader(xf)
     if filename in ZipArchives.zip_names(xf.io)
         return XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
     end 
-#    return xf.io, XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
 
     error("Couldn't find $filename in $(xf.source).")
 end
@@ -63,7 +61,6 @@ end
 # Creates a reader for row elements in the Worksheet's XML.
 # Will return a stream reader positioned in the first row element if it exists.
 # If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.
-
 function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
     local current_row
     local sheet_row
@@ -128,9 +125,6 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     lzstate = state.itr_state
 
     # Expecting iterator to be at the first row element
-#    @assert XML.tag(lzstate) == "row" "Expecting a row element, but got $(XML.tag(lzstate))"
-
-
     current_row = state.row
     
     rowcells = Dict{Int, Cell}() # column -> cell
@@ -194,7 +188,6 @@ end
 #
 # The state is the row number. The element is a SheetRow.
 #
-
 function WorksheetCache(ws::Worksheet)
     itr = SheetRowStreamIterator(ws)
     return WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, nothing, true)
