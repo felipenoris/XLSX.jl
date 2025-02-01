@@ -194,10 +194,9 @@ Implementations: SheetRowStreamIterator, WorksheetCache.
 abstract type SheetRowIterator end
 
 mutable struct SheetRowStreamIteratorState
-    zip_io::ZipFile.Reader
-    xml_stream_reader::EzXML.StreamReader
-    is_open::Bool # indicated if zip_io and xml_stream_reader are opened
-    row::Int # number of current row. It´s set to 0 in the start state.
+    itr::XML.LazyNode # Worksheet being processed
+    itr_state::Union{Nothing, XML.LazyNode} # Worksheet state
+    row::Int # number of current row in the worksheet. It´s set to 0 in the start state.
 end
 
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
@@ -263,7 +262,7 @@ mutable struct Workbook
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
     workbook_names::Dict{String, DefinedNameValueTypes} # definedName
     worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
-    styles_xroot::Union{EzXML.Node, Nothing}
+    styles_xroot::Union{XML.Node, Nothing}
 end
 
 """
@@ -284,10 +283,9 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 mutable struct XLSXFile <: MSOfficePackage
     source::Union{AbstractString, IO}
     use_cache_for_sheet_data::Bool # indicates whether Worksheet.cache will be fed while reading worksheet cells.
-    io::ZipFile.Reader
-    io_is_open::Bool
+    io::ZipArchives.ZipReader
     files::Dict{String, Bool} # maps filename => isread bool
-    data::Dict{String, EzXML.Document} # maps filename => XMLDocument
+    data::Dict{String, XML.Node} # maps filename => XMLDocument
     binary_data::Dict{String, Vector{UInt8}} # maps filename => file content in bytes
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
@@ -295,10 +293,9 @@ mutable struct XLSXFile <: MSOfficePackage
 
     function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
         check_for_xlsx_file_format(source)
-        io = ZipFile.Reader(source)
-        xl = new(source, use_cache, io, true, Dict{String, Bool}(), Dict{String, EzXML.Document}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+        io = ZipArchives.ZipReader(read(source))
+        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
-        finalizer(close, xl)
         return xl
     end
 end
@@ -309,7 +306,7 @@ end
 
 struct SheetRow
     sheet::Worksheet
-    row::Int
+    row::Int # index of the row in the worksheet
     rowcells::Dict{Int, Cell} # column -> value
 end
 
@@ -376,5 +373,14 @@ struct DataTable
         end
 
         return new(data, column_labels, column_label_index)
+    end
+end
+
+struct xpath
+    node::XML.Node
+    path::String
+
+    function xpath(node::XML.Node, path::String)
+        new(node, path)
     end
 end

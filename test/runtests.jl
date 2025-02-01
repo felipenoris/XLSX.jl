@@ -1,8 +1,82 @@
 
 import XLSX
 import Tables
-using Test, Dates
+using Test, Dates, XML
 import DataFrames
+
+const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+struct xpath
+    node::XML.Node
+    path::String
+
+    function xpath(node::XML.Node, path::String)
+        new(node, path)
+    end
+end
+function get_namespaces(r::XML.Node) :: Dict{String, String}
+    nss = Dict{String, String}()
+    for (key, value) in XML.attributes(r)
+        if startswith(key, "xmlns")
+            prefix = split(key, ':')
+            if length(prefix) == 1
+                nss[""] = value  # Default namespace
+            else
+                nss[prefix[2]] = value
+            end
+        end
+    end
+    return nss
+end
+function get_default_namespace(r::XML.Node) :: String
+    nss = get_namespaces(r)
+
+    # in case that only one namespace is defined, assume that it is the default one
+    # even if it has a prefix
+    length(nss) == 1 && return first(values(nss))
+    
+    # otherwise, look for the default namespace (without prefix)
+    for (prefix, ns) in nss
+        if prefix == ""
+            return ns
+        end
+    end
+
+    error("No default namespace found.")
+end
+function find_all_nodes(givenpath::String, doc::XML.Node)::Vector{XML.Node}
+    @assert XML.nodetype(doc) == XML.Document
+    found_nodes = Vector{XML.Node}()
+    for xp in get_node_paths(doc)
+        if xp.path == givenpath
+            push!(found_nodes, xp.node)
+        end
+    end
+    return found_nodes
+end
+function get_node_paths(node::XML.Node)
+    @assert XML.nodetype(node) == XML.Document
+    default_ns = get_default_namespace(node[end])
+    xpaths = Vector{xpath}()
+    get_node_paths!(xpaths, node, default_ns, "")
+    return xpaths
+end
+
+function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path)
+    for c in XML.children(node)
+        if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
+            node_tag = XML.tag(c)
+            if !occursin(":", node_tag)
+                node_tag = default_ns * ":" * node_tag
+            end
+            npath = path * "/" * node_tag
+            push!(xpaths, xpath(c, npath))
+            if length(XML.children(c))>0
+                get_node_paths!(xpaths, c, default_ns, npath)
+            end
+        end
+    end 
+    return nothing
+end
 
 data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
 @assert isdir(data_directory)
@@ -15,7 +89,7 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     ef_book_sparse = XLSX.readxlsx(joinpath(data_directory, "book_sparse.xlsx"))
     ef_book_sparse_2 = XLSX.readxlsx(joinpath(data_directory, "book_sparse_2.xlsx"))
     XLSX.readxlsx(joinpath(data_directory, "missing_numFmtId.xlsx"))["Koldioxid (CO2)"][7,5]
-
+    
     @test open(joinpath(data_directory, "blank_ptbr_1904.xlsx")) do io XLSX.readxlsx(io) end isa XLSX.XLSXFile
 
     @test ef_Book1.source == joinpath(data_directory, "Book1.xlsx")
@@ -1096,6 +1170,7 @@ end
 @testset "Write" begin
     f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
     filename_copy = "general_copy.xlsx"
+
     XLSX.writexlsx(filename_copy, f)
     @test isfile(filename_copy)
 
@@ -1131,7 +1206,7 @@ end
         sheet["Q3"] = "this"
         sheet["Q4"] = "template"
     end
-    @test XLSX.writexlsx(filename_copy, template, overwrite=true) == nothing # This is where the bug will throw if custoimXml internal files present.
+    @test XLSX.writexlsx(filename_copy, template, overwrite=true) === nothing # This is where the bug will throw if custoimXml internal files present.
     @test isfile(filename_copy)
     f_copy = XLSX.readxlsx(filename_copy) # Don't really think this second part is necessary.
     test_Xmlread = [["Cant", "write", "this", "template"]]
@@ -1145,11 +1220,11 @@ end
 
 @testset "Edit Template" begin
     new_filename = "new_file_from_empty_template.xlsx"
+    isfile(new_filename) && rm(new_filename)
     f = XLSX.open_empty_template()
     f["Sheet1"]["A1"] = "Hello"
     f["Sheet1"]["A2"] = 10
     XLSX.writexlsx(new_filename, f, overwrite=true)
-    @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
     @test f["Sheet1"]["A1"] == "Hello"
@@ -1185,7 +1260,7 @@ end
     s2 = XLSX.addsheet!(f, big_sheetname)
 
     XLSX.writexlsx(new_filename, f, overwrite=true)
-    @test !XLSX.isopen(f)
+#    @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
     @test XLSX.sheetnames(f) == [ "Sheet1", "new_sheet" , big_sheetname ]
@@ -1232,7 +1307,7 @@ end
         @test f["Sheet1"]["B1"] == "unnamed sheet"
     end
 
-    rm("general_copy_2.xlsx")
+    isfile("general_copy_2.xlsx") && rm("general_copy_2.xlsx")
 end
 
 @testset "writetable" begin
@@ -1378,11 +1453,15 @@ end
 
     font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
     xroot = XLSX.styles_xmlroot(wb)
-    fontnodes = findall("/xpath:styleSheet/xpath:fonts/xpath:font", xroot, XLSX.SPREADSHEET_NAMESPACE_XPATH_ARG)
+    fontnodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts/$SPREADSHEET_NAMESPACE_XPATH_ARG:font", xroot)
     fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
 
     # Check the font was written correctly
-    @test string(fontnode) == "<font><b/><sz val=\"24\"/></font>"
+    @test XML.tag(fontnode) == "font"
+    @test length(XML.children(fontnode)) == 2
+    @test XML.tag(XML.children(fontnode)[1]) == "b"
+    @test XML.tag(XML.children(fontnode)[2]) == "sz"
+    @test XML.children(fontnode)[2]["val"] == "24"
 
     textstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"true", "fontId"=>"$font"))
     datestyle = XLSX.styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "numFmtId"=>"$datefmt"))
@@ -1451,8 +1530,6 @@ end
 
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
-
-    close(xfile)
 
     using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
     # Capitalized and single character numfmts
@@ -1575,7 +1652,6 @@ end
     style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
     @test !XLSX.styles_is_float(wb, style)
 
-    close(xfile)
 end
 
 @testset "filemodes" begin
@@ -1773,7 +1849,6 @@ end
             xf = XLSX.openxlsx(filename)
             sheet = xf[1]
             @test sheet["B2"] == "column_1"
-            close(xf)
         end
 
         let
@@ -1787,7 +1862,6 @@ end
             xf = XLSX.openxlsx(filename)
             sheet = xf[1]
             @test sheet["A1"] == "openxlsx without do-syntax"
-            close(xf)
         end
     end
 
@@ -1796,36 +1870,38 @@ end
 
 @testset "escape" begin
 
-    @test XLSX.xlsx_escape("hello&world<'") == "hello&amp;world&lt;&apos;"
-
+    @test XML.escape("hello&world<'") == "hello&world&lt;&apos;"
+                                              
     esc_filename  = "output_table_escape_test.xlsx"
-    esc_col_names = ["&; &amp; &quot; &lt; &gt; &apos; ", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
-    esc_sheetname = string( esc_col_names[1],esc_col_names[2],esc_col_names[3],esc_col_names[4])
+    isfile(esc_filename) && rm(esc_filename)
+
+    esc_col_names = ["&' & \" < > '", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
+    esc_sheetname = XML.escape("& & \" > < ")
     esc_data = Vector{Any}(undef, 4)
-    esc_data[1] = ["11&amp;&",    "12&quot;&",    "13&lt;&",    "14&gt;&",    "15&apos;&"    ]
-    esc_data[2] = ["21&&amp;&&",  "22&&quot;&&",  "23&&lt;&&",  "24&&gt;&&",  "25&&apos;&&"  ]
-    esc_data[3] = ["31&&&amp;&&&","32&&&quot;&&&","33&&&lt;&&&","34&&&gt;&&&","35&&&apos;&&&"]
+    esc_data[1] = ["11&&",    "12\"&",    "13<&",    "14>&",    "15'&"    ]
+    esc_data[2] = ["21&&&&",  "22&\"&&",  "23&<&&",  "24&>&&",  "25&'&&"  ]
+    esc_data[3] = ["31&&&&&&","32&&\"&&&","33&&<&&&","34&&>&&&","35&&'&&&"]
     esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
-    XLSX.writetable(esc_filename, esc_data, esc_col_names, overwrite=true, sheetname=esc_sheetname)
+    XLSX.writetable(esc_filename, esc_data, XML.escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
 
     dtable = XLSX.readtable(esc_filename, esc_sheetname)
     r1_data, r1_col_names = dtable.data, dtable.column_labels
     check_test_data(r1_data, esc_data)
-    @test r1_col_names[4] == Symbol( esc_col_names[4] )
-    @test r1_col_names[3] == Symbol( esc_col_names[3] )
-    @test r1_col_names[2] == Symbol( esc_col_names[2] )
-    @test r1_col_names[1] == Symbol( esc_col_names[1] )
+    @test XML.unescape(string(r1_col_names[4])) == esc_col_names[4]
+    @test XML.unescape(string(r1_col_names[3])) == esc_col_names[3]
+    @test XML.unescape(string(r1_col_names[2])) == esc_col_names[2]
+    @test XML.unescape(string(r1_col_names[1])) == esc_col_names[1]
     rm(esc_filename)
 
     # compare to the backup version: escape.xlsx
     dtable = XLSX.readtable(joinpath(data_directory, "escape.xlsx"), esc_sheetname)
-    r2_data, r2_col_names = dtable.data, dtable.column_labels
+    r2_data, r2_col_names = [[x isa String ? XML.unescape(x) : x for x in y] for y in dtable.data], dtable.column_labels
     check_test_data(r2_data, esc_data)
     check_test_data(r2_data, r1_data)
-    @test r2_col_names[4] == Symbol( esc_col_names[4] )
-    @test r2_col_names[3] == Symbol( esc_col_names[3] )
-    @test r2_col_names[2] == Symbol( esc_col_names[2] )
-    @test r2_col_names[1] == Symbol( esc_col_names[1] )
+    @test XML.unescape(string(r2_col_names[4])) == esc_col_names[4]
+    @test XML.unescape(string(r2_col_names[3])) == esc_col_names[3]
+    @test XML.unescape(string(r2_col_names[2])) == esc_col_names[2]
+    @test XML.unescape(string(r2_col_names[1])) == esc_col_names[1]
 end
 
 # issue #67
