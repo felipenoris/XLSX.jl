@@ -66,7 +66,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
                 continue
             end
             ZipArchives.zip_newfile(xlsx, f; compress=true)
-            write(xlsx, replace(XML.write(xf.data[f]), r"\n *| *\n" => "")) # Don't want pretty printing.
+            write(xlsx, replace(XML.write(xf.data[f]), r" *\n *" => "")) # Don't want pretty printing.
         end
 
         # write binary files
