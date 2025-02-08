@@ -18,13 +18,13 @@ Base.hash(c::Cell) = hash(c.ref) + hash(c.datatype) + hash(c.style) + hash(c.val
 Base.:(==)(c1::EmptyCell, c2::EmptyCell) = c1.ref == c2.ref
 Base.hash(c::EmptyCell) = hash(c.ref) + 10
 
-function find_t_node_recursively(n::EzXML.Node) :: Union{Nothing, EzXML.Node}
-    if EzXML.nodename(n) == "t"
+function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode}
+    if XML.tag(n) == "t"
         return n
     else
-        for child in EzXML.eachelement(n)
+        for child in XML.children(n)
             result = find_t_node_recursively(child)
-            if result != nothing
+            if result !== nothing
                 return result
             end
         end
@@ -33,25 +33,27 @@ function find_t_node_recursively(n::EzXML.Node) :: Union{Nothing, EzXML.Node}
     return nothing
 end
 
-function Cell(c::EzXML.Node)
+function Cell(c::XML.LazyNode)
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert EzXML.nodename(c) == "c" "`Cell` Expects a `c` (cell) XML node."
+    @assert XML.tag(c) == "c" "`Cell` Expects a `c` (cell) XML node."
 
-    ref = CellRef(c["r"])
+    a = XML.attributes(c) # Dict of cell attributes
+
+    ref = CellRef(a["r"])
 
     # type
-    if haskey(c, "t")
-        t = c["t"]
+    if haskey(a, "t")
+        t = a["t"]
     else
         t = ""
     end
 
     # style
-    if haskey(c, "s")
-        s = c["s"]
+    if haskey(a, "s")
+        s = a["s"]
     else
         s = ""
     end
@@ -62,19 +64,24 @@ function Cell(c::EzXML.Node)
     local found_v::Bool = false
     local found_f::Bool = false
 
-    for c_child_element in EzXML.eachelement(c)
-
+    for c_child_element in XML.children(c)
         if t == "inlineStr"
-
-            if EzXML.nodename(c_child_element) == "is"
+            if XML.tag(c_child_element) == "is"
                 t_node = find_t_node_recursively(c_child_element)
-                if t_node != nothing
-                    v = EzXML.nodecontent(t_node)
+                if t_node !== nothing
+                    c = XML.children(t_node)
+                    if length(c) == 0
+                        v = ""
+                    elseif length(c) == 1
+                        v= XML.value(c[1])
+                    else
+                        error("Too amny children in `t` node. Expected >=1, found: $(length(c))")
+                    end
                 end
             end
 
         else
-            if EzXML.nodename(c_child_element) == "v"
+            if XML.tag(c_child_element) == "v"
 
                 # we should have only one v element
                 if found_v
@@ -82,9 +89,10 @@ function Cell(c::EzXML.Node)
                 else
                     found_v = true
                 end
+                
+                v = XML.unescape(XML.simple_value(c_child_element))
 
-                v = EzXML.nodecontent(c_child_element)
-            elseif EzXML.nodename(c_child_element) == "f"
+            elseif XML.tag(c_child_element) == "f"
 
                 # we should have only one f element
                 if found_f
@@ -97,39 +105,53 @@ function Cell(c::EzXML.Node)
             end
         end
     end
-
     return Cell(ref, t, s, v, f)
 end
 
 function parse_formula_from_element(c_child_element) :: AbstractFormula
 
-    if EzXML.nodename(c_child_element) != "f"
-        error("Expected nodename `f`. Found: `$(EzXML.nodename(c_child_element))`")
+    if XML.tag(c_child_element) != "f"
+        error("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`")
     end
 
-    formula_string = EzXML.nodecontent(c_child_element)
-
-    if haskey(c_child_element, "ref") && haskey(c_child_element, "t") && c_child_element["t"] == "shared"
-
-        haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
-
-        return ReferencedFormula(
-            formula_string,
-            parse(Int, c_child_element["si"]),
-            c_child_element["ref"],
-        )
-
-    elseif haskey(c_child_element, "t") && c_child_element["t"] == "shared"
-
-        haskey(c_child_element, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
-
-        return FormulaReference(
-            parse(Int, c_child_element["si"]),
-        )
+    if XML.is_simple(c_child_element)
+        formula_string = XML.simple_value(c_child_element)
     else
-        return Formula(formula_string)
+        fs = [x for x in XML.children(c_child_element) if XML.nodetype(x) == XML.Text]
+        if length(fs)==0
+            formula_string=""
+        else
+            formula_string=XML.value(fs[1])
+        end
     end
+
+    a = XML.attributes(c_child_element)
+
+    if !isnothing(a)
+
+        if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
+
+            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+
+            return ReferencedFormula(
+                formula_string,
+                parse(Int, a["si"]),
+                a["ref"],
+            )
+
+        elseif haskey(a, "t") && a["t"] == "shared"
+
+            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+
+            return FormulaReference(
+                parse(Int, a["si"]),
+            )
+        end
+    end
+
+    return Formula(formula_string)
 end
+
 
 # Constructor with simple formula string for backward compatibility
 function Cell(ref::CellRef, datatype::String, style::String, value::String, formula::String)
@@ -197,7 +219,6 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
             return _celldata_datetime(cell.value, isdate1904(ws))
 
         elseif !isempty(cell.style) && styles_is_float(ws, cell.style)
-
             # float
             return parse(Float64, cell.value)
 
