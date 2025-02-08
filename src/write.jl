@@ -96,8 +96,6 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
 end
 
 function generate_sst_xml_string(sst::SharedStringTable) :: String
-#    println("write99 : \n", sst.formatted_strings)
-#    println("write100 : \n", sst.unformatted_strings)
     @assert sst.is_loaded "Can't generate XML string from a Shared String Table that is not loaded."
     buff = IOBuffer()
 
