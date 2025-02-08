@@ -1869,20 +1869,23 @@ end
 end
 
 @testset "escape" begin
-
-    @test XML.escape("hello&world<'") == "hello&world&lt;&apos;"
+    # These tests are not sufficient. It may be possible using these tests (or similar) to create XLSX files
+    # that are not valid Excel files and will not successfully open. I do not now how to test this here but
+    # have successfully tested `output_table_escape_test.xlsx` and `escape.xlsx` manually.
+    @test XLSX.xlsx_escape("hello&world<'") == "hello&amp;world&lt;&apos;"
+    @test XML.unescape("hello&amp;world&lt;&apos;") == "hello&world<'"
                                               
     esc_filename  = "output_table_escape_test.xlsx"
     isfile(esc_filename) && rm(esc_filename)
 
     esc_col_names = ["&' & \" < > '", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
-    esc_sheetname = XML.escape("& & \" > < ")
+    esc_sheetname = XLSX.xlsx_escape("& & \" > < ")
     esc_data = Vector{Any}(undef, 4)
     esc_data[1] = ["11&&",    "12\"&",    "13<&",    "14>&",    "15'&"    ]
     esc_data[2] = ["21&&&&",  "22&\"&&",  "23&<&&",  "24&>&&",  "25&'&&"  ]
     esc_data[3] = ["31&&&&&&","32&&\"&&&","33&&<&&&","34&&>&&&","35&&'&&&"]
     esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
-    XLSX.writetable(esc_filename, esc_data, XML.escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
+    XLSX.writetable(esc_filename, esc_data, XLSX.xlsx_escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
 
     dtable = XLSX.readtable(esc_filename, esc_sheetname)
     r1_data, r1_col_names = dtable.data, dtable.column_labels

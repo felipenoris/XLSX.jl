@@ -30,6 +30,8 @@ const PREDEFINED_NUMFMT_COUNT = 164
 const DEFAULT_DATE_numFmtId = 14 # dd-mm-yyyy
 const DEFAULT_TIME_numFmtId = 20 # h:mm
 const DEFAULT_DATETIME_numFmtId = 22 # dd-mm-yyyy h:mm
+const DEFAULT_NUMBER_numFmtId = 0 # General - seems like an OK default for now
+const DEFAULT_BOOL_numFmtId = 0 # General - seems like an OK default for now
 
 # Returns the default `CellDataFormat` for a type
 default_cell_format(::Worksheet, ::CellValueType) = EmptyCellDataFormat()
@@ -260,7 +262,7 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
             el = XML.attributes(elements_found[i])
             if haskey(el, "numFmtId")
                 if parse(Int, el["numFmtId"]) == numFmtId
-                    return CellDataFormat(i-1)
+                    return CellDataFormat(i-1) # CellDataFormat is zero-indexed
                 end
             end
         end
@@ -270,15 +272,29 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
     end
 end
 
-function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: CellDataFormat
-    xroot = styles_xmlroot(wb)
-    cellXfs_element = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs", xroot)[begin]
-    existing_cellxf_elements_count = length(XML.children(cellXfs_element))
-
+function styles_add_cell_xf(wb::Workbook, attributes::Dict{String,String})::CellDataFormat
     new_xf = XML.Element("xf")
     for k in keys(attributes)
         new_xf[k] = attributes[k]
     end
-    push!(cellXfs_element, new_xf)
-    return CellDataFormat(existing_cellxf_elements_count) # turns out this is the new index
+    return styles_add_cell_xf(wb, new_xf)
+end
+
+function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
+    xroot = styles_xmlroot(wb)
+    i, j = get_idces(xroot, "styleSheet", "cellXfs")
+    existing_cellxf_elements_count = length(XML.children(xroot[i][j]))
+    @assert parse(Int, xroot[i][j]["count"]) == existing_cellxf_elements_count "Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
+
+    # Check new_xf doesn't duplicate any existing xf. If yes, use that rather than create new.
+    for (k, node) in enumerate(XML.children(xroot[i][j]))
+        if node == new_xf # XML.jl defines `Base.:(==)`
+            return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
+        end
+    end
+
+    push!(xroot[i][j], new_xf)
+    xroot[i][j]["count"] = string(existing_cellxf_elements_count + 1)
+
+    return CellDataFormat(existing_cellxf_elements_count) # turns out this is the new index (because it's zero-based)
 end

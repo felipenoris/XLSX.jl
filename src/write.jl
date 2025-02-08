@@ -66,7 +66,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
                 continue
             end
             ZipArchives.zip_newfile(xlsx, f; compress=true)
-            write(xlsx, replace(XML.write(xf.data[f]), r" *\n *" => "")) # Don't want pretty printing.
+            write(xlsx, XML.write(xf.data[f]))
         end
 
         # write binary files
@@ -96,6 +96,8 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
 end
 
 function generate_sst_xml_string(sst::SharedStringTable) :: String
+#    println("write99 : \n", sst.formatted_strings)
+#    println("write100 : \n", sst.unformatted_strings)
     @assert sst.is_loaded "Can't generate XML string from a Shared String Table that is not loaded."
     buff = IOBuffer()
 
@@ -365,12 +367,25 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+function xlsx_escape(x::String)# Adaped from XML.escape()
+
+    escape_chars = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
+    
+    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
+
+    for (pat, r) in escape_chars[2:end]
+        result = replace(result, pat => r)
+    end
+
+    return result
+end
+
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
-    sst_ind = add_shared_string!(get_workbook(ws), XML.escape(val))
+    sst_ind = add_shared_string!(get_workbook(ws), xlsx_escape(val))
     return ("s", string(sst_ind))
 end
 
@@ -382,6 +397,8 @@ xlsx_encode(ws::Worksheet, val::Dates.DateTime) = ("", string(datetime_to_excel_
 xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)))
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
+    if val.value isa Bool
+    end
     t, v = xlsx_encode(ws, val.value)
     cell = Cell(ref, t, id(val.styleid), v, Formula(""))
     setdata!(ws, cell)
@@ -389,7 +406,11 @@ end
 
 # convert AbstractTypes to concrete
 setdata!(ws::Worksheet, ref::CellRef, val::AbstractString) = setdata!(ws, ref, CellValue(ws, convert(String, val)))
-setdata!(ws::Worksheet, ref::CellRef, val::Bool) = setdata!(ws, ref, CellValue(ws, val))
+#function setdata!(ws::Worksheet, ref::CellRef, val::Bool)
+#    println("write413 : ", val)
+#    println("write413 : ", CellValue(ws, val))
+#    return setdata!(ws, ref, CellValue(ws, val))
+#end
 setdata!(ws::Worksheet, ref::CellRef, val::Integer) = setdata!(ws, ref, CellValue(ws, convert(Int, val)))
 setdata!(ws::Worksheet, ref::CellRef, val::Real) = setdata!(ws, ref, CellValue(ws, convert(Float64, val)))
 
@@ -404,7 +425,60 @@ Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
 Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
 
-setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
+function copynode(old_node::XML.Node)::XML.Node
+    new_node=XML.Element(XML.tag(old_node))
+    attributes = XML.attributes(old_node)
+    if !isnothing(attributes)
+        for (k, v) in attributes
+            new_node[k] = v
+        end
+    end
+    children = XML.children(old_node)
+    if length(children)>0
+        for c in children
+            push!(new_node, c)
+        end
+    end
+    return new_node
+end
+function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, numFmtId::Int)::CellDataFormat
+    old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
+    new_cell_xf = copynode(old_cell_xf)
+    new_cell_xf["numFmtId"] = numFmtId
+    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
+end
+function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existing cell format if it exists
+    c = getcell(ws, ref)
+    if c isa EmptyCell || c.style == ""
+        return setdata!(ws, ref, CellValue(ws, val))
+    else
+        existing_style = CellDataFormat(parse(Int, c.style))
+        isa_dt = styles_is_datetime(ws.package.workbook, existing_style)
+        if val isa Dates.Date
+            if isa_dt == false
+                c.style = string(update_template_xf(ws, existing_style, DEFAULT_DATE_numFmtId).id)
+            end
+        elseif val isa Dates.Time
+            if isa_dt == false
+                c.style = string(update_template_xf(ws, existing_style, DEFAULT_TIME_numFmtId).id)
+            end
+        elseif val isa Dates.DateTime
+            if isa_dt == false
+                c.style = string(update_template_xf(ws, existing_style, DEFAULT_DATETIME_numFmtId).id)
+            end
+        elseif val isa Float64 || val isa Int
+            if styles_is_float(ws.package.workbook, existing_style) == false && Int(existing_style.id) ∉ [0, 1]
+                c.style = string(update_template_xf(ws, existing_style, DEFAULT_NUMBER_numFmtId).id)
+            end
+        elseif val isa Bool # Now rerouted here rather than assigning an EmptyCellDataFormat.
+                            # Change any style to General (0) and retiain other formatting.
+            c.style = string(update_template_xf(ws, existing_style, DEFAULT_BOOL_numFmtId).id)
+        end
+
+        return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
+    end
+end
+# setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
 setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
 setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
 setdata!(ws::Worksheet, row::Integer, col::Integer, data) = setdata!(ws, CellRef(row, col), data)
