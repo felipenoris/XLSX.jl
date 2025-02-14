@@ -149,7 +149,7 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
     for c in XML.children(node)
         if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
             node_tag = XML.tag(c)
-            if !occursin(":", node_tag)
+             if !occursin(":", node_tag)
                 node_tag = default_ns * ":" * node_tag
             end
             npath = path * "/" * node_tag
@@ -365,13 +365,14 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
+
+
 function xlsx_escape(x::String)# Adaped from XML.escape()
 
-    escape_chars = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
-    
     result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
 
-    for (pat, r) in escape_chars[2:end]
+    for (pat, r) in ESCAPE_CHARS[2:end]
         result = replace(result, pat => r)
     end
 
@@ -418,28 +419,7 @@ Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
 Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
 
-function copynode(old_node::XML.Node)::XML.Node
-    new_node=XML.Element(XML.tag(old_node))
-    attributes = XML.attributes(old_node)
-    if !isnothing(attributes)
-        for (k, v) in attributes
-            new_node[k] = v
-        end
-    end
-    children = XML.children(old_node)
-    if length(children)>0
-        for c in children
-            push!(new_node, c)
-        end
-    end
-    return new_node
-end
-function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, numFmtId::Int)::CellDataFormat
-    old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
-    new_cell_xf = copynode(old_cell_xf)
-    new_cell_xf["numFmtId"] = numFmtId
-    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
-end
+
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existing cell format if it exists
     c = getcell(ws, ref)
     if c isa EmptyCell || c.style == ""
@@ -449,23 +429,23 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existin
         isa_dt = styles_is_datetime(ws.package.workbook, existing_style)
         if val isa Dates.Date
             if isa_dt == false
-                c.style = string(update_template_xf(ws, existing_style, DEFAULT_DATE_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_DATE_numFmtId).id)
             end
         elseif val isa Dates.Time
             if isa_dt == false
-                c.style = string(update_template_xf(ws, existing_style, DEFAULT_TIME_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_TIME_numFmtId).id)
             end
         elseif val isa Dates.DateTime
             if isa_dt == false
-                c.style = string(update_template_xf(ws, existing_style, DEFAULT_DATETIME_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_DATETIME_numFmtId).id)
             end
         elseif val isa Float64 || val isa Int
             if styles_is_float(ws.package.workbook, existing_style) == false && Int(existing_style.id) ∉ [0, 1]
-                c.style = string(update_template_xf(ws, existing_style, DEFAULT_NUMBER_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_NUMBER_numFmtId).id)
             end
         elseif val isa Bool # Now rerouted here rather than assigning an EmptyCellDataFormat.
                             # Change any style to General (0) and retiain other formatting.
-            c.style = string(update_template_xf(ws, existing_style, DEFAULT_BOOL_numFmtId).id)
+            c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_BOOL_numFmtId).id)
         end
 
         return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
@@ -558,7 +538,7 @@ end
         write_columnnames::Bool=true,
     )
 
-Writes tabular data `data` with labels given by `columnnames` to `sheet`,
+Write tabular data `data` with labels given by `columnnames` to `sheet`,
 starting at `anchor_cell`.
 
 `data` must be a vector of columns.

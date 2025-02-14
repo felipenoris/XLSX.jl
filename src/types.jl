@@ -66,6 +66,24 @@ struct ReferencedFormula <: AbstractFormula
     ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae
 end
 
+mutable struct CellFont
+    fontId:: Int
+    font::Dict{String, Union{Dict{String, String}, Nothing}} # fontAttribute -> (attribute -> value)
+    applyFont::String
+
+    function CellFont(fontid::Int, font::Dict{String, Union{Dict{String, String}, Nothing}}, applyFont::String)
+        return new(fontid, font, applyFont)
+    end
+end
+mutable struct CellBorder
+    border::XML.Node
+    applyBorder::String
+
+    function CellBorder(border::XML.Node, applyBorder::String)
+        return new(border, applyBorder)
+    end
+end
+
 abstract type AbstractCell end
 
 mutable struct Cell <: AbstractCell

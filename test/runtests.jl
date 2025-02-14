@@ -1451,7 +1451,7 @@ end
     @test datefmt == 164
     @test numfmt == 165
 
-    font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
+    font = XLSX.styles_add_cell_font(wb, Dict("b" => nothing, "sz" => Dict("val"=>"24")))
     xroot = XLSX.styles_xmlroot(wb)
     fontnodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts/$SPREADSHEET_NAMESPACE_XPATH_ARG:font", xroot)
     fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
@@ -1527,6 +1527,24 @@ end
     sheet[3, 1] = CellValue("hello friend", textstyle)
     @test sheet[3, 1] == "hello friend"
     @test XLSX.getcell(sheet, 3, 1).style == id(textstyle)
+
+    @test XLSX.getFont(xfile, "Sheet1!B2").fontId == XLSX.getFont(sheet, "B2").fontId
+    @test XLSX.getFont(xfile, "Sheet1!B2").font == XLSX.getFont(sheet, "B2").font
+    @test XLSX.getFont(xfile, "Sheet1!B2").applyFont == XLSX.getFont(sheet, "B2").applyFont
+    XLSX.setFont(sheet, "B2"; bold=true, size=24, name="Arial")
+    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Arial"))
+    XLSX.setFont(sheet, "B2"; size=18)
+    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"))
+    XLSX.setFont(sheet, "B2"; size=24)
+    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Arial"))
+    XLSX.setFont(sheet, "B2"; size=28, name="Aptos")
+    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"))
+    XLSX.setFont(sheet, "B2"; bold=false, italic=true, size=12, name="Berlin Sans FB Demi")
+    @test XLSX.getFont(sheet, "B2").font == Dict("i" => nothing, "sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Berlin Sans FB Demi"))
+    XLSX.setFont(sheet, "B2"; bold=false, italic=false, size=14, color="FF00FF00")
+    @test XLSX.getFont(sheet, "B2").font == Dict("sz" => Dict("val"=>"14"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF00FF00"))
+    XLSX.setFont(sheet, "B2"; color="FF000000")
+    @test XLSX.getFont(sheet, "B2").font == Dict("sz" => Dict("val"=>"14"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
 
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
