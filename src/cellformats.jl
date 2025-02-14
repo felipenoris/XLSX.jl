@@ -1,4 +1,6 @@
 
+const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "family", "scheme"]
+
 copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
 
 function buildNode(tag::String, attributes::Dict{String, Union{Nothing, Dict{String, String}}}) :: XML.Node
@@ -30,11 +32,9 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attri
 end
 
 
-const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "family", "scheme"]
-
 """
    setFont(sh::Worksheet, cr::String; kw...) -> String
-   setFont(xf::XLSXFile, cr::String, kw...) -> String
+   setFont(xf::XLSXFile,  cr::String, kw...) -> String
 
 Set the font used by a single cell or a cell range `cr` in a worksheet `sh` or XLSXfile `xf`.
 
@@ -44,12 +44,16 @@ Font attributes are specified using keyword arguments:
 - `size::Int = nothing`     : set the font size.
 - `color::String = nothing` : set the font color using an 8-digit hexadecimal RGB value.
 - `name::String = nothing`  : set the font name.
+- `family::String = nothing`: set the font family.
 
-Only the attributes specified will be changed. If an attribute is not specified, the current value will be retained.
-Only these attributes are supported: `bold`, `italic`, `size`, `color`, `name`.
+Only the attributes specified will be changed. If an attribute is not specified, the current
+value will be retained. Only these attributes are supported currently.
 
 No validation of the values specified is done.
 If you specify, for example, `name = badFont` that value will be written to the XLSXfile.
+
+As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
+new font definitions.
 
 Examples:
 ```julia
@@ -72,18 +76,23 @@ function setFont(
         italic::Union{Nothing, Bool}=nothing,
         size::Union{Nothing, Int}=nothing,
         color::Union{Nothing, String}=nothing,
-        name::Union{Nothing, String}=nothing
-    ) :: String
+        name::Union{Nothing, String}=nothing#,
+ #       family::Union{Nothing, String}=nothing
+    ) :: Union{Nothing, String}
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    if cell isa EmptyCell || cell.style==""
+    if cell isa EmptyCell
+        println(cell.ref, " isa EmptyCell")
         return nothing
+    end
+    if cell.style==""
+        cell.style = string(get_num_style_index(sh::Worksheet, 0).id)
     end
 
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-   new_font_atts = Dict{String, Union{Dict{String, String}, Nothing}}()
+    new_font_atts = Dict{String, Union{Dict{String, String}, Nothing}}()
  
     cell_font = getFont(wb, cell_style)
     old_font_atts = cell_font.font
@@ -116,6 +125,7 @@ function setFont(
             elseif !isnothing(name)
                 new_font_atts["name"] = Dict("val" => name)
             end
+        elseif a == "scheme" # drop this attribute
         elseif haskey(old_font_atts, a)
             new_font_atts[a] = old_font_atts[a]
         end
@@ -133,11 +143,11 @@ end
    getFont(sh::Worksheet, cr::String) -> Union{Nothing, CellFont}
    getFont(xf::XLSXFile, cr::String) -> Union{Nothing, CellFont}
    
-Get the font used by a single cell at reference `cr` cell in a worksheet `sh` or XLSXfile `xf`.
+Get the font used by a single cell at reference `cr` in a worksheet `sh` or XLSXfile `xf`.
 
 Return a CellFont containing:
-- `fontId` : the font id - a 0-based index of the font in the workbook
-- `font` : a dictionary of font attributes: fontAttribute -> (attribute -> value)
+- `fontId`    : a 0-based index of the font in the workbook
+- `font`      : a dictionary of font attributes: fontAttribute -> (attribute -> value)
 - `applyFont` : a boolean indicating whether the font is applied to the cell.
 Return `nothing` if no cell font is found.
 
