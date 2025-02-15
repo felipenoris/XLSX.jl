@@ -36,7 +36,7 @@ end
    setFont(sh::Worksheet, cr::String; kw...) -> String
    setFont(xf::XLSXFile,  cr::String, kw...) -> String
 
-Set the font used by a single cell or a cell range `cr` in a worksheet `sh` or XLSXfile `xf`.
+Set the font used by a single cell, a cell range or a column range in a worksheet or XLSXfile.
 
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
@@ -50,37 +50,107 @@ Font attributes are specified using keyword arguments:
 Only the attributes specified will be changed. If an attribute is not specified, the current
 value will be retained. These are the only attributes supported currently.
 
-No validation of the values specified is performed.
+No validation of the font names specified is performed.
 If you specify, for example, `name = badFont`, that value will be written to the XLSXfile.
+
+The `color` attribute can only be defined as rgb values.
+- The first two digits represent transparency (α). FF means fully opaque, while 00 means fully transparent.
+- The next two digits give the red component.
+- The next two digits give the green component.
+- The next two digits give the blue component.
+So, FF000000 means a fully opaque black color.
 
 As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
 new font definitions.
 
+Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
+If a cell range or column range includes any `EmptyCell`s, they will be
+skipped and the font will be set for the remaining cells.
+
 Examples:
 ```julia
-julia> setFont(sh, "A1"; bold=true, italic=true, size=12, color="FFFF0000", name="Arial")
+julia> setFont(sheet, "A1"; bold=true, italic=true, size=12, color="FFFF0000", name="Arial")
 
-julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="FFB3081F", name="Berlin Sans FB Demi")
+julia> setFont(xfile, "Sheet1!A1"; bold=false, size=14, color="FFB3081F", name="Berlin Sans FB Demi")
+
+julia> setFont(sheet, "A1:B7"; name="Aptos", under="double", strike=true)
+
+julia> setFont(xfile, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi", bold=true, italic=true, color="FF0088FF", under="single")
+
+julia> setFont(xfile, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")
+
 ```
 """
-function setFont(sheet::Worksheet, ref_or_rng::AbstractString; kw...)
-    if is_valid_cellrange(ref_or_rng)
-        error("Not implemented yet.")
+function setFont(ws::Worksheet, rng::CellRange; kw...) :: String
+    first=true
+    let newstyle
+        for cell in rng
+            if getcell(ws, cell) isa EmptyCell
+                continue
+            end
+            if first # Define the font for the first cell in the range.
+                newstyle = setFont(ws, cell; kw...)
+                first=false
+            else # Apply the font to the rest of the cells in the range.
+                @assert !(cell isa EmptyCell) "Cannot set font for an EmptyCell: $(cell.name). Set the value first."
+                cell = getcell(ws, cell)
+                cell.style = newstyle
+            end
+        end
+        return newstyle
+    end
+end
+function setFont(ws::Worksheet, colrng::ColumnRange; kw...) :: String
+    bounds = column_bounds(colrng)
+    dim = (get_dimension(ws))
+
+    left=bounds[begin]
+    right=bounds[end]
+    top=dim.start.row_number
+    bottom=dim.stop.row_number
+
+    OK = dim.start.column_number <= left
+    OK &= dim.stop.column_number >= right
+    OK &= dim.start.row_number <= top
+    OK &= dim.stop.row_number >= bottom
+
+    if OK
+        rng = CellRange(top, left, bottom, right)
+        return setFont(ws, rng; kw...)
+    else
+        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` has dimension `$dim`.")
+    end
+end
+function setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)
+    if is_valid_column_range(ref_or_rng)
+        colrng=ColumnRange(ref_or_rng)
+        newstyle=setFont(ws, colrng; kw...)
+    elseif is_valid_cellrange(ref_or_rng)
+        rng=CellRange(ref_or_rng)
+        newstyle=setFont(ws, rng; kw...)
     elseif is_valid_cellname(ref_or_rng)
-        setFont(sheet, CellRef(ref_or_rng); kw...)
+        newstyle = setFont(ws, CellRef(ref_or_rng); kw...)
     else
         error("Invalid cell reference or range: $ref_or_rng")
     end
+    return newstyle
 end
-
 function setFont(xl::XLSXFile, sheetcell::String; kw...)
-    ref = SheetCellRef(sheetcell)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-    return setFont(getsheet(xl, ref.sheet), ref.cellref; kw...)
+    if is_valid_sheet_column_range(sheetcell)
+        sheetcolrng = SheetColumnRange(sheetcell)
+        newstyle = setFont(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
+    elseif is_valid_sheet_cellrange(sheetcell)
+        sheetcellrng = SheetCellRange(sheetcell)
+        newstyle = setFont(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
+    elseif is_valid_sheet_cellname(sheetcell)
+        ref = SheetCellRef(sheetcell)
+        @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+        newstyle = setFont(getsheet(xl, ref.sheet), ref.cellref; kw...)
+    else
+        error("Invalid sheet cell reference: $sheetcell")
+    end
+    return newstyle
 end
-
-#setFont(sh::Worksheet, cr::String; kw...) = setFont(sh, CellRef(cr); kw...)
-
 function setFont(sh::Worksheet, cellref::CellRef;
         bold::Union{Nothing, Bool}=nothing,
         italic::Union{Nothing, Bool}=nothing,
@@ -195,19 +265,13 @@ Here's a list of some common tags and their purposes (thanks to Copilot!):
     <condense/>              : Condenses the font spacing.
     <extend/>                : Extends the font spacing.
     <sz val="size"/>         : Sets the font size.
-    <color rgb="FF000000"/>  : Sets the font color (e.g., using RGB values).
+    <color rgb="FF000000"/>  : Sets the font color isfile("output.xlsx")using RGB values).
     <name val="Arial"/>      : Specifies the font name.
     <family val="familyId"/> : Defines the font family.
     <scheme val="major"/>    : Specifies whether the font is part of the major or minor theme.
 
-The <color> tag is limited here to use of rgb to define colors.
-The rgb value is defined as follows:
-    The first two characters represent the alpha (transparency) channel, with FF meaning fully opaque.
-    The next two characters represent the red channel.
-    The following two characters represent the green channel.
-    The final two characters represent the blue channel.
-
-So, FF000000 represents an opaque black color.
+Excel defines colours in several ways. Get font will return the colour in any of these
+e.g. `"color" => ("theme" => "1")`.
 
 """
 function getFont end
