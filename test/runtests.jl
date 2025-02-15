@@ -1528,23 +1528,89 @@ end
     @test sheet[3, 1] == "hello friend"
     @test XLSX.getcell(sheet, 3, 1).style == id(textstyle)
 
-    @test XLSX.getFont(xfile, "Sheet1!B2").fontId == XLSX.getFont(sheet, "B2").fontId
-    @test XLSX.getFont(xfile, "Sheet1!B2").font == XLSX.getFont(sheet, "B2").font
-    @test XLSX.getFont(xfile, "Sheet1!B2").applyFont == XLSX.getFont(sheet, "B2").applyFont
-    XLSX.setFont(sheet, "B2"; bold=true, size=24, name="Arial")
-    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Arial"))
-    XLSX.setFont(sheet, "B2"; size=18)
-    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"))
-    XLSX.setFont(sheet, "B2"; size=24)
-    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Arial"))
-    XLSX.setFont(sheet, "B2"; size=28, name="Aptos")
-    @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"))
-    XLSX.setFont(sheet, "B2"; bold=false, italic=true, size=12, name="Berlin Sans FB Demi")
-    @test XLSX.getFont(sheet, "B2").font == Dict("i" => nothing, "sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Berlin Sans FB Demi"))
-    XLSX.setFont(sheet, "B2"; bold=false, italic=false, size=14, color="FF00FF00")
-    @test XLSX.getFont(sheet, "B2").font == Dict("sz" => Dict("val"=>"14"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF00FF00"))
+    xfile = XLSX.open_empty_template()
+    wb = XLSX.get_workbook(xfile)
+    sheet = xfile["Sheet1"]
+
+    col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals", "MixedStringNothingMissing"]
+    data = Vector{Any}(undef, 11)
+    data[1] = [1, 2, missing, UInt8(4)]
+    data[2] = ["Hey", "You", "Out", "There"]
+    data[3] = [101.5, 102.5, missing, 104.5]
+    data[4] = [ true, false, missing, true]
+    data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
+    data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0) ]
+    data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+    data[8] = SubString.(["Hey", "You", "Out", "There"], 1, 2)
+    data[9] = [1//2, 1//3, missing, 22//3]
+    data[10] = [pi, sqrt(2), missing, sqrt(5)]
+    data[11] = [ nothing, "middle", missing, nothing ]
+
+    XLSX.writetable!(sheet, data, col_names; write_columnnames=true)
+
+    @test isnothing(XLSX.getFont(xfile, "Sheet1!B2")) && isnothing(XLSX.getFont(sheet, "B2"))
+    
+    # Default font attributes are present until overwritten with setFont()
+    default_font= XLSX.getDefaultFont(sheet).font
+    dname = default_font["name"]["val"]
+    dsize = default_font["sz"]["val"]
+    dcolorkey = collect(keys(default_font["color"]))[1]
+    dcolorval = collect(values(default_font["color"]))[1]
+    
+    XLSX.setFont(sheet, "A1"; bold=true, size=24, name="Arial")
+    @test XLSX.getFont(sheet, "A1").font == Dict("b" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Arial"), "color" => Dict(dcolorkey => dcolorval))
+    XLSX.setFont(sheet, "A1"; size=18)
+    @test XLSX.getFont(sheet, "A1").font == Dict("b" => nothing, "sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict(dcolorkey => dcolorval))
+    XLSX.setFont(xfile, "Sheet1!A1"; bold=false, size=24, name="Aptos")
+    @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+
+    @test XLSX.getFont(xfile, "Sheet1!A1").fontId == XLSX.getFont(sheet, "A1").fontId
+    @test XLSX.getFont(xfile, "Sheet1!A1").font == XLSX.getFont(sheet, "A1").font
+    @test XLSX.getFont(xfile, "Sheet1!A1").applyFont == XLSX.getFont(sheet, "A1").applyFont
+
+    XLSX.setFont(xfile, "Sheet1!A2"; size=18)
+    @test XLSX.getFont(xfile, "Sheet1!A2").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val" => dname), "color" => Dict(dcolorkey => dcolorval))
+    XLSX.setFont(sheet, "A2"; size=24)
+    @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val"=>"24"), "name" => Dict("val" => dname), "color" => Dict(dcolorkey => dcolorval))
+    XLSX.setFont(sheet, "A2"; size=28, name="Aptos")
+    @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+
+    XLSX.setFont(sheet, "A3"; italic=true, name="Berlin Sans FB Demi")
+    @test XLSX.getFont(sheet, "A3").font == Dict("i" => nothing, "sz" => Dict("val"=>dsize), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
+    XLSX.setFont(xfile, "Sheet1!A3"; size=24)
+    @test XLSX.getFont(xfile, "Sheet1!A3").font == Dict("i" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
+
+    XLSX.setFont(xfile, "Sheet1!A4"; size=28, name="Aptos")
+    @test XLSX.getFont(xfile, "Sheet1!A4").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+
+    XLSX.setFont(sheet, "B1"; bold=true, italic=true, size=14, color="FF00FF00")
+    @test XLSX.getFont(sheet, "B1").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val"=>"14"), "name" => Dict("val"=>dname), "color" => Dict("rgb" => "FF00FF00"))
+    XLSX.setFont(xfile, "Sheet1!B1"; bold=false, italic=false, size=12, name="Berlin Sans FB Demi")
+    @test XLSX.getFont(xfile, "Sheet1!B1").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF00FF00"))
+
     XLSX.setFont(sheet, "B2"; color="FF000000")
-    @test XLSX.getFont(sheet, "B2").font == Dict("sz" => Dict("val"=>"14"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
+    @test XLSX.getFont(sheet, "B2").font == Dict("sz" => Dict("val"=> dsize), "name" => Dict("val"=>dname), "color" => Dict("rgb" => "FF000000"))
+    XLSX.setFont(xfile, "Sheet1!B2"; bold=true, italic=true, size=14, color="FF00FF00")
+    @test XLSX.getFont(xfile, "Sheet1!B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val"=>"14"), "name" => Dict("val"=>dname), "color" => Dict("rgb" => "FF00FF00"))
+
+    XLSX.setFont(xfile, "Sheet1!B3"; name="Berlin Sans FB Demi", color="FF000000")
+    @test XLSX.getFont(xfile, "Sheet1!B3").font == Dict("sz" => Dict("val"=>dsize), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
+
+    XLSX.writexlsx("output.xlsx", xfile, overwrite=true)
+    @test isfile("output.xlsx")
+
+    XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
+        sheet = f["Sheet1"]
+        @test XLSX.getFont(f, "Sheet1!A1").font == Dict("sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(f, "Sheet1!A3").font == Dict("i" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(sheet, "A4").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(f, "Sheet1!B1").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF00FF00"))
+        @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val"=>"14"), "name" => Dict("val"=>dname), "color" => Dict("rgb" => "FF00FF00"))
+        @test XLSX.getFont(f, "Sheet1!B3").font == Dict("sz" => Dict("val"=>dsize), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
+    end
+
+    isfile("output.xlsx") && rm("output.xlsx")
 
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)

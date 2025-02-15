@@ -1,5 +1,5 @@
 
-const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "family", "scheme"]
+const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
 
 copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
 
@@ -41,16 +41,17 @@ Set the font used by a single cell or a cell range `cr` in a worksheet `sh` or X
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
 - `italic::Bool = nothing`  : set to `true` to make the font italic.
-- `size::Int = nothing`     : set the font size.
+- `under::String = nothing` : set to `single`, `double` or `none`.
+- `strike::Bool = nothing`  : set to `true` to strike through the font.
+- `size::Int = nothing`     : set the font size (0 < size < 410).
 - `color::String = nothing` : set the font color using an 8-digit hexadecimal RGB value.
 - `name::String = nothing`  : set the font name.
-- `family::String = nothing`: set the font family.
 
 Only the attributes specified will be changed. If an attribute is not specified, the current
-value will be retained. Only these attributes are supported currently.
+value will be retained. These are the only attributes supported currently.
 
-No validation of the values specified is done.
-If you specify, for example, `name = badFont` that value will be written to the XLSXfile.
+No validation of the values specified is performed.
+If you specify, for example, `name = badFont`, that value will be written to the XLSXfile.
 
 As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
 new font definitions.
@@ -62,31 +63,39 @@ julia> setFont(sh, "A1"; bold=true, italic=true, size=12, color="FFFF0000", name
 julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="FFB3081F", name="Berlin Sans FB Demi")
 ```
 """
+function setFont(sheet::Worksheet, ref_or_rng::AbstractString; kw...)
+    if is_valid_cellrange(ref_or_rng)
+        error("Not implemented yet.")
+    elseif is_valid_cellname(ref_or_rng)
+        setFont(sheet, CellRef(ref_or_rng); kw...)
+    else
+        error("Invalid cell reference or range: $ref_or_rng")
+    end
+end
+
 function setFont(xl::XLSXFile, sheetcell::String; kw...)
+    ref = SheetCellRef(sheetcell)
     @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
     return setFont(getsheet(xl, ref.sheet), ref.cellref; kw...)
 end
 
-setFont(sh::Worksheet, cr::String; kw...) = setFont(sh, CellRef(cr); kw...)
+#setFont(sh::Worksheet, cr::String; kw...) = setFont(sh, CellRef(cr); kw...)
 
-function setFont(
-        sh::Worksheet,
-        cellref::CellRef;
+function setFont(sh::Worksheet, cellref::CellRef;
         bold::Union{Nothing, Bool}=nothing,
         italic::Union{Nothing, Bool}=nothing,
+        under::Union{Nothing, String}=nothing,
+        strike::Union{Nothing, Bool}=nothing,
         size::Union{Nothing, Int}=nothing,
         color::Union{Nothing, String}=nothing,
-        name::Union{Nothing, String}=nothing#,
- #       family::Union{Nothing, String}=nothing
+        name::Union{Nothing, String}=nothing
     ) :: Union{Nothing, String}
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    if cell isa EmptyCell
-        println(cell.ref, " isa EmptyCell")
-        return nothing
-    end
+    @assert !(cell isa EmptyCell) "Cannot set font for an EmptyCell: $(cellref.name). Set the value first."
+        
     if cell.style==""
         cell.style = string(get_num_style_index(sh::Worksheet, 0).id)
     end
@@ -107,13 +116,30 @@ function setFont(
             if isnothing(italic) && haskey(old_font_atts,"i") || italic == true
                 new_font_atts["i"] = nothing
             end
+        elseif a == "u"
+            @assert isnothing(under) || under ∈ ["none", "single", "double"] "Invalid value for under: $under. Must be one of: `none`, `single`, `double`."
+            if isnothing(under) && haskey(old_font_atts,"u")
+                new_font_atts["u"] = old_font_atts["u"]
+            elseif !isnothing(under)
+                if under == "single"
+                    new_font_atts["u"] = nothing
+                elseif under == "double"
+                    new_font_atts["u"] = Dict("val" => "double")
+                end
+            end
+        elseif a == "strike"
+            if isnothing(strike) && haskey(old_font_atts,"strike") || strike == true
+                new_font_atts["strike"] = nothing
+            end
         elseif a == "color"
+            @assert isnothing(color) || occursin(r"^[0-9A-F]{8}$", color) "Invalid color value: $color. Must be an 8-digit hexadecimal RGB value."
             if isnothing(color) && haskey(old_font_atts, "color")
                 new_font_atts["color"] = old_font_atts["color"]
             elseif !isnothing(color)
                 new_font_atts["color"] = Dict("rgb" => color)
             end
         elseif a == "sz"
+            @assert isnothing(size) || (size > 0 && size < 410) "Invalid size value: $size. Must be between 1 and 409."
             if isnothing(size) && haskey(old_font_atts, "sz")
                 new_font_atts["sz"] = old_font_atts["sz"]
             elseif !isnothing(size)
@@ -148,7 +174,7 @@ Get the font used by a single cell at reference `cr` in a worksheet `sh` or XLSX
 Return a CellFont containing:
 - `fontId`    : a 0-based index of the font in the workbook
 - `font`      : a dictionary of font attributes: fontAttribute -> (attribute -> value)
-- `applyFont` : a boolean indicating whether the font is applied to the cell.
+- `applyFont` : "1" or "0", indicating whether or not the font is applied to the cell.
 Return `nothing` if no cell font is found.
 
 Examples:
@@ -160,42 +186,41 @@ julia> getFont(xf, "Sheet1!A1")
 ```
 Excel uses several tags to define font properties in its XML structure.
 Here's a list of some common tags and their purposes (thanks to Copilot!):
-    <b/>: Indicates bold font.
-    <i/>: Indicates italic font.
-    <u val="single"/>: Specifies underlining (e.g., single, double).
-    <strike/>: Indicates strikethrough.
-    <outline/>: Specifies outline text.
-    <shadow/>: Adds a shadow to the text.
-    <condense/>: Condenses the font spacing.
-    <extend/>: Extends the font spacing.
-    <sz val="size"/>: Sets the font size.
-    <color rgb="FF0000"/>: Sets the font color (e.g., using RGB values).
-    <name val="Arial"/>: Specifies the font name.
-    <family val="familyId"/>: Defines the font family.
-    <scheme val="major"/>: Specifies whether the font is part of the major or minor theme.
+    <b/>                     : Indicates bold font.
+    <i/>                     : Indicates italic font.
+    <u[ val="double"]/>      : Specifies underlining (e.g., single, double).
+    <strike/>                : Indicates strikethrough.
+    <outline/>               : Specifies outline text.
+    <shadow/>                : Adds a shadow to the text.
+    <condense/>              : Condenses the font spacing.
+    <extend/>                : Extends the font spacing.
+    <sz val="size"/>         : Sets the font size.
+    <color rgb="FF000000"/>  : Sets the font color (e.g., using RGB values).
+    <name val="Arial"/>      : Specifies the font name.
+    <family val="familyId"/> : Defines the font family.
+    <scheme val="major"/>    : Specifies whether the font is part of the major or minor theme.
 
-The <color> tag in Excel's XML structure uses the rgb attribute to define colors in a hexadecimal format, 
-which is a standard way to represent colors in digital systems.
-The format FF000000 might seem lengthy, but it breaks down into specific components:
-    The first two characters (FF) represent the alpha (transparency) channel, with FF meaning fully opaque.
-    The next two characters (00) represent the red channel.
-    The following two characters (00) represent the green channel.
-    The final two characters (00) represent the blue channel.
+The <color> tag is limited here to use of rgb to define colors.
+The rgb value is defined as follows:
+    The first two characters represent the alpha (transparency) channel, with FF meaning fully opaque.
+    The next two characters represent the red channel.
+    The following two characters represent the green channel.
+    The final two characters represent the blue channel.
 
 So, FF000000 represents an opaque black color.
 
 """
 function getFont end
 
-getFont(sh::Worksheet, cr::String) = getFont(sh, CellRef(cr))
+getFont(ws::Worksheet, cr::String) = getFont(ws, CellRef(cr))
 function getFont(xl::XLSXFile, sheetcell::String) :: Union{Nothing, CellFont}
     ref = SheetCellRef(sheetcell)
     @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
     return getFont(getsheet(xl, ref.sheet), ref.cellref)
 end
-function getFont(sh::Worksheet, cellref::CellRef) :: Union{Nothing, CellFont}
-    wb = get_workbook(sh)
-    cell = getcell(sh, cellref)
+function getFont(ws::Worksheet, cellref::CellRef) :: Union{Nothing, CellFont}
+    wb = get_workbook(ws)
+    cell = getcell(ws, cellref)
 
     if cell isa EmptyCell || cell.style==""
         return nothing
@@ -204,6 +229,7 @@ function getFont(sh::Worksheet, cellref::CellRef) :: Union{Nothing, CellFont}
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
     return getFont(wb, cell_style)
 end
+getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFont(wb::Workbook, cell_style::XML.Node) :: Union{Nothing, CellFont}
     if haskey(cell_style, "fontId")
         fontid = cell_style["fontId"]
