@@ -80,6 +80,10 @@ julia> setFont(xfile, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi", bold=
 julia> setFont(xfile, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")
 
 ```
+
+The value returned is the style ID of the font applied to the cell(s).
+This can be used to apply the same font to other cells or ranges.
+
 """
 function setFont(ws::Worksheet, rng::CellRange; kw...) :: String
     first=true
@@ -256,19 +260,19 @@ julia> getFont(xf, "Sheet1!A1")
 ```
 Excel uses several tags to define font properties in its XML structure.
 Here's a list of some common tags and their purposes (thanks to Copilot!):
-    <b/>                     : Indicates bold font.
-    <i/>                     : Indicates italic font.
-    <u[ val="double"]/>      : Specifies underlining (e.g., single, double).
-    <strike/>                : Indicates strikethrough.
-    <outline/>               : Specifies outline text.
-    <shadow/>                : Adds a shadow to the text.
-    <condense/>              : Condenses the font spacing.
-    <extend/>                : Extends the font spacing.
-    <sz val="size"/>         : Sets the font size.
-    <color rgb="FF000000"/>  : Sets the font color isfile("output.xlsx")using RGB values).
-    <name val="Arial"/>      : Specifies the font name.
-    <family val="familyId"/> : Defines the font family.
-    <scheme val="major"/>    : Specifies whether the font is part of the major or minor theme.
+    b        : Indicates bold font.
+    i        : Indicates italic font.
+    u        : Specifies underlining (e.g., single, double).
+    strike   : Indicates strikethrough.
+    outline  : Specifies outline text.
+    shadow   : Adds a shadow to the text.
+    condense : Condenses the font spacing.
+    extend   : Extends the font spacing.
+    sz       : Sets the font size.
+    color    : Sets the font color using RGB values).
+    name     : Specifies the font name.
+    family   : Defines the font family.
+    scheme   : Specifies whether the font is part of the major or minor theme.
 
 Excel defines colours in several ways. Get font will return the colour in any of these
 e.g. `"color" => ("theme" => "1")`.
