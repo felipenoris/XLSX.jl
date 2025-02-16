@@ -29,7 +29,7 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                         color[k] = v
                     end
                 end
-                if tag == "border"
+                if tag == "border" && length(XML.attributes(color)) > 0 # Don't push an empty color.
                     push!(cnode, color)
                 end
             end
@@ -543,20 +543,23 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
         @assert parse(Int, border_elements["count"]) == length(XML.children(border_elements)) "Unexpected number of font definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"
         current_border = XML.children(border_elements)[parse(Int, borderid)+1] # Zero based!
         border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
-        for c in XML.children(current_border)
-            if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
-                border_atts[XML.tag(c)] = nothing
+        for side in XML.children(current_border)
+            if isnothing(XML.attributes(side)) || length(XML.attributes(side)) == 0
+                border_atts[XML.tag(side)] = nothing
             else
-                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
-                for (k, v) in XML.attributes(c) # style is an attribute of a border element
-                    border_atts[XML.tag(c)] = Dict(k => v)
-                    for subc in XML.children(c) # color is a child of a border element
+                @assert length(XML.attributes(side)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(side)))."
+                for (k, v) in XML.attributes(side) # style is the only possible attribute of a side
+                    border_atts[XML.tag(side)] = Dict(k => v)
+                    for subc in XML.children(side) # color is a child of a border element
                         if isnothing(XML.attributes(subc)) || length(XML.attributes(subc)) == 0 # shouuldn't happen
+                            println(side)
+                             println(subc)
+                             println(cell_style)
                             println("Shouldn't happen!")
                         else
-                            @assert length(XML.attributes(c)) == 1 "Too many children found for $(XML.tag(subc)) Expected 1, found $(length(XML.attributes(subc)))."
+                            @assert length(XML.attributes(side)) == 1 "Too many children found for $(XML.tag(subc)) Expected 1, found $(length(XML.attributes(subc)))."
                             for (k, v) in XML.attributes(subc)
-                                border_atts[XML.tag(c)][k] = v
+                                border_atts[XML.tag(side)][k] = v
                             end
                         end
                     end
@@ -619,8 +622,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
                 @assert kwdict[a]["style"] ∈ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"] "Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."
                 new_border_atts[a]["style"] = kwdict[a]["style"]
             end
-            if !haskey(kwdict[a], "rgb") && haskey(old_border_atts, a)
-                for (k, v) in kwdict[a]
+            if !haskey(kwdict[a], "rgb") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
+                for (k, v) in old_border_atts[a]
                     if k != "style"
                         new_border_atts[a][k] = v
                     end
