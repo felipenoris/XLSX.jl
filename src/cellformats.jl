@@ -2,7 +2,6 @@
 const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
 const border_tags = ["top", "bottom", "left", "right", "diagonal"]
 
-
 copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
 
 function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{String,String}}})::XML.Node
@@ -56,7 +55,7 @@ function styles_add_cell_font(wb::Workbook, attributes::Dict{String,Union{Dict{S
     return styles_add_cell_attribute(wb, new_font, "fonts")
 end
 
-# Used by setFont(), setBorders(), setFill(), setAlignment() and setNumFmt()
+# Used by setFont(), setBorder(), setFill(), setAlignment() and setNumFmt()
 function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)::Int
     xroot = styles_xmlroot(wb)
     i, j = get_idces(xroot, "styleSheet", att)
@@ -75,6 +74,112 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
     xroot[i][j]["count"] = string(existing_elements_count + 1)
 
     return existing_elements_count # turns out this is the new index (because it's zero-based)
+end
+
+function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
+    if is_valid_sheet_column_range(sheetcell)
+        sheetcolrng = SheetColumnRange(sheetcell)
+        newid = f(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
+    elseif is_valid_sheet_cellrange(sheetcell)
+        sheetcellrng = SheetCellRange(sheetcell)
+        newid = f(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
+    elseif is_valid_sheet_cellname(sheetcell)
+        ref = SheetCellRef(sheetcell)
+        @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+        newid = f(getsheet(xl, ref.sheet), ref.cellref; kw...)
+    elseif is_workbook_defined_name(xl, sheetcell)
+        v = get_defined_name_value(xl.workbook, sheetcell)
+        if is_defined_name_value_a_constant(v)
+            error("Can only assign borders to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            newid = process_ranges(f, xl, string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    else
+        error("Invalid sheet cell reference: $sheetcell")
+    end
+    return newid
+end
+function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
+    if is_valid_column_range(ref_or_rng)
+        colrng = ColumnRange(ref_or_rng)
+        newborderid = f(ws, colrng; kw...)
+    elseif is_valid_cellrange(ref_or_rng)
+        rng = CellRange(ref_or_rng)
+        newid = f(ws, rng; kw...)
+    elseif is_valid_cellname(ref_or_rng)
+        newid = f(ws, CellRef(ref_or_rng); kw...)
+    elseif is_worksheet_defined_name(ws, ref_or_rng)
+        v = get_defined_name_value(ws, ref_or_rng)
+        if is_defined_name_value_a_constant(v) # Can these have fonts?
+            error("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            wb = get_workbook(ws)
+            newid = f(get_xlsxfile(wb), string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
+        wb = get_workbook(ws)
+        v = get_defined_name_value(wb, ref_or_rng)
+        if is_defined_name_value_a_constant(v) # Can these have fonts?
+            error("Can only assign borderds to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            newid = f(get_xlsxfile(wb), string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    else
+        error("Invalid cell reference or range: $ref_or_rng")
+    end
+    return newid
+end
+function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; kw...)::Int
+    bounds = column_bounds(colrng)
+    dim = (get_dimension(ws))
+
+    left = bounds[begin]
+    right = bounds[end]
+    top = dim.start.row_number
+    bottom = dim.stop.row_number
+
+    OK = dim.start.column_number <= left
+    OK &= dim.stop.column_number >= right
+    OK &= dim.start.row_number <= top
+    OK &= dim.stop.row_number >= bottom
+
+    if OK
+        rng = CellRange(top, left, bottom, right)
+        return f(ws, rng; kw...)
+    else
+        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
+    end
+end
+function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
+    for cellref in rng
+        if getcell(ws, cellref) isa EmptyCell
+            continue
+        end
+        _ = f(ws, cellref; kw...)
+    end
+    return -1 # Each cell may have a different borderId so we can't return a single value.
+end
+function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String)
+    ref = SheetCellRef(sheetcell)
+    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+    return f(getsheet(xl, ref.sheet), ref.cellref)
+end
+function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef)
+    wb = get_workbook(ws)
+    cell = getcell(ws, cellref)
+
+    if cell isa EmptyCell || cell.style == ""
+        return nothing
+    end
+
+    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    return f(wb, cell_style)
 end
 
 """
@@ -141,95 +246,10 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 
 """
 function setFont end
-function setFont(ws::Worksheet, rng::CellRange; kw...)::Int
-    for cellref in rng
-        if getcell(ws, cellref) isa EmptyCell
-            continue
-        end
-        _ = setFont(ws, cellref; kw...)
-    end
-    return -1 # Each cell may have a different fontId so we can't return a single value.
-end
-function setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int
-    bounds = column_bounds(colrng)
-    dim = (get_dimension(ws))
-
-    left = bounds[begin]
-    right = bounds[end]
-    top = dim.start.row_number
-    bottom = dim.stop.row_number
-
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
-
-    if OK
-        rng = CellRange(top, left, bottom, right)
-        return setFont(ws, rng; kw...)
-    else
-        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
-    end
-end
-function setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
-    if is_valid_column_range(ref_or_rng)
-        colrng = ColumnRange(ref_or_rng)
-        newfontid = setFont(ws, colrng; kw...)
-    elseif is_valid_cellrange(ref_or_rng)
-        rng = CellRange(ref_or_rng)
-        newfontid = setFont(ws, rng; kw...)
-    elseif is_valid_cellname(ref_or_rng)
-        newfontid = setFont(ws, CellRef(ref_or_rng); kw...)
-    elseif is_worksheet_defined_name(ws, ref_or_rng)
-        v = get_defined_name_value(ws, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign a font to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            wb = get_workbook(ws)
-            newfontid = setFont(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
-        wb = get_workbook(ws)
-        v = get_defined_name_value(wb, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign a font to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newfontid = setFont(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
-        error("Invalid cell reference or range: $ref_or_rng")
-    end
-    return newfontid
-end
-function setFont(xl::XLSXFile, sheetcell::String; kw...)::Int
-    if is_valid_sheet_column_range(sheetcell)
-        sheetcolrng = SheetColumnRange(sheetcell)
-        newfontid = setFont(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
-    elseif is_valid_sheet_cellrange(sheetcell)
-        sheetcellrng = SheetCellRange(sheetcell)
-        newfontid = setFont(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
-    elseif is_valid_sheet_cellname(sheetcell)
-        ref = SheetCellRef(sheetcell)
-        @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-        newfontid = setFont(getsheet(xl, ref.sheet), ref.cellref; kw...)
-    elseif is_workbook_defined_name(xl, sheetcell)
-        v = get_defined_name_value(xl.workbook, sheetcell)
-        if is_defined_name_value_a_constant(v)
-            error("Can only assign a font to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newfontid = setFont(xl, string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
-        error("Invalid sheet cell reference: $sheetcell")
-    end
-    return newfontid
-end
+setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
+setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
+setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
+setFont(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFont, xl, sheetcell; kw...)
 function setFont(sh::Worksheet, cellref::CellRef;
     bold::Union{Nothing,Bool}=nothing,
     italic::Union{Nothing,Bool}=nothing,
@@ -359,6 +379,9 @@ The value returned is the font ID of the font uniformly applied to the cells.
 
 """
 function setUniformFont end
+setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
+setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFont, xl, sheetcell; kw...)
+setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFont, ws, ref_or_rng; kw...)
 function setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int
     let newfontid
         first = true
@@ -380,81 +403,6 @@ function setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int
         return newfontid
     end
 end
-function setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int
-    bounds = column_bounds(colrng)
-    dim = (get_dimension(ws))
-
-    left = bounds[begin]
-    right = bounds[end]
-    top = dim.start.row_number
-    bottom = dim.stop.row_number
-
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
-
-    if OK
-        rng = CellRange(top, left, bottom, right)
-        return setUniformFont(ws, rng; kw...)
-    else
-        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
-    end
-end
-function setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int
-    if is_valid_sheet_column_range(sheetcell)
-        sheetcolrng = SheetColumnRange(sheetcell)
-        newfontid = setUniformFont(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
-    elseif is_valid_sheet_cellrange(sheetcell)
-        sheetcellrng = SheetCellRange(sheetcell)
-        newfontid = setUniformFont(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
-    elseif is_workbook_defined_name(xl, sheetcell)
-        v = get_defined_name_value(xl.workbook, sheetcell)
-        if is_defined_name_value_a_constant(v)
-            error("Reference `$(sheetcell)` is a constant not a cell range: $(sheetcell)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newfontid = setUniformFont(xl, string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
-        error("Sheet cell reference $sheetcell is not a valid cell range or column range.")
-    end
-    return newfontid
-end
-function setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
-    if is_valid_column_range(ref_or_rng)
-        colrng = ColumnRange(ref_or_rng)
-        newfontid = setUniformFont(ws, colrng; kw...)
-    elseif is_valid_cellrange(ref_or_rng)
-        rng = CellRange(ref_or_rng)
-        newfontid = setUniformFont(ws, rng; kw...)
-    elseif is_worksheet_defined_name(ws, ref_or_rng)
-        v = get_defined_name_value(ws, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Reference `$(sheetcell)` is a constant not a cell range: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            wb = get_workbook(ws)
-            newfontid = setUniformFont(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
-        wb = get_workbook(ws)
-        v = get_defined_name_value(wb, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Reference `$(sheetcell)` is a constant not a cell range: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newfontid = setUniformFont(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
-        error("Sheet cell reference $sheetcell is not a valid cell range or column range.")
-    end
-    return newfontid
-end
-
 
 """
    getFont(sh::Worksheet, cr::String) -> Union{Nothing, CellFont}
@@ -497,24 +445,9 @@ e.g. `"color" => ("theme" => "1")`.
 
 """
 function getFont end
-
 getFont(ws::Worksheet, cr::String) = getFont(ws, CellRef(cr))
-function getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont}
-    ref = SheetCellRef(sheetcell)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-    return getFont(getsheet(xl, ref.sheet), ref.cellref)
-end
-function getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont}
-    wb = get_workbook(ws)
-    cell = getcell(ws, cellref)
-
-    if cell isa EmptyCell || cell.style == ""
-        return nothing
-    end
-
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    return getFont(wb, cell_style)
-end
+getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont} = process_get_sheetcell(getFont, xl, sheetcell)
+getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_cellref(getFont, ws, cellref)
 getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
     if haskey(cell_style, "fontId")
@@ -542,8 +475,8 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
 end
 
 """
-   getBorders(sh::Worksheet, cr::String) -> Union{Nothing, CellBorders}
-   getBorders(xf::XLSXFile, cr::String) -> Union{Nothing, CellBorders}
+   getBorder(sh::Worksheet, cr::String) -> Union{Nothing, CellBorders}
+   getBorder(xf::XLSXFile, cr::String) -> Union{Nothing, CellBorders}
    
 Get the borders used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
@@ -556,9 +489,9 @@ Return `nothing` if no cell font is found.
 
 Examples:
 ```julia
-julia> getBorders(sh, "A1")
+julia> getBorder(sh, "A1")
 
-julia> getBorders(xf, "Sheet1!A1")
+julia> getBorder(xf, "Sheet1!A1")
 
 ```
 Excel defines border using a style and a color in its XML structure.
@@ -596,27 +529,12 @@ Tint can only be used in conjunction with the theme attribute to derive differen
 For example: <color theme="1" tint="-0.5"/>.
 
 """
-function getBorders end
-
-getBorders(ws::Worksheet, cr::String) = getBorders(ws, CellRef(cr))
-function getBorders(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorders}
-    ref = SheetCellRef(sheetcell)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-    return getBorders(getsheet(xl, ref.sheet), ref.cellref)
-end
-function getBorders(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorders}
-    wb = get_workbook(ws)
-    cell = getcell(ws, cellref)
-
-    if cell isa EmptyCell || cell.style == ""
-        return nothing
-    end
-
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    return getBorders(wb, cell_style)
-end
-getDefaultBorders(ws::Worksheet) = getBorders(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
-function getBorders(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorders}
+function getBorder end
+getBorder(ws::Worksheet, cr::String) = getBorder(ws, CellRef(cr))
+getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorders} = process_get_sheetcell(getBorder, xl, sheetcell)
+getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorders} = process_get_cellref(getBorder, ws, cellref)
+getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
+function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorders}
     if haskey(cell_style, "borderId")
         borderid = cell_style["borderId"]
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
@@ -654,97 +572,12 @@ end
 """
 
 """
-function setBorders end
-function setBorders(ws::Worksheet, rng::CellRange; kw...)::Int
-    for cellref in rng
-        if getcell(ws, cellref) isa EmptyCell
-            continue
-        end
-        _ = setBorders(ws, cellref; kw...)
-    end
-    return -1 # Each cell may have a different borderId so we can't return a single value.
-end
-function setBorders(ws::Worksheet, colrng::ColumnRange; kw...)::Int
-    bounds = column_bounds(colrng)
-    dim = (get_dimension(ws))
-
-    left = bounds[begin]
-    right = bounds[end]
-    top = dim.start.row_number
-    bottom = dim.stop.row_number
-
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
-
-    if OK
-        rng = CellRange(top, left, bottom, right)
-        return setBorders(ws, rng; kw...)
-    else
-        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
-    end
-end
-function setBorders(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
-    if is_valid_column_range(ref_or_rng)
-        colrng = ColumnRange(ref_or_rng)
-        newborderid = setBorders(ws, colrng; kw...)
-    elseif is_valid_cellrange(ref_or_rng)
-        rng = CellRange(ref_or_rng)
-        newborderid = setBorders(ws, rng; kw...)
-    elseif is_valid_cellname(ref_or_rng)
-        newborderid = setBorders(ws, CellRef(ref_or_rng); kw...)
-    elseif is_worksheet_defined_name(ws, ref_or_rng)
-        v = get_defined_name_value(ws, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            wb = get_workbook(ws)
-            newborderid = setBorders(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
-        wb = get_workbook(ws)
-        v = get_defined_name_value(wb, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borderds to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newborderid = setBorders(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
-        error("Invalid cell reference or range: $ref_or_rng")
-    end
-    return newborderid
-end
-function setBorders(xl::XLSXFile, sheetcell::String; kw...)::Int
-    if is_valid_sheet_column_range(sheetcell)
-        sheetcolrng = SheetColumnRange(sheetcell)
-        newborderid = setBorders(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
-    elseif is_valid_sheet_cellrange(sheetcell)
-        sheetcellrng = SheetCellRange(sheetcell)
-        newborderid = setBorders(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
-    elseif is_valid_sheet_cellname(sheetcell)
-        ref = SheetCellRef(sheetcell)
-        @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-        newborderid = setBorders(getsheet(xl, ref.sheet), ref.cellref; kw...)
-    elseif is_workbook_defined_name(xl, sheetcell)
-        v = get_defined_name_value(xl.workbook, sheetcell)
-        if is_defined_name_value_a_constant(v)
-            error("Can only assign borders to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newborderid = setBorders(xl, string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
-        error("Invalid sheet cell reference: $sheetcell")
-    end
-    return newborderid
-end
-function setBorders(sh::Worksheet, cellref::CellRef;
+function setBorder end
+setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
+setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setBorder, ws, colrng; kw...)
+setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
+setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
+function setBorder(sh::Worksheet, cellref::CellRef;
         left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
@@ -771,7 +604,7 @@ function setBorders(sh::Worksheet, cellref::CellRef;
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
     new_border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
 
-    cell_borders = getBorders(wb, cell_style)
+    cell_borders = getBorder(wb, cell_style)
     old_border_atts = cell_borders.border
     old_applyborder = cell_borders.applyBorder
 
@@ -799,7 +632,6 @@ function setBorders(sh::Worksheet, cellref::CellRef;
             end
         end
     end
-    println(new_border_atts)
 
     border_node = buildNode("border", new_border_atts)
 

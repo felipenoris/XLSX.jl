@@ -1625,6 +1625,28 @@ end
 
     isfile("output.xlsx") && rm("output.xlsx")
 
+    f = XLSX.open_xlsx_template(joinpath(data_directory, "borders.xlsx"))
+    s = f["Sheet1"]
+
+    @test isnothing(XLSX.getBorder(s, "A1")) 
+
+    @test XLSX.getBorder(s, "B2").border        == Dict("left" => Dict("auto" => "1", "style" => "medium"), "bottom" => Dict("auto" => "1", "style" => "medium"), "right" => Dict("auto" => "1", "style" => "medium"), "top" => Dict("auto" => "1", "style" => "medium"), "diagonal" => nothing)
+    @test XLSX.getBorder(f, "Sheet1!B4").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "hair"), "bottom" => Dict("rgb" => "FFFF0000", "style" => "hair"), "right" => Dict("rgb" => "FFFF0000", "style" => "hair"), "top" => Dict("rgb" => "FFFF0000", "style" => "hair"), "diagonal" => nothing)
+    @test XLSX.getBorder(s, "D4").border        == Dict("left" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "bottom" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "right" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "top" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "diagonal" => nothing)
+    @test XLSX.getBorder(f, "Sheet1!D6").border == Dict("left" => Dict("auto" => "1", "style" => "thick"), "bottom" => Dict("auto" => "1", "style" => "thick"), "right" => Dict("auto" => "1", "style" => "thick"), "top" => Dict("auto" => "1", "style" => "thick"), "diagonal" => nothing)
+
+    XLSX.setBorder(f, "Sheet1!D4"; left= ["style" => "dotted", "rgb" => "FF000FF0"],right= ["style" => "medium", "rgb" => "FF765000"],top= ["style" => "thick", "rgb" => "FF230000"],bottom= ["style" => "medium", "rgb" => "FF0000FF"],diagonal= ["style" => "dotted", "rgb" => "FF00D4D4"])
+    @test XLSX.getBorder(s, "D4").border == Dict("left" => Dict("rgb" => "FF000FF0", "style" => "dotted"), "bottom" => Dict("rgb" => "FF0000FF", "style" => "medium"), "right" => Dict("rgb" => "FF765000", "style" => "medium"), "top" => Dict("rgb" => "FF230000", "style" => "thick"), "diagonal" => Dict("rgb" => "FF00D4D4", "style" => "dotted"))
+
+    XLSX.setBorder(f, "Sheet1!A1:D10"; left= ["style" => "hair", "rgb" => "FF111111"],right= ["style" => "hair", "rgb" => "FF111111"],top= ["style" => "hair", "rgb" => "FF111111"],bottom= ["style" => "hair", "rgb" => "FF111111"],diagonal= ["style" => "hair", "rgb" => "FF111111"])
+    @test XLSX.getBorder(s, "B4").border  == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+    @test XLSX.getBorder(s, "B6").border  == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+    @test XLSX.getBorder(s, "D4").border  == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+    @test XLSX.getBorder(s, "D8").border  == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+    @test XLSX.getBorder(s, "A1").border  == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+    @test XLSX.getBorder(s, "D10").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+    @test isnothing(XLSX.getBorder(s, "D100")) # Cannot set a border in an EmptyCell.
+
     # Check CellDataFormat only works with CellValues
     @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
 
