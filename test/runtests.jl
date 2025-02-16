@@ -1596,19 +1596,32 @@ end
     XLSX.setFont(xfile, "Sheet1!B3"; name="Berlin Sans FB Demi", color="FF000000")
     @test XLSX.getFont(xfile, "Sheet1!B3").font == Dict("sz" => Dict("val"=>dsize), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
 
+    XLSX.setFont(sheet, "A1:B2"; size=18, name="Arial")
+    @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict(dcolorkey => dcolorval))
+    @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict(dcolorkey => dcolorval))
+    @test XLSX.getFont(xfile, "Sheet1!B1").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict("rgb" => "FF00FF00"))
+    @test XLSX.getFont(xfile, "Sheet1!B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict("rgb" => "FF00FF00"))
+
+
     XLSX.writexlsx("output.xlsx", xfile, overwrite=true)
     @test isfile("output.xlsx")
 
     XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
-        sheet = f["Sheet1"]
-        @test XLSX.getFont(f, "Sheet1!A1").font == Dict("sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
-        @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+        s = f["Sheet1"]
+        @test XLSX.getFont(f, "Sheet1!A1").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(s, "A2").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict(dcolorkey => dcolorval))
         @test XLSX.getFont(f, "Sheet1!A3").font == Dict("i" => nothing, "sz" => Dict("val"=>"24"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
-        @test XLSX.getFont(sheet, "A4").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
-        @test XLSX.getFont(f, "Sheet1!B1").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF00FF00"))
-        @test XLSX.getFont(sheet, "B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val"=>"14"), "name" => Dict("val"=>dname), "color" => Dict("rgb" => "FF00FF00"))
+        @test XLSX.getFont(s, "A4").font == Dict("sz" => Dict("val"=>"28"), "name" => Dict("val"=>"Aptos"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(f, "Sheet1!B1").font == Dict("sz" => Dict("val"=>"18"), "name" => Dict("val"=>"Arial"), "color" => Dict("rgb" => "FF00FF00"))
+        @test XLSX.getFont(s, "B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val"=>"18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF00FF00"))
         @test XLSX.getFont(f, "Sheet1!B3").font == Dict("sz" => Dict("val"=>dsize), "name" => Dict("val"=>"Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
-    end
+        end
+
+    XLSX.setUniformFont(sheet, "A1:B4"; size=12, name="Times New Roman", color="FF040404")
+    @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+    @test XLSX.getFont(xfile, "Sheet1!A4").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+    @test XLSX.getFont(xfile, "Sheet1!B3").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+    @test XLSX.getFont(xfile, "Sheet1!B4").font == Dict("sz" => Dict("val"=>"12"), "name" => Dict("val"=>"Times New Roman"), "color" => Dict("rgb" => "FF040404"))
 
     isfile("output.xlsx") && rm("output.xlsx")
 

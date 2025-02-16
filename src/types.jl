@@ -67,7 +67,7 @@ struct ReferencedFormula <: AbstractFormula
 end
 
 mutable struct CellFont
-    fontId:: Int
+    fontId::Int
     font::Dict{String, Union{Dict{String, String}, Nothing}} # fontAttribute -> (attribute -> value)
     applyFont::String
 
@@ -75,12 +75,19 @@ mutable struct CellFont
         return new(fontid, font, applyFont)
     end
 end
-mutable struct CellBorder
-    border::XML.Node
+
+# A border postion element (e.g. `top` or `left`) has a style attribute, but `color` is a child element.
+# The `color` element has an attribute (e.g. `rgb`) that defines the color of the border.
+# These are both stored in the `border` field of `CellBorders`. The key for the color element
+# will vary depending on how the color is defined (e.g. `rgb`, `indexed`, `auto`, etc.).
+# Thus, for example, `"top" => Dict("style" => "thin", "rgb" => "FF000000")`
+mutable struct CellBorders
+    borderId::Int
+    border::Dict{String, Union{Dict{String, String}, Nothing}} # borderAttribute -> (attribute -> value)
     applyBorder::String
 
-    function CellBorder(border::XML.Node, applyBorder::String)
-        return new(border, applyBorder)
+    function CellBorders(borderid::Int, border::Dict{String, Union{Dict{String, String}, Nothing}}, applyBorder::String)
+        return new(borderid, border, applyBorder)
     end
 end
 
