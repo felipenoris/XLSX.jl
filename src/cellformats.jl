@@ -1,4 +1,3 @@
-
 const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
 
 copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
@@ -36,7 +35,8 @@ end
    setFont(sh::Worksheet, cr::String; kw...) -> String
    setFont(xf::XLSXFile,  cr::String, kw...) -> String
 
-Set the font used by a single cell, a cell range or a column range in a worksheet or XLSXfile.
+Set the font used by a single cell, a cell range, a column range or 
+a named cell or named range in a worksheet or XLSXfile.
 
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
@@ -50,18 +50,19 @@ Font attributes are specified using keyword arguments:
 Only the attributes specified will be changed. If an attribute is not specified, the current
 value will be retained. These are the only attributes supported currently.
 
-No validation of the font names specified is performed.
-If you specify, for example, `name = badFont`, that value will be written to the XLSXfile.
+No validation of the font names specified is performed. Available fonts will depend
+on what your system has installed. If you specify, for example, `name = "badFont"`,
+that value will be written to the XLSXfile.
+
+As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
+new font definitions.
 
 The `color` attribute can only be defined as rgb values.
-- The first two digits represent transparency (α). FF means fully opaque, while 00 means fully transparent.
+- The first two digits represent transparency (α). FF is fully opaque, while 00 is fully transparent.
 - The next two digits give the red component.
 - The next two digits give the green component.
 - The next two digits give the blue component.
 So, FF000000 means a fully opaque black color.
-
-As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
-new font definitions.
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
@@ -69,42 +70,38 @@ skipped and the font will be set for the remaining cells.
 
 Examples:
 ```julia
-julia> setFont(sheet, "A1"; bold=true, italic=true, size=12, color="FFFF0000", name="Arial")
+julia> setFont(sheet, "A1"; bold=true, italic=true, size=12, name="Arial")          # Single cell
 
-julia> setFont(xfile, "Sheet1!A1"; bold=false, size=14, color="FFB3081F", name="Berlin Sans FB Demi")
+julia> setFont(xfile, "Sheet1!A1"; bold=false, size=14, color="FFB3081F")           # Single cell
 
-julia> setFont(sheet, "A1:B7"; name="Aptos", under="double", strike=true)
+julia> setFont(sheet, "A1:B7"; name="Aptos", under="double", strike=true)           # Cell range
 
-julia> setFont(xfile, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi", bold=true, italic=true, color="FF0088FF", under="single")
+julia> setFont(xfile, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
 
-julia> setFont(xfile, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")
+julia> setFont(sheet, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
+
+julia> setFont(xfile, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
+
+julia> setFont(sheet, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
+
+julia> setFont(xfile, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
 ```
 
-The value returned is the style ID of the font applied to the cell(s).
+The value returned is the font ID of the font applied to the cell(s).
 This can be used to apply the same font to other cells or ranges.
 
 """
-function setFont(ws::Worksheet, rng::CellRange; kw...) :: String
-    first=true
-    let newstyle
+function setFont(ws::Worksheet, rng::CellRange; kw...) :: Int
         for cell in rng
             if getcell(ws, cell) isa EmptyCell
                 continue
             end
-            if first # Define the font for the first cell in the range.
-                newstyle = setFont(ws, cell; kw...)
-                first=false
-            else # Apply the font to the rest of the cells in the range.
-                @assert !(cell isa EmptyCell) "Cannot set font for an EmptyCell: $(cell.name). Set the value first."
-                cell = getcell(ws, cell)
-                cell.style = newstyle
-            end
+            _ = setFont(ws, cell; kw...)
         end
-        return newstyle
-    end
+        return -1 # Each cell may have a different font ID so we can't return a single value.
 end
-function setFont(ws::Worksheet, colrng::ColumnRange; kw...) :: String
+function setFont(ws::Worksheet, colrng::ColumnRange; kw...) :: Int
     bounds = column_bounds(colrng)
     dim = (get_dimension(ws))
 
@@ -113,47 +110,77 @@ function setFont(ws::Worksheet, colrng::ColumnRange; kw...) :: String
     top=dim.start.row_number
     bottom=dim.stop.row_number
 
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
+    OK =  dim.start.column_number <= left
+    OK &= dim.stop.column_number  >= right
+    OK &= dim.start.row_number    <= top
+    OK &= dim.stop.row_number     >= bottom
 
     if OK
         rng = CellRange(top, left, bottom, right)
         return setFont(ws, rng; kw...)
     else
-        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` has dimension `$dim`.")
+        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
     end
 end
-function setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)
+function setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...) :: Int
     if is_valid_column_range(ref_or_rng)
         colrng=ColumnRange(ref_or_rng)
-        newstyle=setFont(ws, colrng; kw...)
+        newfontid=setFont(ws, colrng; kw...)
     elseif is_valid_cellrange(ref_or_rng)
         rng=CellRange(ref_or_rng)
-        newstyle=setFont(ws, rng; kw...)
+        newfontid=setFont(ws, rng; kw...)
     elseif is_valid_cellname(ref_or_rng)
-        newstyle = setFont(ws, CellRef(ref_or_rng); kw...)
+        newfontid = setFont(ws, CellRef(ref_or_rng); kw...)
+    elseif is_worksheet_defined_name(ws, ref_or_rng)
+        v = get_defined_name_value(ws, ref_or_rng)
+        if is_defined_name_value_a_constant(v) # Can these have fonts?
+            error("Can only assign a font to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            wb = get_workbook(ws)
+            newfontid = setFont(get_xlsxfile(wb), string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
+        wb = get_workbook(ws)
+        v = get_defined_name_value(wb, ref_or_rng)
+        if is_defined_name_value_a_constant(v) # Can these have fonts?
+            error("Can only assign a font to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            newfontid = setFont(get_xlsxfile(wb), string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
     else
         error("Invalid cell reference or range: $ref_or_rng")
     end
-    return newstyle
+    return newfontid
 end
-function setFont(xl::XLSXFile, sheetcell::String; kw...)
+function setFont(xl::XLSXFile, sheetcell::String; kw...) :: Int
     if is_valid_sheet_column_range(sheetcell)
         sheetcolrng = SheetColumnRange(sheetcell)
-        newstyle = setFont(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
+        newfontid = setFont(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
     elseif is_valid_sheet_cellrange(sheetcell)
         sheetcellrng = SheetCellRange(sheetcell)
-        newstyle = setFont(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
+        newfontid = setFont(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
     elseif is_valid_sheet_cellname(sheetcell)
         ref = SheetCellRef(sheetcell)
         @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-        newstyle = setFont(getsheet(xl, ref.sheet), ref.cellref; kw...)
+        newfontid = setFont(getsheet(xl, ref.sheet), ref.cellref; kw...)
+    elseif is_workbook_defined_name(xl, sheetcell)
+        v = get_defined_name_value(xl.workbook, sheetcell)
+        if is_defined_name_value_a_constant(v)
+            error("Can only assign a font to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            println(v)
+            newfontid = setFont(xl, string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
     else
         error("Invalid sheet cell reference: $sheetcell")
     end
-    return newstyle
+    return newfontid
 end
 function setFont(sh::Worksheet, cellref::CellRef;
         bold::Union{Nothing, Bool}=nothing,
@@ -163,12 +190,12 @@ function setFont(sh::Worksheet, cellref::CellRef;
         size::Union{Nothing, Int}=nothing,
         color::Union{Nothing, String}=nothing,
         name::Union{Nothing, String}=nothing
-    ) :: Union{Nothing, String}
+    ) :: Int
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set font for an EmptyCell: $(cellref.name). Set the value first."
+    @assert !(cell isa EmptyCell) "Cannot set font for an `EmptyCell`: $(cellref.name). Set the value first."
         
     if cell.style==""
         cell.style = string(get_num_style_index(sh::Worksheet, 0).id)
@@ -236,7 +263,7 @@ function setFont(sh::Worksheet, cellref::CellRef;
     
     newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], ["$new_fontid", "1"]).id)
     cell.style = newstyle
-    return newstyle
+    return new_fontid
 end
 
 """
