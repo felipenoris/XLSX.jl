@@ -23,14 +23,16 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                     color = XML.Element("color")
                 end
                 for (k, v) in attributes[a]
-                    if a ∈ font_tags || k == "style"
+                    if a ∈ font_tags || k == "style" && v != "none"
                         cnode[k] = v
                     else
                         color[k] = v
                     end
                 end
-                if tag == "border" && length(XML.attributes(color)) > 0 # Don't push an empty color.
-                    push!(cnode, color)
+                if tag == "border" && length(XML.attributes(cnode)) > 0 # If no style, color cannot be set.
+                    if length(XML.attributes(color)) > 0 # Don't push an empty color.
+                        push!(cnode, color)
+                    end
                 end
             end
             push!(new_node, cnode)
@@ -104,7 +106,7 @@ end
 function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
     if is_valid_column_range(ref_or_rng)
         colrng = ColumnRange(ref_or_rng)
-        newborderid = f(ws, colrng; kw...)
+        newid = f(ws, colrng; kw...)
     elseif is_valid_cellrange(ref_or_rng)
         rng = CellRange(ref_or_rng)
         newid = f(ws, rng; kw...)
@@ -181,6 +183,30 @@ function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef)
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
     return f(wb, cell_style)
 end
+function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...)
+    let newid
+        first = true
+        for cellref in rng
+            cell = getcell(ws, cellref)
+            if cell isa EmptyCell # Can't add a attribute to an empty cell.
+                continue
+            end
+            if first                           # Get the attribute of the first cell in the range.
+                newid = f(ws, cellref; kw...)
+                first = false
+            else                               # Apply the same attribute to the rest of the cells in the range.
+                if cell.style == ""
+                    cell.style = string(get_num_style_index(ws, 0).id)
+                end
+                cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), atts, ["$newid", "1"]).id)
+            end
+        end
+        if first 
+            newid = -1
+        end
+        return newid
+    end
+end
 
 """
    setFont(sh::Worksheet, cr::String; kw...) -> Int
@@ -217,7 +243,12 @@ So, FF000000 means a fully opaque black color.
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
-skipped and the font will be set for the remaining cells.
+quietly skipped and the font will be set for the remaining cells.
+
+For single cells, the value returned is the font ID of the font applied to the cell.
+This can be used to apply the same font to other cells or ranges.
+
+For cell ranges, column ranges and named ranges, the value returned is -1.
 
 Examples:
 ```julia
@@ -238,12 +269,6 @@ julia> setFont(sheet, "bigred"; size=48, color="FF00FF00")                      
 julia> setFont(xfile, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
 ```
-
-For single cells, the value returned is the font ID of the font applied to the cell.
-This can be used to apply the same font to other cells or ranges.
-
-For cell ranges, column ranges and named ranges, the value returned is -1.
-
 """
 function setFont end
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
@@ -359,6 +384,9 @@ etc) to all the other cells in the range.
 
 This can be more efficient when setting the same font for a large number of cells.
 
+The value returned is the font ID of the font uniformly applied to the cells.
+If all cells in the range are `EmptyCells` the returned value is -1.
+
 For keyword definitions see `setFont()`@Ref.
 
 Examples:
@@ -375,34 +403,13 @@ julia> setUniformFont(sheet, "bigred"; size=48, color="FF00FF00")               
 
 julia> setUniformFont(xfile, "bigred"; size=48, color="FF00FF00")                          # Named range
 ```
-The value returned is the font ID of the font uniformly applied to the cells.
-
 """
 function setUniformFont end
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
 setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFont, xl, sheetcell; kw...)
 setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFont, ws, ref_or_rng; kw...)
-function setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int
-    let newfontid
-        first = true
-        for cellref in rng
-            cell = getcell(ws, cellref)
-            if cell isa EmptyCell # Can't add a font to an empty cell.
-                continue
-            end
-            if first                           # Get the font of the first cell in the range.
-                newfontid = setFont(ws, cellref; kw...)
-                first = false
-            else                               # Apply the same font to the rest of the cells in the range.
-                if cell.style == ""
-                    cell.style = string(get_num_style_index(ws, 0).id)
-                end
-                cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], ["$newfontid", "1"]).id)
-            end
-        end
-        return newfontid
-    end
-end
+setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFont, ws, rng, ["fontId", "applyFont"]; kw...)
+
 
 """
    getFont(sh::Worksheet, cr::String) -> Union{Nothing, CellFont}
@@ -417,13 +424,6 @@ Return a CellFont containing:
 
 Return `nothing` if no cell font is found.
 
-Examples:
-```julia
-julia> getFont(sh, "A1")
-
-julia> getFont(xf, "Sheet1!A1")
-
-```
 Excel uses several tags to define font properties in its XML structure.
 Here's a list of some common tags and their purposes (thanks to Copilot!):
     b        : Indicates bold font.
@@ -443,6 +443,12 @@ Here's a list of some common tags and their purposes (thanks to Copilot!):
 Excel defines colours in several ways. Get font will return the colour in any of these
 e.g. `"color" => ("theme" => "1")`.
 
+Examples:
+```julia
+julia> getFont(sh, "A1")
+
+julia> getFont(xf, "Sheet1!A1")
+```
 """
 function getFont end
 getFont(ws::Worksheet, cr::String) = getFont(ws, CellRef(cr))
@@ -475,25 +481,20 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
 end
 
 """
-   getBorder(sh::Worksheet, cr::String) -> Union{Nothing, CellBorders}
-   getBorder(xf::XLSXFile, cr::String) -> Union{Nothing, CellBorders}
+   getBorder(sh::Worksheet, cr::String) -> Union{Nothing, CellBorder}
+   getBorder(xf::XLSXFile, cr::String) -> Union{Nothing, CellBorder}
    
 Get the borders used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
-Return a CellBorders object containing:
+Return a CellBorder object containing:
 - `borderId`    : a 0-based index of the border in the workbook
 - `border`      : a dictionary of border attributes: borderAttribute -> (attribute -> value)
 - `applyBorder` : "1" or "0", indicating whether or not the border is applied to the cell.
 
-Return `nothing` if no cell font is found.
+Return `nothing` if no cell border is found.
 
-Examples:
-```julia
-julia> getBorder(sh, "A1")
+A cell border has two attributes, `style` and `color`.
 
-julia> getBorder(xf, "Sheet1!A1")
-
-```
 Excel defines border using a style and a color in its XML structure.
 Here's a list of the available styles (thanks to Copilot!):
 - none
@@ -515,8 +516,9 @@ A border postion element (e.g. `top` or `left`) has a `style` attribute, but `co
 The color element has one or two attributes (e.g. `rgb`) that define the color of the border.
 While the key for the style element will always be `style`, the other keys, for the color element,
 will vary depending on how the color is defined (e.g. `rgb`, `indexed`, `auto`, etc.).
-Thus, for example, `"top" => Dict("style" => "thin", "rgb" => "000000")` would indicate a 
-thin black border at the top of the cell.
+Thus, for example, `"top" => Dict("style" => "thin", "rgb" => "FF000000")` would indicate a 
+thin black border at the top of the cell while `"top" => Dict("style" => "thin", "auto" => "1")`
+would indicate that the color is set automatically by Excel.
 
 The `color` element can have the following attributes:
 - auto     : Indicates that the color is automatically defined by Excel
@@ -528,13 +530,23 @@ The `color` element can have the following attributes:
 Tint can only be used in conjunction with the theme attribute to derive different shades of the theme color.
 For example: <color theme="1" tint="-0.5"/>.
 
+Only the `rgb` attribute can be used in `setBorder` to define a border color.
+
+Examples:
+```julia
+julia> getBorder(sh, "A1")
+
+julia> getBorder(xf, "Sheet1!A1")
+
+julia> a=XLSX.getBorder(sh, "D6")
+```
 """
 function getBorder end
 getBorder(ws::Worksheet, cr::String) = getBorder(ws, CellRef(cr))
-getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorders} = process_get_sheetcell(getBorder, xl, sheetcell)
-getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorders} = process_get_cellref(getBorder, ws, cellref)
+getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorder} = process_get_sheetcell(getBorder, xl, sheetcell)
+getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorder} = process_get_cellref(getBorder, ws, cellref)
 getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
-function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorders}
+function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder}
     if haskey(cell_style, "borderId")
         borderid = cell_style["borderId"]
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
@@ -566,14 +578,74 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
                 end
             end
         end
-        return CellBorders(parse(Int, borderid), border_atts, applyborder)
+        return CellBorder(parse(Int, borderid), border_atts, applyborder)
     end
 
     return nothing
 end
 
 """
+   setBorder(sh::Worksheet, cr::String; kw...) -> Int}
+   setBorder(xf::XLSXFile, cr::String; kw...) -> Int
+   
+Set the borders used used by a single cell, a cell range, a column range or 
+a named cell or named range in a worksheet or XLSXfile.
 
+Borders are independently defined for the `left`, `right`, `top` and `bottom` 
+sides of a cell using a vector of pairs `attribute => value`. Another keyword, 
+`diagonal`, defines a line running bottom-left to top-right across the cell in 
+the same way.
+
+An additional keyword, `allsides`, is provided for convenience. It can be used 
+in place of the four side keywords to apply the same border setting to all four 
+sides at once. It cannot be used inconjunction with any of the side keywords but 
+it can be used together with `diagonal`.
+
+The two attributes that can be set are `style` and `rgb`.
+
+Allowed values for `style` are:
+
+- none
+- thin
+- medium
+- dashed
+- dotted
+- thick
+- double
+- hair
+- mediumDashed
+- dashDot
+- mediumDashDot
+- dashDotDot
+- mediumDashDotDot
+- slantDashDot
+
+The color is set by specifying an 8-digit hexadecimal value for the `rgb` attribute.
+No other color attributes can be applied.
+
+Setting only one of the two attributes leaves the other attribute unchanged for that 
+side's border. Omitting one of the keywords leaves the border definition for that
+side unchanged, only updating the specified sides.
+
+Border attributes cannot be set for `EmptyCell`s. Set a cell value first.
+If a cell range or column range includes any `EmptyCell`s, they will be
+quietly skipped and the border will be set for the remaining cells.
+
+For single cells, the value returned is the border ID of the border applied to the cell.
+This can be used to apply the same font to other cells or ranges.
+
+For cell ranges, column ranges and named ranges, the value returned is -1.
+
+Examples:
+```julia
+Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
+
+Julia> setBorder(xf, "Sheet1!D4"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
+                                  right= ["style" => "medium", "rgb" => "FF765000"],
+                                  top= ["style" => "thick", "rgb" => "FF230000"],
+                                  bottom= ["style" => "medium", "rgb" => "FF0000FF"],
+                                  diagonal= ["style" => "dotted", "rgb" => "FF00D4D4"]
+                                  )
 """
 function setBorder end
 setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
@@ -581,19 +653,26 @@ setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
 setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
 function setBorder(sh::Worksheet, cellref::CellRef;
-        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
-    )::Int
+    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
     
     kwdict = Dict{String, Union{Dict{String, String}, Nothing}}()
+    kwdict["allsides"] = isnothing(allsides) ? nothing : Dict{String,String}(p for p in allsides)
     kwdict["left"] = isnothing(left) ? nothing : Dict{String,String}(p for p in left)
     kwdict["right"] = isnothing(right) ? nothing : Dict{String,String}(p for p in right)
     kwdict["top"] = isnothing(top) ? nothing : Dict{String,String}(p for p in top)
     kwdict["bottom"] = isnothing(bottom) ? nothing : Dict{String,String}(p for p in bottom)
     kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
+
+    if !isnothing(allsides)
+        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
+        return setBorder(sh, cellref; left = allsides, right = allsides, top = allsides, bottom = allsides, diagonal = diagonal)
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -644,6 +723,54 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     cell.style = newstyle
     return new_borderid
 end
+
+"""
+   setUniformBorder(sh::Worksheet, cr::String; kw...) -> Int
+   setUniformBorder(xf::XLSXFile,  cr::String, kw...) -> Int
+
+Set the border used by a cell range, a column range or a named range in a 
+worksheet or XLSXfile.
+
+First, the border attributes of the first cell in the range (the top-left cell) are
+updated according to the given `kw...` (using `setBorder()`). The resultant border is 
+then applied to each remaining cell in the range.
+
+As a result, every cell in the range will have a uniform border setting.
+
+This differs from `setBorder()` which merges the attributes defined by `kw...` into 
+the border definition used by each cell individually. For example, if you set the 
+border style to `thin` for a range of cells, but these cells all use different border  
+colors, `setBorder()` will change the border style but leave the border color unchanged 
+for each cell individually. 
+
+In contrast, `setUniformBorder()` will set the border style to `thin` for the first cell,
+but will then apply all the border attributes from the updated first cell (ie. both style 
+and color) to all the other cells in the range.
+
+This can be more efficient when setting the same border for a large number of cells.
+
+The value returned is the border ID of the border uniformly applied to the cells.
+If all cells in the range are `EmptyCells` the returned value is -1.
+
+For keyword definitions see `setBorder()`@Ref.
+
+Examples:
+```julia
+Julia> setUniformBorder(sh, "B2:D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
+
+Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
+                                              right= ["style" => "medium", "rgb" => "FF765000"],
+                                              top= ["style" => "thick", "rgb" => "FF230000"],
+                                              bottom= ["style" => "medium", "rgb" => "FF0000FF"],
+                                              diagonal= ["style" => "none"]
+                                              )
+```
+"""
+function setUniformBorder end
+setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
+setUniformBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformBorder, xl, sheetcell; kw...)
+setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformBorder, ws, ref_or_rng; kw...)
+setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
 
 """
 The <patternFill> element in Excel's XML schema defines the pattern and color properties for cell fills. Here are the primary attributes and child elements you can use within the <patternFill> tag:
