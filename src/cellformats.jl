@@ -1,41 +1,79 @@
 
 const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
 const border_tags = ["top", "bottom", "left", "right", "diagonal"]
+const fill_tags = ["patternFill"]
 
 copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
 
 function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{String,String}}})::XML.Node
-    if tag=="font"
+    if tag == "font"
         attribute_tags = font_tags
-    elseif tag=="border"
+    elseif tag == "border"
         attribute_tags = border_tags
+    elseif tag == "fill"
+        attribute_tags = fill_tags
     else
         error("Unknown tag: $tag")
     end
     new_node = XML.Element(tag)
     for a in attribute_tags # Use this as a device to keep ordering constant for Excel
-        if haskey(attributes, a)
-            if isnothing(attributes[a])
-                cnode = XML.Element(a)
-            else
-                cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag=="border" ? Vector{XML.Node}() : nothing)
-                if tag == "border"
-                    color = XML.Element("color")
-                end
-                for (k, v) in attributes[a]
-                    if a ∈ font_tags || k == "style" && v != "none"
+        if tag == "font"
+            if haskey(attributes, a)
+                if isnothing(attributes[a])
+                    cnode = XML.Element(a)
+                else
+                    cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag ∈ ["border", "fill"] ? Vector{XML.Node}() : nothing)
+                    for (k, v) in attributes[a]
                         cnode[k] = v
-                    else
-                        color[k] = v
                     end
                 end
-                if tag == "border" && length(XML.attributes(cnode)) > 0 # If no style, color cannot be set.
+                push!(new_node, cnode)
+            end
+        elseif tag == "border"
+            if haskey(attributes, a)
+                if isnothing(attributes[a])
+                    cnode = XML.Element(a)
+                else
+                    cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag ∈ ["border", "fill"] ? Vector{XML.Node}() : nothing)
+                    color = XML.Element("color")
+                    for (k, v) in attributes[a]
+                        if k == "style" && v != "none"
+                            cnode[k] = v
+                        else
+                            color[k] = v
+                        end
+                    end
                     if length(XML.attributes(color)) > 0 # Don't push an empty color.
                         push!(cnode, color)
                     end
                 end
+                push!(new_node, cnode)
             end
-            push!(new_node, cnode)
+        elseif tag == "fill"
+            if haskey(attributes, a)
+                if isnothing(attributes[a])
+                    cnode = XML.Element(a)
+                else
+                    cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag ∈ ["border", "fill"] ? Vector{XML.Node}() : nothing)
+                    patternfill = XML.Element("patternFill")
+                    fgcolor = XML.Element("fgColor")
+                    bgcolor = XML.Element("bgColor")
+                    for (k, v) in attributes[a]
+                        if k == "patternType"
+                            patternfill[k] = v
+                        elseif first(k, 2) == "fg"
+                            fgcolor[k[3:end]] = v
+                        elseif first(k, 2) == "bg"
+                            bgcolor[k[3:end]] = v
+                        end
+                    end
+                    @assert haskey(patternfill, "patternType") "No `patternType` attribute found."
+                    length(XML.attributes(fgcolor)) > 0 && push!(patternfill, fgcolor)
+                    length(XML.attributes(bgcolor)) > 0 && push!(patternfill, bgcolor)
+                end
+                push!(new_node, patternfill)
+            end
+        else
         end
     end
     return new_node
@@ -201,7 +239,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
                 cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), atts, ["$newid", "1"]).id)
             end
         end
-        if first 
+        if first
             newid = -1
         end
         return newid
@@ -537,8 +575,6 @@ Examples:
 julia> getBorder(sh, "A1")
 
 julia> getBorder(xf, "Sheet1!A1")
-
-julia> a=XLSX.getBorder(sh, "D6")
 ```
 """
 function getBorder end
@@ -559,20 +595,12 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
             if isnothing(XML.attributes(side)) || length(XML.attributes(side)) == 0
                 border_atts[XML.tag(side)] = nothing
             else
-                @assert length(XML.attributes(side)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(side)))."
+                @assert length(XML.attributes(side)) == 1 "Too many font attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."
                 for (k, v) in XML.attributes(side) # style is the only possible attribute of a side
                     border_atts[XML.tag(side)] = Dict(k => v)
                     for subc in XML.children(side) # color is a child of a border element
-                        if isnothing(XML.attributes(subc)) || length(XML.attributes(subc)) == 0 # shouuldn't happen
-                            println(side)
-                             println(subc)
-                             println(cell_style)
-                            println("Shouldn't happen!")
-                        else
-                            @assert length(XML.attributes(side)) == 1 "Too many children found for $(XML.tag(subc)) Expected 1, found $(length(XML.attributes(subc)))."
-                            for (k, v) in XML.attributes(subc)
-                                border_atts[XML.tag(side)][k] = v
-                            end
+                        for (k, v) in XML.attributes(subc)
+                            border_atts[XML.tag(side)][k] = v
                         end
                     end
                 end
@@ -591,17 +619,17 @@ end
 Set the borders used used by a single cell, a cell range, a column range or 
 a named cell or named range in a worksheet or XLSXfile.
 
-Borders are independently defined for the `left`, `right`, `top` and `bottom` 
-sides of a cell using a vector of pairs `attribute => value`. Another keyword, 
-`diagonal`, defines a line running bottom-left to top-right across the cell in 
-the same way.
+Borders are independently defined for the keywords `left`, `right`, `top` 
+and `bottom` for each of the sides of a cell using a vector of pairs 
+`attribute => value`. Another keyword, `diagonal`, defines a line running 
+bottom-left to top-right across the cell in the same way.
 
 An additional keyword, `allsides`, is provided for convenience. It can be used 
 in place of the four side keywords to apply the same border setting to all four 
 sides at once. It cannot be used inconjunction with any of the side keywords but 
 it can be used together with `diagonal`.
 
-The two attributes that can be set are `style` and `rgb`.
+The two attributes that can be set for each keyword are `style` and `rgb`.
 
 Allowed values for `style` are:
 
@@ -632,7 +660,7 @@ If a cell range or column range includes any `EmptyCell`s, they will be
 quietly skipped and the border will be set for the remaining cells.
 
 For single cells, the value returned is the border ID of the border applied to the cell.
-This can be used to apply the same font to other cells or ranges.
+This can be used to apply the same border to other cells or ranges.
 
 For cell ranges, column ranges and named ranges, the value returned is -1.
 
@@ -640,11 +668,11 @@ Examples:
 ```julia
 Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
 
-Julia> setBorder(xf, "Sheet1!D4"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
-                                  right= ["style" => "medium", "rgb" => "FF765000"],
-                                  top= ["style" => "thick", "rgb" => "FF230000"],
-                                  bottom= ["style" => "medium", "rgb" => "FF0000FF"],
-                                  diagonal= ["style" => "dotted", "rgb" => "FF00D4D4"]
+Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "rgb" => "FF000FF0"],
+                                  right    = ["style" => "medium", "rgb" => "FF765000"],
+                                  top      = ["style" => "thick",  "rgb" => "FF230000"],
+                                  bottom   = ["style" => "medium", "rgb" => "FF0000FF"],
+                                  diagonal = ["style" => "dotted", "rgb" => "FF00D4D4"]
                                   )
 """
 function setBorder end
@@ -660,8 +688,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
     diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
 )::Int
-    
-    kwdict = Dict{String, Union{Dict{String, String}, Nothing}}()
+
+    kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["allsides"] = isnothing(allsides) ? nothing : Dict{String,String}(p for p in allsides)
     kwdict["left"] = isnothing(left) ? nothing : Dict{String,String}(p for p in left)
     kwdict["right"] = isnothing(right) ? nothing : Dict{String,String}(p for p in right)
@@ -671,7 +699,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     if !isnothing(allsides)
         @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
-        return setBorder(sh, cellref; left = allsides, right = allsides, top = allsides, bottom = allsides, diagonal = diagonal)
+        return setBorder(sh, cellref; left=allsides, right=allsides, top=allsides, bottom=allsides, diagonal=diagonal)
     end
 
     wb = get_workbook(sh)
@@ -773,65 +801,284 @@ setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = proces
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
 
 """
-The <patternFill> element in Excel's XML schema defines the pattern and color properties for cell fills. Here are the primary attributes and child elements you can use within the <patternFill> tag:
+   getFill(sh::Worksheet, cr::String) -> Union{Nothing, CellFill}
+   getFill(xf::XLSXFile, cr::String) -> Union{Nothing, CellFill}
+   
+Get the fill used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
-patternType: This attribute specifies the type of fill pattern. It can take values such as none, solid, mediumGray, darkGray, lightGray, darkHorizontal, darkVertical, darkDown, darkUp, darkGrid, darkTrellis, lightHorizontal, lightVertical, lightDown, lightUp, lightGrid, lightTrellis, gray125, and gray0625.
+Return a CellFill object containing:
+- `fillId`    : a 0-based index of the fill in the workbook
+- `fill`      : a dictionary of fill attributes: borderAttribute -> (attribute -> value)
+- `applyFill` : "1" or "0", indicating whether or not the fill is applied to the cell.
 
-fgColor: This child element specifies the foreground color of the pattern. You can use attributes like indexed, rgb, theme, tint, and auto to define the color.
+Return `nothing` if no cell fill is found.
 
-bgColor: This child element specifies the background color of the pattern. Similar to fgColor, you can use attributes like indexed, rgb, theme, tint, and auto to define the color.
+The `fill` element in Excel's XML schema defines the pattern and color 
+properties for cell fills. Here are the primary attributes and child elements 
+in the `patternFill` element:
+- `patternType` : Specifies the type of fill pattern (see below).
+- `fgColor`     : Specifies the foreground color of the pattern.
+- `bgColor`     : Specifies the background color of the pattern.
 
-In Excel's XML schema, certain pattern types are more visually meaningful when both the fgColor (foreground color) and bgColor (background color) are defined. These pattern types include those that create a pattern or grid effect, where the contrast between the foreground and background colors enhances the visual presentation.
+The child elements `fgColor` and `bgColor` can each have one or two attributes 
+of their own. These color attributes are pushed in to the `DellFill.fill` Dict 
+of attributes with either `fg` or `bg` prepended to their names to support later 
+reconstruction of the xml element. Thus:
+`"patternFill" => Dict("patternType" => "solid", "bgindexed" => "64", "fgtheme" => "0")`
+indicates a solid fill with a foreground color defined by theme 0 (in Excel) and 
+background color defined by an indexed value. In this case (solid fill), the 
+background color will be ignored.
 
-Here are some pattern types that generally require both fgColor and bgColor to be defined:
+Here is a list of the `patternTypes` Excel uses (thanks to Copilot!):
+- `none`
+- `solid`
+- `mediumGray`
+- `darkGray`
+- `lightGray`
+- `darkHorizontal`
+- `darkVertical`
+- `darkDown`
+- `darkUp`
+- `darkGrid`
+- `darkTrellis`
+- `lightHorizontal`
+- `lightVertical`
+- `lightDown`
+- `lightUp`
+- `lightGrid`
+- `lightTrellis`
+- `gray125`
+- `gray0625`
 
-darkTrellis
+Definitions for neither `fgColor` (foreground color) nor `bgColor` (background color) 
+are strictly necessary although certain pattern types are more visually meaningful 
+when both are defined. These pattern types include those that create a pattern or grid 
+effect, where the contrast between the foreground and background colors enhances the 
+visual presentation.
 
-darkGrid
+These pattern types include `darkTrellis`, `darkGrid`, `darkHorizontal`, `darkVertical`,
+`darkDown`, `darkUp`, `mediumGray`, `lightGray`, `lightTrellis`, `lightGrid`, `lightHorizontal`,
+`lightVertical`, `lightDown`, `lightUp`, `gray125` and `gray0625`.
 
-darkHorizontal
+If fgColor (foreground color) and bgColor (background color) are specified when they aren't 
+needed, they will simply be ignored by Excel, and the default appearance will be applied.
 
-darkVertical
+A fill has a pattern type attribute and two children fgColor and bgColor, each with 
+# one or two attributes of their own. These color attributes are pushed in to the Dict 
+# of attributes with either `fg` or `bg` prepended to their name to support later 
+# reconstruction of the xml element.
 
-darkDown
+Examples:
+```julia
+julia> getFill(sh, "A1")
 
-darkUp
-
-mediumGray
-
-lightGray
-
-lightTrellis
-
-lightGrid
-
-lightHorizontal
-
-lightVertical
-
-lightDown
-
-lightUp
-
-gray125
-
-gray0625
-
-Other pattern types, such as solid or none, may not require both fgColor and bgColor to be defined. solid typically uses only the fgColor, while none does not use any colors.
-
-Some of the pattern types will still work even if the foreground (fgColor) and background (bgColor) colors are not explicitly defined. However, the visual effect might not be as intended or might default to standard colors set by Excel.
-
-Excel will apply the darkTrellis pattern with default colors. Depending on the pattern type, the default colors might not be visually distinctive, and the pattern might not be as noticeable.
-
-To achieve a specific visual effect, it is always better to define both fgColor and bgColor for pattern types that rely on color contrast to create the desired pattern.
-
-If fgColor (foreground color) and bgColor (background color) are specified when they aren't needed, such as in pattern types that don't utilize these colors, the attributes will simply be ignored by Excel, and the default appearance will be applied.
-
-For example, if you use the solid pattern type, which only requires fgColor, specifying bgColor won't have any effect:
-
-In this case, the solid pattern will use the red foreground color, and the green background color will be ignored because it's not needed for the solid pattern type.
-
-Similarly, for the none pattern type, neither fgColor nor bgColor are used, so specifying them will have no effect:
-
-In this case, both the red foreground color and the green background color will be ignored, as the none pattern type does not utilize colors.
+julia> getFill(xf, "Sheet1!A1")
+```
 """
+function getFill end
+getFill(ws::Worksheet, cr::String) = getFill(ws, CellRef(cr))
+getFill(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFill} = process_get_sheetcell(getFill, xl, sheetcell)
+getFill(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFill} = process_get_cellref(getFill, ws, cellref)
+getDefaultFill(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
+function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
+    if haskey(cell_style, "fillId")
+        fillid = cell_style["fillId"]
+        applyfill = haskey(cell_style, "applyFill") ? cell_style["applyFill"] : "0"
+        xroot = styles_xmlroot(wb)
+        fill_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fills", xroot)[begin]
+        @assert parse(Int, fill_elements["count"]) == length(XML.children(fill_elements)) "Unexpected number of font definitions found : $(length(XML.children(fill_elements))). Expected $(parse(Int, fill_elements["count"]))"
+        current_fill = XML.children(fill_elements)[parse(Int, fillid)+1] # Zero based!
+        fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
+        for pattern in XML.children(current_fill)
+            if isnothing(XML.attributes(pattern)) || length(XML.attributes(pattern)) == 0
+                fill_atts[XML.tag(pattern)] = nothing
+            else
+                @assert length(XML.attributes(pattern)) == 1 "Too many font attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(side)))."
+                for (k, v) in XML.attributes(pattern) # patternType is the only possible attribute of a fill
+                    fill_atts[XML.tag(pattern)] = Dict(k => v)
+                    for subc in XML.children(pattern) # foreground and background colors are children of a patternFill element
+                        @assert !isnothing(XML.children(subc)) && length(XML.attributes(subc)) > 0 "Too few children found for $(XML.tag(subc)) Expected 1, found 0."
+                        @assert length(XML.children(subc)) < 3 "Too many children found for $(XML.tag(subc)) Expected < 3, found $(length(XML.attributes(subc)))."
+                        tag = first(XML.tag(subc), 2)
+                        for (k, v) in XML.attributes(subc)
+                            fill_atts[XML.tag(pattern)][tag*k] = v
+                        end
+                    end
+                end
+            end
+        end
+        return CellFill(parse(Int, fillid), fill_atts, applyfill)
+    end
+
+    return nothing
+end
+
+"""
+   setFill(sh::Worksheet, cr::String; kw...) -> Int}
+   setFill(xf::XLSXFile, cr::String; kw...) -> Int
+   
+Set the fill used used by a single cell, a cell range, a column range or 
+a named cell or named range in a worksheet or XLSXfile.
+
+The following keywords are used to define a fill:
+
+- pattern   : Sets the patternType for the fill.
+- fgColor   : Sets the foreground color for the fill.
+- bgColor   : Sets the background color for the fill..
+
+Here is a list of the `patternTypes` Excel uses (thanks to Copilot!):
+- `none`
+- `solid`
+- `mediumGray`
+- `darkGray`
+- `lightGray`
+- `darkHorizontal`
+- `darkVertical`
+- `darkDown`
+- `darkUp`
+- `darkGrid`
+- `darkTrellis`
+- `lightHorizontal`
+- `lightVertical`
+- `lightDown`
+- `lightUp`
+- `lightGrid`
+- `lightTrellis`
+- `gray125`
+- `gray0625`
+
+The two colors are set by specifying an 8-digit hexadecimal value for the `fgColor`
+and/or `bgColor`` keywords. No other color attributes can be applied.
+
+Setting only one or two of the attributes leaves the other attribute(s) unchanged 
+for that cell's fill.
+
+Fill attributes cannot be set for `EmptyCell`s. Set a cell value first.
+If a cell range or column range includes any `EmptyCell`s, they will be
+quietly skipped and the fill will be set for the remaining cells.
+
+For single cells, the value returned is the fill ID of the fill applied to the cell.
+This can be used to apply the same fill to other cells or ranges.
+
+For cell ranges, column ranges and named ranges, the value returned is -1.
+
+Examples:
+```julia
+Julia> setFill(sh, "B2"; pattern="gray125", bgColor = "FF000000")
+
+Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
+```
+"""
+function setFill end
+setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
+setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFill, ws, colrng; kw...)
+setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
+setFill(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFill, xl, sheetcell; kw...)
+function setFill(sh::Worksheet, cellref::CellRef;
+    pattern::Union{Nothing,String}=nothing,
+    fgColor::Union{Nothing,String}=nothing,
+    bgColor::Union{Nothing,String}=nothing,
+)::Int
+
+    wb = get_workbook(sh)
+    cell = getcell(sh, cellref)
+
+    @assert !(cell isa EmptyCell) "Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, 0).id)
+    end
+
+    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    new_fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
+    patternFill = Dict{String,String}()
+
+    cell_fill = getFill(wb, cell_style)
+    old_fill_atts = cell_fill.fill["patternFill"]
+    old_applyFill = cell_fill.applyFill
+
+    for a in ["patternType", "fg", "bg"]
+        if a == "patternType"
+            if isnothing(pattern) && haskey(old_fill_atts, "patternType")
+                patternFill["patternType"] = old_fill_atts["patternType"]
+            elseif !isnothing(pattern)
+                patternFill["patternType"] = pattern
+            end
+        elseif a == "fg"
+            if isnothing(fgColor)
+                for (k, v) in old_fill_atts
+                    if occursin(r"^fg.*", k)
+                        patternFill[k] = v
+                    end
+                end
+            else
+                @assert occursin(r"^[0-9A-F]{8}$", fgColor) "Invalid color value: $fgColor. Must be an 8-digit hexadecimal RGB value."
+                patternFill["fgrgb"] = fgColor
+            end
+        elseif a == "bg"
+            if isnothing(bgColor)
+                for (k, v) in old_fill_atts
+                    if occursin(r"^bg.*", k)
+                        patternFill[k] = v
+                    end
+                end
+            else
+                @assert occursin(r"^[0-9A-F]{8}$", bgColor) "Invalid color value: $bgColor. Must be an 8-digit hexadecimal RGB value."
+                patternFill["bgrgb"] = bgColor
+            end
+        end
+    end
+    new_fill_atts["patternFill"] = patternFill
+
+    fill_node = buildNode("fill", new_fill_atts)
+    println(XML.write(fill_node))
+
+    new_fillid = styles_add_cell_attribute(wb, fill_node, "fills")
+
+    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], ["$new_fillid", "1"]).id)
+    cell.style = newstyle
+    return new_fillid
+end
+
+"""
+   setUniformFill(sh::Worksheet, cr::String; kw...) -> Int
+   setUniformFill(xf::XLSXFile,  cr::String, kw...) -> Int
+
+Set the fill used by a cell range, a column range or a named range in a 
+worksheet or XLSXfile.
+
+First, the fill attributes of the first cell in the range (the top-left cell) are
+updated according to the given `kw...` (using `setFill()`). The resultant fill is 
+then applied to each remaining cell in the range.
+
+As a result, every cell in the range will have a uniform fill setting.
+
+This differs from `setFill()` which merges the attributes defined by `kw...` into 
+the fill definition used by each cell individually. For example, if you set the 
+fill paternType to `darkGrid` for a range of cells, but these cells all use different fill  
+colors, `setFill()` will change the fill patternType but leave the fill color unchanged 
+for each cell individually. 
+
+In contrast, `setUniformFill()` will set the fill patternType to `darkGrid` for the first cell,
+but will then apply all the fill attributes from the updated first cell (ie. patternType 
+and both foreground and background colors) to all the other cells in the range.
+
+This can be more efficient when setting the same fill for a large number of cells.
+
+The value returned is the fill ID of the fill uniformly applied to the cells.
+If all cells in the range are `EmptyCells` the returned value is -1.
+
+For keyword definitions see `setFill()`@Ref.
+
+Examples:
+```julia
+Julia> setUniformFill(sh, "B2:D4"; pattern="gray125", bgColor = "FF000000")
+
+Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
+```
+"""
+function setUniformFill end
+setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFill, ws, colrng; kw...)
+setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFill, xl, sheetcell; kw...)
+setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
+setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)

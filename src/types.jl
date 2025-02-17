@@ -91,6 +91,20 @@ mutable struct CellBorder
     end
 end
 
+# A fill has a pattern type attribute and two children fgColor and bgColor, each with 
+# one or two attributes of their own. These color attributes are pushed in to the Dict 
+# of attributes with either `fg` or `bg` prepended to their name to support later 
+# reconstruction of the xml element.
+mutable struct CellFill
+    fillId::Int
+    fill::Dict{String, Union{Dict{String, String}, Nothing}} # fillAttribute -> (attribute -> value)
+    applyFill::String
+
+    function CellFill(fillid::Int, fill::Dict{String, Union{Dict{String, String}, Nothing}}, applyfill::String)
+        return new(fillid, fill, applyfill)
+    end
+end
+
 abstract type AbstractCell end
 
 mutable struct Cell <: AbstractCell
@@ -193,7 +207,7 @@ end
 Relationships are defined in ECMA-376-1 Section 9.2.
 This struct matches the `Relationship` tag attribute names.
 
-A `Relashipship` defines relations between the files inside a MSOffice package.
+A `Relationship` defines relations between the files inside a MSOffice package.
 Regarding Spreadsheets, there are two kinds of relationships:
 
     * package level: defined in `_rels/.rels`.

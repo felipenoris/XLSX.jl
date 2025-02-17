@@ -1611,11 +1611,25 @@ end
                                         bottom= ["style" => "medium", "rgb" => "FF0000FF"],
                                         diagonal= ["style" => "none"]
                                         ) == -1
+        @test XLSX.setUniformFill(s, "B2:D4"; pattern="gray125", bgColor = "FF000000") == -1
         @test XLSX.setFont(s, "A1:B2"; size=18, name="Arial") == -1
         @test XLSX.setBorder(f, "Sheet1!B2:D4"; left=["style" => "hair"], right=["rgb" => "FF111111"], top=["style" => "hair"], bottom=["rgb" => "FF111111"], diagonal=["style" => "hair"]) == -1
+        @test XLSX.setFill(f, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800") == -1
 
+        # Can't set a uniform attribute to a single cell.
+        @test_throws MethodError XLSX.setUniformFill(s, "D4"; pattern="gray125", bgColor = "FF000000")
+        @test_throws MethodError XLSX.setUniformFont(s, "B4"; size=12, name="Times New Roman", color="FF040404")
+        @test_throws MethodError XLSX.setUniformBorder(f, "Sheet1!D4"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
+                                            right= ["style" => "medium", "rgb" => "FF765000"],
+                                            top= ["style" => "thick", "rgb" => "FF230000"],
+                                            bottom= ["style" => "medium", "rgb" => "FF0000FF"],
+                                            diagonal= ["style" => "none"]
+                                            )
+        
+    end
 
-
+    @testset "setFill" begin
+        
     end
 
 end
