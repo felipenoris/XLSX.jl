@@ -1480,7 +1480,7 @@ end
 
         @test isnothing(XLSX.getFont(xfile, "Sheet1!B2")) && isnothing(XLSX.getFont(sheet, "B2"))
 
-        # Default font attributes are present until overwritten with setFont()
+        # Default font attributes are present in an empty worksheet until overwritten.
         default_font = XLSX.getDefaultFont(sheet).font
         dname = default_font["name"]["val"]
         dsize = default_font["sz"]["val"]
@@ -1547,7 +1547,8 @@ end
             @test XLSX.getFont(f, "Sheet1!B3").font == Dict("sz" => Dict("val" => dsize), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
         end
 
-       XLSX.setUniformFont(sheet, "A1:B4"; size=12, name="Times New Roman", color="FF040404")
+        # Now try a range
+        XLSX.setUniformFont(sheet, "A1:B4"; size=12, name="Times New Roman", color="FF040404")
         @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
         @test XLSX.getFont(xfile, "Sheet1!A4").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
         @test XLSX.getFont(xfile, "Sheet1!B3").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
@@ -1600,6 +1601,22 @@ end
         @test XLSX.getcell(s, "C3") isa XLSX.EmptyCell
         @test isnothing(XLSX.getBorder(s, "C3"))
 
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        XLSX.setBorder(s, "ID"; left = ["style" => "dotted", "rgb" => "FF000FF0"], bottom = ["style" => "medium", "rgb" => "FF0000FF"], right = ["style" => "medium", "rgb" => "FF765000"], top = ["style" => "thick", "rgb" => "FF230000"], diagonal = nothing)
+        @test XLSX.getBorder(s, "ID").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+
+        # Location is a non-contiguous range
+        XLSX.setBorder(s, "Location"; left=["style" => "hair", "rgb" => "FF111111"], right=["style" => "hair", "rgb" => "FF111111"], top=["style" => "hair", "rgb" => "FF111111"], bottom=["style" => "hair", "rgb" => "FF111111"], diagonal=["style" => "hair", "rgb" => "FF111111"])
+        @test XLSX.getBorder(s, "D18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "D20").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "J18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "J18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+
+        # Cant get attributes on a range.
+        @test_throws AssertionError XLSX.getBorder(s, "Contiguous")
+
         f = XLSX.open_empty_template()
         s = f["Sheet1"]
 
@@ -1625,11 +1642,62 @@ end
                                             bottom= ["style" => "medium", "rgb" => "FF0000FF"],
                                             diagonal= ["style" => "none"]
                                             )
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        XLSX.setFill(s, "ID"; pattern = "darkTrellis", fgColor = "FF222222", bgColor = "FFDDDDDD")
+        @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        # Location is a non-contiguous range
+        XLSX.setFill(s, "Location"; pattern = "lightVertical")
+        @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "Contiguous"; pattern = "lightVertical")
+        @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        
+        # Cant get attributes on a range.
+        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
         
     end
 
     @testset "setFill" begin
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        @test XLSX.getFill(s, "D17").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-9.9978637043366805E-2", "fgtheme" => "2"))
+        @test XLSX.getFill(f, "Mock-up!D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "D17" ; pattern = "darkTrellis", fgColor = "FF222222", bgColor = "FFDDDDDD")
+        @test XLSX.getFill(s, "D17").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        XLSX.setFill(s, "ID"; pattern = "darkTrellis", fgColor = "FF222222", bgColor = "FFDDDDDD")
+        @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        # Location is a non-contiguous range
+        XLSX.setFill(s, "Location"; pattern = "lightVertical")
+        @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "Contiguous"; pattern = "lightVertical")
+        @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
         
+        # Cant get attributes on a range.
+        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
     end
 
 end

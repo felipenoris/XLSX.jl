@@ -1,6 +1,6 @@
 
 const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
-const border_tags = ["top", "bottom", "left", "right", "diagonal"]
+const border_tags = ["left", "right", "top", "bottom", "diagonal"]
 const fill_tags = ["patternFill"]
 
 copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
@@ -12,6 +12,8 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
         attribute_tags = border_tags
     elseif tag == "fill"
         attribute_tags = fill_tags
+    elseif tag == "alignment"
+        attribute_tags = alignment_tags
     else
         error("Unknown tag: $tag")
     end
@@ -88,6 +90,13 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attri
     end
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
+function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
+    old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
+    new_cell_xf = copynode(old_cell_xf)
+    new_cell_xf[1] = alignment
+    println(XML.write(new_cell_xf))
+    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
+end
 
 # Only used in testing!
 function styles_add_cell_font(wb::Workbook, attributes::Dict{String,Union{Dict{String,String},Nothing}})::Int
@@ -115,9 +124,18 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
 
     return existing_elements_count # turns out this is the new index (because it's zero-based)
 end
-
+is_non_contiguous_range(v::SheetCellRef) = occursin(",", string(v))::Bool # Non-contiguous ranges are comma separated `SheetCellRef-like` strings
 function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
-    if is_valid_sheet_column_range(sheetcell)
+    if is_workbook_defined_name(xl, sheetcell)
+        v = get_defined_name_value(xl.workbook, sheetcell)
+        if is_defined_name_value_a_constant(v)
+            error("Can only assign attributes to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            newid = process_ranges(f, xl, string(v); kw...)
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    elseif is_valid_sheet_column_range(sheetcell)
         sheetcolrng = SheetColumnRange(sheetcell)
         newid = f(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
     elseif is_valid_sheet_cellrange(sheetcell)
@@ -127,33 +145,17 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
         ref = SheetCellRef(sheetcell)
         @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
         newid = f(getsheet(xl, ref.sheet), ref.cellref; kw...)
-    elseif is_workbook_defined_name(xl, sheetcell)
-        v = get_defined_name_value(xl.workbook, sheetcell)
-        if is_defined_name_value_a_constant(v)
-            error("Can only assign borders to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newid = process_ranges(f, xl, string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    else
+     else
         error("Invalid sheet cell reference: $sheetcell")
     end
     return newid
 end
 function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
-    if is_valid_column_range(ref_or_rng)
-        colrng = ColumnRange(ref_or_rng)
-        newid = f(ws, colrng; kw...)
-    elseif is_valid_cellrange(ref_or_rng)
-        rng = CellRange(ref_or_rng)
-        newid = f(ws, rng; kw...)
-    elseif is_valid_cellname(ref_or_rng)
-        newid = f(ws, CellRef(ref_or_rng); kw...)
-    elseif is_worksheet_defined_name(ws, ref_or_rng)
+    # Moved the tests for defined names to be first in case a name looks like a column name (e.g. "ID")
+    if is_worksheet_defined_name(ws, ref_or_rng)
         v = get_defined_name_value(ws, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        if is_defined_name_value_a_constant(v)
+            error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
         elseif is_defined_name_value_a_reference(v)
             wb = get_workbook(ws)
             newid = f(get_xlsxfile(wb), string(v); kw...)
@@ -163,13 +165,26 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
     elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
         wb = get_workbook(ws)
         v = get_defined_name_value(wb, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borderds to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        if is_defined_name_value_a_constant(v)
+            error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
         elseif is_defined_name_value_a_reference(v)
-            newid = f(get_xlsxfile(wb), string(v); kw...)
+            if is_non_contiguous_range(v)
+                _ = f.(Ref(get_xlsxfile(wb)), replace.(split(string(v), ","), "'" => "", "\$" => ""); kw...)
+                newid = -1
+            else
+                newid = f(get_xlsxfile(wb), replace(string(v), "'" => "", "\$" => ""); kw...)
+            end
         else
             error("Unexpected defined name value: $v.")
         end
+    elseif is_valid_column_range(ref_or_rng)
+        colrng = ColumnRange(ref_or_rng)
+        newid = f(ws, colrng; kw...)
+    elseif is_valid_cellrange(ref_or_rng)
+        rng = CellRange(ref_or_rng)
+        newid = f(ws, rng; kw...)
+    elseif is_valid_cellname(ref_or_rng)
+        newid = f(ws, CellRef(ref_or_rng); kw...)
     else
         error("Invalid cell reference or range: $ref_or_rng")
     end
@@ -220,6 +235,24 @@ function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef)
 
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
     return f(wb, cell_style)
+end
+function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractString)
+    if is_workbook_defined_name(get_workbook(ws), ref_or_rng)
+        wb = get_workbook(ws)
+        v = get_defined_name_value(wb, ref_or_rng)
+        if is_defined_name_value_a_constant(v) # Can these have fonts?
+            error("Can only assign borderds to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+        elseif is_defined_name_value_a_reference(v)
+            new_att = f(get_xlsxfile(wb), replace(string(v), "'" => ""))
+        else
+            error("Unexpected defined name value: $v.")
+        end
+    elseif is_valid_cellname(ref_or_rng)
+        new_att = f(ws, CellRef(ref_or_rng))
+    else
+        error("Invalid cell reference or range: $ref_or_rng")
+    end
+    return new_att
 end
 function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...)
     let newid
@@ -489,7 +522,7 @@ julia> getFont(xf, "Sheet1!A1")
 ```
 """
 function getFont end
-getFont(ws::Worksheet, cr::String) = getFont(ws, CellRef(cr))
+getFont(ws::Worksheet, cr::String) = process_get_cellname(getFont, ws, cr)
 getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont} = process_get_sheetcell(getFont, xl, sheetcell)
 getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_cellref(getFont, ws, cellref)
 getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
@@ -578,9 +611,9 @@ julia> getBorder(xf, "Sheet1!A1")
 ```
 """
 function getBorder end
-getBorder(ws::Worksheet, cr::String) = getBorder(ws, CellRef(cr))
 getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorder} = process_get_sheetcell(getBorder, xl, sheetcell)
 getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorder} = process_get_cellref(getBorder, ws, cellref)
+getBorder(ws::Worksheet, cr::String) = process_get_cellname(getBorder, ws, cr)
 getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder}
     if haskey(cell_style, "borderId")
@@ -864,9 +897,9 @@ If fgColor (foreground color) and bgColor (background color) are specified when 
 needed, they will simply be ignored by Excel, and the default appearance will be applied.
 
 A fill has a pattern type attribute and two children fgColor and bgColor, each with 
-# one or two attributes of their own. These color attributes are pushed in to the Dict 
-# of attributes with either `fg` or `bg` prepended to their name to support later 
-# reconstruction of the xml element.
+one or two attributes of their own. These color attributes are pushed in to the Dict 
+of attributes with either `fg` or `bg` prepended to their name to support later 
+reconstruction of the xml element.
 
 Examples:
 ```julia
@@ -876,9 +909,9 @@ julia> getFill(xf, "Sheet1!A1")
 ```
 """
 function getFill end
-getFill(ws::Worksheet, cr::String) = getFill(ws, CellRef(cr))
 getFill(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFill} = process_get_sheetcell(getFill, xl, sheetcell)
 getFill(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFill} = process_get_cellref(getFill, ws, cellref)
+getFill(ws::Worksheet, cr::String) = process_get_cellname(getFill, ws, cr)
 getDefaultFill(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
     if haskey(cell_style, "fillId")
@@ -1031,7 +1064,6 @@ function setFill(sh::Worksheet, cellref::CellRef;
     new_fill_atts["patternFill"] = patternFill
 
     fill_node = buildNode("fill", new_fill_atts)
-    println(XML.write(fill_node))
 
     new_fillid = styles_add_cell_attribute(wb, fill_node, "fills")
 
@@ -1082,3 +1114,125 @@ setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnr
 setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFill, xl, sheetcell; kw...)
 setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
 setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)
+
+"""
+   getAlignment(sh::Worksheet, cr::String) -> Union{Nothing, CellAlignment}
+   getFill(xf::XLSXFile, cr::String) -> Union{Nothing, CellAlignment}
+   
+Get the fill used by a single cell at reference `cr` in a worksheet or XLSXfile.
+
+Return a CellAlignment object containing:
+- `fill`           : a dictionary of alignment attributes: alignmentAttribute -> (attribute -> value)
+- `applyAlignment` : "1" or "0", indicating whether or not the alignment is applied to the cell.
+
+Return `nothing` if no cell alignment is found.
+
+The `alignment` element in Excel's XML schema defines horizontal and vertical
+alignment of the cell and whether to wrap the cell contents:
+- `horizontal`     : Specifies the horizontal alignment of the cell.
+- `vertical`       : Specifies the vertical alignment of the cell.
+- `wrapText`       : Specifies whether ("1") or not ("0") the cell content wraps
+                     in the cell.
+
+Excel supports the following values for the horizontal alignment:
+- left             : Aligns the text to the left of the cell.
+- center           : Centers the text within the cell.
+- right            : Aligns the text to the right of the cell.
+- fill             : Repeats the text to fill the entire width of the cell.
+- justify          : Justifies the text, spacing it out so that it spans the entire width of the cell.
+- centerContinuous : Centers the text across multiple cells, as if the text were in a merged cell.
+- distributed      : Distributes the text evenly across the width of the cell.
+
+Excel supports the following values for the vertical alignment:
+- top              : Aligns the text to the top of the cell.
+- center           : Centers the text vertically within the cell.
+- bottom           : Aligns the text to the bottom of the cell.
+- justify          : Justifies the text vertically, spreading it out evenly within the cell.
+- distributed      : Distributes the text evenly from top to bottom in the cell.
+
+Examples:
+```julia
+julia> getAlignment(sh, "A1")
+
+julia> getAlignment(xf, "Sheet1!A1")
+```
+
+"""
+function getAlignment end
+getAlignment(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellAlignment} = process_get_sheetcell(getAlignment, xl, sheetcell)
+getAlignment(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellAlignment} = process_get_cellref(getAlignment, ws, cellref)
+getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws, cr)
+getDefaultAlignment(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
+function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAlignment}
+    if length(XML.children(cell_style)) == 0 # `alignment` is a child node of the cell `xf`.
+        return nothing
+    end
+    @assert length(XML.children(cell_style)) == 1 "Expected cell `xf` to have 1 child node, found $(length(XML.children(cell_style)))"
+    @assert XML.tag(cell_style[1]) == "alignment" "Error cell alignment found but it has no attributes!"
+    atts = Dict{String,String}()
+    for (k, v) in XML.attributes(cell_style[1])
+        atts[k]=v
+    end
+    alignment_atts = Dict{String,Union{Dict{String,String},Nothing}}()
+    alignment_atts["alignment"] = atts
+    @assert haskey(cell_style, "applyAlignment") "The `applyAlignment` attribute missing from cell `xf`."
+    return CellAlignment(alignment_atts, cell_style["applyAlignment"])
+end
+
+"""
+"""
+function setAlignment end
+setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
+setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
+setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
+setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setAlignment, xl, sheetcell; kw...)
+function setAlignment(sh::Worksheet, cellref::CellRef;
+    horizontal::Union{Nothing,String}=nothing,
+    vertical::Union{Nothing,String}=nothing,
+    wrap::Union{Nothing,Bool}=nothing,
+)::Int
+
+    wb = get_workbook(sh)
+    cell = getcell(sh, cellref)
+
+    @assert !(cell isa EmptyCell) "Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, 0).id)
+    end
+
+    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+
+    atts = XML.OrderedDict{String,String}()
+    cell_alignment = getAlignment(wb, cell_style)
+    old_alignment_atts = cell_alignment.alignment["alignment"]
+    old_applyAlignment = cell_alignment.applyAlignment
+
+#    for a in ["horizontal", "vertical", "wrapText"]
+#        if a == "horizontal"
+            if isnothing(horizontal) && haskey(old_alignment_atts, "horizontal")
+                atts["horizontal"] = old_alignment_atts["horizontal"]
+            elseif !isnothing(horizontal)
+                atts["horizontal"] = horizontal
+            end
+#        elseif a == "vertical"
+            if isnothing(vertical) && haskey(old_alignment_atts, "vertical")
+                atts["vertical"] = old_alignment_atts["vertical"]
+            elseif !isnothing(vertical)
+                atts["vertical"] = vertical
+            end
+#        elseif a == "wrapText"
+            if isnothing(wrap) && haskey(old_alignment_atts, "wrapText")
+                atts["wrapText"] = old_alignment_atts["wrapText"]
+            elseif !isnothing(wrap)
+                atts["wrapText"] = wrap ? "1" : "0"
+            end
+#        end
+#    end
+
+    alignment_node = XML.Node(XML.Element, "alignment", atts, nothing, nothing)
+
+    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
+    cell.style = newstyle
+    return parse(Int, newstyle)
+end

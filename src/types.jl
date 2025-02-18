@@ -105,6 +105,15 @@ mutable struct CellFill
     end
 end
 
+mutable struct CellAlignment # Alignment is part of the cell style `xf` so doesn't need an Id
+    alignment::Dict{String, Union{Dict{String, String}, Nothing}} # allignmentAttribute -> (attribute -> value)
+    applyAlignment::String
+
+    function CellAlignment(alignment::Dict{String, Union{Dict{String, String}, Nothing}}, applyalignment::String)
+        return new(alignment, applyalignment)
+    end
+end
+
 abstract type AbstractCell end
 
 mutable struct Cell <: AbstractCell
