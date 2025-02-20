@@ -284,11 +284,12 @@ function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
     i, j = get_idces(xroot, "styleSheet", "cellXfs")
     existing_cellxf_elements_count = length(XML.children(xroot[i][j]))
     @assert parse(Int, xroot[i][j]["count"]) == existing_cellxf_elements_count "Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
-
     # Check new_xf doesn't duplicate any existing xf. If yes, use that rather than create new.
+    # Need to work around XML.jl issue # 33
     for (k, node) in enumerate(XML.children(xroot[i][j]))
-        if XML.nodetype(node) == XML.nodetype(new_xf) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_xf)) # XML.jl defines `Base.:(==)`
-            return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
+        #if XML.nodetype(node) == XML.nodetype(new_xf) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_xf)) # XML.jl defines `Base.:(==)`
+        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_xf))[1] # XML.jl defines `Base.:(==)`
+                return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
         end
     end
     push!(xroot[i][j], new_xf)

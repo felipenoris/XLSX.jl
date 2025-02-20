@@ -3,7 +3,7 @@ const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "ex
 const border_tags = ["left", "right", "top", "bottom", "diagonal"]
 const fill_tags = ["patternFill"]
 
-copynode(o::XML.Node) = XML.Node(o.nodetype, o.tag, o.attributes, o.value, o.children)
+copynode(o::XML.Node) = XML.parse(XML.Node, XML.write(o))[1]
 
 function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{String,String}}})::XML.Node
     if tag == "font"
@@ -94,7 +94,6 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, align
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
     new_cell_xf[1] = alignment
-    println(XML.write(new_cell_xf))
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
 
@@ -113,8 +112,8 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
 
     # Check new_font doesn't duplicate any existing font. If yes, use that rather than create new.
     for (k, node) in enumerate(XML.children(xroot[i][j]))
-        if XML.nodetype(node) == XML.nodetype(new_att) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_att)) # XML.jl defines `Base.:(==)`
-            #            if node == new_font # XML.jl defines `Base.:(==)`
+        #if XML.nodetype(node) == XML.nodetype(new_att) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_att)) # XML.jl defines `Base.:(==)`
+        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_att))[1] # XML.jl defines `Base.:(==)`
             return k - 1 # CellDataFormat is zero-indexed
         end
     end
@@ -124,7 +123,7 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
 
     return existing_elements_count # turns out this is the new index (because it's zero-based)
 end
-is_non_contiguous_range(v::SheetCellRef) = occursin(",", string(v))::Bool # Non-contiguous ranges are comma separated `SheetCellRef-like` strings
+#is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` strings
 function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
     if is_workbook_defined_name(xl, sheetcell)
         v = get_defined_name_value(xl.workbook, sheetcell)
@@ -278,6 +277,45 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
         return newid
     end
 end
+function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)
+    let newid, alignment_node
+        first = true
+        for cellref in rng
+            cell = getcell(ws, cellref)
+            if cell isa EmptyCell # Can't add a attribute to an empty cell.
+                continue
+            end
+            if first                           # Get the attribute of the first cell in the range.
+                newid = f(ws, cellref; kw...)
+                new_alignment = getAlignment(ws, cellref).alignment["alignment"]
+                alignment_node = XML.Node(XML.Element, "alignment", new_alignment, nothing, nothing)
+                first = false
+            else                               # Apply the same attribute to the rest of the cells in the range.
+                if cell.style == ""
+                    cell.style = string(get_num_style_index(ws, 0).id)
+                end
+                cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
+            end
+        end
+        if first
+            newid = -1
+        end
+        return newid
+    end
+end
+#=function process_cell_style(f::Function, sh::Worksheet, cellref::CellRef; kw...)::Int
+    wb = get_workbook(sh)
+    cell = getcell(sh, cellref)
+
+    @assert !(cell isa EmptyCell) "Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, 0).id)
+    end
+
+    return f(sh, wb, cell; kw...)
+end
+=#
 
 """
    setFont(sh::Worksheet, cr::String; kw...) -> Int
@@ -346,28 +384,28 @@ setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont,
 setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
 setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
 setFont(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFont, xl, sheetcell; kw...)
-function setFont(sh::Worksheet, cellref::CellRef;
-    bold::Union{Nothing,Bool}=nothing,
-    italic::Union{Nothing,Bool}=nothing,
-    under::Union{Nothing,String}=nothing,
-    strike::Union{Nothing,Bool}=nothing,
-    size::Union{Nothing,Int}=nothing,
-    color::Union{Nothing,String}=nothing,
-    name::Union{Nothing,String}=nothing
-)::Int
+function setFont(sh::Worksheet, cellref::CellRef; 
+        bold::Union{Nothing,Bool}=nothing,
+        italic::Union{Nothing,Bool}=nothing,
+        under::Union{Nothing,String}=nothing,
+        strike::Union{Nothing,Bool}=nothing,
+        size::Union{Nothing,Int}=nothing,
+        color::Union{Nothing,String}=nothing,
+        name::Union{Nothing,String}=nothing
+    )::Int
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set font for an `EmptyCell`: $(cellref.name). Set the value first."
+    @assert !(cell isa EmptyCell) "Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."
 
     if cell.style == ""
         cell.style = string(get_num_style_index(sh, 0).id)
     end
 
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    new_font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
 
+    new_font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     cell_font = getFont(wb, cell_style)
     old_font_atts = cell_font.font
     old_applyFont = cell_font.applyFont
@@ -957,7 +995,7 @@ The following keywords are used to define a fill:
 
 - pattern   : Sets the patternType for the fill.
 - fgColor   : Sets the foreground color for the fill.
-- bgColor   : Sets the background color for the fill..
+- bgColor   : Sets the background color for the fill.
 
 Here is a list of the `patternTypes` Excel uses (thanks to Copilot!):
 - `none`
@@ -1008,10 +1046,10 @@ setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(s
 setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
 setFill(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFill, xl, sheetcell; kw...)
 function setFill(sh::Worksheet, cellref::CellRef;
-    pattern::Union{Nothing,String}=nothing,
-    fgColor::Union{Nothing,String}=nothing,
-    bgColor::Union{Nothing,String}=nothing,
-)::Int
+        pattern::Union{Nothing,String}=nothing,
+        fgColor::Union{Nothing,String}=nothing,
+        bgColor::Union{Nothing,String}=nothing,
+    )::Int
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -1023,6 +1061,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
     end
 
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    
     new_fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     patternFill = Dict{String,String}()
 
@@ -1117,12 +1156,12 @@ setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
 
 """
    getAlignment(sh::Worksheet, cr::String) -> Union{Nothing, CellAlignment}
-   getFill(xf::XLSXFile, cr::String) -> Union{Nothing, CellAlignment}
+   getAlignment(xf::XLSXFile, cr::String) -> Union{Nothing, CellAlignment}
    
-Get the fill used by a single cell at reference `cr` in a worksheet or XLSXfile.
+Get the alignment used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
 Return a CellAlignment object containing:
-- `fill`           : a dictionary of alignment attributes: alignmentAttribute -> (attribute -> value)
+- `alignment`      : a dictionary of alignment attributes: alignmentAttribute -> (attribute -> value)
 - `applyAlignment` : "1" or "0", indicating whether or not the alignment is applied to the cell.
 
 Return `nothing` if no cell alignment is found.
@@ -1140,7 +1179,8 @@ Excel supports the following values for the horizontal alignment:
 - right            : Aligns the text to the right of the cell.
 - fill             : Repeats the text to fill the entire width of the cell.
 - justify          : Justifies the text, spacing it out so that it spans the entire width of the cell.
-- centerContinuous : Centers the text across multiple cells, as if the text were in a merged cell.
+- centerContinuous : Centers the text across multiple cells (specifically the currrent cell and all 
+                     empty cells to the right) as if the text were in a merged cell.
 - distributed      : Distributes the text evenly across the width of the cell.
 
 Excel supports the following values for the vertical alignment:
@@ -1149,6 +1189,10 @@ Excel supports the following values for the vertical alignment:
 - bottom           : Aligns the text to the bottom of the cell.
 - justify          : Justifies the text vertically, spreading it out evenly within the cell.
 - distributed      : Distributes the text evenly from top to bottom in the cell.
+
+For single cells, the value returned is the style ID of the cell.
+
+For cell ranges, column ranges and named ranges, the value returned is -1.
 
 Examples:
 ```julia
@@ -1162,7 +1206,7 @@ function getAlignment end
 getAlignment(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellAlignment} = process_get_sheetcell(getAlignment, xl, sheetcell)
 getAlignment(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellAlignment} = process_get_cellref(getAlignment, ws, cellref)
 getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws, cr)
-getDefaultAlignment(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
+#getDefaultAlignment(ws::Worksheet) = getAlignment(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAlignment}
     if length(XML.children(cell_style)) == 0 # `alignment` is a child node of the cell `xf`.
         return nothing
@@ -1180,17 +1224,58 @@ function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAli
 end
 
 """
+   setAlignment(sh::Worksheet, cr::String; kw...) -> Int}
+   setAlignment(xf::XLSXFile, cr::String; kw...) -> Int}
+   
+Set the fill used used by a single cell, a cell range, a column range or 
+a named cell or named range in a worksheet or XLSXfile.
+
+The following keywords are used to define a fill:
+
+- horizontal : Sets the horizontal alignment.
+- vertical   : Sets the vertical alignment.
+- wrapText   : Determines whether the cell content wraps within the cell.
+
+Here are the possible values for the horizontal alignment:
+- left             : Aligns the text to the left of the cell.
+- center           : Centers the text within the cell.
+- right            : Aligns the text to the right of the cell.
+- fill             : Repeats the text to fill the entire width of the cell.
+- justify          : Justifies the text, spacing it out so that it spans the entire 
+                     width of the cell.
+- centerContinuous : Centers the text across multiple cells (specifically the currrent 
+                     cell and all empty cells to the right) as if the text were in 
+                     a merged cell.
+- distributed      : Distributes the text evenly across the width of the cell.
+
+Here are the possible values for the vertical alignment:
+- top              : Aligns the text to the top of the cell.
+- center           : Centers the text vertically within the cell.
+- bottom           : Aligns the text to the bottom of the cell.
+- justify          : Justifies the text vertically, spreading it out evenly within the cell.
+- distributed      : Distributes the text evenly from top to bottom in the cell.
+
+The value of wrapText should be set to `true` or `false` depending if the content is to wrap or not.
+
+
+Examples:
+```julia
+julia> setAlignment(s, "D18"; horizontal="center", wrapText=true)
+
+julia> setAlignment(f, "sheet1!D18"; horizontal="right", vertical="top", wrapText=true)
+
+```
 """
 function setAlignment end
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
 setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
 setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
 setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setAlignment, xl, sheetcell; kw...)
-function setAlignment(sh::Worksheet, cellref::CellRef;
+function setAlignment(sh::Worksheet, cellref::CellRef; 
     horizontal::Union{Nothing,String}=nothing,
     vertical::Union{Nothing,String}=nothing,
-    wrap::Union{Nothing,Bool}=nothing,
-)::Int
+    wrapText::Union{Nothing,Bool}=nothing
+    )::Int
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -1208,31 +1293,108 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     old_alignment_atts = cell_alignment.alignment["alignment"]
     old_applyAlignment = cell_alignment.applyAlignment
 
-#    for a in ["horizontal", "vertical", "wrapText"]
-#        if a == "horizontal"
-            if isnothing(horizontal) && haskey(old_alignment_atts, "horizontal")
-                atts["horizontal"] = old_alignment_atts["horizontal"]
-            elseif !isnothing(horizontal)
-                atts["horizontal"] = horizontal
-            end
-#        elseif a == "vertical"
-            if isnothing(vertical) && haskey(old_alignment_atts, "vertical")
-                atts["vertical"] = old_alignment_atts["vertical"]
-            elseif !isnothing(vertical)
-                atts["vertical"] = vertical
-            end
-#        elseif a == "wrapText"
-            if isnothing(wrap) && haskey(old_alignment_atts, "wrapText")
-                atts["wrapText"] = old_alignment_atts["wrapText"]
-            elseif !isnothing(wrap)
-                atts["wrapText"] = wrap ? "1" : "0"
-            end
-#        end
-#    end
+    @assert isnothing(horizontal) || horizontal ∈ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] "Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."
+    @assert isnothing(vertical) || vertical ∈ ["top", "center", "bottom", "justify", "distributed"] "Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."
+    @assert isnothing(wrapText) || wrapText ∈ [true, false] "Invalid wrap option: $wrapText must be one of: `true`, `false`."
+
+    if isnothing(horizontal) && haskey(old_alignment_atts, "horizontal")
+        atts["horizontal"] = old_alignment_atts["horizontal"]
+    elseif !isnothing(horizontal)
+        atts["horizontal"] = horizontal
+    end
+    if isnothing(vertical) && haskey(old_alignment_atts, "vertical")
+        atts["vertical"] = old_alignment_atts["vertical"]
+    elseif !isnothing(vertical)
+        atts["vertical"] = vertical
+    end
+    if isnothing(wrapText) && haskey(old_alignment_atts, "wrapText")
+        atts["wrapText"] = old_alignment_atts["wrapText"]
+    elseif !isnothing(wrapText)
+        atts["wrapText"] = wrapText ? "1" : "0"
+    end
 
     alignment_node = XML.Node(XML.Element, "alignment", atts, nothing, nothing)
 
     newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
     cell.style = newstyle
+
     return parse(Int, newstyle)
 end
+
+"""
+   setUniformAlignment(sh::Worksheet, cr::String; kw...) -> Int
+   setUniformAlignment(xf::XLSXFile,  cr::String, kw...) -> Int
+
+Set the alignment used by a cell range, a column range or a named range in a 
+worksheet or XLSXfile.
+
+First, the alignment attributes of the first cell in the range (the top-left cell) are
+updated according to the given `kw...` (using `setFill()`). The resultant alignment is 
+then applied to each remaining cell in the range.
+
+As a result, every cell in the range will have a uniform alignment setting.
+
+This differs from `setAlignment()` which merges the attributes defined by `kw...` into 
+the alignment definition used by each cell individually. For example, if you set the 
+horizontal alignment to `left` for a range of cells, but these cells all use different 
+vertical alignment or wrap, `setAlignment()` will change the horizontal alignment but 
+leave the vertical alignment and wrap unchanged for each cell individually. 
+
+In contrast, `setUniformAlignment()` will set the horizontal alignment to `left` for the 
+first cell, but will then apply all the alignment attributes from the updated first cell 
+(ie. horizontal and vertical alignment and the wrap) to all the other cells in the range.
+
+This can be more efficient when setting the same alignment for a large number of cells.
+
+The value returned is the alignment ID of the alignment uniformly applied to the cells.
+If all cells in the range are `EmptyCells`, the returned value is -1.
+
+For keyword definitions see `setAlignment()`@Ref.
+
+Examples:
+```julia
+Julia> setUniformAlignment(sh, "B2:D4"; horizontal="center", wrap = true)
+
+Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="top")
+```
+"""
+function setUniformFill end
+setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
+setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformAlignment, xl, sheetcell; kw...)
+setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
+setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
+
+"""
+The <cols> element in an Excel worksheet's XML, which defines the columns and their properties. Here's a breakdown:
+
+<col> elements within <cols> define individual columns.
+
+Attributes like min, max, width, customWidth, and style specify properties for each column.
+
+For example:
+
+min="1" and max="1" indicate the column number (1).
+
+width="2.7109375" sets the column width.
+
+customWidth="1" suggests a custom width is applied.
+
+style attribute might reference specific formatting styles.
+"""
+
+"""
+this <row> element
+Attributes:
+
+r="3": Specifies the row number (3).
+
+spans="1:11": Indicates the row spans from column 1 to column 11.
+
+ht="6": Sets the height of the row to 6 points.
+
+customHeight="1": Indicates that a custom height is applied to the row.
+
+thickBot="1": Suggests that the bottom border of the row is thick.
+
+x14ac:dyDescent="0.3": An attribute specific to certain versions of Excel, likely related to text descent for alignment purposes.
+"""

@@ -1633,39 +1633,20 @@ end
         @test XLSX.setBorder(f, "Sheet1!B2:D4"; left=["style" => "hair"], right=["rgb" => "FF111111"], top=["style" => "hair"], bottom=["rgb" => "FF111111"], diagonal=["style" => "hair"]) == -1
         @test XLSX.setFill(f, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800") == -1
 
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
         # Can't set a uniform attribute to a single cell.
         @test_throws MethodError XLSX.setUniformFill(s, "D4"; pattern="gray125", bgColor = "FF000000")
         @test_throws MethodError XLSX.setUniformFont(s, "B4"; size=12, name="Times New Roman", color="FF040404")
-        @test_throws MethodError XLSX.setUniformBorder(f, "Sheet1!D4"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
+        @test_throws MethodError XLSX.setUniformBorder(f, "Mock-up!D4"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
                                             right= ["style" => "medium", "rgb" => "FF765000"],
                                             top= ["style" => "thick", "rgb" => "FF230000"],
                                             bottom= ["style" => "medium", "rgb" => "FF0000FF"],
                                             diagonal= ["style" => "none"]
                                             )
+        @test_throws MethodError XLSX.setUniformFill(s, "ID"; pattern = "darkTrellis", fgColor = "FF222222", bgColor = "FFDDDDDD")
 
-        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
-        s = f["Mock-up"]
-
-        XLSX.setFill(s, "ID"; pattern = "darkTrellis", fgColor = "FF222222", bgColor = "FFDDDDDD")
-        @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
-
-        # Location is a non-contiguous range
-        XLSX.setFill(s, "Location"; pattern = "lightVertical")
-        @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
-        @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
-        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
-        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
-
-        XLSX.setFill(s, "Contiguous"; pattern = "lightVertical")
-        @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
-        @test XLSX.getFill(s, "D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
-        @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
-        @test XLSX.getFill(s, "D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
-        @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
-        
-        # Cant get attributes on a range.
-        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
-        
     end
 
     @testset "setFill" begin
@@ -1696,8 +1677,80 @@ end
         @test XLSX.getFill(s, "D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
         @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
         
-        # Cant get attributes on a range.
+        # Can't get attributes on a range.
         @test_throws AssertionError XLSX.getFill(s, "Contiguous")
+
+        XLSX.setUniformFill(s, "B3:D5"; pattern = "lightGrid", fgColor = "FF0000FF", bgColor = "FF00FF00")
+        @test XLSX.getFill(s, "B3").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+        @test XLSX.getFill(s, "C4").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+        @test XLSX.getFill(s, "D5").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+
+        XLSX.setFill(s, "ID"; pattern = "darkTrellis", fgColor = "FF222222", bgColor = "FFDDDDDD")
+        @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        # Location is a non-contiguous range
+        XLSX.setFill(s, "Location"; pattern = "lightVertical")
+        @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(f, "Mock-up!D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(f, "Mock-up!J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "Contiguous"; pattern = "lightVertical")
+        @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(f, "Mock-up!D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(f, "Mock-up!D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        
+        # Can't get attributes on a range.
+        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
+
+        XLSX.writexlsx("output.xlsx", f, overwrite=true)
+        @test isfile("output.xlsx")
+
+        XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
+            s = f["Mock-up"]
+            @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(f, "Mock-up!D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(f, "Mock-up!D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        end
+
+        isfile("output.xlsx") && rm("output.xlsx")
+
+    end
+
+    @testset "setAlignment" begin
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        @test XLSX.getAlignment(s, "D51").alignment == Dict("alignment" => Dict("horizontal"=>"left", "vertical"=>"top", "wrapText"=>"1"))
+        @test XLSX.getAlignment(s, "D18").alignment == Dict("alignment" => Dict("horizontal"=>"center", "vertical"=>"top"))
+
+        XLSX.setAlignment(f, "Mock-up!D18"; horizontal="right", wrapText=true)
+        @test XLSX.getAlignment(s, "D18").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"top", "wrapText"=>"1"))
+
+        @test XLSX.setAlignment(s, "Location"; horizontal="right", wrapText=true) == -1
+
+        XLSX.setUniformAlignment(s, "B3:D5"; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "B3").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"justify", "wrapText"=>"1"))
+        @test XLSX.getAlignment(s, "C4").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"justify", "wrapText"=>"1"))
+        @test XLSX.getAlignment(s, "D5").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"justify", "wrapText"=>"1"))
+
+        XLSX.writexlsx("output.xlsx", f, overwrite=true)
+        @test isfile("output.xlsx")
+
+        XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
+            s = f["Mock-up"]
+            @test XLSX.getAlignment(s, "B3").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"justify", "wrapText"=>"1"))
+            @test XLSX.getAlignment(s, "C4").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"justify", "wrapText"=>"1"))
+            @test XLSX.getAlignment(s, "D5").alignment == Dict("alignment" => Dict("horizontal"=>"right", "vertical"=>"justify", "wrapText"=>"1"))
+        end
+
+        isfile("output.xlsx") && rm("output.xlsx")
+
     end
 
 end
