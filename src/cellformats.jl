@@ -93,7 +93,12 @@ end
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
-    new_cell_xf[1] = alignment
+    if length(XML.children(new_cell_xf))==0
+        new_cell_xf =  XML.Node(new_cell_xf.nodetype, new_cell_xf.tag, new_cell_xf.attributes, new_cell_xf.value, Vector{XML.Node}())
+        push!(new_cell_xf, alignment)
+    else
+        new_cell_xf[1] = alignment
+    end
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
 
@@ -752,13 +757,13 @@ setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
 setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
 function setBorder(sh::Worksheet, cellref::CellRef;
-    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+        allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    )::Int
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["allsides"] = isnothing(allsides) ? nothing : Dict{String,String}(p for p in allsides)
@@ -870,6 +875,30 @@ setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_colum
 setUniformBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformBorder, xl, sheetcell; kw...)
 setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformBorder, ws, ref_or_rng; kw...)
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
+
+"""
+"""
+function setOutsideBorder end
+setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
+setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
+setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
+function setOutsideBorder(ws::Worksheet, rng::CellRange; 
+    style::String,
+    rgb::String
+    )::Int
+
+    topLeft      = CellRef(rng.start.row_number, rng.start.column_number)
+    topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
+    bottomLeft   = CellRef(rng.stop.row_number, rng.start.column_number)
+    bottomRight  = CellRef(rng.stop.row_number, rng.stop.column_number)
+    setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "rgb" => rgb])
+    setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "rgb" => rgb])
+    setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "rgb" => rgb])
+    setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "rgb" => rgb])
+
+    return -1
+
+end
 
 """
    getFill(sh::Worksheet, cr::String) -> Union{Nothing, CellFill}
@@ -1290,24 +1319,27 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
 
     atts = XML.OrderedDict{String,String}()
     cell_alignment = getAlignment(wb, cell_style)
-    old_alignment_atts = cell_alignment.alignment["alignment"]
-    old_applyAlignment = cell_alignment.applyAlignment
+
+    if !isnothing(cell_alignment)
+        old_alignment_atts = cell_alignment.alignment["alignment"]
+        old_applyAlignment = cell_alignment.applyAlignment
+    end
 
     @assert isnothing(horizontal) || horizontal ∈ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] "Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."
     @assert isnothing(vertical) || vertical ∈ ["top", "center", "bottom", "justify", "distributed"] "Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."
     @assert isnothing(wrapText) || wrapText ∈ [true, false] "Invalid wrap option: $wrapText must be one of: `true`, `false`."
 
-    if isnothing(horizontal) && haskey(old_alignment_atts, "horizontal")
+    if isnothing(horizontal) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "horizontal")
         atts["horizontal"] = old_alignment_atts["horizontal"]
     elseif !isnothing(horizontal)
         atts["horizontal"] = horizontal
     end
-    if isnothing(vertical) && haskey(old_alignment_atts, "vertical")
+    if isnothing(vertical) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "vertical")
         atts["vertical"] = old_alignment_atts["vertical"]
     elseif !isnothing(vertical)
         atts["vertical"] = vertical
     end
-    if isnothing(wrapText) && haskey(old_alignment_atts, "wrapText")
+    if isnothing(wrapText) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "wrapText")
         atts["wrapText"] = old_alignment_atts["wrapText"]
     elseif !isnothing(wrapText)
         atts["wrapText"] = wrapText ? "1" : "0"
