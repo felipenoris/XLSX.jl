@@ -181,9 +181,16 @@ function get_idces(doc, t, b)
     j=1
     while XML.tag(doc[i]) != t
         i+=1
+        if i > length(XML.children(doc))
+            return nothing, nothing
+        end
+
     end
     while XML.tag(doc[i][j]) != b
         j+=1
+        if j > length(XML.children(doc[i]))
+            return i, nothing
+        end
     end
     return i, j
 end

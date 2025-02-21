@@ -1557,7 +1557,7 @@ end
         isfile("output.xlsx") && rm("output.xlsx")
     end
 
-    @testset "setBorders" begin
+    @testset "setBorder" begin
         f = XLSX.open_xlsx_template(joinpath(data_directory, "borders.xlsx"))
         s = f["Sheet1"]
 
@@ -1752,6 +1752,12 @@ end
         isfile("output.xlsx") && rm("output.xlsx")
 
     end
+
+    @testset "setFormat" begin
+
+
+    end
+
 
 end
 

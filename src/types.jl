@@ -104,6 +104,15 @@ mutable struct CellFill
         return new(fillid, fill, applyfill)
     end
 end
+mutable struct CellFormat
+    numFmtId::Int
+    format::Dict{String, Union{Dict{String, String}, Nothing}} # fillAttribute -> (attribute -> value)
+    applyNumberFormat::String
+
+    function CellFormat(formatid::Int, format::Dict{String, Union{Dict{String, String}, Nothing}}, applynumberformat::String)
+        return new(formatid, format, applynumberformat)
+    end
+end
 
 mutable struct CellAlignment # Alignment is part of the cell style `xf` so doesn't need an Id
     alignment::Dict{String, Union{Dict{String, String}, Nothing}} # alignmentAttribute -> (attribute -> value)

@@ -2,6 +2,51 @@
 const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
 const border_tags = ["left", "right", "top", "bottom", "diagonal"]
 const fill_tags = ["patternFill"]
+const builtinFormats = Dict(
+        "0"  => "General",
+        "1"  => "0",
+        "2"  => "0.00",
+        "3"  => "#,##0",
+        "4"  => "#,##0.00",
+        "5"  => "\$#,##0_);(\$#,##0)",
+        "6"  => "\$#,##0_);Red",
+        "7"  => "\$#,##0.00_);(\$#,##0.00)",
+        "8"  => "\$#,##0.00_);Red",
+        "9"  => "0%",
+        "10" => "0.00%",
+        "11" => "0.00E+00",
+        "12" => "# ?/?",
+        "13" => "# ??/??",
+        "14" => "m/d/yyyy",
+        "15" => "d-mmm-yy",
+        "16" => "d-mmm",
+        "17" => "mmm-yy",
+        "18" => "h:mm AM/PM",
+        "19" => "h:mm:ss AM/PM",
+        "20" => "h:mm",
+        "21" => "h:mm:ss",
+        "22" => "m/d/yyyy h:mm",
+        "37" => "#,##0_);(#,##0)",
+        "38" => "#,##0_);Red",
+        "39" => "#,##0.00_);(#,##0.00)",
+        "40" => "#,##0.00_);Red",
+        "45" => "mm:ss",
+        "46" => "[h]:mm:ss",
+        "47" => "mmss.0",
+        "48" => "##0.0E+0",
+        "49" => "@"
+    )
+    const builtinFormatNames = Dict(
+        "General"     =>  0,
+        "Number"      =>  2,
+        "Currency"    =>  7,
+        "Percentage"  =>  9,
+        "ShortDate"   => 14,
+        "LongDate"    => 15,
+        "Time"        => 21,
+        "Scientific"  => 48
+    )
+
 
 copynode(o::XML.Node) = XML.parse(XML.Node, XML.write(o))[1]
 
@@ -113,13 +158,18 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
     xroot = styles_xmlroot(wb)
     i, j = get_idces(xroot, "styleSheet", att)
     existing_elements_count = length(XML.children(xroot[i][j]))
-    @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
+    @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of elements elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
 
-    # Check new_font doesn't duplicate any existing font. If yes, use that rather than create new.
+    # Check new_att doesn't duplicate any existing att. If yes, use that rather than create new.
     for (k, node) in enumerate(XML.children(xroot[i][j]))
-        #if XML.nodetype(node) == XML.nodetype(new_att) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_att)) # XML.jl defines `Base.:(==)`
-        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_att))[1] # XML.jl defines `Base.:(==)`
-            return k - 1 # CellDataFormat is zero-indexed
+        if XML.tag(new_att) == "numFmt" # mustn't compare numFmtId attribute for formats
+            if XML.parse(XML.Node, XML.write(node))[1]["formatCode"] == XML.parse(XML.Node, XML.write(new_att))[1]["formatCode"] # XML.jl defines `Base.:(==)`
+                return k - 1 # CellDataFormat is zero-indexed
+            end
+        else
+            if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_att))[1] # XML.jl defines `Base.:(==)`
+                return k - 1 # CellDataFormat is zero-indexed
+            end
         end
     end
 
@@ -877,6 +927,31 @@ setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = proces
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
 
 """
+   setOutsideBorder(sh::Worksheet, cr::String; kw...) -> Int
+   setOutsideBorder(xf::XLSXFile,  cr::String, kw...) -> Int
+
+Set the border around the outside of a cell range, a column range or a named 
+range in a worksheet or XLSXfile.
+
+Two key words can be defined:
+- style : defines the style of the outside border
+- rgb   : defines the color of the outside border
+
+Only the border definitions for the sides of boundary cells that are on ouside 
+edge of the range will be set to the specified style and color. The borders of 
+internal edges and any diagonal will remain unchanged. Border settings for all 
+internal cells in the range will remain unchanged.
+
+The value returned is is -1.
+
+For keyword definitions see `setBorder()`@Ref.
+
+Examples:
+```julia
+Julia> setOutsideBorder(sh, "B2:D6"; style = "thick")
+
+Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", rgb = "FF000FF0")
+```
 """
 function setOutsideBorder end
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
@@ -993,7 +1068,7 @@ function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
             if isnothing(XML.attributes(pattern)) || length(XML.attributes(pattern)) == 0
                 fill_atts[XML.tag(pattern)] = nothing
             else
-                @assert length(XML.attributes(pattern)) == 1 "Too many font attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(side)))."
+                @assert length(XML.attributes(pattern)) == 1 "Too many fill attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(pattern)))."
                 for (k, v) in XML.attributes(pattern) # patternType is the only possible attribute of a fill
                     fill_atts[XML.tag(pattern)] = Dict(k => v)
                     for subc in XML.children(pattern) # foreground and background colors are children of a patternFill element
@@ -1396,6 +1471,171 @@ setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = proce
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
 setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
 
+"""
+   getFormat(sh::Worksheet, cr::String) -> Union{Nothing, CellFormat}
+   getFormat(xf::XLSXFile, cr::String) -> Union{Nothing, CellFormat}
+   
+Get the format (numFmt) used by a single cell at reference `cr` in a worksheet or XLSXfile.
+
+Return a CellFormat object containing:
+- numFmtId          : a 0-based index of the formats in the workbook. Values below 164 are 
+                      reserved for built-in formats. Values of 164 and over are custom formats
+                      and are stored in the `styles.xml` file within the XLSXfile.
+- format            : a dictionary of numFmt attributes: formatAttribute -> (attribute -> value)
+- applyNumberFormat : "1" or "0", indicating whether or not the format is applied to the cell.
+
+Return `nothing` if no cell format is found. This will occur when a cell uses a built-in format.
+
+The function will always find any explicitly set custom format. It will also attempt to return 
+the format for built-in formats, too.
+
+Examples:
+```julia
+julia> getFormat(sh, "A1")
+
+julia> getFormat(xf, "Sheet1!A1")
+```
+"""
+function getFormat end
+getFormat(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getFormat, xl, sheetcell)
+getFormat(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFormat} = process_get_cellref(getFormat, ws, cellref)
+getFormat(ws::Worksheet, cr::String) = process_get_cellname(getFormat, ws, cr)
+#getDefaultFill(ws::Worksheet) = getFormat(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
+function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat}
+
+    if haskey(cell_style, "numFmtId")
+        numfmtid = cell_style["numFmtId"]
+        applynumberformat = haskey(cell_style, "applyNumberFormat") ? cell_style["applyNumberFormat"] : "0"
+        format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
+        if parse(Int, numfmtid) >= PREDEFINED_NUMFMT_COUNT
+            xroot = styles_xmlroot(wb)
+            format_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)[begin]
+            @assert parse(Int, format_elements["count"]) == length(XML.children(format_elements)) "Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"
+            current_format = XML.children(format_elements)[parse(Int, numfmtid)+1-PREDEFINED_NUMFMT_COUNT] # Zero based!
+            @assert length(XML.attributes(current_format)) == 2 "Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."
+            for (k, v) in XML.attributes(current_format) # patternType is the only possible attribute of a fill
+                format_atts[XML.tag(current_format)] = Dict(k => v)
+            end
+        else
+#            any(num in r for r in ranges)
+            ranges = [0:22, 37:40, 45:49]
+            @assert any(parse(Int, numfmtid) == n for r ∈ ranges for n ∈ r) "Expected a built in format ID in the following ranges: 1:22, 37:40, 45:49. Got $numfmtid."
+            if haskey(builtinFormats, numfmtid)
+                format_atts["numFmt"] = Dict("numFmtId" => numfmtid, "formatCode" => builtinFormats[numfmtid])
+            end
+        end
+        println(numfmtid)
+        return CellFormat(parse(Int, numfmtid), format_atts, applynumberformat)
+    end
+
+    return nothing
+end
+
+"""
+   setFormat(sh::Worksheet, cr::String; kw...) -> Int}
+   setFormat(xf::XLSXFile, cr::String; kw...) -> Int}
+   
+Set the format used used by a single cell, a cell range, a column range or 
+a named cell or named range in a worksheet or XLSXfile.
+
+The function uses one keyword used to define a format:
+
+- format : Defines a built-in or custom format to apply
+
+The format keyword can define some built-in formats by name:
+- Genera     : specifies internal format ID  0 (General)
+- Number     : specifies internal format ID  2 (`0.00`)
+- Currency   : specifies internal format ID  7 (`\$#,##0.00_);(\$#,##0.00)`)
+- Percentage : specifies internal format ID  9 (`0%`)
+- ShortDate  : specifies internal format ID 14 (`m/d/yyyy`)
+- LongDate   : specifies internal format ID 15 (`d-mmm-yy`)
+- Time       : specifies internal format ID 21 (`h:mm:ss`)
+- Scientific : specifies internal format ID 48 (`##0.0E+0`)
+
+Alternatively, `format` can be used to specify any custom format directly. 
+No checks are made of custom formats specified - they are added to the XLSXfile verbatim.
+
+Formats containing characters that need to be escaped may be escaped or they may be enclosed in triple quotes.
+
+Examples:
+```julia
+julia> XLSX.setFormat(sh, "D2"; format = "h:mm AM/PM")
+
+julia> XLSX.setFormat(xf, "Sheet1!A2"; format = "# ??/??")
+
+julia> XLSX.setFormat(sh, "F1:F5"; format = "Currency")
+
+julia> XLSX.setFormat(xf, "Sheet1!A2"; format = \"\"\"_-£* #,##0.00_-;-£* #,##0.00_-;_-£* "-"??_-;_-@_-\"\"\")
+
+julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \\\"-\\\"??_-;_-@_-")
+```
+"""
+function setFormat end
+setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
+setFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFormat, ws, colrng; kw...)
+setFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFormat, ws, ref_or_rng; kw...)
+setFormat(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFormat, xl, sheetcell; kw...)
+function setFormat(sh::Worksheet, cellref::CellRef;
+        format::Union{Nothing,String}=nothing,
+    )::Int
+
+    wb = get_workbook(sh)
+    cell = getcell(sh, cellref)
+
+    @assert !(cell isa EmptyCell) "Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, 0).id)
+    end
+
+    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    
+#    new_format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
+    new_format = XML.OrderedDict{String,String}()
+
+    cell_format = getFormat(wb, cell_style)
+    old_format_atts = cell_format.format["numFmt"]
+    old_applyNumberFormat = cell_format.applyNumberFormat
+
+    if isnothing(format)                          # User didn't specify any format so this is a no-op
+        println("unchanged : ", cell)
+        return cell_format.formatId
+    end
+
+    if haskey(builtinFormatNames, format) # User specified a format by name
+        new_formatid = builtinFormatNames[format]
+    else                                      # user specified a format code
+        xroot = styles_xmlroot(wb)
+        i, j = get_idces(xroot, "styleSheet", "numFmts")
+        if isnothing(j) # There are no existing custom formats
+            new_formatid = styles_add_numFmt(wb, format)
+        else
+            existing_elements_count = length(XML.children(xroot[i][j]))
+            @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
+
+            format_node = XML.Element("numFmt";
+                numFmtId = string(existing_elements_count + PREDEFINED_NUMFMT_COUNT),
+                formatCode = xlsx_escape(format)
+            )
+
+            new_formatid = styles_add_cell_attribute(wb, format_node, "numFmts") + PREDEFINED_NUMFMT_COUNT
+        end
+    end
+
+    if new_formatid == 0
+        atts = ["numFmtId"]
+        vals = ["$new_formatid"]
+    else
+        atts = ["numFmtId", "applyNumberFormat"]
+        vals = ["$new_formatid", "1"]
+    end
+    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), atts, vals).id)
+    cell.style = newstyle
+ 
+    return new_formatid
+end
+
+#blah
 """
 The <cols> element in an Excel worksheet's XML, which defines the columns and their properties. Here's a breakdown:
 
