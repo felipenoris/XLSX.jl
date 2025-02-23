@@ -1755,6 +1755,60 @@ end
 
     @testset "setFormat" begin
 
+        f = XLSX.open_empty_template()
+        s = f["Sheet1"]
+
+        s["A1"] = "Hello"
+        s["B1"] = "World"
+        s["A2"] = 2.367
+        s["B2"] = 200450023
+        s["C1"] = Dates.Date(2018, 2, 1)
+        s["C2"] = 0.45
+        s["D1"] = 100.24
+        s["D2"] = Dates.Time(0, 19, 30)
+        s["E1:F5"] = [Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23) ;
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23) ;
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23) ;
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23) ;
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23) 
+        ]
+        
+        @test XLSX.setFormat(s, "B2"; format = "Scientific") == 48
+        @test XLSX.setFormat(s, "C2"; format = "Percentage") == 9
+        @test XLSX.setFormat(s, "C1"; format = "General") == 0
+        @test XLSX.setFormat(s, "D2"; format = "Currency") == 7     
+        @test XLSX.setFormat(s, "C1"; format = "LongDate") == 15
+        @test XLSX.setFormat(s, "D2"; format = "Time") == 21
+
+        @test XLSX.getFormat(s, "A2") === nothing
+        @test XLSX.getFormat(s, "D2").format == Dict("numFmt" => Dict("numFmtId" => "21", "formatCode" => "h:mm:ss"))
+        @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("numFmtId" => "14", "formatCode" => "m/d/yyyy"))
+        @test XLSX.getFormat(s, "F2").format == Dict("numFmt" => Dict("numFmtId" => "14", "formatCode" => "m/d/yyyy"))
+
+        
+        @test XLSX.setFormat(s, "A2"; format = """_-£* #,##0.00_-;-£* #,##0.00_-;_-£* "-"??_-;_-@_-""") == 164
+        @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \"-\"??_-;_-@_-"))
+        @test XLSX.setFormat(s, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \"-\"??_-;_-@_-") == 164
+        @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \"-\"??_-;_-@_-"))
+
+        @test XLSX.setFormat(s, "D2"; format = "h:mm AM/PM") == 165
+        @test XLSX.setFormat(s, "A2"; format = "# ??/??") == 166
+        @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "# ??/??"))
+        @test XLSX.getFormat(s, "D2").format == Dict("numFmt" => Dict("formatCode" => "h:mm AM/PM"))
+ 
+        @test XLSX.setFormat(s, "E1:E5"; format = "General") == -1
+        @test XLSX.setFormat(s, "F1:F5"; format = "Currency") == -1
+        @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("numFmtId" => "0", "formatCode" => "General"))
+        @test XLSX.getFormat(f, "Sheet1!F2").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+
+
+        @test XLSX.setFormat(f, "Sheet1!E1:F5"; format = "#,##0.000") == -1
+        @test XLSX.setFormat(s, "F1:F5"; format = "#,##0.000") == -1
+        @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        @test XLSX.getFormat(f, "Sheet1!F2").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        
+        
+        XLSX.writexlsx("test.xlsx", f, overwrite=true)
 
     end
 

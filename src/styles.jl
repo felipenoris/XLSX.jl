@@ -126,30 +126,6 @@ end
 
 const FontAttribute = Union{String, Pair{String, Pair{String, String}}}
 
-# Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
-#function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
-#    xroot = styles_xmlroot(wb)
-#    font_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts", xroot)[begin]
-#    existing_font_elements_count = length(XML.children(font_elements))
-#
-#    new_font = XML.Element("font")
-#    push!(font_elements, new_font)
-#    for a in attributes
-#        if a isa Pair
-#            name, val = last(a)
-#            attr = XML.Element(first(a))
-#            attr[name] = val
-#            push!(new_font, attr)
-#        else
-#            a = XML.Element(a)
-#            push!(new_font, a)
-#        end
-#    end
-#
-#    return existing_font_elements_count
-#end
-
-
 # Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = styles_xmlroot(wb)

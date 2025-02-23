@@ -46,7 +46,12 @@ const builtinFormats = Dict(
         "Time"        => 21,
         "Scientific"  => 48
     )
-
+const floatformats = r"""
+\.[0#?]|
+[0#?]e[+-]?[0#?]|
+[0#?]/[0#?]|
+%
+"""ix  
 
 copynode(o::XML.Node) = XML.parse(XML.Node, XML.write(o))[1]
 
@@ -747,8 +752,8 @@ a named cell or named range in a worksheet or XLSXfile.
 
 Borders are independently defined for the keywords `left`, `right`, `top` 
 and `bottom` for each of the sides of a cell using a vector of pairs 
-`attribute => value`. Another keyword, `diagonal`, defines a line running 
-bottom-left to top-right across the cell in the same way.
+`attribute => value`. Another two keyword, `diagonalUp` and `diagonalDown`, define a line running 
+bottom-left to top-right and top-left to botton-righ across the cell respecitvely.
 
 An additional keyword, `allsides`, is provided for convenience. It can be used 
 in place of the four side keywords to apply the same border setting to all four 
@@ -794,11 +799,11 @@ Examples:
 ```julia
 Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
 
-Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "rgb" => "FF000FF0"],
-                                  right    = ["style" => "medium", "rgb" => "FF765000"],
-                                  top      = ["style" => "thick",  "rgb" => "FF230000"],
-                                  bottom   = ["style" => "medium", "rgb" => "FF0000FF"],
-                                  diagonal = ["style" => "dotted", "rgb" => "FF00D4D4"]
+Julia> setBorder(xf, "Sheet1!D4"; left       = ["style" => "dotted", "rgb" => "FF000FF0"],
+                                  right      = ["style" => "medium", "rgb" => "FF765000"],
+                                  top        = ["style" => "thick",  "rgb" => "FF230000"],
+                                  bottom     = ["style" => "medium", "rgb" => "FF0000FF"],
+                                  diagonalUp = ["style" => "dotted", "rgb" => "FF00D4D4"]
                                   )
 """
 function setBorder end
@@ -812,7 +817,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
         right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+        diagonalUp::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        diagonalDown::Union{Nothing,Vector{Pair{String,String}}}=nothing
     )::Int
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
@@ -821,10 +827,11 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     kwdict["right"] = isnothing(right) ? nothing : Dict{String,String}(p for p in right)
     kwdict["top"] = isnothing(top) ? nothing : Dict{String,String}(p for p in top)
     kwdict["bottom"] = isnothing(bottom) ? nothing : Dict{String,String}(p for p in bottom)
-    kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
+    kwdict["diagonalUp"] = isnothing(diagonalUp) ? nothing : Dict{String,String}(p for p in diagonalUp)
+    kwdict["diagonalDown"] = isnothing(diagonalDown) ? nothing : Dict{String,String}(p for p in diagonalDown)
 
     if !isnothing(allsides)
-        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
+        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonalUp` and/or `diagonalDown`."
         return setBorder(sh, cellref; left=allsides, right=allsides, top=allsides, bottom=allsides, diagonal=diagonal)
     end
 
@@ -844,7 +851,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     old_border_atts = cell_borders.border
     old_applyborder = cell_borders.applyBorder
 
-    for a in ["left", "right", "top", "bottom", "diagonal"]
+    for a in ["left", "right", "top", "bottom", "diagonalUp", "diagonalDown"]
         new_border_atts[a] = Dict{String,String}()
         if isnothing(kwdict[a]) && haskey(old_border_atts, a)
             new_border_atts[a] = old_border_atts[a]
@@ -1276,6 +1283,11 @@ alignment of the cell and whether to wrap the cell contents:
 - `vertical`       : Specifies the vertical alignment of the cell.
 - `wrapText`       : Specifies whether ("1") or not ("0") the cell content wraps
                      in the cell.
+- shrinkToFit      : Indicates whether ("1") or not ("0") the text should shrink to fit the cell.
+- indent           : Specifies the number of spaces by which to indent the text (always from the left).
+- textRotation     : Specifies the rotation angle of the text in a range -180 to 180 (positive values 
+                     rotate the text counterclockwise), 255 (special value for vertical text)
+
 
 Excel supports the following values for the horizontal alignment:
 - left             : Aligns the text to the left of the cell.
@@ -1336,9 +1348,16 @@ a named cell or named range in a worksheet or XLSXfile.
 
 The following keywords are used to define a fill:
 
-- horizontal : Sets the horizontal alignment.
-- vertical   : Sets the vertical alignment.
-- wrapText   : Determines whether the cell content wraps within the cell.
+- horizontal  : Sets the horizontal alignment.
+- vertical    : Sets the vertical alignment.
+- wrapText    : Determines whether the cell content wraps within the cell.
+- shrink      : Indicates whether the text should shrink to fit the cell.
+- indent      : Specifies the integer number of spaces by which to indent the text 
+                (always from the left).
+- rotation    : Specifies the rotation angle of the text in an integer range -90 to 90 
+                (positive values rotate the text counterclockwise), 
+                
+
 
 Here are the possible values for the horizontal alignment:
 - left             : Aligns the text to the left of the cell.
@@ -1359,7 +1378,10 @@ Here are the possible values for the vertical alignment:
 - justify          : Justifies the text vertically, spreading it out evenly within the cell.
 - distributed      : Distributes the text evenly from top to bottom in the cell.
 
-The value of wrapText should be set to `true` or `false` depending if the content is to wrap or not.
+The value of wrapText should be set to `true` or `false` depending on whether the 
+content is to wrap or not.
+The value of shrinkToFit should be set to `true` or `false` depending on whether the 
+content is toshrink or not.
 
 
 Examples:
@@ -1378,7 +1400,10 @@ setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(se
 function setAlignment(sh::Worksheet, cellref::CellRef; 
     horizontal::Union{Nothing,String}=nothing,
     vertical::Union{Nothing,String}=nothing,
-    wrapText::Union{Nothing,Bool}=nothing
+    wrapText::Union{Nothing,Bool}=nothing,
+    shrink::Union{Nothing,Bool}=nothing,
+    indent::Union{Nothing,String}=nothing,
+    rotation::Union{Nothing,String}=nothing
     )::Int
 
     wb = get_workbook(sh)
@@ -1418,6 +1443,23 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
         atts["wrapText"] = old_alignment_atts["wrapText"]
     elseif !isnothing(wrapText)
         atts["wrapText"] = wrapText ? "1" : "0"
+    end
+    if isnothing(shrink) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "shrinkToFit")
+        atts["shrinkToFit"] = old_alignment_atts["shrinkToFit"]
+    elseif !isnothing(shrink)
+        atts["shrinkToFit"] = shrink ? "1" : "0"
+    end
+    if isnothing(indent) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "indent")
+        atts["indent"] = old_alignment_atts["indent"]
+    elseif !isnothing(indent)
+        @assert parse(Int, indent) > 0 "Invalid indent value specified: $indent. Must be a postive integer."
+        atts["indent"] = string(indent)
+    end
+    if isnothing(rotation) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "textRotation")
+        atts["textRotation"] = old_alignment_atts["textRotation"]
+    elseif !isnothing(rotation)
+        @assert parse(Int, rotation) in -90:90 "Invalid Rotation value specified: $rotation. Must be an integer between -90 and 90."
+        atts["textRotation"] = string(rotation)
     end
 
     alignment_node = XML.Node(XML.Element, "alignment", atts, nothing, nothing)
@@ -1513,8 +1555,8 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
             @assert parse(Int, format_elements["count"]) == length(XML.children(format_elements)) "Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"
             current_format = XML.children(format_elements)[parse(Int, numfmtid)+1-PREDEFINED_NUMFMT_COUNT] # Zero based!
             @assert length(XML.attributes(current_format)) == 2 "Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."
-            for (k, v) in XML.attributes(current_format) # patternType is the only possible attribute of a fill
-                format_atts[XML.tag(current_format)] = Dict(k => v)
+            for (k, v) in XML.attributes(current_format)
+                format_atts[XML.tag(current_format)] = Dict(k => XML.unescape(v))
             end
         else
 #            any(num in r for r in ranges)
@@ -1524,7 +1566,6 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
                 format_atts["numFmt"] = Dict("numFmtId" => numfmtid, "formatCode" => builtinFormats[numfmtid])
             end
         end
-        println(numfmtid)
         return CellFormat(parse(Int, numfmtid), format_atts, applynumberformat)
     end
 
@@ -1598,13 +1639,18 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     old_applyNumberFormat = cell_format.applyNumberFormat
 
     if isnothing(format)                          # User didn't specify any format so this is a no-op
-        println("unchanged : ", cell)
         return cell_format.formatId
     end
 
-    if haskey(builtinFormatNames, format) # User specified a format by name
-        new_formatid = builtinFormatNames[format]
+    if haskey(builtinFormatNames, uppercasefirst(format)) # User specified a format by name
+        new_formatid = builtinFormatNames[uppercasefirst(format)]
     else                                      # user specified a format code
+        code = lowercase(format)
+        code = remove_formatting(code)
+        @assert occursin(floatformats, code) || any(map(x->occursin(x, code), DATETIME_CODES)) "Specified format is not a valid numFmt: $format"
+        
+
+  
         xroot = styles_xmlroot(wb)
         i, j = get_idces(xroot, "styleSheet", "numFmts")
         if isnothing(j) # There are no existing custom formats
