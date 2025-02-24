@@ -91,6 +91,13 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                     for (k, v) in attributes[a]
                         if k == "style" && v != "none"
                             cnode[k] = v
+                        elseif k == "direction"
+                            if v in ["up", "both"]
+                                new_node["diagonalUp"] = "1"
+                            end
+                            if v in ["down", "both"]
+                                new_node["diagonalDown"] = "1"
+                            end
                         else
                             color[k] = v
                         end
@@ -129,6 +136,22 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
         end
     end
     return new_node
+end
+   
+function unlink_cols(node::XML.Node) # removes each `col` from a `cols` XML node.
+    new_cols = XML.Element("cols")
+    a = XML.attributes(node)
+    if !isnothing(a) # Copy attributes across to new node
+        for (k, v) in XML.attributes(node)
+            new_cols[k] = v
+        end
+    end
+    for child in XML.children(node) # Copy any child nodes that are not rows across to new node
+        if XML.tag(child) != "col"
+            push!(new_cols, child)
+        end
+    end
+    return new_cols
 end
 
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
@@ -363,19 +386,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
         return newid
     end
 end
-#=function process_cell_style(f::Function, sh::Worksheet, cellref::CellRef; kw...)::Int
-    wb = get_workbook(sh)
-    cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."
-
-    if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
-    end
-
-    return f(sh, wb, cell; kw...)
-end
-=#
 
 """
    setFont(sh::Worksheet, cr::String; kw...) -> Int
@@ -519,6 +530,7 @@ function setFont(sh::Worksheet, cellref::CellRef;
             new_font_atts[a] = old_font_atts[a]
         end
     end
+
     font_node = buildNode("font", new_font_atts)
 
     new_fontid = styles_add_cell_attribute(wb, font_node, "fonts")
@@ -662,7 +674,9 @@ Return a CellBorder object containing:
 
 Return `nothing` if no cell border is found.
 
-A cell border has two attributes, `style` and `color`.
+A cell border has two attributes, `style` and `color`. A diagonal border also needs to specify 
+a direction to indicate whether a diagonal is needed from bottom-left to top-right ("up"), 
+from top-left to bottom-left ("down") or "both"
 
 Excel defines border using a style and a color in its XML structure.
 Here's a list of the available styles (thanks to Copilot!):
@@ -719,16 +733,28 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
         xroot = styles_xmlroot(wb)
         border_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:borders", xroot)[begin]
-        @assert parse(Int, border_elements["count"]) == length(XML.children(border_elements)) "Unexpected number of font definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"
+        @assert parse(Int, border_elements["count"]) == length(XML.children(border_elements)) "Unexpected number of border definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"
         current_border = XML.children(border_elements)[parse(Int, borderid)+1] # Zero based!
+        diag_atts = XML.attributes(current_border)
         border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         for side in XML.children(current_border)
             if isnothing(XML.attributes(side)) || length(XML.attributes(side)) == 0
                 border_atts[XML.tag(side)] = nothing
             else
-                @assert length(XML.attributes(side)) == 1 "Too many font attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."
+                @assert length(XML.attributes(side)) == 1 "Too many border attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."
                 for (k, v) in XML.attributes(side) # style is the only possible attribute of a side
                     border_atts[XML.tag(side)] = Dict(k => v)
+                    if side == "diagonal" && !isnothing(diag_atts)
+                        if haskey(diag_atts, "diagonalUp") && haskey(diag_atts, "diagonalDown")
+                            border_atts[XML.tag(side)]["direction"] = "both"
+                        elseif haskey(diag_atts, "diagonalUp")
+                            border_atts[XML.tag(side)]["direction"] = "up"
+                        elseif haskey(diag_atts, "diagonalDown")
+                            border_atts[XML.tag(side)]["direction"] = "down"
+                        else
+                            @assert false "No direction set for `diagonal` border"
+                        end
+                    end
                     for subc in XML.children(side) # color is a child of a border element
                         for (k, v) in XML.attributes(subc)
                             border_atts[XML.tag(side)][k] = v
@@ -752,8 +778,8 @@ a named cell or named range in a worksheet or XLSXfile.
 
 Borders are independently defined for the keywords `left`, `right`, `top` 
 and `bottom` for each of the sides of a cell using a vector of pairs 
-`attribute => value`. Another two keyword, `diagonalUp` and `diagonalDown`, define a line running 
-bottom-left to top-right and top-left to botton-righ across the cell respecitvely.
+`attribute => value`. Another keyword, `diagonal`, defines diagonal lines running 
+across the cell. These two diagonal lines must share the same style and color.
 
 An additional keyword, `allsides`, is provided for convenience. It can be used 
 in place of the four side keywords to apply the same border setting to all four 
@@ -761,6 +787,7 @@ sides at once. It cannot be used inconjunction with any of the side keywords but
 it can be used together with `diagonal`.
 
 The two attributes that can be set for each keyword are `style` and `rgb`.
+Additionally, for diagonal borders, a third keyword, `direction` can be used.
 
 Allowed values for `style` are:
 
@@ -782,7 +809,14 @@ Allowed values for `style` are:
 The color is set by specifying an 8-digit hexadecimal value for the `rgb` attribute.
 No other color attributes can be applied.
 
-Setting only one of the two attributes leaves the other attribute unchanged for that 
+Valid values for the `direction` keyword are:
+- `up`   : diagonal border runs bottom-left to top-right
+- `down` : diagonal border runs top-left to bottom-right
+- `both` : diagonal borders run both ways
+
+Both diagonal borders share the same style and color.
+
+Setting only one of the attributes leaves the other attributes unchanged for that 
 side's border. Omitting one of the keywords leaves the border definition for that
 side unchanged, only updating the specified sides.
 
@@ -797,13 +831,13 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 
 Examples:
 ```julia
-Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
+Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "direction" => "up"])
 
-Julia> setBorder(xf, "Sheet1!D4"; left       = ["style" => "dotted", "rgb" => "FF000FF0"],
-                                  right      = ["style" => "medium", "rgb" => "FF765000"],
-                                  top        = ["style" => "thick",  "rgb" => "FF230000"],
-                                  bottom     = ["style" => "medium", "rgb" => "FF0000FF"],
-                                  diagonalUp = ["style" => "dotted", "rgb" => "FF00D4D4"]
+Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "rgb" => "FF000FF0"],
+                                  right    = ["style" => "medium", "rgb" => "FF765000"],
+                                  top      = ["style" => "thick",  "rgb" => "FF230000"],
+                                  bottom   = ["style" => "medium", "rgb" => "FF0000FF"],
+                                  diagonal = ["style" => "dotted", "rgb" => "FF00D4D4"]
                                   )
 """
 function setBorder end
@@ -817,8 +851,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
         right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        diagonalUp::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        diagonalDown::Union{Nothing,Vector{Pair{String,String}}}=nothing
+        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
     )::Int
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
@@ -827,11 +860,10 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     kwdict["right"] = isnothing(right) ? nothing : Dict{String,String}(p for p in right)
     kwdict["top"] = isnothing(top) ? nothing : Dict{String,String}(p for p in top)
     kwdict["bottom"] = isnothing(bottom) ? nothing : Dict{String,String}(p for p in bottom)
-    kwdict["diagonalUp"] = isnothing(diagonalUp) ? nothing : Dict{String,String}(p for p in diagonalUp)
-    kwdict["diagonalDown"] = isnothing(diagonalDown) ? nothing : Dict{String,String}(p for p in diagonalDown)
+    kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
 
     if !isnothing(allsides)
-        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonalUp` and/or `diagonalDown`."
+        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
         return setBorder(sh, cellref; left=allsides, right=allsides, top=allsides, bottom=allsides, diagonal=diagonal)
     end
 
@@ -851,7 +883,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     old_border_atts = cell_borders.border
     old_applyborder = cell_borders.applyBorder
 
-    for a in ["left", "right", "top", "bottom", "diagonalUp", "diagonalDown"]
+    for a in ["left", "right", "top", "bottom", "diagonal"]
         new_border_atts[a] = Dict{String,String}()
         if isnothing(kwdict[a]) && haskey(old_border_atts, a)
             new_border_atts[a] = old_border_atts[a]
@@ -861,6 +893,18 @@ function setBorder(sh::Worksheet, cellref::CellRef;
             elseif haskey(kwdict[a], "style")
                 @assert kwdict[a]["style"] ∈ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"] "Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."
                 new_border_atts[a]["style"] = kwdict[a]["style"]
+            end
+            if a == "diagonal"
+                if !haskey(kwdict[a], "direction")
+                    if haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "direction")
+                        new_border_atts[a]["direction"] = old_border_atts[a]["direction"]
+                    else
+                        new_border_atts[a]["direction"] = "both" # default if direction not specified or inherited
+                    end
+                elseif haskey(kwdict[a], "direction")
+                    @assert kwdict[a]["direction"] ∈ ["up", "down", "both"] "Invalid direction: $v. Must be one of: `up`, `down`, `both`."
+                    new_border_atts[a]["direction"] = kwdict[a]["direction"]
+                end
             end
             if !haskey(kwdict[a], "rgb") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
                 for (k, v) in old_border_atts[a]
@@ -919,11 +963,11 @@ Examples:
 ```julia
 Julia> setUniformBorder(sh, "B2:D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
 
-Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left= ["style" => "dotted", "rgb" => "FF000FF0"],
-                                              right= ["style" => "medium", "rgb" => "FF765000"],
-                                              top= ["style" => "thick", "rgb" => "FF230000"],
-                                              bottom= ["style" => "medium", "rgb" => "FF0000FF"],
-                                              diagonal= ["style" => "none"]
+Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left = ["style" => "dotted", "rgb" => "FF000FF0"],
+                                              right = ["style" => "medium", "rgb" => "FF765000"],
+                                              top = ["style" => "thick", "rgb" => "FF230000"],
+                                              bottom = ["style" => "medium", "rgb" => "FF0000FF"],
+                                              diagonalUp = ["style" => "none"]
                                               )
 ```
 """
@@ -1507,7 +1551,7 @@ Julia> setUniformAlignment(sh, "B2:D4"; horizontal="center", wrap = true)
 Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="top")
 ```
 """
-function setUniformFill end
+function setUniformAlignment end
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
 setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformAlignment, xl, sheetcell; kw...)
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
@@ -1681,26 +1725,194 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     return new_formatid
 end
 
-#blah
 """
-The <cols> element in an Excel worksheet's XML, which defines the columns and their properties. Here's a breakdown:
+   setUniformFormat(sh::Worksheet, cr::String; kw...) -> Int
+   setUniformFormat(xf::XLSXFile,  cr::String, kw...) -> Int
 
-<col> elements within <cols> define individual columns.
+Set the number format used by a cell range, a column range or a named range in a 
+worksheet or XLSXfile to be the same as that of the first cell in the range.
 
-Attributes like min, max, width, customWidth, and style specify properties for each column.
+First, the number format of the first cell in the range (the top-left cell) is
+updated according to the given `kw...` (using `setFormat()`). The resultant format is 
+then applied to each remaining cell in the range.
 
-For example:
+As a result, every cell in the range will have a uniform number format.
 
-min="1" and max="1" indicate the column number (1).
+This is functionally equivalent to applying `setFormat()` to each cell in the range 
+but may be very marginally more efficient.
 
-width="2.7109375" sets the column width.
+The value returned is the number format ID of the format uniformly applied to the cells.
+If all cells in the range are `EmptyCells`, the returned value is -1.
 
-customWidth="1" suggests a custom width is applied.
+For keyword definitions see `setFormat()`@Ref.
 
-style attribute might reference specific formatting styles.
+Examples:
+```julia
+julia> XLSX.setUniformFormat(xf, "Sheet1!A2:L6"; format = "# ??/??")
+
+julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
+```
+"""
+function setUniformFormat end
+setUniformFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFormat, ws, colrng; kw...)
+setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFormat, xl, sheetcell; kw...)
+setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
+setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng; kw...)
+
+"""
+   setUniformStyle(sh::Worksheet, cr::String) -> Int
+   setUniformStyle(xf::XLSXFile,  cr::String) -> Int
+
+Set the cell style used by a cell range, a column range or a named range in a 
+worksheet or XLSXfile to be the same as that of the first cell in the range 
+that is not an `EmptyCell`.
+
+As a result, every cell in the range will have a uniform number format.
+
+If the first cell has no defined style (s=""), all cells will be given the 
+same undefined style.
+
+The value returned is the style ID of the style uniformly applied to the cells or 
+`nothing` if the style is undefrined.
+If all cells in the range are `EmptyCells`, the returned value is -1.
+
+Examples:
+```julia
+julia> XLSX.setUniformStyle(xf, "Sheet1!A2:L6")
+
+julia> XLSX.setUniformStyle(sh, "F1:F5")
+```
+"""
+function setUniformStyle end
+setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
+setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
+setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
+function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
+    let newid::Union{Nothing, Int},
+        first = true
+        for cellref in rng
+            cell = getcell(ws, cellref)
+            if cell isa EmptyCell # Can't add a attribute to an empty cell.
+                continue
+            end
+            if first                           # Get the style of the first cell in the range.
+                newid = cell.style
+                first = false
+            else                               # Apply the same style to the rest of the cells in the range.
+                cell.style = newid
+            end
+        end
+        if first
+            newid = -1
+        end
+        return isnothing(newID) ? nothing : newid
+    end
+end    
+
+
+"""
+   setColumnWidth(sh::Worksheet, cr::String; kw...) -> Int
+   setColumnWidth(xf::XLSXFile,  cr::String, kw...) -> Int
+
+Set the width of a column or column range.
+
+A standard cell reference or cell range can be used to define the column range. 
+the function will use the columns and ignore the rows. Nmaed cells and named
+ranges can similarly be used.
+
+The function uses one keyword used to define a column width:
+
+- width::String : Defines width in Excel's own (internal) units
+
+When you set a column widthe interactively in Excel you can see the width 
+in "internal" units and in pixels. The width stored in the xlsx file is slightly 
+larger than the width shown intrtactively because Excel adds some cell padding. 
+The method Excel uses to calcuilate the padding is obscure and complex. This 
+function does not attempt to replicate it, but simply adds 0.71 internal units 
+to the value specified. The value set is unlikely to match the value seen 
+interactivley in the resultanrt spreadsheet.
+
+You can set a column width to 0.
+
+The function returns a value of 0.
+
+Examples:
+```julia
+julia> XLSX.setColumnWidth(xf, "Sheet1!A2"; width = "50")
+
+julia> XLSX.seColumnWidth(sh, "F1:F5"; width = "0")
+
+julia> XLSX.setColumnWidth(sh, "I"; width = "50")
+```
+
+"""
+function setColumnWidth end
+setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setColumnWidth, ws, colrng; kw...)
+setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
+setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
+setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
+function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,String}=nothing)
+
+    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
+    update_worksheets_xml!(get_xlsxfile(ws)) 
+
+    left  = rng.start.column_number
+    right = rng.stop.column_number
+    padded_width = isnothing(width) ? -1 : parse(Int, width) + 0.7109375 # Excel adds cell padding to a user specified width
+    @assert isnothing(width) || padded_width >= 0 "Invalid value specified for width: $padded_width. Width must be >= 0."
+
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
+    i, j = get_idces(sheetdoc, "worksheet", "cols")
+
+    if isnothing(j) # There are no existing column formats. Insert before the <sheetData> block and push everything else down one.
+        k, l = get_idces(sheetdoc, "worksheet", "sheetData")
+        len = length(sheetdoc[k])
+        @assert i==k "Some problem here!"
+        push!(sheetdoc[k], sheetdoc[k][end])
+        if l < len
+            for pos = len-1:-1:l
+                sheetdoc[k][pos+1] = sheetdoc[k][pos]
+            end
+        end
+        sheetdoc[k][l] = XML.Element("Cols")
+        j=l
+    end
+
+    child_list = Dict{String,Union{Dict{String,String},Nothing}}()
+    for c in XML.children(sheetdoc[i][j])
+        child_list[c["min"]] = XML.attributes(c)
+    end
+
+    for col in left:right
+        if haskey(child_list, string(col)) # update existing <col> definitions with the new width
+            if padded_width >= 0
+                child_list[string(col)]["width"] = string(padded_width)
+                child_list[string(col)]["customWidth"] = "1"
+            end
+        else
+            if padded_width >= 0 # Add new <col> definitions where there is not one extant
+                scol=string(col)
+                push!(child_list, scol => Dict("max" => scol, "min" => scol, "width" => string(padded_width), "customWidth" => "1"))
+            end
+        end
+    end
+
+    new_cols = unlink_cols(sheetdoc[i][j]) # Create the new <cols> Node
+    for atts in values(child_list)
+        new_col = XML.Element("col")
+        for (k, v) in atts
+            new_col[k] = v
+        end
+        push!(new_cols, new_col)
+    end
+
+    sheetdoc[i][j] = new_cols # Update the worksheet with the new cols.
+
+    return 0 # meaningless return value. Int required to comply with reference decoding structure.
+end
+
 """
 
-"""
 this <row> element
 Attributes:
 
@@ -1715,4 +1927,5 @@ customHeight="1": Indicates that a custom height is applied to the row.
 thickBot="1": Suggests that the bottom border of the row is thick.
 
 x14ac:dyDescent="0.3": An attribute specific to certain versions of Excel, likely related to text descent for alignment purposes.
+
 """
