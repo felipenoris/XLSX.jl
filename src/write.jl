@@ -725,6 +725,15 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
 
+    # update [Content_Types].xml (fix for issue #275)
+    ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
+    @assert XML.tag(ctype_root) == "Types"
+    override_node = XML.Element("Override";
+        ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+        PartName = "/xl/worksheets/sheet$sheetId.xml"
+    )
+    push!(ctype_root, override_node)
+
     # updates workbook xml
     xroot = xmlroot(xf, "xl/workbook.xml")[end]
     for node in XML.children(xroot)
