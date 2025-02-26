@@ -583,7 +583,7 @@ This can be more efficient when setting the same font for a large number of cell
 The value returned is the `fontId` of the font uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
-For keyword definitions see `setFont()`@Ref.
+For keyword definitions see [`setFont()`](@Ref).
 
 # Examples:
 ```julia
@@ -993,7 +993,7 @@ This can be more efficient when setting the same border for a large number of ce
 The value returned is the `borderId` of the border uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
-For keyword definitions see `setBorder()`@Ref.
+For keyword definitions see [`setBorder()`](@Ref).
 
 Examples:
 ```julia
@@ -1032,7 +1032,7 @@ settings for all internal cells in the range will remain unchanged.
 
 The value returned is is -1.
 
-For keyword definitions see `setBorder()`@Ref.
+For keyword definitions see [`setBorder()`](@Ref).
 
 # Examples:
 ```julia
@@ -1047,8 +1047,8 @@ setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_colum
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
 function setOutsideBorder(ws::Worksheet, rng::CellRange; 
-    style::String,
-    color::String
+    style::Union{String, Nothing}=nothing,
+    color::Union{String, Nothing}=nothing
     )::Int
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
@@ -1057,10 +1057,23 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
     topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
     bottomLeft   = CellRef(rng.stop.row_number, rng.start.column_number)
     bottomRight  = CellRef(rng.stop.row_number, rng.stop.column_number)
-    setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "color" => color])
-    setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "color" => color])
-    setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "color" => color])
-    setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "color" => color])
+    if !isnothing(style) && !isnothing(color)
+        setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "color" => color])
+        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "color" => color])
+        setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "color" => color])
+        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "color" => color])
+    elseif !isnothing(style)
+        setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style])
+        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style])
+        setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style])
+        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style])
+    elseif !isnothing(color)
+        setBorder(ws, CellRange(topLeft, topRight); top= ["color" => color])
+        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["color" => color])
+        setBorder(ws, CellRange(topRight, bottomRight); right= ["color" => color])
+        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["color" => color])
+    end
+    
 
     return -1
 
@@ -1341,7 +1354,7 @@ This can be more efficient when setting the same fill for a large number of cell
 The value returned is the `fillId` of the fill uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
-For keyword definitions see `setFill()`@Ref.
+For keyword definitions see [`setFill()`](@Ref).
 
 # Examples:
 ```julia
@@ -1593,7 +1606,7 @@ The value returned is the `styleId` of the reference (top-left) cell, from which
 alignment uniformly applied to the cells was taken.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
-For keyword definitions see `setAlignment()`@Ref.
+For keyword definitions see [`setAlignment()`](@Re)f.
 
 # Examples:
 ```julia
@@ -1804,7 +1817,7 @@ but may be very marginally more efficient.
 The value returned is the `numfmtId` of the format uniformly applied to the cells.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
-For keyword definitions see `setFormat()`@Ref.
+For keyword definitions see [`setFormat()`](@Ref).
 
 Examples:
 ```julia
@@ -1909,6 +1922,9 @@ You can set a column width to 0.
 
 The function returns a value of 0.
 
+NOTE: Unlike the other `set` and `get` XLSX functions, working with `ColumnWidth` requires 
+a file to be open for writing as well as reading (`mode="rw"` or open as a template)
+
 # Examples:
 ```julia
 julia> XLSX.setColumnWidth(xf, "Sheet1!A2"; width = 50)
@@ -1991,7 +2007,7 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
 end
 
 function getColumnWidth end
-getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
+getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,Float64} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
 getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth, ws, cr)
 function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Float64}
 
@@ -2113,7 +2129,7 @@ julia> XLSX.seRowHeight(sh, "F1")
 
 """
 function getRowHeight end
-getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getRowHeight, xl, sheetcell)
+getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,Real} = process_get_sheetcell(getRowHeight, xl, sheetcell)
 getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws, cr)
 function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
