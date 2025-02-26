@@ -103,10 +103,10 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                             if v in ["down", "both"]
                                 new_node["diagonalDown"] = "1"
                             end
-                        elseif k == "rgb"
+                        else#if k == "rgb"
                             color[k] = v
-                        else
-                            error("Incorect border attribute found: $k") # shouldn't happen!
+                        #else
+                            #error("Incorect border attribute found: $k") # shouldn't happen!
                         end
                     end
                     if length(XML.attributes(color)) > 0 # Don't push an empty color.
@@ -303,7 +303,7 @@ function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::
         end
         _ = f(ws, cellref; kw...)
     end
-    return -1 # Each cell may have a different borderId so we can't return a single value.
+    return -1 # Each cell may have a different attribute Id so we can't return a single value.
 end
 function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String)
     ref = SheetCellRef(sheetcell)
@@ -340,6 +340,9 @@ function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractSt
     return new_att
 end
 function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...)
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
+
     let newid
         first = true
         for cellref in rng
@@ -364,6 +367,9 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
     end
 end
 function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
+
     let newid, alignment_node
         first = true
         for cellref in rng
@@ -389,6 +395,11 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
         return newid
     end
 end
+
+# ==========================================================================================
+#
+# -- Get and set font attributes
+#
 
 """
    setFont(sh::Worksheet, cr::String; kw...) -> Int
@@ -466,6 +477,8 @@ function setFont(sh::Worksheet, cellref::CellRef;
         color::Union{Nothing,String}=nothing,
         name::Union{Nothing,String}=nothing
     )::Int
+
+    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set font because cache is not enabled."
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -641,6 +654,9 @@ getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont} = process_get_
 getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_cellref(getFont, ws, cellref)
 getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
+
+    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get font because cache is not enabled."
+
     if haskey(cell_style, "fontId")
         fontid = cell_style["fontId"]
         applyfont = haskey(cell_style, "applyFont") ? cell_style["applyFont"] : "0"
@@ -664,6 +680,10 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
 
     return nothing
 end
+
+#
+# -- Get and set border attributes
+#
 
 """
    getBorder(sh::Worksheet, cr::String) -> Union{Nothing, CellBorder}
@@ -732,6 +752,9 @@ getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorder} = process_
 getBorder(ws::Worksheet, cr::String) = process_get_cellname(getBorder, ws, cr)
 getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder}
+
+    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get border because cache is not enabled."
+
     if haskey(cell_style, "borderId")
         borderid = cell_style["borderId"]
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
@@ -864,6 +887,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
         bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
     )::Int
+
+    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["allsides"] = isnothing(allsides) ? nothing : Dict{String,String}(p for p in allsides)
@@ -1026,6 +1051,8 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
     color::String
     )::Int
 
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
+
     topLeft      = CellRef(rng.start.row_number, rng.start.column_number)
     topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
     bottomLeft   = CellRef(rng.stop.row_number, rng.start.column_number)
@@ -1038,6 +1065,10 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
     return -1
 
 end
+
+#
+# -- Get and set fill attributes
+#
 
 """
    getFill(sh::Worksheet, cr::String) -> Union{Nothing, CellFill}
@@ -1118,6 +1149,9 @@ getFill(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFill} = process_get_
 getFill(ws::Worksheet, cr::String) = process_get_cellname(getFill, ws, cr)
 getDefaultFill(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
+
+    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get fill because cache is not enabled."
+
     if haskey(cell_style, "fillId")
         fillid = cell_style["fillId"]
         applyfill = haskey(cell_style, "applyFill") ? cell_style["applyFill"] : "0"
@@ -1216,6 +1250,8 @@ function setFill(sh::Worksheet, cellref::CellRef;
         fgColor::Union{Nothing,String}=nothing,
         bgColor::Union{Nothing,String}=nothing,
     )::Int
+
+    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set fill because cache is not enabled."
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -1320,6 +1356,10 @@ setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sh
 setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
 setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)
 
+#
+# -- Get and set alignment attributes
+#
+
 """
    getAlignment(sh::Worksheet, cr::String) -> Union{Nothing, CellAlignment}
    getAlignment(xf::XLSXFile, cr::String) -> Union{Nothing, CellAlignment}
@@ -1375,6 +1415,9 @@ getAlignment(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellAlignment} = pr
 getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws, cr)
 #getDefaultAlignment(ws::Worksheet) = getAlignment(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAlignment}
+
+    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get alignment because cache is not enabled."
+
     if length(XML.children(cell_style)) == 0 # `alignment` is a child node of the cell `xf`.
         return nothing
     end
@@ -1453,6 +1496,8 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     indent::Union{Nothing,Int}=nothing,
     rotation::Union{Nothing,Int}=nothing
     )::Int
+
+    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set alignment because cache is not enabled."
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -1564,6 +1609,10 @@ setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = proce
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
 setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
 
+#
+# -- Get and set number format attributes
+#
+
 """
    getFormat(sh::Worksheet, cr::String) -> Union{Nothing, CellFormat}
    getFormat(xf::XLSXFile, cr::String) -> Union{Nothing, CellFormat}
@@ -1597,6 +1646,8 @@ getFormat(ws::Worksheet, cr::String) = process_get_cellname(getFormat, ws, cr)
 #getDefaultFill(ws::Worksheet) = getFormat(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat}
 
+    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get number formats because cache is not enabled."
+
     if haskey(cell_style, "numFmtId")
         numfmtid = cell_style["numFmtId"]
         applynumberformat = haskey(cell_style, "applyNumberFormat") ? cell_style["applyNumberFormat"] : "0"
@@ -1625,8 +1676,8 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
 end
 
 """
-   setFormat(sh::Worksheet, cr::String; kw...) -> Int}
-   setFormat(xf::XLSXFile, cr::String; kw...) -> Int}
+   setFormat(sh::Worksheet, cr::String; kw...) -> Int
+   setFormat(xf::XLSXFile, cr::String; kw...) -> Int
    
 Set the format used used by a single cell, a cell range, a column range or 
 a named cell or named range in a worksheet or XLSXfile.
@@ -1660,8 +1711,6 @@ julia> XLSX.setFormat(xf, "Sheet1!A2"; format = "# ??/??")
 
 julia> XLSX.setFormat(sh, "F1:F5"; format = "Currency")
 
-julia> XLSX.setFormat(xf, "Sheet1!A2"; format = \"\"\"_-£* #,##0.00_-;-£* #,##0.00_-;_-£* "-"??_-;_-@_-\"\"\")
-
 julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \\\"-\\\"??_-;_-@_-")
 ```
 
@@ -1674,6 +1723,8 @@ setFormat(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFo
 function setFormat(sh::Worksheet, cellref::CellRef;
         format::Union{Nothing,String}=nothing,
     )::Int
+
+    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set number formats because cache is not enabled."
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
@@ -1768,6 +1819,10 @@ setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_
 setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
 setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng; kw...)
 
+#
+# -- Set uniform styles
+#
+
 """
    setUniformStyle(sh::Worksheet, cr::String) -> Int
    setUniformStyle(xf::XLSXFile,  cr::String) -> Int
@@ -1801,6 +1856,9 @@ setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(
 setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
 setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
 function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set styles because cache is not enabled."
+
     let newid::Union{Nothing, Int},
         first = true
         for cellref in rng
@@ -1821,6 +1879,10 @@ function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
         return isnothing(newID) ? nothing : newid
     end
 end    
+
+#
+# -- Get and set column width
+#
 
 """
    setColumnWidth(sh::Worksheet, cr::String; kw...) -> Int
@@ -1863,6 +1925,8 @@ setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
 function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real}=nothing)::Int
+    
+    @assert get_xlsxfile(ws).is_writable "Cannot set column widths: `XLSXFile` is not writable."
 
     # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
     update_worksheets_xml!(get_xlsxfile(ws)) 
@@ -1926,6 +1990,43 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
+function getColumnWidth end
+getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
+getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth, ws, cr)
+function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Float64}
+
+    @assert get_xlsxfile(ws).is_writable "Cannot get column width: `XLSXFile` is not writable."
+
+    d = get_dimension(ws)
+    @assert cellref.row_number >= d.start.row_number && cellref.row_number <= d.stop.row_number "Cell specified is outside sheet dimension \"$d\""
+
+    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
+    update_worksheets_xml!(get_xlsxfile(ws)) 
+
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
+    i, j = get_idces(sheetdoc, "worksheet", "cols")
+
+    if isnothing(j) # There are no existing column formats defined.
+        return nothing
+    end
+    for c in XML.children(sheetdoc[i][j])
+        if c["min"] == string(cellref.column_number)
+            if haskey(c, "width")
+                return parse(Float64, c["width"])
+            else
+                break
+            end
+        end
+    end
+
+    # Either the column definition was found but with no width attribute or not found at all.
+    return nothing
+end
+
+#
+# -- Get and set row height
+#
+
 """
    setRowHeight(sh::Worksheet, cr::String; kw...) -> Int
    setRowHeight(xf::XLSXFile,  cr::String, kw...) -> Int
@@ -1968,6 +2069,8 @@ setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(se
 setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)
 function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}=nothing)::Int
 
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set row heights because cache is not enabled."
+
     top  = rng.start.row_number
     bottom = rng.stop.row_number
     padded_height = isnothing(height) ? -1 : height + 0.2109375 # Excel adds cell padding to a user specified width
@@ -1987,4 +2090,50 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     end
 
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
+end
+
+"""
+   getRowHeight(sh::Worksheet, cr::String) -> ::Union{Nothing, Real}
+   getRowHeight(xf::XLSXFile,  cr::String) -> ::Union{Nothing, Real}
+
+Get the height of a row defined by a cell reference or named cell.
+
+A standard cell reference or defined name must be used to define the row. 
+The function will use the row number and ignore the column.
+
+The function returns the value of the row height or nothing if the row 
+does not have an explicitly defined height.
+
+# Examples:
+```julia
+julia> XLSX.setRowHeight(xf, "Sheet1!A2")
+
+julia> XLSX.seRowHeight(sh, "F1")
+```
+
+"""
+function getRowHeight end
+getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getRowHeight, xl, sheetcell)
+getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws, cr)
+function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get row height because cache is not enabled."
+
+    d = get_dimension(ws)
+    @assert cellref.row_number >= d.start.row_number && cellref.row_number <= d.stop.row_number "Cell specified is outside sheet dimension \"$d\""
+
+    for r in eachrow(ws)
+        if r.row == cellref.row_number
+            if r.row ∈ ws.cache.rows_in_cache
+                if haskey(ws.cache.row_ht, r.row)
+                    return ws.cache.row_ht[r.row]
+                else
+                    return nothing
+                end
+            end
+        end
+    end
+
+    return -1 # Row specified not found (is empty)
+
 end
