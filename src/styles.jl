@@ -265,7 +265,7 @@ function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
     for (k, node) in enumerate(XML.children(xroot[i][j]))
         #if XML.nodetype(node) == XML.nodetype(new_xf) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_xf)) # XML.jl defines `Base.:(==)`
         if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_xf))[1] # XML.jl defines `Base.:(==)`
-                return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
+            return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
         end
     end
     push!(xroot[i][j], new_xf)

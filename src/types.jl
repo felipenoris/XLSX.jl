@@ -254,11 +254,13 @@ mutable struct SheetRowStreamIteratorState
     itr::XML.LazyNode # Worksheet being processed
     itr_state::Union{Nothing, XML.LazyNode} # Worksheet state
     row::Int # number of current row in the worksheet. It´s set to 0 in the start state.
+    ht::Union{Float64, Nothing} # row height
 end
 
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
     cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
     rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
+    row_ht::Dict{Int, Union{Float64, Nothing}} # Maps a row number to a row height
     row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
     stream_iterator::I
     stream_state::Union{Nothing, SheetRowStreamIteratorState}
@@ -363,7 +365,8 @@ end
 
 struct SheetRow
     sheet::Worksheet
-    row::Int # index of the row in the worksheet
+    row::Int                  # index of the row in the worksheet
+    ht::Union{Float64, Nothing}   # row height
     rowcells::Dict{Int, Cell} # column -> value
 end
 

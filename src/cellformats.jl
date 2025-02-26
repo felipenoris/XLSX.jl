@@ -53,8 +53,15 @@ const floatformats = r"""
 %
 """ix  
 
-copynode(o::XML.Node) = XML.parse(XML.Node, XML.write(o))[1]
+#
+# -- A bunch of helper functions first...
+#
 
+function copynode(o::XML.Node) 
+    n = XML.parse(XML.Node, XML.write(o))[1]
+    n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
+    return n
+end
 function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{String,String}}})::XML.Node
     if tag == "font"
         attribute_tags = font_tags
@@ -62,8 +69,6 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
         attribute_tags = border_tags
     elseif tag == "fill"
         attribute_tags = fill_tags
-    elseif tag == "alignment"
-        attribute_tags = alignment_tags
     else
         error("Unknown tag: $tag")
     end
@@ -98,8 +103,10 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                             if v in ["down", "both"]
                                 new_node["diagonalDown"] = "1"
                             end
-                        else
+                        elseif k == "rgb"
                             color[k] = v
+                        else
+                            error("Incorect border attribute found: $k") # shouldn't happen!
                         end
                     end
                     if length(XML.attributes(color)) > 0 # Don't push an empty color.
@@ -137,7 +144,6 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
     end
     return new_node
 end
-   
 function unlink_cols(node::XML.Node) # removes each `col` from a `cols` XML node.
     new_cols = XML.Element("cols")
     a = XML.attributes(node)
@@ -146,14 +152,13 @@ function unlink_cols(node::XML.Node) # removes each `col` from a `cols` XML node
             new_cols[k] = v
         end
     end
-    for child in XML.children(node) # Copy any child nodes that are not rows across to new node
-        if XML.tag(child) != "col"
+    for child in XML.children(node) # Copy any child nodes that are not cols across to new node
+        if XML.tag(child) != "col"  # Shouldn't be any.
             push!(new_cols, child)
         end
     end
     return new_cols
 end
-
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
@@ -167,7 +172,6 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, align
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
     if length(XML.children(new_cell_xf))==0
-        new_cell_xf =  XML.Node(new_cell_xf.nodetype, new_cell_xf.tag, new_cell_xf.attributes, new_cell_xf.value, Vector{XML.Node}())
         push!(new_cell_xf, alignment)
     else
         new_cell_xf[1] = alignment
@@ -206,7 +210,6 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
 
     return existing_elements_count # turns out this is the new index (because it's zero-based)
 end
-#is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` strings
 function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
     if is_workbook_defined_name(xl, sheetcell)
         v = get_defined_name_value(xl.workbook, sheetcell)
@@ -387,7 +390,6 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
     end
 end
 
-
 """
    setFont(sh::Worksheet, cr::String; kw...) -> Int
    setFont(xf::XLSXFile,  cr::String, kw...) -> Int
@@ -425,30 +427,30 @@ Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
 quietly skipped and the font will be set for the remaining cells.
 
-For single cells, the value returned is the font ID of the font applied to the cell.
+For single cells, the value returned is the `fontId` of the font applied to the cell.
 This can be used to apply the same font to other cells or ranges.
 
 For cell ranges, column ranges and named ranges, the value returned is -1.
 
-Examples:
+# Examples:
 ```julia
-julia> setFont(sheet, "A1"; bold=true, italic=true, size=12, name="Arial")          # Single cell
+julia> setFont(sh, "A1"; bold=true, italic=true, size=12, name="Arial")          # Single cell
 
-julia> setFont(xfile, "Sheet1!A1"; bold=false, size=14, color="FFB3081F")           # Single cell
+julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="FFB3081F")           # Single cell
 
-julia> setFont(sheet, "A1:B7"; name="Aptos", under="double", strike=true)           # Cell range
+julia> setFont(sh, "A1:B7"; name="Aptos", under="double", strike=true)           # Cell range
 
-julia> setFont(xfile, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
+julia> setFont(xf, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
 
-julia> setFont(sheet, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
+julia> setFont(sh, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
 
-julia> setFont(xfile, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
+julia> setFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
 
-julia> setFont(sheet, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
+julia> setFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
-julia> setFont(xfile, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
-
+julia> setFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 ```
+
 """
 function setFont end
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
@@ -545,7 +547,7 @@ end
    setUniformFont(xf::XLSXFile,  cr::String, kw...) -> Int
 
 Set the font used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile.
+worksheet or XLSXfile to be uniformly the same font.
 
 First, the font attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFont()`). The resultant font is 
@@ -565,25 +567,26 @@ etc) to all the other cells in the range.
 
 This can be more efficient when setting the same font for a large number of cells.
 
-The value returned is the font ID of the font uniformly applied to the cells.
+The value returned is the `fontId` of the font uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
 For keyword definitions see `setFont()`@Ref.
 
-Examples:
+# Examples:
 ```julia
-julia> setUniformFont(sheet, "A1:B7"; bold=true, italic=true, size=12, name="Arial")       # Cell range
+julia> setUniformFont(sh, "A1:B7"; bold=true, italic=true, size=12, name="Arial")       # Cell range
 
-julia> setUniformFont(xfile, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
+julia> setUniformFont(xf, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
 
-julia> setUniformFont(sheet, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
+julia> setUniformFont(sh, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
 
-julia> setUniformFont(xfile, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
+julia> setUniformFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
 
-julia> setUniformFont(sheet, "bigred"; size=48, color="FF00FF00")                          # Named range
+julia> setUniformFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named range
 
-julia> setUniformFont(xfile, "bigred"; size=48, color="FF00FF00")                          # Named range
+julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named range
 ```
+
 """
 function setUniformFont end
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
@@ -598,7 +601,7 @@ setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
    
 Get the font used by a single cell at reference `cr` in a worksheet `sh` or XLSXfile `xf`.
 
-Return a CellFont containing:
+Return a `CellFont` object containing:
 - `fontId`    : a 0-based index of the font in the workbook
 - `font`      : a dictionary of font attributes: fontAttribute -> (attribute -> value)
 - `applyFont` : "1" or "0", indicating whether or not the font is applied to the cell.
@@ -607,29 +610,30 @@ Return `nothing` if no cell font is found.
 
 Excel uses several tags to define font properties in its XML structure.
 Here's a list of some common tags and their purposes (thanks to Copilot!):
-    b        : Indicates bold font.
-    i        : Indicates italic font.
-    u        : Specifies underlining (e.g., single, double).
-    strike   : Indicates strikethrough.
-    outline  : Specifies outline text.
-    shadow   : Adds a shadow to the text.
-    condense : Condenses the font spacing.
-    extend   : Extends the font spacing.
-    sz       : Sets the font size.
-    color    : Sets the font color using RGB values).
-    name     : Specifies the font name.
-    family   : Defines the font family.
-    scheme   : Specifies whether the font is part of the major or minor theme.
+- `b`        : Indicates bold font.
+- `i`        : Indicates italic font.
+- `u`        : Specifies underlining (e.g., single, double).
+- `strike`   : Indicates strikethrough.
+- `outline`  : Specifies outline text.
+- `shadow`   : Adds a shadow to the text.
+- `condense` : Condenses the font spacing.
+- `extend`   : Extends the font spacing.
+- `sz`       : Sets the font size.
+- `color`    : Sets the font color using RGB values).
+- `name`     : Specifies the font name.
+- `family`   : Defines the font family.
+- `scheme`   : Specifies whether the font is part of the major or minor theme.
 
 Excel defines colours in several ways. Get font will return the colour in any of these
 e.g. `"color" => ("theme" => "1")`.
 
-Examples:
+# Examples:
 ```julia
 julia> getFont(sh, "A1")
 
 julia> getFont(xf, "Sheet1!A1")
 ```
+
 """
 function getFont end
 getFont(ws::Worksheet, cr::String) = process_get_cellname(getFont, ws, cr)
@@ -667,7 +671,7 @@ end
    
 Get the borders used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
-Return a CellBorder object containing:
+Return a `CellBorder` object containing:
 - `borderId`    : a 0-based index of the border in the workbook
 - `border`      : a dictionary of border attributes: borderAttribute -> (attribute -> value)
 - `applyBorder` : "1" or "0", indicating whether or not the border is applied to the cell.
@@ -675,52 +679,52 @@ Return a CellBorder object containing:
 Return `nothing` if no cell border is found.
 
 A cell border has two attributes, `style` and `color`. A diagonal border also needs to specify 
-a direction to indicate whether a diagonal is needed from bottom-left to top-right ("up"), 
+a direction indicating whether a diagonal is needed from bottom-left to top-right ("up"), 
 from top-left to bottom-left ("down") or "both"
 
-Excel defines border using a style and a color in its XML structure.
-Here's a list of the available styles (thanks to Copilot!):
-- none
-- thin
-- medium
-- dashed
-- dotted
-- thick
-- double
-- hair
-- mediumDashed
-- dashDot
-- mediumDashDot
-- dashDotDot
-- mediumDashDotDot
-- slantDashDot
+Here's a list of the available `style`s (thanks to Copilot!):
+- `none`
+- `thin`
+- `medium`
+- `dashed`
+- `dotted`
+- `thick`
+- `double`
+- `hair`
+- `mediumDashed`
+- `dashDot`
+- `mediumDashDot`
+- `dashDotDot`
+- `mediumDashDotDot`
+- `slantDashDot`
 
 A border postion element (e.g. `top` or `left`) has a `style` attribute, but `color` is a child element.
 The color element has one or two attributes (e.g. `rgb`) that define the color of the border.
-While the key for the style element will always be `style`, the other keys, for the color element,
+While the key for the `style` element will always be `style`, the keys for the `color` element
 will vary depending on how the color is defined (e.g. `rgb`, `indexed`, `auto`, etc.).
 Thus, for example, `"top" => Dict("style" => "thin", "rgb" => "FF000000")` would indicate a 
 thin black border at the top of the cell while `"top" => Dict("style" => "thin", "auto" => "1")`
 would indicate that the color is set automatically by Excel.
 
 The `color` element can have the following attributes:
-- auto     : Indicates that the color is automatically defined by Excel
-- indexed  : Specifies the color using an indexed color value.
-- rgb      : Specifies the rgb color using 8-digit hexadecimal format.
-- theme    : Specifies the color using a theme color.
-- tint     : Specifies the tint value to adjust the lightness or darkness of the color.
+- `auto`     : Indicates that the color is automatically defined by Excel
+- `indexed`  : Specifies the color using an indexed color value.
+- `rgb`      : Specifies the rgb color using 8-digit hexadecimal format.
+- `theme`    : Specifies the color using a theme color.
+- `tint`     : Specifies the tint value to adjust the lightness or darkness of the color.
 
-Tint can only be used in conjunction with the theme attribute to derive different shades of the theme color.
+`tint` can only be used in conjunction with the theme attribute to derive different shades of the theme color.
 For example: <color theme="1" tint="-0.5"/>.
 
-Only the `rgb` attribute can be used in `setBorder` to define a border color.
+Only the `rgb` attribute can be used in `setBorder()` to define a border color.
 
-Examples:
+# Examples:
 ```julia
 julia> getBorder(sh, "A1")
 
 julia> getBorder(xf, "Sheet1!A1")
 ```
+
 """
 function getBorder end
 getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorder} = process_get_sheetcell(getBorder, xl, sheetcell)
@@ -776,40 +780,45 @@ end
 Set the borders used used by a single cell, a cell range, a column range or 
 a named cell or named range in a worksheet or XLSXfile.
 
-Borders are independently defined for the keywords `left`, `right`, `top` 
-and `bottom` for each of the sides of a cell using a vector of pairs 
-`attribute => value`. Another keyword, `diagonal`, defines diagonal lines running 
-across the cell. These two diagonal lines must share the same style and color.
+Borders are independently defined for the keywords:
+- `left::Vector{Pair{String,String} = nothing`
+- `right::Vector{Pair{String,String} = nothing`
+- `top::Vector{Pair{String,String} = nothing`
+- `bottom::Vector{Pair{String,String} = nothing`
+- `diagonal::Vector{Pair{String,String} = nothing`
+- `[allsides::Vector{Pair{String,String} = nothing]`
+
+These represent each of the sides of a cell . The keyword `diagonal` defines diagonal lines running 
+across the cell. These lines must share the same style and color in any cell.
 
 An additional keyword, `allsides`, is provided for convenience. It can be used 
 in place of the four side keywords to apply the same border setting to all four 
-sides at once. It cannot be used inconjunction with any of the side keywords but 
-it can be used together with `diagonal`.
+sides at once. It cannot be used in conjunction with any of the side-specific 
+keywords but it can be used together with `diagonal`.
 
 The two attributes that can be set for each keyword are `style` and `rgb`.
 Additionally, for diagonal borders, a third keyword, `direction` can be used.
 
 Allowed values for `style` are:
+- `none`
+- `thin`
+- `medium`
+- `dashed`
+- `dotted`
+- `thick`
+- `double`
+- `hair`
+- `mediumDashed`
+- `dashDot`
+- `mediumDashDot`
+- `dashDotDot`
+- `mediumDashDotDot`
+- `slantDashDot`
 
-- none
-- thin
-- medium
-- dashed
-- dotted
-- thick
-- double
-- hair
-- mediumDashed
-- dashDot
-- mediumDashDot
-- dashDotDot
-- mediumDashDotDot
-- slantDashDot
-
-The color is set by specifying an 8-digit hexadecimal value for the `rgb` attribute.
+The `color` attribute is set by specifying an 8-digit hexadecimal value.
 No other color attributes can be applied.
 
-Valid values for the `direction` keyword are:
+Valid values for the `direction` keyword (for diagonal borders) are:
 - `up`   : diagonal border runs bottom-left to top-right
 - `down` : diagonal border runs top-left to bottom-right
 - `both` : diagonal borders run both ways
@@ -818,27 +827,29 @@ Both diagonal borders share the same style and color.
 
 Setting only one of the attributes leaves the other attributes unchanged for that 
 side's border. Omitting one of the keywords leaves the border definition for that
-side unchanged, only updating the specified sides.
+side unchanged, only updating the other, specified sides.
 
 Border attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
 quietly skipped and the border will be set for the remaining cells.
 
-For single cells, the value returned is the border ID of the border applied to the cell.
-This can be used to apply the same border to other cells or ranges.
+For single cells, the value returned is the `borderId` of the borders applied to the cell.
+This can be used to apply the same borders to other cells or ranges.
 
 For cell ranges, column ranges and named ranges, the value returned is -1.
 
-Examples:
+# Examples:
 ```julia
 Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "direction" => "up"])
 
-Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "rgb" => "FF000FF0"],
-                                  right    = ["style" => "medium", "rgb" => "FF765000"],
-                                  top      = ["style" => "thick",  "rgb" => "FF230000"],
-                                  bottom   = ["style" => "medium", "rgb" => "FF0000FF"],
-                                  diagonal = ["style" => "dotted", "rgb" => "FF00D4D4"]
+Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "FF000FF0"],
+                                  right    = ["style" => "medium", "color" => "FF765000"],
+                                  top      = ["style" => "thick",  "color" => "FF230000"],
+                                  bottom   = ["style" => "medium", "color" => "FF0000FF"],
+                                  diagonal = ["style" => "dotted", "color" => "FF00D4D4"]
                                   )
+```
+
 """
 function setBorder end
 setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
@@ -906,14 +917,14 @@ function setBorder(sh::Worksheet, cellref::CellRef;
                     new_border_atts[a]["direction"] = kwdict[a]["direction"]
                 end
             end
-            if !haskey(kwdict[a], "rgb") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
+            if !haskey(kwdict[a], "color") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
                 for (k, v) in old_border_atts[a]
                     if k != "style"
                         new_border_atts[a][k] = v
                     end
                 end
-            elseif haskey(kwdict[a], "rgb")
-                v = kwdict[a]["rgb"]
+            elseif haskey(kwdict[a], "color")
+                v = kwdict[a]["color"]
                 @assert occursin(r"^[0-9A-F]{8}$", v) "Invalid color value: $v. Must be an 8-digit hexadecimal RGB value."
                 new_border_atts[a]["rgb"] = v
             end
@@ -934,7 +945,7 @@ end
    setUniformBorder(xf::XLSXFile,  cr::String, kw...) -> Int
 
 Set the border used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile.
+worksheet or XLSXfile to be uniformly the same border.
 
 First, the border attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setBorder()`). The resultant border is 
@@ -948,13 +959,13 @@ border style to `thin` for a range of cells, but these cells all use different b
 colors, `setBorder()` will change the border style but leave the border color unchanged 
 for each cell individually. 
 
-In contrast, `setUniformBorder()` will set the border style to `thin` for the first cell,
-but will then apply all the border attributes from the updated first cell (ie. both style 
-and color) to all the other cells in the range.
+In contrast, `setUniformBorder()` will set the border `style` to `thin` for the first cell,
+but will then apply all the border attributes from the updated first cell (ie. both `style` 
+and `color`) to all the other cells in the range.
 
 This can be more efficient when setting the same border for a large number of cells.
 
-The value returned is the border ID of the border uniformly applied to the cells.
+The value returned is the `borderId` of the border uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
 For keyword definitions see `setBorder()`@Ref.
@@ -963,13 +974,14 @@ Examples:
 ```julia
 Julia> setUniformBorder(sh, "B2:D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
 
-Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left = ["style" => "dotted", "rgb" => "FF000FF0"],
-                                              right = ["style" => "medium", "rgb" => "FF765000"],
-                                              top = ["style" => "thick", "rgb" => "FF230000"],
-                                              bottom = ["style" => "medium", "rgb" => "FF0000FF"],
-                                              diagonalUp = ["style" => "none"]
-                                              )
+Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "color" => "FF000FF0"],
+                                             right    = ["style" => "medium", "color" => "FF765000"],
+                                             top      = ["style" => "thick",  "color" => "FF230000"],
+                                             bottom   = ["style" => "medium", "color" => "FF0000FF"],
+                                             diagonal = ["style" => "none"]
+                                             )
 ```
+
 """
 function setUniformBorder end
 setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
@@ -985,24 +997,25 @@ Set the border around the outside of a cell range, a column range or a named
 range in a worksheet or XLSXfile.
 
 Two key words can be defined:
-- style : defines the style of the outside border
-- rgb   : defines the color of the outside border
+- `style::String = nothing`   : defines the style of the outside border
+- `color::String = nothing`   : defines the color of the outside border
 
-Only the border definitions for the sides of boundary cells that are on ouside 
-edge of the range will be set to the specified style and color. The borders of 
-internal edges and any diagonal will remain unchanged. Border settings for all 
-internal cells in the range will remain unchanged.
+Only the border definitions for the sides of boundary cells that are on the 
+ouside edge of the range will be set to the specified style and color. The 
+borders of internal edges and any diagonal will remain unchanged. Border 
+settings for all internal cells in the range will remain unchanged.
 
 The value returned is is -1.
 
 For keyword definitions see `setBorder()`@Ref.
 
-Examples:
+# Examples:
 ```julia
 Julia> setOutsideBorder(sh, "B2:D6"; style = "thick")
 
-Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", rgb = "FF000FF0")
+Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", color = "FF000FF0")
 ```
+
 """
 function setOutsideBorder end
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
@@ -1010,17 +1023,17 @@ setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
 function setOutsideBorder(ws::Worksheet, rng::CellRange; 
     style::String,
-    rgb::String
+    color::String
     )::Int
 
     topLeft      = CellRef(rng.start.row_number, rng.start.column_number)
     topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
     bottomLeft   = CellRef(rng.stop.row_number, rng.start.column_number)
     bottomRight  = CellRef(rng.stop.row_number, rng.stop.column_number)
-    setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "rgb" => rgb])
-    setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "rgb" => rgb])
-    setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "rgb" => rgb])
-    setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "rgb" => rgb])
+    setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "color" => color])
+    setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "color" => color])
+    setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "color" => color])
+    setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "color" => color])
 
     return -1
 
@@ -1032,7 +1045,7 @@ end
    
 Get the fill used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
-Return a CellFill object containing:
+Return a `CellFill` object containing:
 - `fillId`    : a 0-based index of the fill in the workbook
 - `fill`      : a dictionary of fill attributes: borderAttribute -> (attribute -> value)
 - `applyFill` : "1" or "0", indicating whether or not the fill is applied to the cell.
@@ -1040,8 +1053,8 @@ Return a CellFill object containing:
 Return `nothing` if no cell fill is found.
 
 The `fill` element in Excel's XML schema defines the pattern and color 
-properties for cell fills. Here are the primary attributes and child elements 
-in the `patternFill` element:
+properties for cell fills. The primary attributes and child elements 
+in the `patternFill` element are:
 - `patternType` : Specifies the type of fill pattern (see below).
 - `fgColor`     : Specifies the foreground color of the pattern.
 - `bgColor`     : Specifies the background color of the pattern.
@@ -1049,7 +1062,9 @@ in the `patternFill` element:
 The child elements `fgColor` and `bgColor` can each have one or two attributes 
 of their own. These color attributes are pushed in to the `DellFill.fill` Dict 
 of attributes with either `fg` or `bg` prepended to their names to support later 
-reconstruction of the xml element. Thus:
+reconstruction of the xml element.
+
+Thus:
 `"patternFill" => Dict("patternType" => "solid", "bgindexed" => "64", "fgtheme" => "0")`
 indicates a solid fill with a foreground color defined by theme 0 (in Excel) and 
 background color defined by an indexed value. In this case (solid fill), the 
@@ -1086,20 +1101,16 @@ These pattern types include `darkTrellis`, `darkGrid`, `darkHorizontal`, `darkVe
 `darkDown`, `darkUp`, `mediumGray`, `lightGray`, `lightTrellis`, `lightGrid`, `lightHorizontal`,
 `lightVertical`, `lightDown`, `lightUp`, `gray125` and `gray0625`.
 
-If fgColor (foreground color) and bgColor (background color) are specified when they aren't 
+If `fgColor` (foreground color) and `bgColor` (background color) are specified when they aren't 
 needed, they will simply be ignored by Excel, and the default appearance will be applied.
 
-A fill has a pattern type attribute and two children fgColor and bgColor, each with 
-one or two attributes of their own. These color attributes are pushed in to the Dict 
-of attributes with either `fg` or `bg` prepended to their name to support later 
-reconstruction of the xml element.
-
-Examples:
+# Examples:
 ```julia
 julia> getFill(sh, "A1")
 
 julia> getFill(xf, "Sheet1!A1")
 ```
+
 """
 function getFill end
 getFill(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFill} = process_get_sheetcell(getFill, xl, sheetcell)
@@ -1147,12 +1158,11 @@ Set the fill used used by a single cell, a cell range, a column range or
 a named cell or named range in a worksheet or XLSXfile.
 
 The following keywords are used to define a fill:
+- `pattern::String = nothing`   : Sets the patternType for the fill.
+- `fgColor::String = nothing`   : Sets the foreground color for the fill.
+- `bgColor::String = nothing`   : Sets the background color for the fill.
 
-- pattern   : Sets the patternType for the fill.
-- fgColor   : Sets the foreground color for the fill.
-- bgColor   : Sets the background color for the fill.
-
-Here is a list of the `patternTypes` Excel uses (thanks to Copilot!):
+Here is a list of the available `pattern` values (thanks to Copilot!):
 - `none`
 - `solid`
 - `mediumGray`
@@ -1183,17 +1193,18 @@ Fill attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
 quietly skipped and the fill will be set for the remaining cells.
 
-For single cells, the value returned is the fill ID of the fill applied to the cell.
+For single cells, the value returned is the `fillId` of the fill applied to the cell.
 This can be used to apply the same fill to other cells or ranges.
 
 For cell ranges, column ranges and named ranges, the value returned is -1.
 
-Examples:
+# Examples:
 ```julia
 Julia> setFill(sh, "B2"; pattern="gray125", bgColor = "FF000000")
 
 Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
 ```
+
 """
 function setFill end
 setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
@@ -1271,7 +1282,7 @@ end
    setUniformFill(xf::XLSXFile,  cr::String, kw...) -> Int
 
 Set the fill used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile.
+worksheet or XLSXfile to be uniformly the same fill.
 
 First, the fill attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFill()`). The resultant fill is 
@@ -1281,22 +1292,22 @@ As a result, every cell in the range will have a uniform fill setting.
 
 This differs from `setFill()` which merges the attributes defined by `kw...` into 
 the fill definition used by each cell individually. For example, if you set the 
-fill paternType to `darkGrid` for a range of cells, but these cells all use different fill  
-colors, `setFill()` will change the fill patternType but leave the fill color unchanged 
+fill `patern` to `darkGrid` for a range of cells, but these cells all use different fill  
+`color`s, `setFill()` will change the fill `pattern` but leave the fill `color` unchanged 
 for each cell individually. 
 
-In contrast, `setUniformFill()` will set the fill patternType to `darkGrid` for the first cell,
-but will then apply all the fill attributes from the updated first cell (ie. patternType 
+In contrast, `setUniformFill()` will set the fill `pattern` to `darkGrid` for the first cell,
+but will then apply all the fill attributes from the updated first cell (ie. `pattern` 
 and both foreground and background colors) to all the other cells in the range.
 
 This can be more efficient when setting the same fill for a large number of cells.
 
-The value returned is the fill ID of the fill uniformly applied to the cells.
+The value returned is the `fillId` of the fill uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
 For keyword definitions see `setFill()`@Ref.
 
-Examples:
+# Examples:
 ```julia
 Julia> setUniformFill(sh, "B2:D4"; pattern="gray125", bgColor = "FF000000")
 
@@ -1315,7 +1326,7 @@ setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
    
 Get the alignment used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
-Return a CellAlignment object containing:
+Return a `CellAlignment` object containing:
 - `alignment`      : a dictionary of alignment attributes: alignmentAttribute -> (attribute -> value)
 - `applyAlignment` : "1" or "0", indicating whether or not the alignment is applied to the cell.
 
@@ -1327,34 +1338,30 @@ alignment of the cell and whether to wrap the cell contents:
 - `vertical`       : Specifies the vertical alignment of the cell.
 - `wrapText`       : Specifies whether ("1") or not ("0") the cell content wraps
                      in the cell.
-- shrinkToFit      : Indicates whether ("1") or not ("0") the text should shrink to fit the cell.
-- indent           : Specifies the number of spaces by which to indent the text (always from the left).
-- textRotation     : Specifies the rotation angle of the text in a range -180 to 180 (positive values 
-                     rotate the text counterclockwise), 255 (special value for vertical text)
+- `shrinkToFit`    : Indicates whether ("1") or not ("0") the text should shrink to fit the cell.
+- `indent`         : Specifies the number of spaces by which to indent the text (always from the left).
+- `textRotation`   : Specifies the rotation angle of the text in a range -90 to 90 (positive values 
+                     rotate the text counterclockwise).
 
 
 Excel supports the following values for the horizontal alignment:
-- left             : Aligns the text to the left of the cell.
-- center           : Centers the text within the cell.
-- right            : Aligns the text to the right of the cell.
-- fill             : Repeats the text to fill the entire width of the cell.
-- justify          : Justifies the text, spacing it out so that it spans the entire width of the cell.
-- centerContinuous : Centers the text across multiple cells (specifically the currrent cell and all 
-                     empty cells to the right) as if the text were in a merged cell.
-- distributed      : Distributes the text evenly across the width of the cell.
+- `left`             : Aligns the text to the left of the cell.
+- `center`           : Centers the text within the cell.
+- `right`            : Aligns the text to the right of the cell.
+- `fill`             : Repeats the text to fill the entire width of the cell.
+- `justify`          : Justifies the text, spacing it out so that it spans the entire width of the cell.
+- `centerContinuous` : Centers the text across multiple cells (specifically the currrent cell and all 
+                       empty cells to the right) as if the text were in a merged cell.
+- `distributed`      : Distributes the text evenly across the width of the cell.
 
 Excel supports the following values for the vertical alignment:
-- top              : Aligns the text to the top of the cell.
-- center           : Centers the text vertically within the cell.
-- bottom           : Aligns the text to the bottom of the cell.
-- justify          : Justifies the text vertically, spreading it out evenly within the cell.
-- distributed      : Distributes the text evenly from top to bottom in the cell.
+- `top`              : Aligns the text to the top of the cell.
+- `center`           : Centers the text vertically within the cell.
+- `bottom`           : Aligns the text to the bottom of the cell.
+- `justify`          : Justifies the text vertically, spreading it out evenly within the cell.
+- `distributed`      : Distributes the text evenly from top to bottom in the cell.
 
-For single cells, the value returned is the style ID of the cell.
-
-For cell ranges, column ranges and named ranges, the value returned is -1.
-
-Examples:
+# Examples:
 ```julia
 julia> getAlignment(sh, "A1")
 
@@ -1379,62 +1386,59 @@ function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAli
     end
     alignment_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     alignment_atts["alignment"] = atts
-    @assert haskey(cell_style, "applyAlignment") "The `applyAlignment` attribute missing from cell `xf`."
-    return CellAlignment(alignment_atts, cell_style["applyAlignment"])
+    applyalignment = haskey(cell_style, "applyAlignment") ? cell_style["applyAlignment"] : "0"
+    return CellAlignment(alignment_atts, applyalignment)
 end
 
 """
    setAlignment(sh::Worksheet, cr::String; kw...) -> Int}
    setAlignment(xf::XLSXFile, cr::String; kw...) -> Int}
    
-Set the fill used used by a single cell, a cell range, a column range or 
+Set the alignment used used by a single cell, a cell range, a column range or 
 a named cell or named range in a worksheet or XLSXfile.
 
-The following keywords are used to define a fill:
+The following keywords are used to define an alignment:
+- `horizontal::String = nothing` : Sets the horizontal alignment.
+- `vertical::String = nothing`   : Sets the vertical alignment.
+- `wrapText::Bool = nothing`     : Determines whether the cell content wraps within the cell.
+- `shrink::Bool = nothing`       : Indicates whether the text should shrink to fit the cell.
+- `indent::Int = nothing`        : Specifies the number of spaces by which to indent the text 
+                                   (always from the left).
+- `rotation::Int = nothing`      : Specifies the rotation angle of the text in the range -90 to 90 
+                                   (positive values rotate the text counterclockwise), 
 
-- horizontal  : Sets the horizontal alignment.
-- vertical    : Sets the vertical alignment.
-- wrapText    : Determines whether the cell content wraps within the cell.
-- shrink      : Indicates whether the text should shrink to fit the cell.
-- indent      : Specifies the integer number of spaces by which to indent the text 
-                (always from the left).
-- rotation    : Specifies the rotation angle of the text in an integer range -90 to 90 
-                (positive values rotate the text counterclockwise), 
-                
+Here are the possible values for the `horizontal` alignment:
+- `left`             : Aligns the text to the left of the cell.
+- `center`           : Centers the text within the cell.
+- `right`            : Aligns the text to the right of the cell.
+- `fill`             : Repeats the text to fill the entire width of the cell.
+- `justify`          : Justifies the text, spacing it out so that it spans the entire 
+                       width of the cell.
+- `centerContinuous` : Centers the text across multiple cells (specifically the currrent 
+                       cell and all empty cells to the right) as if the text were in 
+                       a merged cell.
+- `distributed`      : Distributes the text evenly across the width of the cell.
 
+Here are the possible values for the `vertical` alignment:
+- `top`              : Aligns the text to the top of the cell.
+- `center`           : Centers the text vertically within the cell.
+- `bottom`           : Aligns the text to the bottom of the cell.
+- `justify`          : Justifies the text vertically, spreading it out evenly within the cell.
+- `distributed`      : Distributes the text evenly from top to bottom in the cell.
 
-Here are the possible values for the horizontal alignment:
-- left             : Aligns the text to the left of the cell.
-- center           : Centers the text within the cell.
-- right            : Aligns the text to the right of the cell.
-- fill             : Repeats the text to fill the entire width of the cell.
-- justify          : Justifies the text, spacing it out so that it spans the entire 
-                     width of the cell.
-- centerContinuous : Centers the text across multiple cells (specifically the currrent 
-                     cell and all empty cells to the right) as if the text were in 
-                     a merged cell.
-- distributed      : Distributes the text evenly across the width of the cell.
+For single cells, the value returned is the `styleId` of the cell.
 
-Here are the possible values for the vertical alignment:
-- top              : Aligns the text to the top of the cell.
-- center           : Centers the text vertically within the cell.
-- bottom           : Aligns the text to the bottom of the cell.
-- justify          : Justifies the text vertically, spreading it out evenly within the cell.
-- distributed      : Distributes the text evenly from top to bottom in the cell.
+For cell ranges, column ranges and named ranges, the value returned is -1.
 
-The value of wrapText should be set to `true` or `false` depending on whether the 
-content is to wrap or not.
-The value of shrinkToFit should be set to `true` or `false` depending on whether the 
-content is toshrink or not.
-
-
-Examples:
+# Examples:
 ```julia
-julia> setAlignment(s, "D18"; horizontal="center", wrapText=true)
+julia> setAlignment(sh, "D18"; horizontal="center", wrapText=true)
 
-julia> setAlignment(f, "sheet1!D18"; horizontal="right", vertical="top", wrapText=true)
+julia> setAlignment(xf, "sheet1!D18"; horizontal="right", vertical="top", wrapText=true)
 
+julia> setAlignment(sh, "L6"; horizontal="center", rotation="90", shrink=true, indent="2")
 ```
+
 """
 function setAlignment end
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
@@ -1446,8 +1450,8 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     vertical::Union{Nothing,String}=nothing,
     wrapText::Union{Nothing,Bool}=nothing,
     shrink::Union{Nothing,Bool}=nothing,
-    indent::Union{Nothing,String}=nothing,
-    rotation::Union{Nothing,String}=nothing
+    indent::Union{Nothing,Int}=nothing,
+    rotation::Union{Nothing,Int}=nothing
     )::Int
 
     wb = get_workbook(sh)
@@ -1471,7 +1475,10 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
 
     @assert isnothing(horizontal) || horizontal ∈ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] "Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."
     @assert isnothing(vertical) || vertical ∈ ["top", "center", "bottom", "justify", "distributed"] "Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."
-    @assert isnothing(wrapText) || wrapText ∈ [true, false] "Invalid wrap option: $wrapText must be one of: `true`, `false`."
+    @assert isnothing(wrapText) || wrapText ∈ [true, false] "Invalid wrap option: $wrapText. Must be one of: `true`, `false`."
+    @assert isnothing(shrink) || shrink ∈ [true, false] "Invalid shrink option: $shrink. Must be one of: `true`, `false`."
+    @assert isnothing(indent) || indent > 0 "Invalid indent value specified: $indent. Must be a postive integer."
+    @assert isnothing(rotation) || rotation ∈ -90:90 "Invalid rotation value specified: $rotation. Must be an integer between -90 and 90."
 
     if isnothing(horizontal) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "horizontal")
         atts["horizontal"] = old_alignment_atts["horizontal"]
@@ -1496,13 +1503,11 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     if isnothing(indent) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "indent")
         atts["indent"] = old_alignment_atts["indent"]
     elseif !isnothing(indent)
-        @assert parse(Int, indent) > 0 "Invalid indent value specified: $indent. Must be a postive integer."
         atts["indent"] = string(indent)
     end
     if isnothing(rotation) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "textRotation")
         atts["textRotation"] = old_alignment_atts["textRotation"]
     elseif !isnothing(rotation)
-        @assert parse(Int, rotation) in -90:90 "Invalid Rotation value specified: $rotation. Must be an integer between -90 and 90."
         atts["textRotation"] = string(rotation)
     end
 
@@ -1519,37 +1524,39 @@ end
    setUniformAlignment(xf::XLSXFile,  cr::String, kw...) -> Int
 
 Set the alignment used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile.
+worksheet or XLSXfile to be uniformly the same alignment.
 
 First, the alignment attributes of the first cell in the range (the top-left cell) are
-updated according to the given `kw...` (using `setFill()`). The resultant alignment is 
-then applied to each remaining cell in the range.
+updated according to the given `kw...` (using `setAlignment()`). The resultant alignment 
+is then applied to each remaining cell in the range.
 
 As a result, every cell in the range will have a uniform alignment setting.
 
 This differs from `setAlignment()` which merges the attributes defined by `kw...` into 
 the alignment definition used by each cell individually. For example, if you set the 
-horizontal alignment to `left` for a range of cells, but these cells all use different 
-vertical alignment or wrap, `setAlignment()` will change the horizontal alignment but 
-leave the vertical alignment and wrap unchanged for each cell individually. 
+`horizontal` alignment to `left` for a range of cells, but these cells all use different 
+`vertical` alignment or `wrapText`, `setAlignment()` will change the horizontal alignment but 
+leave the `vertical` alignment and `wrapText` unchanged for each cell individually. 
 
-In contrast, `setUniformAlignment()` will set the horizontal alignment to `left` for the 
-first cell, but will then apply all the alignment attributes from the updated first cell 
-(ie. horizontal and vertical alignment and the wrap) to all the other cells in the range.
+In contrast, `setUniformAlignment()` will set the `horizontal` alignment to `left` for  
+the first cell, but will then apply all the alignment attributes from the updated first  
+cell to all the other cells in the range.
 
 This can be more efficient when setting the same alignment for a large number of cells.
 
-The value returned is the alignment ID of the alignment uniformly applied to the cells.
+The value returned is the `styleId` of the reference (top-left) cell, from which the 
+alignment uniformly applied to the cells was taken.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
 For keyword definitions see `setAlignment()`@Ref.
 
-Examples:
+# Examples:
 ```julia
 Julia> setUniformAlignment(sh, "B2:D4"; horizontal="center", wrap = true)
 
 Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="top")
 ```
+
 """
 function setUniformAlignment end
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
@@ -1563,7 +1570,7 @@ setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform
    
 Get the format (numFmt) used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
-Return a CellFormat object containing:
+Return a `CellFormat` object containing:
 - numFmtId          : a 0-based index of the formats in the workbook. Values below 164 are 
                       reserved for built-in formats. Values of 164 and over are custom formats
                       and are stored in the `styles.xml` file within the XLSXfile.
@@ -1575,12 +1582,13 @@ Return `nothing` if no cell format is found. This will occur when a cell uses a 
 The function will always find any explicitly set custom format. It will also attempt to return 
 the format for built-in formats, too.
 
-Examples:
+# Examples:
 ```julia
 julia> getFormat(sh, "A1")
 
 julia> getFormat(xf, "Sheet1!A1")
 ```
+
 """
 function getFormat end
 getFormat(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getFormat, xl, sheetcell)
@@ -1624,25 +1632,27 @@ Set the format used used by a single cell, a cell range, a column range or
 a named cell or named range in a worksheet or XLSXfile.
 
 The function uses one keyword used to define a format:
-
-- format : Defines a built-in or custom format to apply
+- `format::String = nothing` : Defines a built-in or custom number format
 
 The format keyword can define some built-in formats by name:
-- Genera     : specifies internal format ID  0 (General)
-- Number     : specifies internal format ID  2 (`0.00`)
-- Currency   : specifies internal format ID  7 (`\$#,##0.00_);(\$#,##0.00)`)
-- Percentage : specifies internal format ID  9 (`0%`)
-- ShortDate  : specifies internal format ID 14 (`m/d/yyyy`)
-- LongDate   : specifies internal format ID 15 (`d-mmm-yy`)
-- Time       : specifies internal format ID 21 (`h:mm:ss`)
-- Scientific : specifies internal format ID 48 (`##0.0E+0`)
+- `General`    : specifies internal format ID  0 (General)
+- `Number`     : specifies internal format ID  2 (`0.00`)
+- `Currency`   : specifies internal format ID  7 (`\$#,##0.00_);(\$#,##0.00)`)
+- `Percentage` : specifies internal format ID  9 (`0%`)
+- `ShortDate`  : specifies internal format ID 14 (`m/d/yyyy`)
+- `LongDate`   : specifies internal format ID 15 (`d-mmm-yy`)
+- `Time`       : specifies internal format ID 21 (`h:mm:ss`)
+- `Scientific` : specifies internal format ID 48 (`##0.0E+0`)
+
+If `Currency` is specified, Excel will use the appropriate local currency symbol.
 
 Alternatively, `format` can be used to specify any custom format directly. 
-No checks are made of custom formats specified - they are added to the XLSXfile verbatim.
+Only weak checks are made of custom formats specified - they are otherwise added 
+to the XLSXfile verbatim.
 
-Formats containing characters that need to be escaped may be escaped or they may be enclosed in triple quotes.
+Formats may need characters that must to be escaped when specified.
 
-Examples:
+# Examples:
 ```julia
 julia> XLSX.setFormat(sh, "D2"; format = "h:mm AM/PM")
 
@@ -1654,6 +1664,7 @@ julia> XLSX.setFormat(xf, "Sheet1!A2"; format = \"\"\"_-£* #,##0.00_-;-£* #,##
 
 julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \\\"-\\\"??_-;_-@_-")
 ```
+
 """
 function setFormat end
 setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
@@ -1692,8 +1703,6 @@ function setFormat(sh::Worksheet, cellref::CellRef;
         code = lowercase(format)
         code = remove_formatting(code)
         @assert occursin(floatformats, code) || any(map(x->occursin(x, code), DATETIME_CODES)) "Specified format is not a valid numFmt: $format"
-        
-
   
         xroot = styles_xmlroot(wb)
         i, j = get_idces(xroot, "styleSheet", "numFmts")
@@ -1730,7 +1739,7 @@ end
    setUniformFormat(xf::XLSXFile,  cr::String, kw...) -> Int
 
 Set the number format used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be the same as that of the first cell in the range.
+worksheet or XLSXfile to be  to be uniformly the same format.
 
 First, the number format of the first cell in the range (the top-left cell) is
 updated according to the given `kw...` (using `setFormat()`). The resultant format is 
@@ -1741,7 +1750,7 @@ As a result, every cell in the range will have a uniform number format.
 This is functionally equivalent to applying `setFormat()` to each cell in the range 
 but may be very marginally more efficient.
 
-The value returned is the number format ID of the format uniformly applied to the cells.
+The value returned is the `numfmtId` of the format uniformly applied to the cells.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
 For keyword definitions see `setFormat()`@Ref.
@@ -1763,25 +1772,29 @@ setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
    setUniformStyle(sh::Worksheet, cr::String) -> Int
    setUniformStyle(xf::XLSXFile,  cr::String) -> Int
 
-Set the cell style used by a cell range, a column range or a named range in a 
+Set the cell `style` used by a cell range, a column range or a named range in a 
 worksheet or XLSXfile to be the same as that of the first cell in the range 
 that is not an `EmptyCell`.
 
-As a result, every cell in the range will have a uniform number format.
+As a result, every cell in the range will have a uniform `style`.
 
-If the first cell has no defined style (s=""), all cells will be given the 
-same undefined style.
+A cell `style` consists of the collection of `format`, `alignment`, `border`, 
+`font` and `fill`.
 
-The value returned is the style ID of the style uniformly applied to the cells or 
-`nothing` if the style is undefrined.
+If the first cell has no defined `style` (`s=""`), all cells will be given the 
+same undefined `style`.
+
+The value returned is the `styleId` of the `style` uniformly applied to the cells or 
+`nothing` if the style is undefined.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
-Examples:
+# Examples:
 ```julia
 julia> XLSX.setUniformStyle(xf, "Sheet1!A2:L6")
 
 julia> XLSX.setUniformStyle(sh, "F1:F5")
 ```
+
 """
 function setUniformStyle end
 setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
@@ -1809,7 +1822,6 @@ function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
     end
 end    
 
-
 """
    setColumnWidth(sh::Worksheet, cr::String; kw...) -> Int
    setColumnWidth(xf::XLSXFile,  cr::String, kw...) -> Int
@@ -1817,32 +1829,31 @@ end
 Set the width of a column or column range.
 
 A standard cell reference or cell range can be used to define the column range. 
-the function will use the columns and ignore the rows. Nmaed cells and named
+The function will use the columns and ignore the rows. Named cells and named
 ranges can similarly be used.
 
 The function uses one keyword used to define a column width:
+- `width::Real = nothing` : Defines width in Excel's own (internal) units
 
-- width::String : Defines width in Excel's own (internal) units
-
-When you set a column widthe interactively in Excel you can see the width 
+When you set a column widths interactively in Excel you can see the width 
 in "internal" units and in pixels. The width stored in the xlsx file is slightly 
-larger than the width shown intrtactively because Excel adds some cell padding. 
-The method Excel uses to calcuilate the padding is obscure and complex. This 
+larger than the width shown intertactively because Excel adds some cell padding. 
+The method Excel uses to calculate the padding is obscure and complex. This 
 function does not attempt to replicate it, but simply adds 0.71 internal units 
 to the value specified. The value set is unlikely to match the value seen 
-interactivley in the resultanrt spreadsheet.
+interactivley in the resultant spreadsheet, but will be close.
 
 You can set a column width to 0.
 
 The function returns a value of 0.
 
-Examples:
+# Examples:
 ```julia
-julia> XLSX.setColumnWidth(xf, "Sheet1!A2"; width = "50")
+julia> XLSX.setColumnWidth(xf, "Sheet1!A2"; width = 50)
 
-julia> XLSX.seColumnWidth(sh, "F1:F5"; width = "0")
+julia> XLSX.seColumnWidth(sh, "F1:F5"; width = 0)
 
-julia> XLSX.setColumnWidth(sh, "I"; width = "50")
+julia> XLSX.setColumnWidth(sh, "I"; width = 24.37)
 ```
 
 """
@@ -1851,15 +1862,19 @@ setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnr
 setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
-function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,String}=nothing)
+function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real}=nothing)::Int
 
     # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
     update_worksheets_xml!(get_xlsxfile(ws)) 
 
     left  = rng.start.column_number
     right = rng.stop.column_number
-    padded_width = isnothing(width) ? -1 : parse(Int, width) + 0.7109375 # Excel adds cell padding to a user specified width
-    @assert isnothing(width) || padded_width >= 0 "Invalid value specified for width: $padded_width. Width must be >= 0."
+    padded_width = isnothing(width) ? -1 : width + 0.7109375 # Excel adds cell padding to a user specified width
+    @assert isnothing(width) || width >= 0 "Invalid value specified for width: $width. Width must be >= 0."
+
+    if isnothing(width) # No-op
+        return 0
+    end
 
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "cols")
@@ -1912,20 +1927,64 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Stri
 end
 
 """
+   setRowHeight(sh::Worksheet, cr::String; kw...) -> Int
+   setRowHeight(xf::XLSXFile,  cr::String, kw...) -> Int
 
-this <row> element
-Attributes:
+Set the height of a row or row range.
 
-r="3": Specifies the row number (3).
+A standard cell reference or cell range must be used to define the row range. 
+The function will use the rows and ignore the columns. Named cells and named
+ranges can similarly be used.
 
-spans="1:11": Indicates the row spans from column 1 to column 11.
+The function uses one keyword used to define a row height:
+- `height::Real = nothing` : Defines height in Excel's own (internal) units.
 
-ht="6": Sets the height of the row to 6 points.
+When you set row heights interactively in Excel you can see the height 
+in "internal" units and in pixels. The height stored in the xlsx file is slightly 
+larger than the height shown interactively because Excel adds some cell padding. 
+The method Excel uses to calculate the padding is obscure and complex. This 
+function does not attempt to replicate it, but simply adds 0.21 internal units 
+to the value specified. The value set is unlikely to match the value seen 
+interactivley in the resultant spreadsheet, but it will be close.
 
-customHeight="1": Indicates that a custom height is applied to the row.
+You can set a row height to 0.
 
-thickBot="1": Suggests that the bottom border of the row is thick.
+The function returns a value of 0.
 
-x14ac:dyDescent="0.3": An attribute specific to certain versions of Excel, likely related to text descent for alignment purposes.
+# Examples:
+```julia
+julia> XLSX.setRowHeight(xf, "Sheet1!A2"; height = 50)
+
+julia> XLSX.seRowHeight(sh, "F1:F5"; heighth = 0)
+
+julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
+```
 
 """
+function setRowHeight end
+setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
+setRowHeight(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setRowHeight, ws, ref_or_rng; kw...)
+setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setRowHeight, xl, sheetcell; kw...)
+setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)
+function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}=nothing)::Int
+
+    top  = rng.start.row_number
+    bottom = rng.stop.row_number
+    padded_height = isnothing(height) ? -1 : height + 0.2109375 # Excel adds cell padding to a user specified width
+    @assert isnothing(height) || height >= 0 "Invalid value specified for height: $height. Height must be >= 0."
+
+    if isnothing(height) # No-op
+        return 0
+    end
+    for r in eachrow(ws)
+        if r.row in top:bottom
+            if r.row ∈ ws.cache.rows_in_cache
+                if haskey(ws.cache.row_ht, r.row)
+                    ws.cache.row_ht[r.row] = padded_height
+                end
+            end
+        end
+    end
+
+    return 0 # meaningless return value. Int required to comply with reference decoding structure.
+end

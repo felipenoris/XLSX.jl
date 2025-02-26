@@ -216,6 +216,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         handled_attributes = Set{String}([
             "r",     # the row number
             "spans", # the columns the row spans
+            "ht",    # the row height
         ])
 
         let
@@ -272,6 +273,10 @@ function update_worksheets_xml!(xl::XLSXFile)
             row_node = XML.Element("row"; r = string(row_nr))
             if spans_str != ""
                 row_node["spans"] = spans_str
+            end
+            if !isnothing(r.ht)
+                row_node["ht"] = string(r.ht)
+                row_node["customHeight"] = "1"
             end
 
             if haskey(unhandled_attributes, row_nr)
@@ -364,6 +369,7 @@ function setdata!(ws::Worksheet, cell::Cell)
     if !haskey(cache.cells, r)
         push!(cache.rows_in_cache, r)
         cache.cells[r] = Dict{Int, Cell}()
+        cache.row_ht[r] = nothing
         cache.dirty = true
     end
     cache.cells[r][c] = cell
@@ -403,8 +409,6 @@ xlsx_encode(ws::Worksheet, val::Dates.DateTime) = ("", string(datetime_to_excel_
 xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)))
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
-    if val.value isa Bool
-    end
     t, v = xlsx_encode(ws, val.value)
     cell = Cell(ref, t, id(val.styleid), v, Formula(""))
     setdata!(ws, cell)
@@ -581,15 +585,18 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-            sheet[target_cell_ref] = XML.escape(string(columnnames[c]))
+            sheet[target_cell_ref] = xlsx_escape(string(columnnames[c]))
         end
         start_from_anchor = 0
     end
 
     # write table data
-    for r in 1:row_count, c in 1:col_count
-        target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
-        sheet[target_cell_ref] = data[c][r] isa String ? XML.escape(data[c][r]) : data[c][r]
+    for c in 1:col_count
+        for r in 1:row_count
+            target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
+            v = data[c][r]
+            sheet[target_cell_ref] = v isa String ? xlsx_escape(v) : v
+        end
     end
 end
 
@@ -712,10 +719,11 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
-    state =  SheetRowStreamIteratorState(reader, nothing, 0)
+    state =  SheetRowStreamIteratorState(reader, nothing, 0, nothing)
     ws.cache = XLSX.WorksheetCache(
         Dict{Int64, Dict{Int64, XLSX.Cell}}(),
         Int64[],
+        Dict{Int, Union{Float64, Nothing}}(),
         Dict{Int64, Int64}(),
         SheetRowStreamIterator(ws),
         state,

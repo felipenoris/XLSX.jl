@@ -63,6 +63,7 @@ end
 # If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.
 function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
     local current_row
+    local current_row_ht
     local sheet_row
     local next_element = ""
     local nc = 0
@@ -107,14 +108,16 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             while next !== nothing # go next node
                 (lznode, lzstate) = next
                 if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row" # This is the first row
-                    current_row = parse(Int, XML.attributes(lzstate)["r"])
+                    a = XML.attributes(lzstate)
+                    current_row = parse(Int, a["r"])
+                    current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
                     nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
                     cell_no = 0
                     break
                 end
                 next = iterate(reader, lzstate)
             end
-            SheetRowStreamIteratorState(reader, lzstate, current_row)
+            SheetRowStreamIteratorState(reader, lzstate, current_row, current_row_ht)
         end
     end
 
@@ -126,6 +129,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
     # Expecting iterator to be at the first row element
     current_row = state.row
+    current_row_ht = state.ht
     
     rowcells = Dict{Int, Cell}() # column -> cell
     isnothing(lzstate) && return nothing
@@ -135,7 +139,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
         if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == next_element # This is the end of sheetData
             return nothing
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row" # This is the next row
-            current_row = parse(Int, XML.attributes(lznode)["r"])
+            a = XML.attributes(lzstate)
+            current_row = parse(Int, a["r"])
+            current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
             nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
             cell_no = 0
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
@@ -144,7 +150,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
             rowcells[column_number(cell)] = cell
             if cell_no == nc # when all cells found
-                sheet_row = SheetRow(get_worksheet(itr), current_row, rowcells) # put them together in a sheet_row
+                sheet_row = SheetRow(get_worksheet(itr), current_row, current_row_ht, rowcells) # put them together in a sheet_row
                 break
             end
         end
@@ -156,7 +162,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
     # update state
     state.row = current_row
+    state.ht = current_row_ht
     state.itr_state = lzstate
+
 
     return sheet_row, state
 end
@@ -179,6 +187,7 @@ end
         wc.cells[r] = sheet_row.rowcells
         push!(wc.rows_in_cache, r)
         wc.row_index[r] = length(wc.rows_in_cache)
+        wc.row_ht[r] = sheet_row.ht
     end
     nothing
 end
@@ -190,7 +199,7 @@ end
 #
 function WorksheetCache(ws::Worksheet)
     itr = SheetRowStreamIterator(ws)
-    return WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Int}(), itr, nothing, true)
+    return WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Union{Float64, Nothing}}(), Dict{Int, Int}(), itr, nothing, true)
 end
 
 @inline get_worksheet(r::SheetRow) = r.sheet
@@ -204,23 +213,25 @@ function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
         sort!(ws_cache.rows_in_cache)
         ws_cache.row_index = Dict{Int, Int}(ws_cache.rows_in_cache[i] => i for i in 1:length(ws_cache.rows_in_cache))
         ws_cache.dirty = false
-    end
+       end
 
     if row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
         # the next row is in cache, and it's the first one
         current_row_number = ws_cache.rows_in_cache[1]
+        current_row_ht = ws_cache.row_ht[current_row_number]
         sheet_row_cells = ws_cache.cells[current_row_number]
-        return SheetRow(get_worksheet(ws_cache), current_row_number, sheet_row_cells), current_row_number
+        return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), current_row_number
 
     elseif row_from_last_iteration != 0 && ws_cache.row_index[row_from_last_iteration] < length(ws_cache.rows_in_cache)
         # the next row is in cache
         current_row_number = ws_cache.rows_in_cache[ws_cache.row_index[row_from_last_iteration] + 1]
+        current_row_ht = ws_cache.row_ht[current_row_number]
         sheet_row_cells = ws_cache.cells[current_row_number]
-        return SheetRow(get_worksheet(ws_cache), current_row_number, sheet_row_cells), current_row_number
+        return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), current_row_number
 
     else
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
-        if next === nothing
+       if next === nothing
             return nothing
         end
         sheet_row, next_stream_state = next
