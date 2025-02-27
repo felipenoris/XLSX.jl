@@ -379,7 +379,17 @@ function setdata!(ws::Worksheet, cell::Cell)
 end
 
 const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
+#const ILLEGAL_CHARS = [Char(0x02) => " ", Char(0x12) => "&apos;", Char(0x16) => ""]
+#conts ILLEGAL_CHARS [r"\x00-\x08\x0B\x0E\x0F\x10-\x19" => ""]
 
+function strip_illegal_chars(x::String)
+# Not implemented yet!
+#    result = x
+#    for (pat, r) in ILLEGAL_CHARS
+#        result = replace(result, pat => r)
+#    end
+#    return result
+end
 
 function xlsx_escape(x::String)# Adaped from XML.escape()
 
@@ -397,7 +407,7 @@ function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
-    sst_ind = add_shared_string!(get_workbook(ws), xlsx_escape(val))
+    sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(xlsx_escape(val)))
     return ("s", string(sst_ind))
 end
 
@@ -585,7 +595,7 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-            sheet[target_cell_ref] = xlsx_escape(string(columnnames[c]))
+            sheet[target_cell_ref] = strip_illegal_chars(xlsx_escape(string(columnnames[c])))
         end
         start_from_anchor = 0
     end
@@ -595,7 +605,7 @@ function writetable!(
         for r in 1:row_count
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
             v = data[c][r]
-            sheet[target_cell_ref] = v isa String ? xlsx_escape(v) : v
+            sheet[target_cell_ref] = v isa String ? strip_illegal_chars(xlsx_escape(v)) : v
         end
     end
 end
