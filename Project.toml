@@ -8,17 +8,15 @@ version = "0.10.5-dev"
 [deps]
 Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 ZipArchives = "49080126-0e18-4c2a-b176-c102e4b3760c"
-ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 
 [compat]
-EzXML = "1"
 Tables = "1"
+XML = "0.3.4"
 ZipArchives = "2"
-ZipFile = "0.8, 0.9, 0.10"
 julia = "1.6"
 
 [extras]

@@ -23,7 +23,7 @@ end
 
 function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
     i = get_shared_string_index(sst, str_formatted)
-    if i != nothing
+    if i !== nothing
         # it's already in the table
         return i
     else
@@ -52,11 +52,13 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
         add_relationship!(wb, "sharedStrings.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings")
 
         # add Content Type <Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" PartName="/xl/sharedStrings.xml"/>
-        ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")
-        @assert EzXML.nodename(ctype_root) == "Types"
-        override_node = EzXML.addelement!(ctype_root, "Override")
-        override_node["ContentType"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"
-        override_node["PartName"] = "/xl/sharedStrings.xml"
+        ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
+        @assert XML.tag(ctype_root) == "Types"
+        override_node = XML.Element("Override";
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml",
+            PartName = "/xl/sharedStrings.xml"
+        )
+        push!(ctype_root, override_node)
         init_sst_index(sst)
     end
 
@@ -75,18 +77,16 @@ function sst_load!(workbook::Workbook)
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))
+            sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))[end]
+            @assert XML.tag(sst_root) == "sst"
 
-            @assert EzXML.nodename(sst_root) == "sst"
-
-            formatted_string_buffer = IOBuffer()
-            for el in EzXML.eachelement(sst_root)
-                @assert EzXML.nodename(el) == "si" "Unsupported node $(EzXML.nodename(el)) in sst table."
+            for el in XML.children(sst_root)
+                XML.nodetype(el) == XML.Text && continue
+                @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
                 push!(sst.unformatted_strings, unformatted_text(el))
-
-                print(formatted_string_buffer, el)
-                push!(sst.formatted_strings, String(take!(formatted_string_buffer)))
+                push!(sst.formatted_strings, replace(XML.write(el), r" *\n *" => "")) # Don't want pretty printing.
             end
+
             init_sst_index(sst)
             sst.is_loaded=true
             return
@@ -105,15 +105,20 @@ end
 # Helper function to gather unformatted text from Excel data files.
 # It looks at all children of `el` for tag name `t` and returns
 # a join of all the strings found.
-function unformatted_text(el::EzXML.Node) :: String
+function unformatted_text(el::XML.Node) :: String
 
-    function gather_strings!(v::Vector{String}, e::EzXML.Node)
-        if EzXML.nodename(e) == "t"
-            push!(v, EzXML.nodecontent(e))
+    function gather_strings!(v::Vector{String}, e::XML.Node)
+        if XML.tag(e) == "t"
+            c = XML.children(e)
+            if length(c) == 1
+                push!(v, XML.value(c[1]))
+            else
+                push!(v, replace(XML.write(e), r" *\n *" => "")) # Don't want pretty printing.
+            end
         end
 
-        for ch in EzXML.eachelement(e)
-            if EzXML.nodename(e) != "rPh"
+        for ch in XML.children(e)
+            if XML.tag(e) != "rPh"
                 gather_strings!(v, ch)
             end 
         end
@@ -123,6 +128,7 @@ function unformatted_text(el::EzXML.Node) :: String
 
     v_string = Vector{String}()
     gather_strings!(v_string, el)
+#    println("sst131 : ",join(v_string))
     return join(v_string)
 end
 
