@@ -389,6 +389,7 @@ function strip_illegal_chars(x::String)
 #        result = replace(result, pat => r)
 #    end
 #    return result
+    return x
 end
 
 function xlsx_escape(x::String)# Adaped from XML.escape()
