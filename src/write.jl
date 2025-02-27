@@ -378,6 +378,7 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+
 const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
 #const ILLEGAL_CHARS = [Char(0x02) => " ", Char(0x12) => "&apos;", Char(0x16) => ""]
 #conts ILLEGAL_CHARS [r"\x00-\x08\x0B\x0E\x0F\x10-\x19" => ""]
@@ -403,12 +404,15 @@ function xlsx_escape(x::String)# Adaped from XML.escape()
     return result
 end
 
+
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
+
     sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(xlsx_escape(val)))
+
     return ("s", string(sst_ind))
 end
 

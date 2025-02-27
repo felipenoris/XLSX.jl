@@ -13,6 +13,7 @@ struct xpath
         new(node, path)
     end
 end
+
 function get_namespaces(r::XML.Node)::Dict{String,String}
     nss = Dict{String,String}()
     for (key, value) in XML.attributes(r)
@@ -27,6 +28,7 @@ function get_namespaces(r::XML.Node)::Dict{String,String}
     end
     return nss
 end
+
 function get_default_namespace(r::XML.Node)::String
     nss = get_namespaces(r)
 
@@ -88,6 +90,7 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     ef_book_1904_ptbr = XLSX.readxlsx(joinpath(data_directory, "book_1904_ptbr.xlsx"))
     ef_book_sparse = XLSX.readxlsx(joinpath(data_directory, "book_sparse.xlsx"))
     ef_book_sparse_2 = XLSX.readxlsx(joinpath(data_directory, "book_sparse_2.xlsx"))
+
     XLSX.readxlsx(joinpath(data_directory, "missing_numFmtId.xlsx"))["Koldioxid (CO2)"][7, 5]
 
     @test open(joinpath(data_directory, "blank_ptbr_1904.xlsx")) do io
@@ -1062,6 +1065,7 @@ end
     s2 = XLSX.addsheet!(f, big_sheetname)
 
     XLSX.writexlsx(new_filename, f, overwrite=true)
+
     #    @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
@@ -2124,6 +2128,7 @@ end
 end
 
 @testset "escape" begin
+
     # These tests are not sufficient. It may be possible using these tests (or similar) to create XLSX files
     # that are not valid Excel files and will not successfully open. I do not now how to test this here but
     # have successfully tested `output_table_escape_test.xlsx` and `escape.xlsx` manually.

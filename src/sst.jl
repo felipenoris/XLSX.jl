@@ -85,6 +85,7 @@ function sst_load!(workbook::Workbook)
                 @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
                 push!(sst.unformatted_strings, unformatted_text(el))
                 push!(sst.formatted_strings, XML.write(el))
+
             end
 
             init_sst_index(sst)
@@ -128,6 +129,7 @@ function unformatted_text(el::XML.Node) :: String
 
     v_string = Vector{String}()
     gather_strings!(v_string, el)
+#    println("sst131 : ",join(v_string))
     return join(v_string)
 end
 

@@ -230,6 +230,7 @@ Returns -1 if not found.
 function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
     elements_found = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
+
     if isempty(elements_found)
         return EmptyCellDataFormat()
     else
@@ -272,4 +273,5 @@ function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
     xroot[i][j]["count"] = string(existing_cellxf_elements_count + 1)
 
     return CellDataFormat(existing_cellxf_elements_count) # turns out this is the new index (because it's zero-based)
+
 end

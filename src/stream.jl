@@ -130,7 +130,6 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     # Expecting iterator to be at the first row element
     current_row = state.row
     current_row_ht = state.ht
-    
     rowcells = Dict{Int, Cell}() # column -> cell
     isnothing(lzstate) && return nothing
     next = iterate(reader, lzstate) # iterate through row cells
@@ -150,7 +149,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
             rowcells[column_number(cell)] = cell
             if cell_no == nc # when all cells found
+
                 sheet_row = SheetRow(get_worksheet(itr), current_row, current_row_ht, rowcells) # put them together in a sheet_row
+
                 break
             end
         end
@@ -162,8 +163,10 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
     # update state
     state.row = current_row
+
     state.ht = current_row_ht
     state.itr_state = lzstate
+
 
 
     return sheet_row, state
@@ -231,6 +234,7 @@ function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
 
     else
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
+
        if next === nothing
             return nothing
         end
