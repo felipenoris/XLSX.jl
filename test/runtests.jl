@@ -1562,7 +1562,7 @@ end
     end
 
     @testset "setBorder" begin
-        f = XLSX.open_xlsx_template(joinpath(data_directory, "borders.xlsx"))
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
         s = f["Sheet1"]
 
         @test isnothing(XLSX.getBorder(s, "A1"))
@@ -1589,7 +1589,7 @@ end
         @test XLSX.getcell(s, "D11") isa XLSX.EmptyCell
         @test isnothing(XLSX.getBorder(s, "D11")) # Cannot set a border in an EmptyCell (outside sheet dimension).
 
-        f = XLSX.open_xlsx_template(joinpath(data_directory, "borders.xlsx"))
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
         s = f["Sheet1"]
 
         XLSX.setUniformBorder(f, "Sheet1!A1:D4"; left=["style" => "dotted", "color" => "FF000FF0"],
