@@ -582,7 +582,7 @@ This can be more efficient when setting the same font for a large number of cell
 The value returned is the `fontId` of the font uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
-For keyword definitions see [`setFont()`](@Ref).
+For keyword definitions see [`setFont()`](@ref).
 
 # Examples:
 ```julia
@@ -988,7 +988,7 @@ This can be more efficient when setting the same border for a large number of ce
 The value returned is the `borderId` of the border uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
-For keyword definitions see [`setBorder()`](@Ref).
+For keyword definitions see [`setBorder()`](@ref).
 
 # Examples:
 ```julia
@@ -1026,7 +1026,7 @@ settings for all internal cells in the range will remain unchanged.
 
 The value returned is is -1.
 
-For keyword definitions see [`setBorder()`](@Ref).
+For keyword definitions see [`setBorder()`](@ref).
 
 # Examples:
 ```julia
@@ -1345,7 +1345,7 @@ This can be more efficient when setting the same fill for a large number of cell
 The value returned is the `fillId` of the fill uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
-For keyword definitions see [`setFill()`](@Ref).
+For keyword definitions see [`setFill()`](@ref).
 
 # Examples:
 ```julia
@@ -1594,7 +1594,7 @@ The value returned is the `styleId` of the reference (top-left) cell, from which
 alignment uniformly applied to the cells was taken.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
-For keyword definitions see [`setAlignment()`](@Re)f.
+For keyword definitions see [`setAlignment()`](@ref).
 
 # Examples:
 ```julia
