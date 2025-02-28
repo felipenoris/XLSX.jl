@@ -1802,7 +1802,7 @@ but may be very marginally more efficient.
 The value returned is the `numfmtId` of the format uniformly applied to the cells.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
-For keyword definitions see [`setFormat()`](@Ref).
+For keyword definitions see [`setFormat()`](@ref).
 
 # Examples:
 ```julia
