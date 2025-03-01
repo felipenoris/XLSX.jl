@@ -30,6 +30,8 @@ const PREDEFINED_NUMFMT_COUNT = 164
 const DEFAULT_DATE_numFmtId = 14 # dd-mm-yyyy
 const DEFAULT_TIME_numFmtId = 20 # h:mm
 const DEFAULT_DATETIME_numFmtId = 22 # dd-mm-yyyy h:mm
+const DEFAULT_NUMBER_numFmtId = 0 # General - seems like an OK default for now
+const DEFAULT_BOOL_numFmtId = 0 # General - seems like an OK default for now
 
 # Returns the default `CellDataFormat` for a type
 default_cell_format(::Worksheet, ::CellValueType) = EmptyCellDataFormat()
@@ -102,7 +104,7 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
         nchildren = length(XML.children(stylesheet))
-        numfmts = XML.Element("numFmts")                                                                                    
+        numfmts = XML.Element("numFmts", count="1")                                                                                    
         push!(stylesheet, stylesheet[end])
         for i in nchildren-1:-1:1
             stylesheet[i+1]=stylesheet[i]
@@ -116,37 +118,13 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt = XML.Element("numFmt";
         numFmtId = fmt_code,
-        formatCode = XML.escape(format_code)
+        formatCode = xlsx_escape(format_code)
     )
     push!(numfmts, new_fmt)
     return fmt_code
 end
 
-const FontAttribute = Union{AbstractString, Pair{String, Pair{String, String}}}
-
-# Defines a custom font. Returns the index to be used as the `fontId` in a cellXf definition.
-function styles_add_font(wb::Workbook, attributes::Vector{FontAttribute})
-    xroot = styles_xmlroot(wb)
-    fonts_element = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts", xroot)[begin]
-    existing_font_elements_count = length(XML.children(fonts_element))
-
-    new_font = XML.Element("font")
-    push!(fonts_element, new_font)
-    for a in attributes
-        if a isa Pair
-            name, val = last(a)
-            attr = XML.Element(first(a))
-            attr[name] = val
-            push!(new_font, attr)
-        else
-            a = XML.Element(a)
-            push!(new_font, a)
-        end
-    end
-
-    return existing_font_elements_count
-end
-
+const FontAttribute = Union{String, Pair{String, Pair{String, String}}}
 
 # Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
@@ -258,9 +236,9 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
     else
         for i in 1:length(elements_found)
             el = XML.attributes(elements_found[i])
-            if haskey(el, "numFmtId")
+            if !isnothing(el) && haskey(el, "numFmtId")
                 if parse(Int, el["numFmtId"]) == numFmtId
-                    return CellDataFormat(i-1)
+                    return CellDataFormat(i-1) # CellDataFormat is zero-indexed
                 end
             end
         end
@@ -270,15 +248,30 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
     end
 end
 
-function styles_add_cell_xf(wb::Workbook, attributes::Dict{String, String}) :: CellDataFormat
-    xroot = styles_xmlroot(wb)
-    cellXfs_element = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs", xroot)[begin]
-    existing_cellxf_elements_count = length(XML.children(cellXfs_element))
-
-    new_xf = XML.Element("xf")
+function styles_add_cell_xf(wb::Workbook, attributes::Dict{String,String})::CellDataFormat
+    new_xf = XML.Node(XML.Element, "xf", XML.OrderedDict{String, String}(), nothing, nothing)
     for k in keys(attributes)
         new_xf[k] = attributes[k]
     end
-    push!(cellXfs_element, new_xf)
-    return CellDataFormat(existing_cellxf_elements_count) # turns out this is the new index
+    return styles_add_cell_xf(wb, new_xf)
+end
+
+function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
+    xroot = styles_xmlroot(wb)
+    i, j = get_idces(xroot, "styleSheet", "cellXfs")
+    existing_cellxf_elements_count = length(XML.children(xroot[i][j]))
+    @assert parse(Int, xroot[i][j]["count"]) == existing_cellxf_elements_count "Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
+    # Check new_xf doesn't duplicate any existing xf. If yes, use that rather than create new.
+    # Need to work around XML.jl issue # 33
+    for (k, node) in enumerate(XML.children(xroot[i][j]))
+        #if XML.nodetype(node) == XML.nodetype(new_xf) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_xf)) # XML.jl defines `Base.:(==)`
+        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_xf))[1] # XML.jl defines `Base.:(==)`
+            return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
+        end
+    end
+    push!(xroot[i][j], new_xf)
+    xroot[i][j]["count"] = string(existing_cellxf_elements_count + 1)
+
+    return CellDataFormat(existing_cellxf_elements_count) # turns out this is the new index (because it's zero-based)
+
 end

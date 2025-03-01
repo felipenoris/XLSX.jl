@@ -66,7 +66,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
                 continue
             end
             ZipArchives.zip_newfile(xlsx, f; compress=true)
-            write(xlsx, replace(XML.write(xf.data[f]), r" *\n *" => "")) # Don't want pretty printing.
+            write(xlsx, XML.write(xf.data[f]))
         end
 
         # write binary files
@@ -149,7 +149,7 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
     for c in XML.children(node)
         if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
             node_tag = XML.tag(c)
-            if !occursin(":", node_tag)
+             if !occursin(":", node_tag)
                 node_tag = default_ns * ":" * node_tag
             end
             npath = path * "/" * node_tag
@@ -181,9 +181,16 @@ function get_idces(doc, t, b)
     j=1
     while XML.tag(doc[i]) != t
         i+=1
+        if i > length(XML.children(doc))
+            return nothing, nothing
+        end
+
     end
     while XML.tag(doc[i][j]) != b
         j+=1
+        if j > length(XML.children(doc[i]))
+            return i, nothing
+        end
     end
     return i, j
 end
@@ -209,6 +216,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         handled_attributes = Set{String}([
             "r",     # the row number
             "spans", # the columns the row spans
+            "ht",    # the row height
         ])
 
         let
@@ -265,6 +273,10 @@ function update_worksheets_xml!(xl::XLSXFile)
             row_node = XML.Element("row"; r = string(row_nr))
             if spans_str != ""
                 row_node["spans"] = spans_str
+            end
+            if !isnothing(r.ht)
+                row_node["ht"] = string(r.ht)
+                row_node["customHeight"] = "1"
             end
 
             if haskey(unhandled_attributes, row_nr)
@@ -357,6 +369,7 @@ function setdata!(ws::Worksheet, cell::Cell)
     if !haskey(cache.cells, r)
         push!(cache.rows_in_cache, r)
         cache.cells[r] = Dict{Int, Cell}()
+        cache.row_ht[r] = nothing
         cache.dirty = true
     end
     cache.cells[r][c] = cell
@@ -365,12 +378,41 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+
+const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
+#const ILLEGAL_CHARS = [Char(0x02) => " ", Char(0x12) => "&apos;", Char(0x16) => ""]
+#conts ILLEGAL_CHARS [r"\x00-\x08\x0B\x0E\x0F\x10-\x19" => ""]
+
+function strip_illegal_chars(x::String)
+# Not implemented yet!
+#    result = x
+#    for (pat, r) in ILLEGAL_CHARS
+#        result = replace(result, pat => r)
+#    end
+#    return result
+    return x
+end
+
+function xlsx_escape(x::String)# Adaped from XML.escape()
+
+    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
+
+    for (pat, r) in ESCAPE_CHARS[2:end]
+        result = replace(result, pat => r)
+    end
+
+    return result
+end
+
+
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
-    sst_ind = add_shared_string!(get_workbook(ws), XML.escape(val))
+
+    sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(xlsx_escape(val)))
+
     return ("s", string(sst_ind))
 end
 
@@ -389,9 +431,8 @@ end
 
 # convert AbstractTypes to concrete
 setdata!(ws::Worksheet, ref::CellRef, val::AbstractString) = setdata!(ws, ref, CellValue(ws, convert(String, val)))
-setdata!(ws::Worksheet, ref::CellRef, val::Bool) = setdata!(ws, ref, CellValue(ws, val))
-setdata!(ws::Worksheet, ref::CellRef, val::Integer) = setdata!(ws, ref, CellValue(ws, convert(Int, val)))
-setdata!(ws::Worksheet, ref::CellRef, val::Real) = setdata!(ws, ref, CellValue(ws, convert(Float64, val)))
+setdata!(ws::Worksheet, ref::CellRef, val::Integer) = setdata!(ws, ref, convert(Int, val))
+setdata!(ws::Worksheet, ref::CellRef, val::Real) = setdata!(ws, ref, convert(Float64, val))
 
 # convert nothing to missing when writing
 setdata!(ws::Worksheet, ref::CellRef, ::Nothing) = setdata!(ws, ref, CellValue(ws, missing))
@@ -404,7 +445,39 @@ Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
 Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
 
-setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
+
+function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existing cell format if it exists
+    c = getcell(ws, ref)
+    if c isa EmptyCell || c.style == ""
+        return setdata!(ws, ref, CellValue(ws, val))
+    else
+        existing_style = CellDataFormat(parse(Int, c.style))
+        isa_dt = styles_is_datetime(ws.package.workbook, existing_style)
+        if val isa Dates.Date
+            if isa_dt == false
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_DATE_numFmtId).id)
+            end
+        elseif val isa Dates.Time
+            if isa_dt == false
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_TIME_numFmtId).id)
+            end
+        elseif val isa Dates.DateTime
+            if isa_dt == false
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_DATETIME_numFmtId).id)
+            end
+        elseif val isa Float64 || val isa Int
+            if styles_is_float(ws.package.workbook, existing_style) == false && Int(existing_style.id) ∉ [0, 1]
+                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_NUMBER_numFmtId).id)
+            end
+        elseif val isa Bool # Now rerouted here rather than assigning an EmptyCellDataFormat.
+                            # Change any style to General (0) and retiain other formatting.
+            c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_BOOL_numFmtId).id)
+        end
+
+        return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
+    end
+end
+# setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
 setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
 setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
 setdata!(ws::Worksheet, row::Integer, col::Integer, data) = setdata!(ws, CellRef(row, col), data)
@@ -491,7 +564,7 @@ end
         write_columnnames::Bool=true,
     )
 
-Writes tabular data `data` with labels given by `columnnames` to `sheet`,
+Write tabular data `data` with labels given by `columnnames` to `sheet`,
 starting at `anchor_cell`.
 
 `data` must be a vector of columns.
@@ -527,15 +600,18 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-            sheet[target_cell_ref] = XML.escape(string(columnnames[c]))
+            sheet[target_cell_ref] = strip_illegal_chars(xlsx_escape(string(columnnames[c])))
         end
         start_from_anchor = 0
     end
 
     # write table data
-    for r in 1:row_count, c in 1:col_count
-        target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
-        sheet[target_cell_ref] = data[c][r] isa String ? XML.escape(data[c][r]) : data[c][r]
+    for c in 1:col_count
+        for r in 1:row_count
+            target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
+            v = data[c][r]
+            sheet[target_cell_ref] = v isa String ? strip_illegal_chars(xlsx_escape(v)) : v
+        end
     end
 end
 
@@ -658,10 +734,11 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
-    state =  SheetRowStreamIteratorState(reader, nothing, 0)
+    state =  SheetRowStreamIteratorState(reader, nothing, 0, nothing)
     ws.cache = XLSX.WorksheetCache(
         Dict{Int64, Dict{Int64, XLSX.Cell}}(),
         Int64[],
+        Dict{Int, Union{Float64, Nothing}}(),
         Dict{Int64, Int64}(),
         SheetRowStreamIterator(ws),
         state,
@@ -670,6 +747,15 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
+
+    # update [Content_Types].xml (fix for issue #275)
+    ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
+    @assert XML.tag(ctype_root) == "Types"
+    override_node = XML.Element("Override";
+        ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+        PartName = "/xl/worksheets/sheet$sheetId.xml"
+    )
+    push!(ctype_root, override_node)
 
     # updates workbook xml
     xroot = xmlroot(xf, "xl/workbook.xml")[end]

@@ -458,3 +458,5 @@ const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
 is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLNAME, s)
 is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)
+
+is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings

@@ -236,6 +236,19 @@ julia> cell = XLSX.getcell(sheet, "A1")
 """
 function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
 
+    # Access cache directly if it exists and if file `isread` - much faster!
+    if is_cache_enabled(ws) && ws.cache !== nothing
+        if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet$(ws.sheetId).xml") && get_xlsxfile(ws).files["xl/worksheets/sheet$(ws.sheetId).xml"] == true
+            if single.row_number ∈ ws.cache.rows_in_cache
+                if haskey(ws.cache.cells[single.row_number], single.column_number)
+                    return ws.cache.cells[single.row_number][single.column_number]
+                end
+            end
+            return EmptyCell(single)
+        end
+    end
+
+    # If can't use cache then iterate sheetrows
     for sheetrow in eachrow(ws)
         if row_number(sheetrow) == row_number(single)
             return getcell(sheetrow, column_number(single))

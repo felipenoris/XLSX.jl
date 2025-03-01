@@ -66,6 +66,63 @@ struct ReferencedFormula <: AbstractFormula
     ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae
 end
 
+mutable struct CellFont
+    fontId::Int
+    font::Dict{String, Union{Dict{String, String}, Nothing}} # fontAttribute -> (attribute -> value)
+    applyFont::String
+
+    function CellFont(fontid::Int, font::Dict{String, Union{Dict{String, String}, Nothing}}, applyFont::String)
+        return new(fontid, font, applyFont)
+    end
+end
+
+# A border postion element (e.g. `top` or `left`) has a style attribute, but `color` is a child element.
+# The `color` element has an attribute (e.g. `rgb`) that defines the color of the border.
+# These are both stored in the `border` field of `CellBorder`. The key for the color element
+# will vary depending on how the color is defined (e.g. `rgb`, `indexed`, `auto`, etc.).
+# Thus, for example, `"top" => Dict("style" => "thin", "rgb" => "FF000000")`
+mutable struct CellBorder
+    borderId::Int
+    border::Dict{String, Union{Dict{String, String}, Nothing}} # borderAttribute -> (attribute -> value)
+    applyBorder::String
+
+    function CellBorder(borderid::Int, border::Dict{String, Union{Dict{String, String}, Nothing}}, applyBorder::String)
+        return new(borderid, border, applyBorder)
+    end
+end
+
+# A fill has a pattern type attribute and two children fgColor and bgColor, each with 
+# one or two attributes of their own. These color attributes are pushed in to the Dict 
+# of attributes with either `fg` or `bg` prepended to their name to support later 
+# reconstruction of the xml element.
+mutable struct CellFill
+    fillId::Int
+    fill::Dict{String, Union{Dict{String, String}, Nothing}} # fillAttribute -> (attribute -> value)
+    applyFill::String
+
+    function CellFill(fillid::Int, fill::Dict{String, Union{Dict{String, String}, Nothing}}, applyfill::String)
+        return new(fillid, fill, applyfill)
+    end
+end
+mutable struct CellFormat
+    numFmtId::Int
+    format::Dict{String, Union{Dict{String, String}, Nothing}} # fillAttribute -> (attribute -> value)
+    applyNumberFormat::String
+
+    function CellFormat(formatid::Int, format::Dict{String, Union{Dict{String, String}, Nothing}}, applynumberformat::String)
+        return new(formatid, format, applynumberformat)
+    end
+end
+
+mutable struct CellAlignment # Alignment is part of the cell style `xf` so doesn't need an Id
+    alignment::Dict{String, Union{Dict{String, String}, Nothing}} # alignmentAttribute -> (attribute -> value)
+    applyAlignment::String
+
+    function CellAlignment(alignment::Dict{String, Union{Dict{String, String}, Nothing}}, applyalignment::String)
+        return new(alignment, applyalignment)
+    end
+end
+
 abstract type AbstractCell end
 
 mutable struct Cell <: AbstractCell
@@ -168,7 +225,7 @@ end
 Relationships are defined in ECMA-376-1 Section 9.2.
 This struct matches the `Relationship` tag attribute names.
 
-A `Relashipship` defines relations between the files inside a MSOffice package.
+A `Relationship` defines relations between the files inside a MSOffice package.
 Regarding Spreadsheets, there are two kinds of relationships:
 
     * package level: defined in `_rels/.rels`.
@@ -197,11 +254,13 @@ mutable struct SheetRowStreamIteratorState
     itr::XML.LazyNode # Worksheet being processed
     itr_state::Union{Nothing, XML.LazyNode} # Worksheet state
     row::Int # number of current row in the worksheet. It´s set to 0 in the start state.
+    ht::Union{Float64, Nothing} # row height
 end
 
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
     cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
     rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
+    row_ht::Dict{Int, Union{Float64, Nothing}} # Maps a row number to a row height
     row_index::Dict{Int, Int} # maps a row number to the index of the row number in rows_in_cache
     stream_iterator::I
     stream_state::Union{Nothing, SheetRowStreamIteratorState}
@@ -306,7 +365,8 @@ end
 
 struct SheetRow
     sheet::Worksheet
-    row::Int # index of the row in the worksheet
+    row::Int                  # index of the row in the worksheet
+    ht::Union{Float64, Nothing}   # row height
     rowcells::Dict{Int, Cell} # column -> value
 end
 

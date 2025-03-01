@@ -50,7 +50,7 @@ Counts the number of sheets in the Workbook.
 
 function getsheet(wb::Workbook, sheetname::String) :: Worksheet
     for ws in wb.sheets
-        if ws.name == XML.escape(sheetname)
+        if ws.name == xlsx_escape(sheetname)
             return ws
         end
     end

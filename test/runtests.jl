@@ -13,8 +13,9 @@ struct xpath
         new(node, path)
     end
 end
-function get_namespaces(r::XML.Node) :: Dict{String, String}
-    nss = Dict{String, String}()
+
+function get_namespaces(r::XML.Node)::Dict{String,String}
+    nss = Dict{String,String}()
     for (key, value) in XML.attributes(r)
         if startswith(key, "xmlns")
             prefix = split(key, ':')
@@ -27,13 +28,14 @@ function get_namespaces(r::XML.Node) :: Dict{String, String}
     end
     return nss
 end
-function get_default_namespace(r::XML.Node) :: String
+
+function get_default_namespace(r::XML.Node)::String
     nss = get_namespaces(r)
 
     # in case that only one namespace is defined, assume that it is the default one
     # even if it has a prefix
     length(nss) == 1 && return first(values(nss))
-    
+
     # otherwise, look for the default namespace (without prefix)
     for (prefix, ns) in nss
         if prefix == ""
@@ -70,11 +72,11 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
             end
             npath = path * "/" * node_tag
             push!(xpaths, xpath(c, npath))
-            if length(XML.children(c))>0
+            if length(XML.children(c)) > 0
                 get_node_paths!(xpaths, c, default_ns, npath)
             end
         end
-    end 
+    end
     return nothing
 end
 
@@ -88,9 +90,12 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     ef_book_1904_ptbr = XLSX.readxlsx(joinpath(data_directory, "book_1904_ptbr.xlsx"))
     ef_book_sparse = XLSX.readxlsx(joinpath(data_directory, "book_sparse.xlsx"))
     ef_book_sparse_2 = XLSX.readxlsx(joinpath(data_directory, "book_sparse_2.xlsx"))
-    XLSX.readxlsx(joinpath(data_directory, "missing_numFmtId.xlsx"))["Koldioxid (CO2)"][7,5]
-    
-    @test open(joinpath(data_directory, "blank_ptbr_1904.xlsx")) do io XLSX.readxlsx(io) end isa XLSX.XLSXFile
+
+    XLSX.readxlsx(joinpath(data_directory, "missing_numFmtId.xlsx"))["Koldioxid (CO2)"][7, 5]
+
+    @test open(joinpath(data_directory, "blank_ptbr_1904.xlsx")) do io
+        XLSX.readxlsx(io)
+    end isa XLSX.XLSXFile
 
     @test ef_Book1.source == joinpath(data_directory, "Book1.xlsx")
     @test length(keys(ef_Book1.data)) > 0
@@ -103,7 +108,7 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     @test XLSX.isdate1904(ef_blank_ptbr_1904)
     @test XLSX.isdate1904(ef_book_1904_ptbr)
 
-    @test XLSX.sheetnames(ef_Book1) == [ "Sheet1", "Sheet2" ]
+    @test XLSX.sheetnames(ef_Book1) == ["Sheet1", "Sheet2"]
     @test XLSX.sheetcount(ef_Book1) == 2
     @test ef_Book1["Sheet1"].name == "Sheet1"
     @test ef_Book1[1].name == "Sheet1"
@@ -204,209 +209,9 @@ end
     @test XLSX.row_number(cn) == XLSX.EXCEL_MAX_ROWS
     @test XLSX.column_number(cn) == XLSX.EXCEL_MAX_COLS
 
-    v_column_numbers = [1
-    ,    15
-    ,    22
-    ,    23
-    ,    24
-    ,    25
-    ,    26
-    ,    27
-    ,    28
-    ,    29
-    ,    30
-    ,    38
-    ,    39
-    ,    40
-    ,    41
-    ,    42
-    ,    43
-    ,    44
-    ,    45
-    ,    46
-    ,    47
-    ,    48
-    ,    49
-    ,    50
-    ,    51
-    ,    52
-    ,    53
-    ,    54
-    ,    55
-    ,    56
-    ,    57
-    ,    58
-    ,    59
-    ,    60
-    ,    61
-    ,    74
-    ,    75
-    ,    76
-    ,    77
-    ,    78
-    ,    79
-    ,    80
-    ,    81
-    ,    82
-    ,    83
-    ,    84
-    ,    85
-    ,    86
-    ,   284
-    ,   285
-    ,   286
-    ,   287
-    ,   288
-    ,   289
-    ,   296
-    ,   297
-    ,   299
-    ,   300
-    ,   301
-    ,   700
-    ,   701
-    ,   702
-    ,   703
-    ,   704
-    ,   705
-    ,   706
-    ,   727
-    ,   728
-    ,   729
-    ,   730
-    ,   731
-    ,  1008
-    ,  1013
-    ,  1014
-    ,  1015
-    ,  1016
-    ,  1017
-    ,  1018
-    ,  1023
-    ,  1024
-    ,  1376
-    ,  1377
-    ,  1378
-    ,  1379
-    ,  1380
-    ,  1381
-    ,  3379
-    ,  3380
-    ,  3381
-    ,  3382
-    ,  3383
-    ,  3403
-    ,  3404
-    ,  3405
-    ,  3406
-    ,  3407
-    , 16250
-    , 16251
-    , 16354
-    , 16355
-    , 16384]
+    v_column_numbers = [1, 15, 22, 23, 24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 284, 285, 286, 287, 288, 289, 296, 297, 299, 300, 301, 700, 701, 702, 703, 704, 705, 706, 727, 728, 729, 730, 731, 1008, 1013, 1014, 1015, 1016, 1017, 1018, 1023, 1024, 1376, 1377, 1378, 1379, 1380, 1381, 3379, 3380, 3381, 3382, 3383, 3403, 3404, 3405, 3406, 3407, 16250, 16251, 16354, 16355, 16384]
 
-    v_column_names = [  "A"
-    , "O"
-    , "V"
-    , "W"
-    , "X"
-    , "Y"
-    , "Z"
-    , "AA"
-    , "AB"
-    , "AC"
-    , "AD"
-    , "AL"
-    , "AM"
-    , "AN"
-    , "AO"
-    , "AP"
-    , "AQ"
-    , "AR"
-    , "AS"
-    , "AT"
-    , "AU"
-    , "AV"
-    , "AW"
-    , "AX"
-    , "AY"
-    , "AZ"
-    , "BA"
-    , "BB"
-    , "BC"
-    , "BD"
-    , "BE"
-    , "BF"
-    , "BG"
-    , "BH"
-    , "BI"
-    , "BV"
-    , "BW"
-    , "BX"
-    , "BY"
-    , "BZ"
-    , "CA"
-    , "CB"
-    , "CC"
-    , "CD"
-    , "CE"
-    , "CF"
-    , "CG"
-    , "CH"
-    , "JX"
-    , "JY"
-    , "JZ"
-    , "KA"
-    , "KB"
-    , "KC"
-    , "KJ"
-    , "KK"
-    , "KM"
-    , "KN"
-    , "KO"
-    , "ZX"
-    , "ZY"
-    , "ZZ"
-    , "AAA"
-    , "AAB"
-    , "AAC"
-    , "AAD"
-    , "AAY"
-    , "AAZ"
-    , "ABA"
-    , "ABB"
-    , "ABC"
-    , "ALT"
-    , "ALY"
-    , "ALZ"
-    , "AMA"
-    , "AMB"
-    , "AMC"
-    , "AMD"
-    , "AMI"
-    , "AMJ"
-    , "AZX"
-    , "AZY"
-    , "AZZ"
-    , "BAA"
-    , "BAB"
-    , "BAC"
-    , "DYY"
-    , "DYZ"
-    , "DZA"
-    , "DZB"
-    , "DZC"
-    , "DZW"
-    , "DZX"
-    , "DZY"
-    , "DZZ"
-    , "EAA"
-    , "WZZ"
-    , "XAA"
-    , "XDZ"
-    , "XEA"
-    , "XFD"]
+    v_column_names = ["A", "O", "V", "W", "X", "Y", "Z", "AA", "AB", "AC", "AD", "AL", "AM", "AN", "AO", "AP", "AQ", "AR", "AS", "AT", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BD", "BE", "BF", "BG", "BH", "BI", "BV", "BW", "BX", "BY", "BZ", "CA", "CB", "CC", "CD", "CE", "CF", "CG", "CH", "JX", "JY", "JZ", "KA", "KB", "KC", "KJ", "KK", "KM", "KN", "KO", "ZX", "ZY", "ZZ", "AAA", "AAB", "AAC", "AAD", "AAY", "AAZ", "ABA", "ABB", "ABC", "ALT", "ALY", "ALZ", "AMA", "AMB", "AMC", "AMD", "AMI", "AMJ", "AZX", "AZY", "AZZ", "BAA", "BAB", "BAC", "DYY", "DYZ", "DZA", "DZB", "DZC", "DZW", "DZX", "DZY", "DZZ", "EAA", "WZZ", "XAA", "XDZ", "XEA", "XFD"]
 
     @assert length(v_column_names) == length(v_column_numbers) "Test script is wrong."
 
@@ -563,7 +368,7 @@ end
     @test hash(dct["a"]) == hash(XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", ""))
 
     sheet2 = f[2]
-    sheet2_data = [ 1 2 3 ; 4 5 6 ; 7 8 9 ]
+    sheet2_data = [1 2 3; 4 5 6; 7 8 9]
     @test sheet2_data == sheet2["A1:C3"]
     @test sheet2_data == sheet2[:]
     @test sheet2[:] == XLSX.getdata(sheet2)
@@ -571,13 +376,13 @@ end
 
 @testset "Time and DateTime" begin
     @test XLSX.excel_value_to_time(0.82291666666666663) == Dates.Time(Dates.Hour(19), Dates.Minute(45))
-    @test XLSX.time_to_excel_value( XLSX.excel_value_to_time(0.2) ) == 0.2
+    @test XLSX.time_to_excel_value(XLSX.excel_value_to_time(0.2)) == 0.2
     @test XLSX.excel_value_to_datetime(43206.805447106482, false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
-    @test XLSX.excel_value_to_datetime(XLSX.datetime_to_excel_value(Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51)),false ), false ) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
+    @test XLSX.excel_value_to_datetime(XLSX.datetime_to_excel_value(Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51)), false), false) == Date(2018, 4, 16) + Dates.Time(Dates.Hour(19), Dates.Minute(19), Dates.Second(51))
 
-    dt = Date(2018,4,1)
-    @test XLSX.excel_value_to_date(XLSX.date_to_excel_value( dt, false), false) == dt
-    @test XLSX.excel_value_to_date(XLSX.date_to_excel_value( dt, true), true) == dt
+    dt = Date(2018, 4, 1)
+    @test XLSX.excel_value_to_date(XLSX.date_to_excel_value(dt, false), false) == dt
+    @test XLSX.excel_value_to_date(XLSX.date_to_excel_value(dt, true), true) == dt
 end
 
 @testset "number formats" begin
@@ -679,10 +484,10 @@ end
 @testset "book_1904_ptbr.xlsx" begin
     f = XLSX.readxlsx(joinpath(data_directory, "book_1904_ptbr.xlsx"))
 
-    @test f["Plan1"][:] == Any[ "Coluna A" "Coluna B" "Coluna C" "Coluna D";
-                                10 10.5 Date(2018, 3, 22) "linha 2";
-                                20 20.5 Date(2017, 12, 31) "linha 3";
-                                30 30.5 Date(2018, 1, 1) "linha 4" ]
+    @test f["Plan1"][:] == Any["Coluna A" "Coluna B" "Coluna C" "Coluna D";
+        10 10.5 Date(2018, 3, 22) "linha 2";
+        20 20.5 Date(2017, 12, 31) "linha 3";
+        30 30.5 Date(2018, 1, 1) "linha 4"]
 
     @test f["Plan2"]["A1"] == "Merge de A1:D1"
     @test ismissing(f["Plan2"]["B1"])
@@ -733,18 +538,18 @@ end
     @test length(cr) == 3
     @test_throws AssertionError XLSX.ColumnRange("B1:D3")
     @test_throws AssertionError XLSX.ColumnRange("D:A")
-    @test collect(cr) == [ "B", "C", "D" ]
+    @test collect(cr) == ["B", "C", "D"]
     @test XLSX.ColumnRange("B:D") == XLSX.ColumnRange("B:D")
     @test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
 end
 
 @testset "CellRange iterator" begin
     rng = XLSX.CellRange("A2:C4")
-    @test collect(rng) == [ XLSX.CellRef("A2"), XLSX.CellRef("B2"), XLSX.CellRef("C2"), XLSX.CellRef("A3"), XLSX.CellRef("B3"), XLSX.CellRef("C3"), XLSX.CellRef("A4"), XLSX.CellRef("B4"), XLSX.CellRef("C4") ]
+    @test collect(rng) == [XLSX.CellRef("A2"), XLSX.CellRef("B2"), XLSX.CellRef("C2"), XLSX.CellRef("A3"), XLSX.CellRef("B3"), XLSX.CellRef("C3"), XLSX.CellRef("A4"), XLSX.CellRef("B4"), XLSX.CellRef("C4")]
 end
 
 # Checks whether `data` equals `test_data`
-function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S, T}
+function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S,T}
 
     @test length(data) == length(test_data)
 
@@ -765,8 +570,8 @@ function check_test_data(data::Vector{S}, test_data::Vector{T}) where {S, T}
 
         if test_value === nothing
             @test ismissing(value)
-        elseif ismissing(test_value) || ( isa(test_value, AbstractString) && isempty(test_value) )
-            @test ismissing(value) || ( isa(value, AbstractString) && isempty(value) )
+        elseif ismissing(test_value) || (isa(test_value, AbstractString) && isempty(test_value))
+            @test ismissing(value) || (isa(value, AbstractString) && isempty(value))
         else
             if isa(test_value, Integer) || isa(value, Integer)
                 @test isa(test_value, Integer)
@@ -822,34 +627,34 @@ end
             end
         end
 
-        @test report == [ "2 - (2, 2)", "3 - (3, 4)", "6 - (1, 4)", "9 - (2, 5)"]
+        @test report == ["2 - (2, 2)", "3 - (3, 4)", "6 - (1, 4)", "9 - (2, 5)"]
     end
 
     XLSX.openxlsx(joinpath(data_directory, "general.xlsx")) do f
-        f["general"][:];
+        f["general"][:]
     end
 
     f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
     s = f["table"]
-    s[:];
+    s[:]
     dtable = XLSX.gettable(s)
     data, col_names = dtable.data, dtable.column_labels
-    @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+    @test col_names == [Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
     test_data[1] = collect(1:8)
-    test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
-    test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
-    test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing ]
-    test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
-    test_data[6] = [ missing for i in 1:8 ]
+    test_data[2] = ["Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2"]
+    test_data[3] = [Date(2018, 4, 21) + Dates.Day(i) for i in 0:7]
+    test_data[4] = [missing, missing, missing, missing, missing, "a", "b", missing]
+    test_data[5] = [0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883]
+    test_data[6] = [missing for i in 1:8]
 
     check_test_data(data, test_data)
 
     @test XLSX.infer_eltype(data[1]) == Int
-    @test XLSX.infer_eltype(data[2]) == Union{Missing, String}
+    @test XLSX.infer_eltype(data[2]) == Union{Missing,String}
     @test XLSX.infer_eltype(data[3]) == Date
-    @test XLSX.infer_eltype(data[4]) == Union{Missing, String}
+    @test XLSX.infer_eltype(data[4]) == Union{Missing,String}
     @test XLSX.infer_eltype(data[5]) == Float64
     @test XLSX.infer_eltype(data[6]) == Any
     @test XLSX.infer_eltype(Vector{Int}()) == Int
@@ -863,9 +668,9 @@ end
     dtable_inferred = XLSX.gettable(s, infer_eltypes=true)
     data_inferred, col_names = dtable_inferred.data, dtable_inferred.column_labels
     @test eltype(data_inferred[1]) == Int
-    @test eltype(data_inferred[2]) == Union{Missing, String}
+    @test eltype(data_inferred[2]) == Union{Missing,String}
     @test eltype(data_inferred[3]) == Date
-    @test eltype(data_inferred[4]) == Union{Missing, String}
+    @test eltype(data_inferred[4]) == Union{Missing,String}
     @test eltype(data_inferred[5]) == Float64
     @test eltype(data_inferred[6]) == Any
 
@@ -885,21 +690,21 @@ end
 
     dtable = XLSX.gettable(s, stop_in_row_function=stop_function)
     data, col_names = dtable.data, dtable.column_labels
-    @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+    @test col_names == [Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
     test_data[1] = collect(1:4)
-    test_data[2] = [ "Str1", missing, "Str1", "Str1" ]
-    test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:3 ]
-    test_data[4] = [ missing, missing, missing, missing ]
-    test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067 ]
-    test_data[6] = [ missing for i in 1:4 ]
+    test_data[2] = ["Str1", missing, "Str1", "Str1"]
+    test_data[3] = [Date(2018, 4, 21) + Dates.Day(i) for i in 0:3]
+    test_data[4] = [missing, missing, missing, missing]
+    test_data[5] = [0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067]
+    test_data[6] = [missing for i in 1:4]
 
     check_test_data(data, test_data)
 
     dtable = XLSX.gettable(s, stop_in_empty_row=false)
     data, col_names = dtable.data, dtable.column_labels
-    @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+    @test col_names == [Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     # test keep_empty_rows
     for (stop_in_empty_row, keep_empty_rows, n_rows) in [
@@ -913,13 +718,13 @@ end
     end
 
     test_data = Vector{Any}(undef, 6)
-    test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash" ]
-    test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2", missing ]
-    test_data[3] = Any[ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
+    test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, "trash"]
+    test_data[2] = ["Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2", missing]
+    test_data[3] = Any[Date(2018, 4, 21) + Dates.Day(i) for i in 0:7]
     push!(test_data[3], "trash")
-    test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing, missing ]
-    test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883, "trash" ]
-    test_data[6] = Any[ missing for i in 1:8 ]
+    test_data[4] = [missing, missing, missing, missing, missing, "a", "b", missing, missing]
+    test_data[5] = [0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883, "trash"]
+    test_data[6] = Any[missing for i in 1:8]
     push!(test_data[6], "trash")
 
     check_test_data(data, test_data)
@@ -958,9 +763,9 @@ end
 
     s = f["table2"]
     test_data = Vector{Any}(undef, 3)
-    test_data[1] = [ "A1", "A2", "A3", missing ]
-    test_data[2] = [ "B1", "B2", missing, "B4"]
-    test_data[3] = [ missing, missing, missing, missing ]
+    test_data[1] = ["A1", "A2", "A3", missing]
+    test_data[2] = ["B1", "B2", missing, "B4"]
+    test_data[3] = [missing, missing, missing, missing]
 
     dtable = XLSX.gettable(s)
     data, col_names = dtable.data, dtable.column_labels
@@ -985,8 +790,8 @@ end
         @test_throws ErrorException XLSX.getdata(rowdata, :INVALID_COLUMN)
     end
 
-    override_col_names_strs = [ "ColumnA", "ColumnB", "ColumnC" ]
-    override_col_names = [ Symbol(i) for i in override_col_names_strs ]
+    override_col_names_strs = ["ColumnA", "ColumnB", "ColumnC"]
+    override_col_names = [Symbol(i) for i in override_col_names_strs]
 
     dtable = XLSX.gettable(s, column_labels=override_col_names_strs)
     data, col_names = dtable.data, dtable.column_labels
@@ -1019,22 +824,22 @@ end
 
     dtable = XLSX.gettable(s, "B:C")
     data, col_names = dtable.data, dtable.column_labels
-    @test col_names == [ :HB, :HC ]
+    @test col_names == [:HB, :HC]
     test_data_BC_cols = Vector{Any}(undef, 2)
     test_data_BC_cols[1] = ["B1", "B2"]
-    test_data_BC_cols[2] = [ missing, missing]
+    test_data_BC_cols[2] = [missing, missing]
     check_test_data(data, test_data_BC_cols)
 
     dtable = XLSX.gettable(s, "B:C", first_row=2, header=false)
     data, col_names = dtable.data, dtable.column_labels
-    @test col_names == [ :B, :C ]
+    @test col_names == [:B, :C]
     check_test_data(data, test_data_BC_cols)
 
     s = f["table3"]
     test_data = Vector{Any}(undef, 3)
-    test_data[1] = [ missing, missing, "B5" ]
-    test_data[2] = [ "C3", missing, missing ]
-    test_data[3] = [ missing, "D4", missing ]
+    test_data[1] = [missing, missing, "B5"]
+    test_data[2] = ["C3", missing, missing]
+    test_data[3] = [missing, "D4", missing]
     dtable = XLSX.gettable(s)
     data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
@@ -1069,30 +874,30 @@ end
     end
 
     @testset "sheets 6/7/lookup/header_error" begin
-        f = XLSX.readxlsx(joinpath(data_directory,"general.xlsx"))
+        f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
         tb5 = f["table5"]
         test_data = Vector{Any}(undef, 1)
         test_data[1] = [1, 2, 3, 4, 5]
         dtable = XLSX.gettable(tb5)
         data, col_names = dtable.data, dtable.column_labels
-        @test col_names == [ :HEADER ]
+        @test col_names == [:HEADER]
         check_test_data(data, test_data)
         tb6 = f["table6"]
         dtable = XLSX.gettable(tb6, first_row=3)
         data, col_names = dtable.data, dtable.column_labels
-        @test col_names == [ :HEADER ]
+        @test col_names == [:HEADER]
         check_test_data(data, test_data)
         tb7 = f["table7"]
         dtable = XLSX.gettable(tb7, first_row=3)
         data, col_names = dtable.data, dtable.column_labels
-        @test col_names == [ :HEADER ]
+        @test col_names == [:HEADER]
         check_test_data(data, test_data)
 
         sheet_lookup = f["lookup"]
         test_data = Vector{Any}(undef, 3)
-        test_data[1] = [ 10, 20, 30]
-        test_data[2] = [ "name1", "name2", "name3" ]
-        test_data[3] = [ 100, 200, 300 ]
+        test_data[1] = [10, 20, 30]
+        test_data[2] = ["name1", "name2", "name3"]
+        test_data[3] = [100, 200, 300]
         dtable = XLSX.gettable(sheet_lookup)
         data, col_names = dtable.data, dtable.column_labels
         @test col_names == [:ID, :NAME, :VALUE]
@@ -1124,9 +929,9 @@ end
 @testset "Helper functions" begin
 
     test_data = Vector{Any}(undef, 3)
-    test_data[1] = [ missing, missing, "B5" ]
-    test_data[2] = [ "C3", missing, missing ]
-    test_data[3] = [ missing, "D4", missing ]
+    test_data[1] = [missing, missing, "B5"]
+    test_data[2] = ["C3", missing, missing]
+    test_data[3] = [missing, "D4", missing]
 
     dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4")
     data, col_names = dtable.data, dtable.column_labels
@@ -1145,7 +950,7 @@ end
     check_test_data(data, test_data)
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "table4", "E12") == "H1"
-    test_data = Array{Any, 2}(undef, 2, 1)
+    test_data = Array{Any,2}(undef, 2, 1)
     test_data[1, 1] = "H2"
     test_data[2, 1] = "C3"
 
@@ -1154,14 +959,14 @@ end
     @testset "readtable select single column" begin
         dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F")
         data, col_names = dtable.data, dtable.column_labels
-        @test col_names == [ :H2 ]
+        @test col_names == [:H2]
         @test data == Any[Any["C3"]]
     end
 
     @testset "readtable select column range" begin
         dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4", "F:G")
         data, col_names = dtable.data, dtable.column_labels
-        @test col_names == [ :H2, :H3 ]
+        @test col_names == [:H2, :H3]
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
     end
@@ -1177,18 +982,18 @@ end
     f_copy = XLSX.readxlsx(filename_copy)
 
     s = f_copy["table"]
-    s[:];
+    s[:]
     dtable = XLSX.gettable(s)
     data, col_names = dtable.data, dtable.column_labels
-    @test col_names == [ Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
+    @test col_names == [Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G")]
 
     test_data = Vector{Any}(undef, 6)
     test_data[1] = collect(1:8)
-    test_data[2] = [ "Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2" ]
-    test_data[3] = [ Date(2018, 4, 21) + Dates.Day(i) for i in 0:7 ]
-    test_data[4] = [ missing, missing, missing, missing, missing, "a", "b", missing ]
-    test_data[5] = [ 0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883 ]
-    test_data[6] = [ missing for i in 1:8 ]
+    test_data[2] = ["Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2"]
+    test_data[3] = [Date(2018, 4, 21) + Dates.Day(i) for i in 0:7]
+    test_data[4] = [missing, missing, missing, missing, missing, "a", "b", missing]
+    test_data[5] = [0.2001132319, 0.2793987377, 0.0950591677, 0.0744023067, 0.8242278091, 0.6205883578, 0.9174151018, 0.6749604883]
+    test_data[6] = [missing for i in 1:8]
     check_test_data(data, test_data)
     isfile(filename_copy) && rm(filename_copy)
 end
@@ -1197,7 +1002,7 @@ end
     # issue #210
     # None of the example .xlsx files in the test suite include custoimXml internal files
     # but customXml.xlsx does
-    template = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx")) 
+    template = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
     filename_copy = "customXml_copy.xlsx"
     for sn in XLSX.sheetnames(template)
         sheet = template[sn]
@@ -1241,15 +1046,15 @@ end
 
     @testset "check invalid sheet names" begin
         invalid_names = [
-                         "new_sheet",
-                         "aaaaaaaaaabbbbbbbbbbccccccccccd1",
-                         "abc:def",
-                         "abcdef/",
-                         "\\aaaa",
-                         "hey?you",
-                         "[mysheet]",
-                         "asteri*"
-                        ]
+            "new_sheet",
+            "aaaaaaaaaabbbbbbbbbbccccccccccd1",
+            "abc:def",
+            "abcdef/",
+            "\\aaaa",
+            "hey?you",
+            "[mysheet]",
+            "asteri*"
+        ]
 
         for invalid_name in invalid_names
             @test_throws AssertionError XLSX.addsheet!(f, invalid_name)
@@ -1260,10 +1065,11 @@ end
     s2 = XLSX.addsheet!(f, big_sheetname)
 
     XLSX.writexlsx(new_filename, f, overwrite=true)
-#    @test !XLSX.isopen(f)
+
+    #    @test !XLSX.isopen(f)
 
     f = XLSX.readxlsx(new_filename)
-    @test XLSX.sheetnames(f) == [ "Sheet1", "new_sheet" , big_sheetname ]
+    @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet", big_sheetname]
     rm(new_filename)
 end
 
@@ -1301,7 +1107,7 @@ end
         @test s["B2"] == "Can you feel me?"
         @test s["A3"] == 1000
         @test s["B3"] == 99.99
-        f["my_new_sheet_1"];
+        f["my_new_sheet_1"]
         @test f["my_new_sheet_2"]["B1"] == "This is a new sheet"
         @test f["my_new_sheet_2"]["B2"] == "This is a new sheet"
         @test f["Sheet1"]["B1"] == "unnamed sheet"
@@ -1318,14 +1124,14 @@ end
         data[1] = [1, 2, missing, UInt8(4)]
         data[2] = ["Hey", "You", "Out", "There"]
         data[3] = [101.5, 102.5, missing, 104.5]
-        data[4] = [ true, false, missing, true]
-        data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2)]
-        data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0) ]
-        data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+        data[4] = [true, false, missing, true]
+        data[5] = [Date(2018, 2, 1), Date(2018, 3, 1), Date(2018, 5, 20), Date(2018, 6, 2)]
+        data[6] = [Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0)]
+        data[7] = [Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
         data[8] = SubString.(["Hey", "You", "Out", "There"], 1, 2)
-        data[9] = [1//2, 1//3, missing, 22//3]
+        data[9] = [1 // 2, 1 // 3, missing, 22 // 3]
         data[10] = [pi, sqrt(2), missing, sqrt(5)]
-        data[11] = [ nothing, "middle", missing, nothing ]
+        data[11] = [nothing, "middle", missing, nothing]
 
         XLSX.writetable("output_table.xlsx", data, col_names, overwrite=true, sheetname="report", anchor_cell="B2")
         @test isfile("output_table.xlsx")
@@ -1347,7 +1153,7 @@ end
 
         report_2_column_names = ["COLUMN_A", "COLUMN_B"]
         report_2_data = Vector{Any}(undef, 2)
-        report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
+        report_2_data[1] = [Date(2017, 2, 1), Date(2018, 2, 1)]
         report_2_data[2] = [10.2, 10.3]
 
         XLSX.writetable("output_tables.xlsx", overwrite=true, REPORT_A=(report_1_data, report_1_column_names), REPORT_B=(report_2_data, report_2_column_names))
@@ -1365,7 +1171,7 @@ end
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
 
-        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
+        XLSX.writetable("output_tables.xlsx", [("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names)], overwrite=true)
 
         dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
         data, labels = dtable.data, dtable.column_labels
@@ -1382,7 +1188,7 @@ end
         report_1_column_names = [:HEADER_A, :HEADER_B]
         report_2_column_names = [:COLUMN_A, :COLUMN_B]
 
-        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
+        XLSX.writetable("output_tables.xlsx", [("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names)], overwrite=true)
 
         dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
         data, labels = dtable.data, dtable.column_labels
@@ -1401,10 +1207,10 @@ end
 
         report_2_column_names = ["COLUMN_A", "COLUMN_B"]
         report_2_data = Vector{Any}(undef, 2)
-        report_2_data[1] = [Date(2017,2,1), Date(2018,2,1)]
+        report_2_data[1] = [Date(2017, 2, 1), Date(2018, 2, 1)]
         report_2_data[2] = [10.2, 10.3]
 
-        XLSX.writetable("output_tables.xlsx", [ ("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names) ], overwrite=true)
+        XLSX.writetable("output_tables.xlsx", [("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names)], overwrite=true)
 
         dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
         data, labels = dtable.data, dtable.column_labels
@@ -1429,7 +1235,7 @@ end
         @test dt_read.column_labels == dt.column_labels
         @test dt_read.column_label_index == dt.column_label_index
     end
-    
+
     # delete files created by this testset
     delete_files = ["output_table.xlsx", "output_tables.xlsx"]
     for f in delete_files
@@ -1437,220 +1243,673 @@ end
     end
 end
 
-@testset "Styles" begin
+@testset "Styles" verbose = true begin
 
-    using XLSX: CellValue, id, getcell, setdata!, CellRef
-    xfile = XLSX.open_empty_template()
-    wb = XLSX.get_workbook(xfile)
-    sheet = xfile["Sheet1"]
+    @testset "Original" begin
+        using XLSX: CellValue, id, getcell, setdata!, CellRef
+        xfile = XLSX.open_empty_template()
+        wb = XLSX.get_workbook(xfile)
+        sheet = xfile["Sheet1"]
 
-    datefmt = XLSX.styles_add_numFmt(wb, "yyyymmdd")
-    numfmt = XLSX.styles_add_numFmt(wb, "\$* #,##0.00;\$* (#,##0.00);\$* \"-\"??;[Magenta]@")
+        datefmt = XLSX.styles_add_numFmt(wb, "yyyymmdd")
+        numfmt = XLSX.styles_add_numFmt(wb, "\$* #,##0.00;\$* (#,##0.00);\$* \"-\"??;[Magenta]@")
 
-    #Check format id numbers dont intersect with predefined formats or each other
-    @test datefmt == 164
-    @test numfmt == 165
+        #Check format id numbers dont intersect with predefined formats or each other
+        @test datefmt == 164
+        @test numfmt == 165
 
-    font = XLSX.styles_add_font(wb, XLSX.FontAttribute["b", "sz"=>("val"=>"24")])
-    xroot = XLSX.styles_xmlroot(wb)
-    fontnodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts/$SPREADSHEET_NAMESPACE_XPATH_ARG:font", xroot)
-    fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
+        font = XLSX.styles_add_cell_font(wb, Dict("b" => nothing, "sz" => Dict("val" => "24")))
+        xroot = XLSX.styles_xmlroot(wb)
+        fontnodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts/$SPREADSHEET_NAMESPACE_XPATH_ARG:font", xroot)
+        fontnode = fontnodes[font+1] # XML is zero indexed so we need to add 1 to get the right node
 
-    # Check the font was written correctly
-    @test XML.tag(fontnode) == "font"
-    @test length(XML.children(fontnode)) == 2
-    @test XML.tag(XML.children(fontnode)[1]) == "b"
-    @test XML.tag(XML.children(fontnode)[2]) == "sz"
-    @test XML.children(fontnode)[2]["val"] == "24"
+        # Check the font was written correctly
+        @test XML.tag(fontnode) == "font"
+        @test length(XML.children(fontnode)) == 2
+        @test XML.tag(XML.children(fontnode)[1]) == "b"
+        @test XML.tag(XML.children(fontnode)[2]) == "sz"
+        @test XML.children(fontnode)[2]["val"] == "24"
 
-    textstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"true", "fontId"=>"$font"))
-    datestyle = XLSX.styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "numFmtId"=>"$datefmt"))
-    numstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont"=>"1", "applyNumberFormat"=>"1", "fontId"=>"$font", "numFmtId"=>"$numfmt"))
+        textstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont" => "true", "fontId" => "$font"))
+        datestyle = XLSX.styles_add_cell_xf(wb, Dict("applyNumberFormat" => "1", "numFmtId" => "$datefmt"))
+        numstyle = XLSX.styles_add_cell_xf(wb, Dict("applyFont" => "1", "applyNumberFormat" => "1", "fontId" => "$font", "numFmtId" => "$numfmt"))
 
-    xf = XLSX.styles_get_cellXf_with_numFmtId(wb, 1000)
-    @test xf == XLSX.EmptyCellDataFormat()
-    @test isempty(xf)
-    @test id(xf) == ""
+        xf = XLSX.styles_get_cellXf_with_numFmtId(wb, 1000)
+        @test xf == XLSX.EmptyCellDataFormat()
+        @test isempty(xf)
+        @test id(xf) == ""
 
-    @test textstyle isa XLSX.CellDataFormat
-    @test !isempty(textstyle)
-    @test id(textstyle) == "1"
+        @test textstyle isa XLSX.CellDataFormat
+        @test !isempty(textstyle)
+        @test id(textstyle) == "1"
 
-    @test XLSX.styles_get_cellXf_with_numFmtId(wb, datefmt) == datestyle
-    @test XLSX.styles_numFmt_formatCode(wb, string(datefmt)) == "yyyymmdd"
-    @test datestyle isa XLSX.CellDataFormat
-    @test !isempty(datestyle)
-    @test id(datestyle) == "2"
+        @test XLSX.styles_get_cellXf_with_numFmtId(wb, datefmt) == datestyle
+        @test XLSX.styles_numFmt_formatCode(wb, string(datefmt)) == "yyyymmdd"
+        @test datestyle isa XLSX.CellDataFormat
+        @test !isempty(datestyle)
+        @test id(datestyle) == "2"
 
-    @test XLSX.styles_get_cellXf_with_numFmtId(wb, numfmt) == numstyle
-    @test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* #,##0.00;\$* (#,##0.00);\$* &quot;-&quot;??;[Magenta]@"
-    @test numstyle isa XLSX.CellDataFormat
-    @test !isempty(numstyle)
-    @test id(numstyle) == "3"
+        @test XLSX.styles_get_cellXf_with_numFmtId(wb, numfmt) == numstyle
+        @test XLSX.styles_numFmt_formatCode(wb, string(numfmt)) == "\$* #,##0.00;\$* (#,##0.00);\$* &quot;-&quot;??;[Magenta]@"
+        @test numstyle isa XLSX.CellDataFormat
+        @test !isempty(numstyle)
+        @test id(numstyle) == "3"
 
-    setdata!(sheet, CellRef("A1"), CellValue(Date(2011, 10, 13), datestyle))
-    setdata!(sheet, CellRef("A2"), CellValue(1000, numstyle))
-    setdata!(sheet, CellRef("A3"), CellValue(1000.10, numstyle))
-    setdata!(sheet, CellRef("A4"), CellValue(-1000.10, numstyle))
-    setdata!(sheet, CellRef("A5"), CellValue(0, numstyle))
-    setdata!(sheet, CellRef("A6"), CellValue("hello", numstyle))
-    setdata!(sheet, CellRef("B1"), CellValue("hello world", textstyle))
+        setdata!(sheet, CellRef("A1"), CellValue(Date(2011, 10, 13), datestyle))
+        setdata!(sheet, CellRef("A2"), CellValue(1000, numstyle))
+        setdata!(sheet, CellRef("A3"), CellValue(1000.10, numstyle))
+        setdata!(sheet, CellRef("A4"), CellValue(-1000.10, numstyle))
+        setdata!(sheet, CellRef("A5"), CellValue(0, numstyle))
+        setdata!(sheet, CellRef("A6"), CellValue("hello", numstyle))
+        setdata!(sheet, CellRef("B1"), CellValue("hello world", textstyle))
 
-    @test sheet["A1"] == Date(2011, 10, 13)
-    cell = getcell(sheet, "A1")
-    @test cell.style == id(datestyle)
-    formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cell.style))
-    @test formatid == datefmt
+        @test sheet["A1"] == Date(2011, 10, 13)
+        cell = getcell(sheet, "A1")
+        @test cell.style == id(datestyle)
+        formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cell.style))
+        @test formatid == datefmt
 
-    cellstyle = getcell(sheet, "A2").style
-    @test cellstyle == id(numstyle)
-    formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cellstyle))
-    @test formatid == numfmt
+        cellstyle = getcell(sheet, "A2").style
+        @test cellstyle == id(numstyle)
+        formatid = XLSX.styles_cell_xf_numFmtId(wb, parse(Int, cellstyle))
+        @test formatid == numfmt
 
-    @test sheet["A2"] == 1000
-    @test sheet["A3"] == 1000.10
-    @test XLSX.getcell(sheet, "A3").style == cellstyle
-    @test sheet["A4"] == -1000.10
-    @test XLSX.getcell(sheet, "A4").style == cellstyle
-    @test sheet["A5"] == 0
-    @test XLSX.getcell(sheet, "A5").style == cellstyle
-    @test sheet["A6"] == "hello"
-    @test XLSX.getcell(sheet, "A6").style == cellstyle
+        @test sheet["A2"] == 1000
+        @test sheet["A3"] == 1000.10
+        @test XLSX.getcell(sheet, "A3").style == cellstyle
+        @test sheet["A4"] == -1000.10
+        @test XLSX.getcell(sheet, "A4").style == cellstyle
+        @test sheet["A5"] == 0
+        @test XLSX.getcell(sheet, "A5").style == cellstyle
+        @test sheet["A6"] == "hello"
+        @test XLSX.getcell(sheet, "A6").style == cellstyle
 
-    @test sheet["B1"] == "hello world"
-    @test XLSX.getcell(sheet, "B1").style == id(textstyle)
+        @test sheet["B1"] == "hello world"
+        @test XLSX.getcell(sheet, "B1").style == id(textstyle)
 
-    sheet["B2"] = CellValue("hello world", textstyle)
-    @test sheet["B2"] == "hello world"
-    @test XLSX.getcell(sheet, "B2").style == id(textstyle)
+        sheet["B2"] = CellValue("hello world", textstyle)
+        @test sheet["B2"] == "hello world"
+        @test XLSX.getcell(sheet, "B2").style == id(textstyle)
 
-    sheet[3, 1] = CellValue("hello friend", textstyle)
-    @test sheet[3, 1] == "hello friend"
-    @test XLSX.getcell(sheet, 3, 1).style == id(textstyle)
+        sheet[3, 1] = CellValue("hello friend", textstyle)
+        @test sheet[3, 1] == "hello friend"
+        @test XLSX.getcell(sheet, 3, 1).style == id(textstyle)
 
-    # Check CellDataFormat only works with CellValues
-    @test_throws MethodError XLSX.CellValue([1,2,3,4], textstyle)
+        # Check CellDataFormat only works with CellValues
+        @test_throws MethodError XLSX.CellValue([1, 2, 3, 4], textstyle)
 
-    using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
-    # Capitalized and single character numfmts
-    xfile = XLSX.open_empty_template()
-    wb = XLSX.get_workbook(xfile)
-    sheet = xfile["Sheet1"]
+        using XLSX: styles_is_datetime, styles_add_numFmt, styles_add_cell_xf
+        # Capitalized and single character numfmts
+        xfile = XLSX.open_empty_template()
+        wb = XLSX.get_workbook(xfile)
+        sheet = xfile["Sheet1"]
 
-    fmt = styles_add_numFmt(wb, "yyyy m d")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "yyyy m d")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "h:m:s")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "h:m:s")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "0.00")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "0.00")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "[red]yyyy m d")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
-    fmt = styles_add_numFmt(wb, "[red] h:m:s")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
-    fmt = styles_add_numFmt(wb, "[red] 0.00; [magenta] 0.00")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "[red]yyyy m d")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "[red] h:m:s")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "[red] 0.00; [magenta] 0.00")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "YYYY M D")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
-    fmt = styles_add_numFmt(wb, "H:M:S")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "YYYY M D")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "H:M:S")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "m")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "m")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "M")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "M")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "y")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "y")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "[s]")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "[s]")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "am/pm")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "am/pm")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "a/p")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test styles_is_datetime(wb, style)
+        fmt = styles_add_numFmt(wb, "a/p")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test styles_is_datetime(wb, style)
 
-    fmt = styles_add_numFmt(wb, "\"Monday\"")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
-    @test !XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "\"Monday\"")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
+        @test !XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "0.00*m")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "0.00*m")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "0.00_m")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "0.00_m")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "0.00\\d")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !styles_is_datetime(wb, style)
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "0.00\\d")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !styles_is_datetime(wb, style)
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "[red][>1.5]000")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "[red][>1.5]000")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "0.#")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "0.#")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "\"hello.\" ###")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "\"hello.\" ###")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, ".??")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, ".??")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "#e+00")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "#e+00")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "0e00")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "0e00")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "# ??/??")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "# ??/??")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "*.00")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "*.00")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "\\.00")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "\\.00")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !XLSX.styles_is_float(wb, style)
 
-    fmt = styles_add_numFmt(wb, "00_.")
-    style = styles_add_cell_xf(wb, Dict("numFmtId"=>"$fmt"))
-    @test !XLSX.styles_is_float(wb, style)
+        fmt = styles_add_numFmt(wb, "00_.")
+        style = styles_add_cell_xf(wb, Dict("numFmtId" => "$fmt"))
+        @test !XLSX.styles_is_float(wb, style)
+
+    end
+
+    @testset "setFont" begin
+        xfile = XLSX.open_empty_template()
+        wb = XLSX.get_workbook(xfile)
+        sheet = xfile["Sheet1"]
+
+        col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals", "MixedStringNothingMissing"]
+        data = Vector{Any}(undef, 11)
+        data[1] = [1, 2, missing, UInt8(4)]
+        data[2] = ["Hey", "You", "Out", "There"]
+        data[3] = [101.5, 102.5, missing, 104.5]
+        data[4] = [true, false, missing, true]
+        data[5] = [Date(2018, 2, 1), Date(2018, 3, 1), Date(2018, 5, 20), Date(2018, 6, 2)]
+        data[6] = [Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0)]
+        data[7] = [Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
+        data[8] = SubString.(["Hey", "You", "Out", "There"], 1, 2)
+        data[9] = [1 // 2, 1 // 3, missing, 22 // 3]
+        data[10] = [pi, sqrt(2), missing, sqrt(5)]
+        data[11] = [nothing, "middle", missing, nothing]
+
+        XLSX.writetable!(sheet, data, col_names; write_columnnames=true)
+
+        @test isnothing(XLSX.getFont(xfile, "Sheet1!B2")) && isnothing(XLSX.getFont(sheet, "B2"))
+
+        # Default font attributes are present in an empty worksheet until overwritten.
+        default_font = XLSX.getDefaultFont(sheet).font
+        dname = default_font["name"]["val"]
+        dsize = default_font["sz"]["val"]
+        dcolorkey = collect(keys(default_font["color"]))[1]
+        dcolorval = collect(values(default_font["color"]))[1]
+
+        XLSX.setFont(sheet, "A1"; bold=true, size=24, name="Arial")
+        @test XLSX.getFont(sheet, "A1").font == Dict("b" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
+        XLSX.setFont(sheet, "A1"; size=18)
+        @test XLSX.getFont(sheet, "A1").font == Dict("b" => nothing, "sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
+        XLSX.setFont(xfile, "Sheet1!A1"; bold=false, size=24, name="Aptos")
+        @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val" => "24"), "name" => Dict("val" => "Aptos"), "color" => Dict(dcolorkey => dcolorval))
+
+        @test XLSX.getFont(xfile, "Sheet1!A1").fontId == XLSX.getFont(sheet, "A1").fontId
+        @test XLSX.getFont(xfile, "Sheet1!A1").font == XLSX.getFont(sheet, "A1").font
+        @test XLSX.getFont(xfile, "Sheet1!A1").applyFont == XLSX.getFont(sheet, "A1").applyFont
+
+        XLSX.setFont(xfile, "Sheet1!A2"; size=18)
+        @test XLSX.getFont(xfile, "Sheet1!A2").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => dname), "color" => Dict(dcolorkey => dcolorval))
+        XLSX.setFont(sheet, "A2"; size=24)
+        @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val" => "24"), "name" => Dict("val" => dname), "color" => Dict(dcolorkey => dcolorval))
+        XLSX.setFont(sheet, "A2"; size=28, name="Aptos")
+        @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val" => "28"), "name" => Dict("val" => "Aptos"), "color" => Dict(dcolorkey => dcolorval))
+
+        XLSX.setFont(sheet, "A3"; italic=true, name="Berlin Sans FB Demi")
+        @test XLSX.getFont(sheet, "A3").font == Dict("i" => nothing, "sz" => Dict("val" => dsize), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
+        XLSX.setFont(xfile, "Sheet1!A3"; size=24)
+        @test XLSX.getFont(xfile, "Sheet1!A3").font == Dict("i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
+
+        XLSX.setFont(xfile, "Sheet1!A4"; size=28, name="Aptos")
+        @test XLSX.getFont(xfile, "Sheet1!A4").font == Dict("sz" => Dict("val" => "28"), "name" => Dict("val" => "Aptos"), "color" => Dict(dcolorkey => dcolorval))
+
+        XLSX.setFont(sheet, "B1"; bold=true, italic=true, size=14, color="FF00FF00")
+        @test XLSX.getFont(sheet, "B1").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "14"), "name" => Dict("val" => dname), "color" => Dict("rgb" => "FF00FF00"))
+        XLSX.setFont(xfile, "Sheet1!B1"; bold=false, italic=false, size=12, name="Berlin Sans FB Demi")
+        @test XLSX.getFont(xfile, "Sheet1!B1").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF00FF00"))
+
+        XLSX.setFont(sheet, "B2"; color="FF000000")
+        @test XLSX.getFont(sheet, "B2").font == Dict("sz" => Dict("val" => dsize), "name" => Dict("val" => dname), "color" => Dict("rgb" => "FF000000"))
+        XLSX.setFont(xfile, "Sheet1!B2"; bold=true, italic=true, size=14, color="FF00FF00")
+        @test XLSX.getFont(xfile, "Sheet1!B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "14"), "name" => Dict("val" => dname), "color" => Dict("rgb" => "FF00FF00"))
+
+        XLSX.setFont(xfile, "Sheet1!B3"; name="Berlin Sans FB Demi", color="FF000000")
+        @test XLSX.getFont(xfile, "Sheet1!B3").font == Dict("sz" => Dict("val" => dsize), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
+
+        XLSX.setFont(sheet, "A1:B2"; size=18, name="Arial")
+        @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(sheet, "A2").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
+        @test XLSX.getFont(xfile, "Sheet1!B1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF00FF00"))
+        @test XLSX.getFont(xfile, "Sheet1!B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF00FF00"))
+
+
+        XLSX.writexlsx("output.xlsx", xfile, overwrite=true)
+        @test isfile("output.xlsx")
+
+        XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
+            s = f["Sheet1"]
+            @test XLSX.getFont(f, "Sheet1!A1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
+            @test XLSX.getFont(s, "A2").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
+            @test XLSX.getFont(f, "Sheet1!A3").font == Dict("i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict(dcolorkey => dcolorval))
+            @test XLSX.getFont(s, "A4").font == Dict("sz" => Dict("val" => "28"), "name" => Dict("val" => "Aptos"), "color" => Dict(dcolorkey => dcolorval))
+            @test XLSX.getFont(f, "Sheet1!B1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF00FF00"))
+            @test XLSX.getFont(s, "B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF00FF00"))
+            @test XLSX.getFont(f, "Sheet1!B3").font == Dict("sz" => Dict("val" => dsize), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF000000"))
+        end
+
+        # Now try a range
+        XLSX.setUniformFont(sheet, "A1:B4"; size=12, name="Times New Roman", color="FF040404")
+        @test XLSX.getFont(xfile, "Sheet1!A1").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(xfile, "Sheet1!A4").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(xfile, "Sheet1!B3").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(xfile, "Sheet1!B4").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+
+        isfile("output.xlsx") && rm("output.xlsx")
+    end
+
+    @testset "setBorder" begin
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
+        s = f["Sheet1"]
+
+        @test isnothing(XLSX.getBorder(s, "A1"))
+
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("auto" => "1", "style" => "medium"), "bottom" => Dict("auto" => "1", "style" => "medium"), "right" => Dict("auto" => "1", "style" => "medium"), "top" => Dict("auto" => "1", "style" => "medium"), "diagonal" => nothing)
+        @test XLSX.getBorder(f, "Sheet1!B4").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "hair"), "bottom" => Dict("rgb" => "FFFF0000", "style" => "hair"), "right" => Dict("rgb" => "FFFF0000", "style" => "hair"), "top" => Dict("rgb" => "FFFF0000", "style" => "hair"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "D4").border == Dict("left" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "bottom" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "right" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "top" => Dict("theme" => "3", "style" => "dashed", "tint" => "0.24994659260841701"), "diagonal" => nothing)
+        @test XLSX.getBorder(f, "Sheet1!D6").border == Dict("left" => Dict("auto" => "1", "style" => "thick"), "bottom" => Dict("auto" => "1", "style" => "thick"), "right" => Dict("auto" => "1", "style" => "thick"), "top" => Dict("auto" => "1", "style" => "thick"), "diagonal" => nothing)
+
+        XLSX.setBorder(f, "Sheet1!D6"; left=["style" => "dotted", "color" => "FF000FF0"], right=["style" => "medium", "color" => "FF765000"], top=["style" => "thick", "color" => "FF230000"], bottom=["style" => "medium", "color" => "FF0000FF"], diagonal=["style" => "dotted", "color" => "FF00D4D4"])
+        @test XLSX.getBorder(s, "D6").border == Dict("left" => Dict("rgb" => "FF000FF0", "style" => "dotted"), "bottom" => Dict("rgb" => "FF0000FF", "style" => "medium"), "right" => Dict("rgb" => "FF765000", "style" => "medium"), "top" => Dict("rgb" => "FF230000", "style" => "thick"), "diagonal" => Dict("rgb" => "FF00D4D4", "style" => "dotted"))
+
+        XLSX.setBorder(f, "Sheet1!B2:D4"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"])
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("auto" => "1", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "medium"), "right" => Dict("rgb" => "FF111111", "style" => "medium"), "top" => Dict("auto" => "1", "style" => "hair"), "diagonal" => Dict("style" => "hair"))
+        @test XLSX.getBorder(f, "Sheet1!D4").border == Dict("left" => Dict("theme" => "3", "style" => "hair", "tint" => "0.24994659260841701"), "bottom" => Dict("rgb" => "FF111111", "style" => "dashed"), "right" => Dict("rgb" => "FF111111", "style" => "dashed"), "top" => Dict("theme" => "3", "style" => "hair", "tint" => "0.24994659260841701"), "diagonal" => Dict("style" => "hair"))
+
+        XLSX.setBorder(f, "Sheet1!A1:D11"; left=["style" => "hair", "color" => "FF111111"], right=["style" => "hair", "color" => "FF111111"], top=["style" => "hair", "color" => "FF111111"], bottom=["style" => "hair", "color" => "FF111111"], diagonal=["style" => "hair", "color" => "FF111111"])
+        @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "B6").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "D4").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "D8").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "D10").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getcell(s, "D11") isa XLSX.EmptyCell
+        @test isnothing(XLSX.getBorder(s, "D11")) # Cannot set a border in an EmptyCell (outside sheet dimension).
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
+        s = f["Sheet1"]
+
+        XLSX.setUniformBorder(f, "Sheet1!A1:D4"; left=["style" => "dotted", "color" => "FF000FF0"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        @test XLSX.getBorder(f, "Sheet1!B2").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        @test XLSX.getBorder(f, "Sheet1!D4").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+
+        @test XLSX.getcell(s, "C3") isa XLSX.EmptyCell
+        @test isnothing(XLSX.getBorder(s, "C3"))
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        XLSX.setBorder(s, "ID"; left=["style" => "dotted", "color" => "FF000FF0"], bottom=["style" => "medium", "color" => "FF0000FF"], right=["style" => "medium", "color" => "FF765000"], top=["style" => "thick", "color" => "FF230000"], diagonal=nothing)
+        @test XLSX.getBorder(s, "ID").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+
+        # Location is a non-contiguous range
+        XLSX.setBorder(s, "Location"; left=["style" => "hair", "color" => "FF111111"], right=["style" => "hair", "color" => "FF111111"], top=["style" => "hair", "color" => "FF111111"], bottom=["style" => "hair", "color" => "FF111111"], diagonal=["style" => "hair", "color" => "FF111111"])
+        @test XLSX.getBorder(s, "D18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "D20").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "J18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "J18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+
+        # Cant get attributes on a range.
+        @test_throws AssertionError XLSX.getBorder(s, "Contiguous")
+
+        f = XLSX.open_empty_template()
+        s = f["Sheet1"]
+
+        # All these cells are `EmptyCells`
+        @test XLSX.setUniformFont(s, "A1:B4"; size=12, name="Times New Roman", color="FF040404") == -1
+        @test XLSX.setUniformBorder(f, "Sheet1!A1:D4"; left=["style" => "dotted", "color" => "FF000FF0"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        ) == -1
+        @test XLSX.setUniformFill(s, "B2:D4"; pattern="gray125", bgColor="FF000000") == -1
+        @test XLSX.setFont(s, "A1:B2"; size=18, name="Arial") == -1
+        @test XLSX.setBorder(f, "Sheet1!B2:D4"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"]) == -1
+        @test XLSX.setFill(f, "Sheet1!A1:F20"; pattern="none", fgColor="88FF8800") == -1
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        # Can't set a uniform attribute to a single cell.
+        @test_throws MethodError XLSX.setUniformFill(s, "D4"; pattern="gray125", bgColor="FF000000")
+        @test_throws MethodError XLSX.setUniformFont(s, "B4"; size=12, name="Times New Roman", color="FF040404")
+        @test_throws MethodError XLSX.setUniformBorder(f, "Mock-up!D4"; left=["style" => "dotted", "color" => "FF000FF0"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test_throws MethodError XLSX.setUniformFill(s, "ID"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
+
+    end
+
+    @testset "setFill" begin
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        @test XLSX.getFill(s, "D17").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-9.9978637043366805E-2", "fgtheme" => "2"))
+        @test XLSX.getFill(f, "Mock-up!D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "D17"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
+        @test XLSX.getFill(s, "D17").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        XLSX.setFill(s, "ID"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
+        @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        # Location is a non-contiguous range
+        XLSX.setFill(s, "Location"; pattern="lightVertical")
+        @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "Contiguous"; pattern="lightVertical")
+        @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+
+        # Can't get attributes on a range.
+        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
+
+        XLSX.setUniformFill(s, "B3:D5"; pattern="lightGrid", fgColor="FF0000FF", bgColor="FF00FF00")
+        @test XLSX.getFill(s, "B3").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+        @test XLSX.getFill(s, "C4").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+        @test XLSX.getFill(s, "D5").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+
+        XLSX.setFill(s, "ID"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
+        @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+
+        # Location is a non-contiguous range
+        XLSX.setFill(s, "Location"; pattern="lightVertical")
+        @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(f, "Mock-up!D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getFill(f, "Mock-up!J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+
+        XLSX.setFill(s, "Contiguous"; pattern="lightVertical")
+        @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(f, "Mock-up!D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(f, "Mock-up!D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+
+        # Can't get attributes on a range.
+        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
+
+        XLSX.writexlsx("output.xlsx", f, overwrite=true)
+        @test isfile("output.xlsx")
+
+        XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
+            s = f["Mock-up"]
+            @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(f, "Mock-up!D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(f, "Mock-up!D26").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+            @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
+        end
+
+        isfile("output.xlsx") && rm("output.xlsx")
+
+    end
+
+    @testset "setAlignment" begin
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        @test XLSX.getAlignment(s, "D51").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "D18").alignment == Dict("alignment" => Dict("horizontal" => "center", "vertical" => "top"))
+
+        XLSX.setAlignment(f, "Mock-up!D18"; horizontal="right", wrapText=true)
+        @test XLSX.getAlignment(s, "D18").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "top", "wrapText" => "1"))
+
+        @test XLSX.setAlignment(s, "Location"; horizontal="right", wrapText=true) == -1
+
+        XLSX.setUniformAlignment(s, "B3:D5"; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "B3").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "C4").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "D5").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+
+        XLSX.writexlsx("output.xlsx", f, overwrite=true)
+        @test isfile("output.xlsx")
+
+        XLSX.openxlsx("output.xlsx") do f # Check the updated fonts were written correctly
+            s = f["Mock-up"]
+            @test XLSX.getAlignment(s, "B3").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+            @test XLSX.getAlignment(s, "C4").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+            @test XLSX.getAlignment(s, "D5").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        end
+
+        isfile("output.xlsx") && rm("output.xlsx")
+
+    end
+
+    @testset "setFormat" begin
+
+        f = XLSX.open_empty_template()
+        s = f["Sheet1"]
+
+        s["A1"] = "Hello"
+        s["B1"] = "World"
+        s["A2"] = 2.367
+        s["B2"] = 200450023
+        s["C1"] = Dates.Date(2018, 2, 1)
+        s["C2"] = 0.45
+        s["D1"] = 100.24
+        s["D2"] = Dates.Time(0, 19, 30)
+        s["E1:F5"] = [Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23)
+        ]
+
+        @test XLSX.setFormat(s, "B2"; format="Scientific") == 48
+        @test XLSX.setFormat(s, "C2"; format="Percentage") == 9
+        @test XLSX.setFormat(s, "C1"; format="General") == 0
+        @test XLSX.setFormat(s, "D2"; format="Currency") == 7
+        @test XLSX.setFormat(s, "C1"; format="LongDate") == 15
+        @test XLSX.setFormat(s, "D2"; format="Time") == 21
+
+        @test XLSX.getFormat(s, "A2") === nothing
+        @test XLSX.getFormat(s, "D2").format == Dict("numFmt" => Dict("numFmtId" => "21", "formatCode" => "h:mm:ss"))
+        @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("numFmtId" => "14", "formatCode" => "m/d/yyyy"))
+        @test XLSX.getFormat(s, "F2").format == Dict("numFmt" => Dict("numFmtId" => "14", "formatCode" => "m/d/yyyy"))
+
+
+        @test XLSX.setFormat(s, "A2"; format="""_-£* #,##0.00_-;-£* #,##0.00_-;_-£* "-"??_-;_-@_-""") == 164
+        @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \"-\"??_-;_-@_-"))
+        @test XLSX.setFormat(s, "A2"; format="_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \"-\"??_-;_-@_-") == 164
+        @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \"-\"??_-;_-@_-"))
+
+        @test XLSX.setFormat(s, "D2"; format="h:mm AM/PM") == 165
+        @test XLSX.setFormat(s, "A2"; format="# ??/??") == 166
+        @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "# ??/??"))
+        @test XLSX.getFormat(s, "D2").format == Dict("numFmt" => Dict("formatCode" => "h:mm AM/PM"))
+
+        @test XLSX.setFormat(s, "E1:E5"; format="General") == -1
+        @test XLSX.setFormat(s, "F1:F5"; format="Currency") == -1
+        @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("numFmtId" => "0", "formatCode" => "General"))
+        @test XLSX.getFormat(f, "Sheet1!F2").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+
+
+        @test XLSX.setFormat(f, "Sheet1!E1:F5"; format="#,##0.000") == -1
+        @test XLSX.setFormat(s, "F1:F5"; format="#,##0.000") == -1
+        @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        @test XLSX.getFormat(f, "Sheet1!F2").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+
+
+        XLSX.writexlsx("test.xlsx", f, overwrite=true)
+
+        XLSX.openxlsx("test.xlsx") do f # Check the updated formats were written correctly
+            s = f["Sheet1"]
+            @test XLSX.getFormat(s, "A2").format == Dict("numFmt" => Dict("formatCode" => "# ??/??"))
+            @test XLSX.getFormat(s, "D2").format == Dict("numFmt" => Dict("formatCode" => "h:mm AM/PM"))
+            @test XLSX.getFormat(s, "E2").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+            @test XLSX.getFormat(f, "Sheet1!F2").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        end
+
+        isfile("test.xlsx") && rm("test.xlsx")
+
+    end
+
+    @testset "Width and height" begin
+
+        f = XLSX.open_empty_template()
+        s = f["Sheet1"]
+
+        s["A1"] = "Hello"
+        s["B1"] = "World"
+        s["A2"] = 2.367
+        s["B2"] = 200450023
+        s["C1"] = Dates.Date(2018, 2, 1)
+        s["C2"] = 0.45
+        s["D1"] = 100.24
+        s["D2"] = Dates.Time(0, 19, 30)
+        s["E1:F5"] = [Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23);
+            Dates.Date(2025, 6, 23) Dates.Date(2025, 6, 23)
+        ]
+
+        XLSX.setColumnWidth(s, "A2"; width=30)
+        @test XLSX.getColumnWidth(s, "A2") ≈ 30.7109375
+
+        XLSX.setColumnWidth(s, "B2:C2"; width=10.1)
+        @test XLSX.getColumnWidth(s, "B3") ≈ 10.8109375
+        @test XLSX.getColumnWidth(s, "C4") ≈ 10.8109375
+
+        XLSX.setRowHeight(s, "A2"; height=30)
+        @test XLSX.getRowHeight(s, "A2") ≈ 30.2109375
+
+        XLSX.setRowHeight(s, "B2:C5"; height=10.1)
+        @test XLSX.getRowHeight(s, "B3") ≈ 10.3109375
+        @test XLSX.getRowHeight(s, "C4") ≈ 10.3109375
+
+        # Make sure setting row height doesn't affect column width
+        # and vice versa.
+        @test XLSX.getColumnWidth(s, "B3") ≈ 10.8109375
+        @test XLSX.getColumnWidth(s, "C4") ≈ 10.8109375
+        XLSX.setColumnWidth(s, "B2:C2"; width=30.5)
+        @test XLSX.getColumnWidth(s, "B3") ≈ 31.2109375
+        @test XLSX.getColumnWidth(f, "Sheet1!C4") ≈ 31.2109375
+        @test XLSX.getRowHeight(s, "B3") ≈ 10.3109375
+        @test XLSX.getRowHeight(f, "Sheet1!C4") ≈ 10.3109375
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
+        s = f["Mock-up"]
+
+        XLSX.setColumnWidth(s, "Location"; width = 60)
+        XLSX.setRowHeight(s, "Location"; height = 50)
+        @test XLSX.getRowHeight(s, "D18") ≈ 50.2109375
+        @test XLSX.getColumnWidth(s, "D18") ≈ 60.7109375
+        @test XLSX.getRowHeight(f, "Mock-up!J20") ≈ 50.2109375
+        @test XLSX.getColumnWidth(f, "Mock-up!J20") ≈ 60.7109375
+
+    end
+
+    @testset "No cache" begin
+        XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=true) do f
+            @test XLSX.getRowHeight(f, "Mock-up!B2") ≈ 23.25
+            @test_throws AssertionError  XLSX.getColumnWidth(f, "Mock-up!B2")
+        end
+        XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=false) do f
+            @test_throws AssertionError XLSX.getRowHeight(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getColumnWidth(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getFont(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getFill(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getBorder(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getFormat(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getAlignment(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setRowHeight(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setColumnWidth(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setFont(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setFill(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setBorder(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setFormat(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setAlignment(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.setUniformFont(f, "Mock-up!B2:C4")
+            @test_throws AssertionError XLSX.setUniformFill(f, "Mock-up!B2:C4")
+            @test_throws AssertionError XLSX.setUniformBorder(f, "Mock-up!B2:C4")
+            @test_throws AssertionError XLSX.setUniformFormat(f, "Mock-up!B2:C4")
+            @test_throws AssertionError XLSX.setUniformAlignment(f, "Mock-up!B2:C4")
+            @test_throws AssertionError XLSX.setOutsideBorder(f, "Mock-up!B2:C4")
+        end
+    end
 
 end
 
@@ -1665,7 +1924,7 @@ end
     data = [
         1 "a" Date(2018, 1, 1);
         2 missing Date(2018, 1, 2);
-        missing "c" Date(2018, 1, 3);
+        missing "c" Date(2018, 1, 3)
     ]
 
     # can't read or edit a file that does not exist
@@ -1703,7 +1962,7 @@ end
     new_data = [1 2 3;]
     XLSX.openxlsx(filename, mode="w") do xf
         sheet = xf[1]
-        sheet[1, :] = new_data[1,:]
+        sheet[1, :] = new_data[1, :]
     end
 
     XLSX.openxlsx(filename) do xf
@@ -1715,7 +1974,7 @@ end
 
     # test edit file
     XLSX.openxlsx(filename, mode="rw") do xf
-        sheet=xf[1]
+        sheet = xf[1]
         sheet[1, 2] = "hello"
         sheet["B6"] = 5
     end
@@ -1751,14 +2010,14 @@ end
 
             for (row, val) in enumerate(col_data)
                 @test sheet[row, 2] == val
-                @test sheet[50 + row, 3] == val
-                @test sheet[row + 1, 4] == val
+                @test sheet[50+row, 3] == val
+                @test sheet[row+1, 4] == val
             end
         end
     end
 
     @testset "write matrix with anchor cell" begin
-        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        test_data = [1 2 3; 4 5 6; 7 8 9]
         XLSX.openxlsx(filename, mode="w") do xf
             sheet = xf[1]
             sheet["A7"] = test_data
@@ -1774,7 +2033,7 @@ end
     end
 
     @testset "write matrix with range" begin
-        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        test_data = [1 2 3; 4 5 6; 7 8 9]
         XLSX.openxlsx(filename, mode="w") do xf
             sheet = xf[1]
             sheet["A7:C9"] = test_data
@@ -1790,7 +2049,7 @@ end
     end
 
     @testset "write matrix with range mismatch" begin
-        test_data = [ 1 2 3 ; 4 5 6 ; 7 8 9]
+        test_data = [1 2 3; 4 5 6; 7 8 9]
         XLSX.openxlsx(filename, mode="w") do xf
             sheet = xf[1]
             @test_throws AssertionError sheet["A7:C10"] = test_data
@@ -1823,7 +2082,7 @@ end
         push!(columns, [1, 2, 3])
         push!(columns, ["a", "b", "c"])
 
-        labels = [ "column_1", "column_2"]
+        labels = ["column_1", "column_2"]
 
         XLSX.openxlsx(filename, mode="w") do xf
             sheet = xf[1]
@@ -1870,19 +2129,23 @@ end
 
 @testset "escape" begin
 
-    @test XML.escape("hello&world<'") == "hello&world&lt;&apos;"
-                                              
-    esc_filename  = "output_table_escape_test.xlsx"
+    # These tests are not sufficient. It may be possible using these tests (or similar) to create XLSX files
+    # that are not valid Excel files and will not successfully open. I do not now how to test this here but
+    # have successfully tested `output_table_escape_test.xlsx` and `escape.xlsx` manually.
+    @test XLSX.xlsx_escape("hello&world<'") == "hello&amp;world&lt;&apos;"
+    @test XML.unescape("hello&amp;world&lt;&apos;") == "hello&world<'"
+
+    esc_filename = "output_table_escape_test.xlsx"
     isfile(esc_filename) && rm(esc_filename)
 
     esc_col_names = ["&' & \" < > '", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
-    esc_sheetname = XML.escape("& & \" > < ")
+    esc_sheetname = XLSX.xlsx_escape("& & \" > < ")
     esc_data = Vector{Any}(undef, 4)
-    esc_data[1] = ["11&&",    "12\"&",    "13<&",    "14>&",    "15'&"    ]
-    esc_data[2] = ["21&&&&",  "22&\"&&",  "23&<&&",  "24&>&&",  "25&'&&"  ]
-    esc_data[3] = ["31&&&&&&","32&&\"&&&","33&&<&&&","34&&>&&&","35&&'&&&"]
-    esc_data[4] = ["41& &; &&",   "42\" \"; \"\"","43< <; <<",  "44> >; >>",  "45' '; ''"    ]
-    XLSX.writetable(esc_filename, esc_data, XML.escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
+    esc_data[1] = ["11&&", "12\"&", "13<&", "14>&", "15'&"]
+    esc_data[2] = ["21&&&&", "22&\"&&", "23&<&&", "24&>&&", "25&'&&"]
+    esc_data[3] = ["31&&&&&&", "32&&\"&&&", "33&&<&&&", "34&&>&&&", "35&&'&&&"]
+    esc_data[4] = ["41& &; &&", "42\" \"; \"\"", "43< <; <<", "44> >; >>", "45' '; ''"]
+    XLSX.writetable(esc_filename, esc_data, XLSX.xlsx_escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
 
     dtable = XLSX.readtable(esc_filename, esc_sheetname)
     r1_data, r1_col_names = dtable.data, dtable.column_labels
@@ -1931,7 +2194,7 @@ end
 @testset "relative paths" begin
     let
         xf = XLSX.readxlsx(joinpath(data_directory, "openpyxl.xlsx"))
-        @test XLSX.sheetnames(xf) == [ "Sheet", "Test1" ]
+        @test XLSX.sheetnames(xf) == ["Sheet", "Test1"]
         @test xf["Test1"]["A1"] == "One"
         @test xf["Test1"]["A2"] == 1
         show(IOBuffer(), xf)
@@ -1942,7 +2205,7 @@ end
     let
         dtable = XLSX.readtable(joinpath(data_directory, "openpyxl.xlsx"), "Test1")
         data, col_names = dtable.data, dtable.column_labels
-        @test data == [ [1, 3], [2, 4]]
+        @test data == [[1, 3], [2, 4]]
         @test col_names == [:One, :Two]
     end
 end
@@ -1959,7 +2222,7 @@ end
 # issue #117
 @testset "whitespace nodes" begin
     xf = XLSX.readxlsx(joinpath(data_directory, "noutput_first_second_third.xlsx"))
-    @test XLSX.sheetnames(xf) == [ "NOTES", "DATA" ]
+    @test XLSX.sheetnames(xf) == ["NOTES", "DATA"]
     @test xf["NOTES"]["A1"] == "Nominal GNP/GDP"
     @test xf["NOTES"]["A9"] == "Last updated on: August 29, 2019"
     @test xf["DATA"]["A5"] == "Date"
@@ -1998,17 +2261,17 @@ end
     f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
     s = f["table"]
     ct = XLSX.eachtablerow(s) |> Tables.columntable
-    @test isequal(ct, NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}(([1, 2, 3, 4, 5, 6, 7, 8], Union{Missing, String}["Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2"], Date[Date(2018,04,21), Date(2018,04,22), Date(2018,04,23), Date(2018,04,24), Date(2018,04,25), Date(2018,04,26), Date(2018,04,27), Date(2018,04,28)], Union{Missing, String}[missing, missing, missing, missing, missing, "a", "b", missing], [0.2001132319106511,0.27939873773400004,0.09505916768351352,0.07440230673248627,0.82422780912015,0.620588357787471,0.9174151017732964,0.6749604882690108], Missing[missing, missing, missing, missing, missing, missing, missing, missing])))
+    @test isequal(ct, NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}(([1, 2, 3, 4, 5, 6, 7, 8], Union{Missing,String}["Str1", missing, "Str1", "Str1", "Str2", "Str2", "Str2", "Str2"], Date[Date(2018, 04, 21), Date(2018, 04, 22), Date(2018, 04, 23), Date(2018, 04, 24), Date(2018, 04, 25), Date(2018, 04, 26), Date(2018, 04, 27), Date(2018, 04, 28)], Union{Missing,String}[missing, missing, missing, missing, missing, "a", "b", missing], [0.2001132319106511, 0.27939873773400004, 0.09505916768351352, 0.07440230673248627, 0.82422780912015, 0.620588357787471, 0.9174151017732964, 0.6749604882690108], Missing[missing, missing, missing, missing, missing, missing, missing, missing])))
     rt = XLSX.eachtablerow(s) |> Tables.rowtable
     rt2 = [
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((1, "Str1", Date(2018,04,21), missing, 0.2001132319106511, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((2, missing, Date(2018,04,22), missing, 0.27939873773400004, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((3, "Str1", Date(2018,04,23), missing, 0.09505916768351352, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((4, "Str1", Date(2018,04,24), missing, 0.07440230673248627, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((5, "Str2", Date(2018,04,25), missing, 0.82422780912015, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((6, "Str2", Date(2018,04,26), "a", 0.620588357787471, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((7, "Str2", Date(2018,04,27), "b", 0.9174151017732964, missing)),
-        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((8, "Str2", Date(2018,04,28), missing, 0.6749604882690108, missing))
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((1, "Str1", Date(2018, 04, 21), missing, 0.2001132319106511, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((2, missing, Date(2018, 04, 22), missing, 0.27939873773400004, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((3, "Str1", Date(2018, 04, 23), missing, 0.09505916768351352, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((4, "Str1", Date(2018, 04, 24), missing, 0.07440230673248627, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((5, "Str2", Date(2018, 04, 25), missing, 0.82422780912015, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((6, "Str2", Date(2018, 04, 26), "a", 0.620588357787471, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((7, "Str2", Date(2018, 04, 27), "b", 0.9174151017732964, missing)),
+        NamedTuple{(Symbol("Column B"), Symbol("Column C"), Symbol("Column D"), Symbol("Column E"), Symbol("Column F"), Symbol("Column G"))}((8, "Str2", Date(2018, 04, 28), missing, 0.6749604882690108, missing))
     ]
     @test isequal(rt, rt2)
     ct = XLSX.eachtablerow(f["table2"]) |> Tables.columntable
@@ -2036,13 +2299,13 @@ end
     # write
     col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes"]
     data = Vector{Any}(undef, 7)
-    data[1] = [ 1, 2, missing, 4 ]
-    data[2] = [ "Hey", "You", "Out", "There" ]
-    data[3] = [ 101.5, 102.5, missing, 104.5 ]
-    data[4] = [ true, false, missing, true ]
-    data[5] = [ Date(2018, 2, 1), Date(2018, 3, 1), Date(2018,5,20), Date(2018, 6, 2) ]
-    data[6] = [ Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40) ]
-    data[7] = [ Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40) ]
+    data[1] = [1, 2, missing, 4]
+    data[2] = ["Hey", "You", "Out", "There"]
+    data[3] = [101.5, 102.5, missing, 104.5]
+    data[4] = [true, false, missing, true]
+    data[5] = [Date(2018, 2, 1), Date(2018, 3, 1), Date(2018, 5, 20), Date(2018, 6, 2)]
+    data[6] = [Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(19, 40)]
+    data[7] = [Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
     table = NamedTuple{Tuple(Symbol(x) for x in col_names)}(Tuple(data))
 
     XLSX.writetable("output_table.xlsx", table, overwrite=true, sheetname="report", anchor_cell="B2")
@@ -2066,7 +2329,7 @@ end
     end
 
     # multiple tables in same file
-    table2 = (a = [1, 2, 3, 4], b=["a", "b", "c", "d"])
+    table2 = (a=[1, 2, 3, 4], b=["a", "b", "c", "d"])
     XLSX.writetable("output_table3.xlsx", "report1" => table, "report2" => table2)
     XLSX.writetable("output_table4.xlsx", ["report1" => table, "report2" => table2])
     for file in ["output_table4.xlsx", "output_table3.xlsx"]
@@ -2093,7 +2356,7 @@ end
         file = joinpath(@__DIR__, "test_report.xlsx")
 
         try
-            df1 = DataFrames.DataFrame(COL1=[10,20,30], COL2=["Fist", "Sec", "Third"])
+            df1 = DataFrames.DataFrame(COL1=[10, 20, 30], COL2=["Fist", "Sec", "Third"])
             df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
             XLSX.writetable(file, "REPORT_A" => df1, "REPORT_B" => df2, overwrite=true)
         finally

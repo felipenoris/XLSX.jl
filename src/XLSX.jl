@@ -26,6 +26,7 @@ include("workbook.jl")
 include("worksheet.jl")
 include("cell.jl")
 include("styles.jl")
+include("cellformats.jl")
 include("write.jl")
 
 end # module XLSX

@@ -84,7 +84,8 @@ function sst_load!(workbook::Workbook)
                 XML.nodetype(el) == XML.Text && continue
                 @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
                 push!(sst.unformatted_strings, unformatted_text(el))
-                push!(sst.formatted_strings, replace(XML.write(el), r" *\n *" => "")) # Don't want pretty printing.
+                push!(sst.formatted_strings, XML.write(el))
+
             end
 
             init_sst_index(sst)
@@ -113,7 +114,7 @@ function unformatted_text(el::XML.Node) :: String
             if length(c) == 1
                 push!(v, XML.value(c[1]))
             else
-                push!(v, replace(XML.write(e), r" *\n *" => "")) # Don't want pretty printing.
+                push!(v, XML.write(e))
             end
         end
 
