@@ -1104,7 +1104,7 @@ in the `patternFill` element are:
 - `bgColor`     : Specifies the background color of the pattern.
 
 The child elements `fgColor` and `bgColor` can each have one or two attributes 
-of their own. These color attributes are pushed in to the `DellFill.fill` Dict 
+of their own. These color attributes are pushed in to the `CellFill.fill` Dict 
 of attributes with either `fg` or `bg` prepended to their names to support later 
 reconstruction of the xml element.
 
@@ -1714,7 +1714,8 @@ Alternatively, `format` can be used to specify any custom format directly.
 Only weak checks are made of custom formats specified - they are otherwise added 
 to the XLSXfile verbatim.
 
-Formats may need characters that must to be escaped when specified.
+Formats may need characters that must be escaped when specified (see third 
+example, below).
 
 # Examples:
 ```julia
