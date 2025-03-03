@@ -34,6 +34,7 @@ println( XLSX.row_number(cn) ) # will print 1
 println( XLSX.column_number(cn) ) # will print 28
 println( string(cn) ) # will print out AB1
 ```
+
 """
 struct CellRef
     name::String

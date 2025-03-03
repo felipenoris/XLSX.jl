@@ -45,7 +45,8 @@ Consider using [`XLSX.openxlsx`](@ref) for lazy loading of Excel file contents.
 """
     openxlsx(f::F, source::Union{AbstractString, IO}; mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
-Open XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed after applying `f` to the file.
+Open an XLSX file for reading and/or writing. It returns an opened XLSXFile that will be automatically closed 
+after applying `f` to the file.
 
 # `Do` syntax
 

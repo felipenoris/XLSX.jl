@@ -1,35 +1,44 @@
 
-#=
-    open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile
+"""
+    opentemplate(source::Union{AbstractString, IO}) :: XLSXFile
 
-Open an Excel file as template for editing and saving to another file with `XLSX.writexlsx`.
-=#
+Read an existing Excel file as a template and return as a writable `XLSXFile` for editing 
+and saving to another file with `XLSX.writexlsx`.
+
+# Examples
+```julia
+julia> xf = opentemplate("myExcelFile")
+```
+
+"""
+opentemplate(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
+
 @inline open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
 
 function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
     return path
 end
 
-#=
-    open_empty_template(
-        sheetname::AbstractString="";
-        relocatable_data_path::AbstractString=_relocatable_data_path()
-    ) :: XLSXFile
+"""
+    newxlsx() :: XLSXFile
 
-Returns an empty, writable `XLSXFile` with 1 worksheet.
+Return an empty, writable `XLSXFile` with 1 worksheet (`Sheet1`) for editing and 
+saving to a file with `XLSX.writexlsx`.
 
-# Arguments
+# Examples
+```julia
+julia> xf = newxlsx()
+```
 
-* `sheetname` is the name of the worksheet. When provided with an empty string `""`, this routine selects the first sheet of the workbook.
+"""
+newxlsx() = open_empty_template()
 
-* `relocatable_data_path` is the filepath for a blank workbook template. It defaults to the template provided by the package artifact.
-=#
 function open_empty_template(
             sheetname::AbstractString="";
-            relocatable_data_path::AbstractString=_relocatable_data_path()
+            path::AbstractString=_relocatable_data_path()
         ) :: XLSXFile
 
-    empty_excel_template = joinpath(relocatable_data_path, "blank.xlsx")
+    empty_excel_template = joinpath(path, "blank.xlsx")
     @assert isfile(empty_excel_template) "Couldn't find template file $empty_excel_template."
     xf = open_xlsx_template(empty_excel_template)
 
@@ -43,7 +52,7 @@ end
 """
     writexlsx(output_source, xlsx_file; [overwrite=false])
 
-Writes an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
+Write an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
 
 If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it exists.
 """
@@ -378,32 +387,39 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
-
-const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
-#const ILLEGAL_CHARS = [Char(0x02) => " ", Char(0x12) => "&apos;", Char(0x16) => ""]
-#conts ILLEGAL_CHARS [r"\x00-\x08\x0B\x0E\x0F\x10-\x19" => ""]
-
+# This set of characters works in my use case. I don't know:
+# - if the set is sufficient, or if other charachers may be needed in other use cases
+# - if all of these characters are necessary or if one or two coulld be dropped
+# - What the optimum replacement character should be.
+const ILLEGAL_CHARS = [
+    Char(0x00) => "",
+    Char(0x01) => "",
+    Char(0x02) => "",
+    Char(0x03) => "",
+    Char(0x04) => "",
+    Char(0x05) => "",
+    Char(0x06) => "",
+    Char(0x07) => "",
+    Char(0x08) => "",
+    Char(0x12) => "&apos;",
+    Char(0x16) => ""
+]
 function strip_illegal_chars(x::String)
-# Not implemented yet!
-#    result = x
-#    for (pat, r) in ILLEGAL_CHARS
-#        result = replace(result, pat => r)
-#    end
-#    return result
-    return x
-end
-
-function xlsx_escape(x::String)# Adaped from XML.escape()
-
-    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
-
-    for (pat, r) in ESCAPE_CHARS[2:end]
+    result = x
+    for (pat, r) in ILLEGAL_CHARS
         result = replace(result, pat => r)
     end
-
     return result
 end
 
+const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
+function xlsx_escape(x::String)# Adaped from XML.escape()
+    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
+    for (pat, r) in ESCAPE_CHARS[2:end]
+        result = replace(result, pat => r)
+    end
+    return result
+end
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
@@ -618,7 +634,8 @@ end
 """
     rename!(ws::Worksheet, name::AbstractString)
 
-Renames a `Worksheet`.
+Rename a `Worksheet` to `name`.
+
 """
 function rename!(ws::Worksheet, name::AbstractString)
 
@@ -658,8 +675,9 @@ addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_wo
 """
     addsheet!(workbook, [name]) :: Worksheet
 
-Create a new worksheet with named `name`.
+Create a new worksheet named `name`.
 If `name` is not provided, a unique name is created.
+
 """
 function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: Worksheet
     xf = get_xlsxfile(wb)
