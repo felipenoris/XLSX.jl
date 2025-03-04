@@ -2098,10 +2098,8 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     end
     for r in eachrow(ws)
         if r.row in top:bottom
-            if r.row ∈ ws.cache.rows_in_cache
-                if haskey(ws.cache.row_ht, r.row)
-                    ws.cache.row_ht[r.row] = padded_height
-                end
+            if haskey(ws.cache.row_ht, r.row)
+                ws.cache.row_ht[r.row] = padded_height
             end
         end
     end
@@ -2140,12 +2138,10 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     for r in eachrow(ws)
         if r.row == cellref.row_number
-            if r.row ∈ ws.cache.rows_in_cache
-                if haskey(ws.cache.row_ht, r.row)
-                    return ws.cache.row_ht[r.row]
-                else
-                    return nothing
-                end
+            if haskey(ws.cache.row_ht, r.row)
+                return ws.cache.row_ht[r.row]
+            else
+                return nothing
             end
         end
     end
