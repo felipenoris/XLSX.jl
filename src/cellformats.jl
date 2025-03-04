@@ -2140,8 +2140,6 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
         if r.row == cellref.row_number
             if haskey(ws.cache.row_ht, r.row)
                 return ws.cache.row_ht[r.row]
-            else
-                return nothing
             end
         end
     end
