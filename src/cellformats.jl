@@ -2133,7 +2133,7 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
         end
     end
 
-    if first == false 
+    if first == true 
         return -1 # All rows were empty
     end
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
