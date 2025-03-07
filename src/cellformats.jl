@@ -2086,9 +2086,13 @@ function does not attempt to replicate it, but simply adds 0.21 internal units
 to the value specified. The value set is unlikely to match the value seen 
 interactivley in the resultant spreadsheet, but it will be close.
 
+Row height cannot be set for empty rows, which will quietly be skipped.
+A row must have at least one cell containing a value before its height can be set.
+
 You can set a row height to 0.
 
-The function returns a value of 0.
+The function returns a value of 0 unless all rows are empty, in which case 
+it returns a value of -1.
 
 # Examples:
 ```julia
@@ -2097,8 +2101,8 @@ julia> XLSX.setRowHeight(xf, "Sheet1!A2"; height = 50)
 julia> XLSX.setRowHeight(sh, "F1:F5"; heighth = 0)
 
 julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
-```
 
+```
 """
 function setRowHeight end
 setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
@@ -2117,16 +2121,21 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     if isnothing(height) # No-op
         return 0
     end
+    first = true
     for r in eachrow(ws)
         if r.row in top:bottom
             if r.row ∈ ws.cache.rows_in_cache
                 if haskey(ws.cache.row_ht, r.row)
                     ws.cache.row_ht[r.row] = padded_height
+                    first = false
                 end
             end
         end
     end
 
+    if first == false 
+        return -1 # All rows were empty
+    end
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
@@ -2141,6 +2150,8 @@ The function will use the row number and ignore the column.
 
 The function returns the value of the row height or nothing if the row 
 does not have an explicitly defined height.
+
+If the row is not found (an empty row), returns -1.
 
 # Examples:
 ```julia
