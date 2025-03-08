@@ -669,7 +669,7 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
-                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
+                # @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
