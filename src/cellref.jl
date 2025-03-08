@@ -60,6 +60,7 @@ Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
 
 const RGX_COLUMN_NAME = r"^[A-Z]?[A-Z]?[A-Z]$"
+const RGX_ROW_NAME = r"^[1-9][0-9]*$"
 const RGX_CELLNAME = r"^[A-Z]+[0-9]+$"
 const RGX_CELLRANGE = r"^[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 
@@ -70,6 +71,18 @@ function is_valid_column_name(n::AbstractString) :: Bool
 
     column_number = decode_column_number(n)
     if column_number < 1 || column_number > EXCEL_MAX_COLS
+        return false
+    end
+
+    return true
+end
+function is_valid_row_name(n::AbstractString) :: Bool
+    if !occursin(RGX_ROW_NAME, n)
+        return false
+    end
+
+    row_number = parse(Int, n)
+    if row_number < 1 || row_number > EXCEL_MAX_ROWS
         return false
     end
 
@@ -267,8 +280,13 @@ const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 const RGX_COLUMN_RANGE_START = r"^[A-Z]+"
 const RGX_COLUMN_RANGE_STOP = r"[A-Z]+$"
 const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
+const RGX_ROW_RANGE = r"^[1-9][0-9]*:[1-9][0-9]*$"
+const RGX_ROW_RANGE_START = r"^[1-9][0-9]*"
+const RGX_ROW_RANGE_STOP = r"[1-9][0-9]*$"
+const RGX_SINGLE_ROW = r"^[1-9][0-9]*$"
 
 # Returns tuple (column_name_start, column_name_stop).
+# Also works for row ranges!
 @inline function split_column_range(n::AbstractString)
     if !occursin(":", n)
         return n, n
@@ -279,24 +297,39 @@ const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
 end
 
 function is_valid_column_range(r::AbstractString) :: Bool
-
     if occursin(RGX_SINGLE_COLUMN, r)
         return true
     end
-
     if !occursin(RGX_COLUMN_RANGE, r)
         return false
     end
-
     start_name, stop_name = split_column_range(r)
-
     if !is_valid_column_name(start_name) || !is_valid_column_name(stop_name)
         return false
     end
-
+    return true
+end
+function is_valid_row_range(r::AbstractString) :: Bool
+    if occursin(RGX_SINGLE_ROW, r)
+        row_number = parse(Int, r)
+        @assert row_number > 0 && row_number <= EXCEL_MAX_ROWS "Row number should be in the range from 1 to $EXCEL_MAX_ROWS."
+        return true
+    end
+    if !occursin(RGX_ROW_RANGE, r)
+        return false
+    end
+    start_name, stop_name = split_column_range(r)
+    if !is_valid_row_name(start_name) || !is_valid_row_name(stop_name)
+        return false
+    end
     return true
 end
 
+function RowRange(r::AbstractString)
+    @assert is_valid_row_range(r) "Invalid row range: $r."
+    start_name, stop_name = split_column_range(r)
+    return RowRange(parse(Int, start_name), parse(Int, stop_name))
+end
 function ColumnRange(r::AbstractString)
     @assert is_valid_column_range(r) "Invalid column range: $r."
     start_name, stop_name = split_column_range(r)
@@ -305,9 +338,13 @@ end
 
 convert(::Type{ColumnRange}, str::AbstractString) = ColumnRange(str)
 convert(::Type{ColumnRange}, column_range::ColumnRange) = column_range
+convert(::Type{RowRange}, str::AbstractString) = RowRange(str)
+convert(::Type{RowRange}, row_range::RowRange) = row_range
 
 column_bounds(r::ColumnRange) = (r.start, r.stop)
 Base.length(r::ColumnRange) = r.stop - r.start + 1
+row_bounds(r::RowRange) = (r.start, r.stop)
+Base.length(r::RowRange) = r.stop - r.start + 1
 
 # ColumnRange iterator: element is a String with the column name, the state is the column number.
 function Base.iterate(itr::ColumnRange, state::Int=itr.start)
@@ -361,10 +398,12 @@ Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
 const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE = r"^.+![A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE = r"^.+![A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+const RGX_SHEET_ROW_RANGE = r"^.+![1-9][0-9]*:[1-9][0-9]*$"
 
 const RGX_SHEET_CELLNAME_RIGHT = r"[A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE_RIGHT = r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE_RIGHT = r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+const RGX_SHEET_ROW_RANGE_RIGHT = r"[1-9][0-9]*:[1-9][0-9]*$"
 
 function is_valid_sheet_cellname(n::AbstractString) :: Bool
     if !occursin(RGX_SHEET_CELLNAME, n)
@@ -399,6 +438,18 @@ function is_valid_sheet_column_range(n::AbstractString) :: Bool
 
     column_range = match(RGX_SHEET_COLUMN_RANGE_RIGHT, n).match
     if !is_valid_column_range(column_range)
+        return false
+    end
+
+    return true
+end
+function is_valid_sheet_row_range(n::AbstractString) :: Bool
+    if !occursin(RGX_SHEET_ROW_RANGE, n)
+        return false
+    end
+
+    row_range = match(RGX_SHEET_ROW_RANGE_RIGHT, n).match
+    if !is_valid_row_range(row_range)
         return false
     end
 
@@ -450,6 +501,12 @@ function SheetColumnRange(n::AbstractString)
     column_range = match(RGX_SHEET_COLUMN_RANGE_RIGHT, n).match
     sheetname = parse_sheetname_from_sheetcell_name(n)
     return SheetColumnRange(sheetname, ColumnRange(column_range))
+end
+function SheetRowRange(n::AbstractString)
+    @assert is_valid_sheet_row_range(n) "$n is not a valid SheetRowRange."
+    row_range = match(RGX_SHEET_ROW_RANGE_RIGHT, n).match
+    sheetname = parse_sheetname_from_sheetcell_name(n)
+    return SheetRowRange(sheetname, RowRange(row_range))
 end
 
 # Named ranges

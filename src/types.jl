@@ -201,6 +201,15 @@ struct ColumnRange
         return new(a, b)
     end
 end
+struct RowRange
+    start::Int # row number
+    stop::Int  # row number
+
+    function RowRange(a::Int, b::Int)
+        @assert a <= b "Invalid RowRange. Start row must be located before end row."
+        return new(a, b)
+    end
+end
 
 struct SheetCellRef
     sheet::String
@@ -215,6 +224,10 @@ end
 struct SheetColumnRange
     sheet::String
     colrng::ColumnRange
+end
+struct SheetRowRange
+    sheet::String
+    rowrng::RowRange
 end
 
 abstract type MSOfficePackage end

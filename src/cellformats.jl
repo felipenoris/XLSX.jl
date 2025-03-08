@@ -223,6 +223,9 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
     elseif is_valid_sheet_column_range(sheetcell)
         sheetcolrng = SheetColumnRange(sheetcell)
         newid = f(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
+    elseif is_valid_sheet_row_range(sheetcell)
+        sheetrowrng = SheetRowRange(sheetcell)
+        newid = f(xl[sheetrowrng.sheet], sheetrowrng.rowrng; kw...)
     elseif is_valid_sheet_cellrange(sheetcell)
         sheetcellrng = SheetCellRange(sheetcell)
         newid = f(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
@@ -265,6 +268,9 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
     elseif is_valid_column_range(ref_or_rng)
         colrng = ColumnRange(ref_or_rng)
         newid = f(ws, colrng; kw...)
+    elseif is_valid_row_range(ref_or_rng)
+        rowrng = RowRange(ref_or_rng)
+        newid = f(ws, rowrng; kw...)
     elseif is_valid_cellrange(ref_or_rng)
         rng = CellRange(ref_or_rng)
         newid = f(ws, rng; kw...)
@@ -294,6 +300,27 @@ function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; k
         return f(ws, rng; kw...)
     else
         error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
+    end
+end
+function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...)::Int
+    bounds = row_bounds(rowrng)
+    dim = (get_dimension(ws))
+
+    top = bounds[begin]
+    bottom = bounds[end]
+    left = dim.start.column_number
+    right = dim.stop.column_number
+
+    OK = dim.start.column_number <= left
+    OK &= dim.stop.column_number >= right
+    OK &= dim.start.row_number <= top
+    OK &= dim.stop.row_number >= bottom
+
+    if OK
+        rng = CellRange(top, left, bottom, right)
+        return f(ws, rng; kw...)
+    else
+        error("Row range $rowrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
     end
 end
 function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
@@ -326,7 +353,7 @@ function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractSt
         wb = get_workbook(ws)
         v = get_defined_name_value(wb, ref_or_rng)
         if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borderds to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+            error("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
         elseif is_defined_name_value_a_reference(v)
             new_att = f(get_xlsxfile(wb), replace(string(v), "'" => ""))
         else
@@ -406,7 +433,7 @@ end
     setFont(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
 Set the font used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
 
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
@@ -457,6 +484,8 @@ julia> setFont(sh, "A:B"; italic=true, color="FF8888FF", under="single")        
 
 julia> setFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
 
+julia> setFont(xf, "Sheet1!6:12"; italic=false, color="FF8888FF", under="none")  # Row range
+
 julia> setFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
 julia> setFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
@@ -466,6 +495,7 @@ julia> setFont(xf, "bigred"; size=48, color="FF00FF00")                         
 function setFont end
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
 setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
+setFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFont, ws, rowrng; kw...)
 setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
 setFont(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFont, xl, sheetcell; kw...)
 function setFont(sh::Worksheet, cellref::CellRef; 
@@ -559,8 +589,8 @@ end
     setUniformFont(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFont(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the font used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same font.
+Set the font used by a cell range, a column range or row range or 
+a named range in a worksheet or XLSXfile to be uniformly the same font.
 
 First, the font attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFont()`). The resultant font is 
@@ -595,6 +625,8 @@ julia> setUniformFont(sh, "A:B"; italic=true, color="FF8888FF", under="single") 
 
 julia> setUniformFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
 
+julia> setUniformFont(sh, "33"; italic=true, color="FF8888FF", under="single")          # Row
+
 julia> setUniformFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named range
 
 julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named range
@@ -603,6 +635,7 @@ julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                  
 """
 function setUniformFont end
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
+setUniformFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFont, ws, rowrng; kw...)
 setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFont, xl, sheetcell; kw...)
 setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFont, ws, ref_or_rng; kw...)
 setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFont, ws, rng, ["fontId", "applyFont"]; kw...)
@@ -669,7 +702,7 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
-                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
+##                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
@@ -801,7 +834,7 @@ end
     setBorder(xf::XLSXFile, cr::String; kw...) -> ::Int
    
 Set the borders used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
 
 Borders are independently defined for the keywords:
 - `left::Vector{Pair{String,String} = nothing`
@@ -877,6 +910,7 @@ Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "F
 function setBorder end
 setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
 setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setBorder, ws, colrng; kw...)
+setBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setBorder, ws, rowrng; kw...)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
 setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
 function setBorder(sh::Worksheet, cellref::CellRef;
@@ -969,8 +1003,8 @@ end
     setUniformBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformBorder(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the border used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same border.
+Set the border used by a cell range, a column range or row range or 
+a named range in a worksheet or XLSXfile to be uniformly the same border.
 
 First, the border attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setBorder()`). The resultant border is 
@@ -1010,6 +1044,7 @@ Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "c
 """
 function setUniformBorder end
 setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
+setUniformBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformBorder, ws, rowrng; kw...)
 setUniformBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformBorder, xl, sheetcell; kw...)
 setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformBorder, ws, ref_or_rng; kw...)
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
@@ -1018,8 +1053,8 @@ setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
     setOutsideBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setOutsideBorder(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the border around the outside of a cell range, a column range or a named 
-range in a worksheet or XLSXfile.
+Set the border around the outside of a cell range, a column range or row range 
+or a named range in a worksheet or XLSXfile.
 
 Two key words can be defined:
 - `style::String = nothing`   : defines the style of the outside border
@@ -1044,6 +1079,7 @@ Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", color = "FF000FF0
 """
 function setOutsideBorder end
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
+setOutsideBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setOutsideBorder, ws, rowrng; kw...)
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
 function setOutsideBorder(ws::Worksheet, rng::CellRange; 
@@ -1202,7 +1238,7 @@ end
     setFill(xf::XLSXFile,  cr::String; kw...) -> ::Int
    
 Set the fill used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
 
 The following keywords are used to define a fill:
 - `pattern::String = nothing`   : Sets the patternType for the fill.
@@ -1251,10 +1287,13 @@ Julia> setFill(sh, "B2"; pattern="gray125", bgColor = "FF000000")
 
 Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
  
+Julia> setFill(sh, "11:24"; pattern="none", fgColor = "88FF8800")
+ 
 ```
 """
 function setFill end
 setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
+setFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFill, ws, rowrng; kw...)
 setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFill, ws, colrng; kw...)
 setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
 setFill(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFill, xl, sheetcell; kw...)
@@ -1330,8 +1369,8 @@ end
     setUniformFill(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFill(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the fill used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same fill.
+Set the fill used by a cell range, a column range or row range or a 
+named range in a worksheet or XLSXfile to be uniformly the same fill.
 
 First, the fill attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFill()`). The resultant fill is 
@@ -1366,6 +1405,7 @@ Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
 """
 function setUniformFill end
 setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFill, ws, colrng; kw...)
+setUniformFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFill, ws, rowrng; kw...)
 setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFill, xl, sheetcell; kw...)
 setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
 setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)
@@ -1451,7 +1491,7 @@ end
     setAlignment(xf::XLSXFile,  cr::String; kw...) -> ::Int}
    
 Set the alignment used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
 
 The following keywords are used to define an alignment:
 - `horizontal::String = nothing` : Sets the horizontal alignment.
@@ -1499,6 +1539,7 @@ julia> setAlignment(sh, "L6"; horizontal="center", rotation="90", shrink=true, i
 function setAlignment end
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
 setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
+setAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setAlignment, ws, rowrng; kw...)
 setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
 setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setAlignment, xl, sheetcell; kw...)
 function setAlignment(sh::Worksheet, cellref::CellRef; 
@@ -1581,8 +1622,8 @@ end
     setUniformAlignment(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformAlignment(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the alignment used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same alignment.
+Set the alignment used by a cell range, a column range or row range or a 
+named range in a worksheet or XLSXfile to be uniformly the same alignment.
 
 First, the alignment attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setAlignment()`). The resultant alignment 
@@ -1618,6 +1659,7 @@ Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="t
 """
 function setUniformAlignment end
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
+setUniformAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformAlignment, ws, rowrng; kw...)
 setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformAlignment, xl, sheetcell; kw...)
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
 setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
@@ -1693,7 +1735,7 @@ end
     setFormat(xf::XLSXFile,  cr::String; kw...) -> ::Int
    
 Set the format used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
 
 The function uses one keyword used to define a format:
 - `format::String = nothing` : Defines a built-in or custom number format
@@ -1732,6 +1774,7 @@ julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£*
 function setFormat end
 setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
 setFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFormat, ws, colrng; kw...)
+setFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFormat, ws, rowrng; kw...)
 setFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFormat, ws, ref_or_rng; kw...)
 setFormat(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFormat, xl, sheetcell; kw...)
 function setFormat(sh::Worksheet, cellref::CellRef;
@@ -1803,8 +1846,8 @@ end
     setUniformFormat(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFormat(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the number format used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be  to be uniformly the same format.
+Set the number format used by a cell range, a column range or row range or a 
+named range in a worksheet or XLSXfile to be to be uniformly the same format.
 
 First, the number format of the first cell in the range (the top-left cell) is
 updated according to the given `kw...` (using `setFormat()`). The resultant format is 
@@ -1830,6 +1873,7 @@ julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
 """
 function setUniformFormat end
 setUniformFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFormat, ws, colrng; kw...)
+setUniformFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFormat, ws, rowrng; kw...)
 setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFormat, xl, sheetcell; kw...)
 setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
 setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng; kw...)
@@ -1842,9 +1886,9 @@ setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
     setUniformStyle(sh::Worksheet, cr::String) -> ::Int
     setUniformStyle(xf::XLSXFile,  cr::String) -> ::Int
 
-Set the cell `style` used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be the same as that of the first cell in the range 
-that is not an `EmptyCell`.
+Set the cell `style` used by a cell range, a column range or row range 
+or a named range in a worksheet or XLSXfile to be the same as that of 
+the first cell in the range that is not an `EmptyCell`.
 
 As a result, every cell in the range will have a uniform `style`.
 
@@ -1868,6 +1912,7 @@ julia> XLSX.setUniformStyle(sh, "F1:F5")
 """
 function setUniformStyle end
 setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
+setUniformStyle(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformStyle, ws, rowrng; kw...)
 setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
 setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
 function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
@@ -1939,6 +1984,7 @@ julia> XLSX.setColumnWidth(sh, "I"; width = 24.37)
 """
 function setColumnWidth end
 setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setColumnWidth, ws, colrng; kw...)
+setColumnWidth(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setColumnWidth, ws, rowrng; kw...)
 setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
@@ -2086,9 +2132,13 @@ function does not attempt to replicate it, but simply adds 0.21 internal units
 to the value specified. The value set is unlikely to match the value seen 
 interactivley in the resultant spreadsheet, but it will be close.
 
+Row height cannot be set for empty rows, which will quietly be skipped.
+A row must have at least one cell containing a value before its height can be set.
+
 You can set a row height to 0.
 
-The function returns a value of 0.
+The function returns a value of 0 unless all rows are empty, in which case 
+it returns a value of -1.
 
 # Examples:
 ```julia
@@ -2097,11 +2147,12 @@ julia> XLSX.setRowHeight(xf, "Sheet1!A2"; height = 50)
 julia> XLSX.setRowHeight(sh, "F1:F5"; heighth = 0)
 
 julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
-```
 
+```
 """
 function setRowHeight end
 setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
+setRowHeight(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setRowHeight, ws, rowrng; kw...)
 setRowHeight(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setRowHeight, ws, ref_or_rng; kw...)
 setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setRowHeight, xl, sheetcell; kw...)
 setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)
@@ -2117,16 +2168,21 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     if isnothing(height) # No-op
         return 0
     end
+    first = true
     for r in eachrow(ws)
         if r.row in top:bottom
-            if r.row ∈ ws.cache.rows_in_cache
+            
                 if haskey(ws.cache.row_ht, r.row)
                     ws.cache.row_ht[r.row] = padded_height
+                    first = false
                 end
-            end
+            
         end
     end
 
+    if first == true
+        return -1
+    end
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
@@ -2141,6 +2197,8 @@ The function will use the row number and ignore the column.
 
 The function returns the value of the row height or nothing if the row 
 does not have an explicitly defined height.
+
+If the row is not found (an empty row), returns -1.
 
 # Examples:
 ```julia
@@ -2162,13 +2220,11 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     for r in eachrow(ws)
         if r.row == cellref.row_number
-            if r.row ∈ ws.cache.rows_in_cache
+            
                 if haskey(ws.cache.row_ht, r.row)
                     return ws.cache.row_ht[r.row]
-                else
-                    return nothing
                 end
-            end
+            
         end
     end
 
