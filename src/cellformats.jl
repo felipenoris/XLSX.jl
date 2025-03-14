@@ -1065,6 +1065,8 @@ ouside edge of the range will be set to the specified style and color. The
 borders of internal edges and any diagonal will remain unchanged. Border 
 settings for all internal cells in the range will remain unchanged.
 
+Top and bottom borders for column ranges are taken from the worksheet `dimension`.
+
 The value returned is is -1.
 
 For keyword definitions see [`setBorder()`](@ref).

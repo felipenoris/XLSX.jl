@@ -51,24 +51,24 @@ function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
     return last_column_index
 end
 
-function _colname_prefix_symbol(sheet::Worksheet, cell::Cell)
+function _colname_prefix_string(sheet::Worksheet, cell::Cell)
     d = getdata(sheet, cell)
     if d isa String
-        return Symbol(XML.unescape(d))
+        return XML.unescape(d)
     else
-        return Symbol(d)
+        return string(d)
     end
 end
-_colname_prefix_symbol(sheet::Worksheet, ::EmptyCell) = Symbol("#Empty")
+_colname_prefix_symbol(sheet::Worksheet, ::EmptyCell) = "#Empty"
 
 # helper function to manage problematic column labels
 # Empty cell -> "#Empty"
 # No_unique_label -> No_unique_label_2
-function push_unique!(vect::Vector{Symbol}, sheet::Worksheet, cell::AbstractCell, iter::Int=1)
-    name = _colname_prefix_symbol(sheet, cell)
+function push_unique!(vect::Vector{String}, sheet::Worksheet, cell::AbstractCell, iter::Int=1)
+    name = _colname_prefix_string(sheet, cell)
 
     if iter > 1
-        name = Symbol(name, '_', iter)
+        name = name*"_$iter"
     end
 
     if name in vect
@@ -78,6 +78,20 @@ function push_unique!(vect::Vector{Symbol}, sheet::Worksheet, cell::AbstractCell
     end
 
     nothing
+end
+
+# Issue 260
+const RESERVED = Set(["local", "global", "export", "let",
+    "for", "struct", "while", "const", "continue", "import",
+    "function", "if", "else", "try", "begin", "break", "catch",
+    "return", "using", "baremodule", "macro", "finally",
+    "module", "elseif", "end", "quote", "do"])
+normalizename(name::Symbol) = name
+function normalizename(name::String)::Symbol
+    uname = strip(Unicode.normalize(name))
+    id = Base.isidentifier(uname) ? uname : map(c->Base.is_id_char(c) ? c : '_', uname)
+    cleansed = string((isempty(id) || !Base.is_id_start_char(id[1]) || id in RESERVED) ? "_" : "", id)
+    return Symbol(replace(cleansed, r"(_)\1+"=>"_"))
 end
 
 """
@@ -134,9 +148,10 @@ function eachtablerow(
             stop_in_empty_row::Bool=true,
             stop_in_row_function::Union{Nothing, Function}=nothing,
             keep_empty_rows::Bool=false,
+            normalizenames::Bool=false
         ) :: TableRowIterator
 
-    if first_row === nothing
+        if first_row === nothing
         first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
     end
 
@@ -144,23 +159,28 @@ function eachtablerow(
     column_range = convert(ColumnRange, cols)
 
     if column_labels === nothing
-        column_labels = Vector{Symbol}()
+        col_lab = Vector{String}()
         if header
             # will use getdata to get column names
             for column_index in column_range.start:column_range.stop
                 sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
-                push_unique!(column_labels, sheet, cell)
+                push_unique!(col_lab, sheet, cell)
             end
         else
             # generate column_labels if there's no header information anywhere
             for c in column_range
-                push!(column_labels, Symbol(c))
+                push!(col_lab, string(c))
             end
         end
     else
         # check consistency for column_range and column_labels
-        @assert length(column_labels) == length(column_range) "`column_range` (length=$(length(column_range))) and `column_labels` (length=$(length(column_labels))) must have the same length."
+        @assert length(col_lab) == length(column_range) "`column_range` (length=$(length(column_range))) and `column_labels` (length=$(length(col_lab))) must have the same length."
+    end
+    if normalizenames
+        column_labels = normalizename.(column_labels===nothing ? col_lab : column_labels)
+    else
+        column_labels = Symbol.(column_labels===nothing ? col_lab : column_labels)
     end
 
     first_data_row = header ? first_row + 1 : first_row
@@ -179,6 +199,7 @@ function eachtablerow(
             stop_in_empty_row::Bool=true,
             stop_in_row_function::Union{Nothing, Function}=nothing,
             keep_empty_rows::Bool=false,
+            normalizenames::Bool=false
         ) :: TableRowIterator
 
     if first_row === nothing
@@ -224,7 +245,7 @@ function eachtablerow(
 
                 # if got here, it's because all columns are non-empty
                 column_range = ColumnRange(column_start, column_stop)
-                return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
+                return eachtablerow(sheet, column_range; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
             end
         end
     end
@@ -463,7 +484,7 @@ function check_table_data_dimension(data::Vector)
     nothing
 end
 
-function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
+function gettable(itr::TableRowIterator; infer_eltypes::Bool=false, normalizenames::Bool=false) :: DataTable
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)
     data = Vector{Any}(undef, columns_count)
@@ -516,7 +537,8 @@ end
         [infer_eltypes],
         [stop_in_empty_row],
         [stop_in_row_function],
-        [keep_empty_rows]
+        [keep_empty_rows],
+        [normalizenames]
     ) -> DataTable
 
 Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
@@ -539,6 +561,8 @@ If `header=false` and `column_labels` is not specified, the algorithm
 will generate column labels. The default value is `header=true`.
 
 Use `column_labels` as a vector of symbols to specify names for the header of the table.
+
+Use `normalizenames=true` to normalize column names to valid Julia identifiers.
 
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
 The default value is `infer_eltypes=false`.
@@ -571,15 +595,15 @@ julia> df = XLSX.openxlsx("myfile.xlsx") do xf
         DataFrame(XLSX.gettable(xf["mysheet"]))
     end
 ```
-
+        
 See also: [`XLSX.readtable`](@ref).
 """
-function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false)
-    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
+function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
 
-function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false)
-    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows)
+function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
     return gettable(itr; infer_eltypes=infer_eltypes)
 end
