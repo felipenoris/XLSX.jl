@@ -216,25 +216,46 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
     if !is_valid_defined_name(name)
         error("Invalid defined name: $name.")
     end
+    if value isa NonContiguousRange
+        @assert replace(value.sheet, "'" => "") == ws.name "Non-contiguous range must be in the same worksheet."
+    end
     wb.worksheet_names[(ws.sheetId, name)] = value
 end
 
 """
-When naming workbook name references (or named ranges) in Excel, there are specific rules and guidelines to follow to ensure they work properly. Here's a summary:
+    addDefinedName(wb::Workbook,  name::AbstractString, value::Union{Int, Float64, Missing})
+    addDefinedName(wb::Workbook,  name::AbstractString, value::AbstractString)
+    addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64, Missing})
+    addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractString)
 
-Start with a Letter: The name must begin with a letter or an underscore (_) and cannot start with a number or special character.
+Add a defined name to the Workbook or Worksheet.
 
-Avoid Spaces: Names cannot contain spaces. Instead, use an underscore (_) or capitalize the first letter of each word (e.g., "SalesData" or "Sales_Data").
+A defined name is a text string that represents a cell, range of cells, formula, or constant value.
+It can be used to refer to a specific cell or range of cells in an Excel formula, making it easier  
+to read and understand complex formulas.
 
-Length: The name can be up to 255 characters long, though shorter, meaningful names are preferable for clarity.
+A defined name should:
+- Start with a letter an underscore (_) and cannot start with a number or special character.
+- Not contain spaces
+- Be no more than 255 characters in length
+- Benique within a Workbook
+- Must not include special characters (such as +, -, /, *, ,, or .) They can only contain letters, numbers, underscores (_), and backslashes (\\).
+- Cannot look like a cell reference (e.g., "A1" or "Z100")
+- May not use reserved words like "R" or "C"
 
-Unique within a Workbook: Each name must be unique within a workbook. You cannot reuse the same name for multiple references.
+# Examples
+```julia
+julia> XLSX.addDefinedName(sh, "ID", "C21")
 
-Restricted Characters: Names cannot include special characters such as +, -, /, *, ,, or .. They can only contain letters, numbers, underscores (_), and backslashes (\\).
+julia> XLSX.addDefinedName(sh, "NEW", "'Mock-up'!A1:B2")
 
-No Cell References: A name cannot look like a cell reference (e.g., "A1" or "Z100") to avoid confusion.
+julia> XLSX.addDefinedName(sh, "my_name", "A1,B2,C3")
 
-Reserved Words: Names cannot use reserved words like "R" or "C," as Excel uses these for row and column references in certain settings.
+julia> XLSX.addDefinedName(XLSX.get_workbook(sh), "Life_the_universe_and_everything", 42)
+
+julia> XLSX.addDefinedName(XLSX.get_workbook(sh), "first_name", "Hello World")
+
+```
 """
 function addDefinedName end
 addDefinedName(wb::Workbook, name::AbstractString, value::Union{Int, Float64, Missing}) = addDefName(wb, name, value)
@@ -247,6 +268,8 @@ function addDefinedName(wb::Workbook, name::AbstractString, value::AbstractStrin
         return addDefName(wb, name, SheetCellRef(value))
     elseif is_valid_sheet_cellrange(value)
         return addDefName(wb, name, SheetCellRange(value))
+    elseif is_valid_non_contiguous_sheetcellrange(value)
+        return addDefName(wb, name, nonContiguousRange(value))
     else
         return addDefName(wb, name, value)
     end
@@ -259,6 +282,10 @@ function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractStri
         return addDefName(ws, name, SheetCellRef(ws.name, CellRef(value)))
     elseif is_valid_cellrange(value)
         return addDefName(ws, name, SheetCellRange(ws.name, CellRange(value)))
+    elseif is_valid_non_contiguous_sheetcellrange(value)
+        return addDefName(ws, name, nonContiguousRange(value))
+    elseif is_valid_non_contiguous_cellrange(value)
+        return addDefName(ws, name, nonContiguousRange(ws, value))
     else
         return addDefName(ws, name, value)
     end

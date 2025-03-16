@@ -2081,6 +2081,7 @@ function getColumnWidth end
 getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,Float64} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
 getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth, ws, cr)
 function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
+    # May be better if column width were part of ws.cache?
 
     @assert get_xlsxfile(ws).is_writable "Cannot get column width: `XLSXFile` is not writable."
 
@@ -2235,6 +2236,10 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
 end
 
+#
+# -- Get merged cells
+#
+
 """
     getMergedCells(ws::Worksheet) -> Union{Vector{CellRange}, Nothing}
 
@@ -2260,9 +2265,12 @@ julia> XLSX.getMergedCells(s)
 ```
 """
 function getMergedCells(ws::Worksheet)::Union{Vector{CellRange}, Nothing}
+    # May be better if merged cells were part of ws.cache?
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
 
+    # No need to update the xml file using the worksheet cache first (like we did for column width)  
+    # because we cannot change merged cells in XLSX.jl. 
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <mergeCells> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
 
@@ -2355,8 +2363,6 @@ getMergedBaseCell(ws::Worksheet, cellref::CellRef) = getMergedBaseCell(ws, cellr
 function getMergedBaseCell(ws::Worksheet, cellref::CellRef, mergedCells::Union{Vector{CellRange}, Nothing})
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
-
-#    @assert isMergedCell(ws, cellref, mergedCells) "Cell $cellref is not part of a merged cell." # Just return nothing instead!
 
     for rng in mergedCells
         if cellref ∈ rng

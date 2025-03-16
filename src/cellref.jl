@@ -109,6 +109,9 @@ end
 
 # Checks whether `n` is a valid name for a cell.
 function is_valid_cellname(n::AbstractString) :: Bool
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
 
     if !occursin(RGX_CELLNAME, n)
         return false
@@ -149,6 +152,9 @@ julia> XLSX.split_cellrange("AB12:CD24")
 end
 
 function is_valid_cellrange(n::AbstractString) :: Bool
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
 
     if !occursin(RGX_CELLRANGE, n)
         return false
@@ -395,6 +401,11 @@ Base.show(io::IO, cr::SheetColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetColumnRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.colrng == cr2.colrng
 Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
 
+Base.string(cr::NonContiguousRange) = join([string(cr.sheet, "!", x) for x in cr.rng],",")
+Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
+Base.:(==)(cr1::NonContiguousRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
+Base.hash(cr::NonContiguousRange) = hash(cr.sheet) + hash(cr.rng)
+
 const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE = r"^.+![A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE = r"^.+![A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
@@ -406,6 +417,11 @@ const RGX_SHEET_COLUMN_RANGE_RIGHT = r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 const RGX_SHEET_ROW_RANGE_RIGHT = r"[1-9][0-9]*:[1-9][0-9]*$"
 
 function is_valid_sheet_cellname(n::AbstractString) :: Bool
+
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
+
     if !occursin(RGX_SHEET_CELLNAME, n)
         return false
     end
@@ -419,6 +435,11 @@ function is_valid_sheet_cellname(n::AbstractString) :: Bool
 end
 
 function is_valid_sheet_cellrange(n::AbstractString) :: Bool
+
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
+
     if !occursin(RGX_SHEET_CELLRANGE, n)
         return false
     end
@@ -517,3 +538,85 @@ is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELL
 is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)
 
 is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+
+is_valid_non_contiguous_range(v::AbstractString) :: Bool = is_valid_non_contiguous_cellrange(v) || is_valid_non_contiguous_sheetcellrange(v)
+
+function is_valid_non_contiguous_sheetcellrange(v::AbstractString) :: Bool
+
+    if !occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+
+        return false
+    end
+
+    ranges = split(v, ",")
+    for r in ranges
+        if !is_valid_sheet_cellname(r) && !is_valid_sheet_cellrange(r)
+            return false
+        end
+    end
+
+    firstsheet = parse_sheetname_from_sheetcell_name(ranges[begin])
+
+    if any(parse_sheetname_from_sheetcell_name(r) != firstsheet for r in ranges) # All `SheetCellRef`s and `SheetCellRange`s should have the same sheet name
+        return false
+    end
+
+
+    return true
+end
+
+function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
+
+    if !occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+
+        return false
+    end
+
+    ranges = split(v, ",")
+
+    for r in ranges
+        if !is_valid_cellname(r) && !is_valid_cellrange(r)
+            return false
+        end
+    end
+
+    return true
+end
+
+nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(s.name, string.(split(v, ",")))
+function nonContiguousRange(v::AbstractString)::NonContiguousRange
+
+    @assert is_valid_non_contiguous_range(v) "$v is not a valid non-contiguous range."
+    
+    ranges = string.(split(v, ","))
+    firstsheet = parse_sheetname_from_sheetcell_name(ranges[1])
+    @assert all(parse_sheetname_from_sheetcell_name(r) == firstsheet for r in ranges) "All `CellRef`s and `CellRange`s should have the same sheet name."
+
+    return nCR(firstsheet, ranges)
+end
+
+function nCR(s::AbstractString, ranges::Vector{String}) :: NonContiguousRange
+    noncontig = Vector{Union{CellRef, CellRange}}()
+    
+    for n in ranges
+        if is_valid_fixed_sheet_cellname(n)
+            fixed_cellname = match(RGX_CELLNAME_RIGHT_FIXED, n).match
+            push!(noncontig, CellRef(replace(fixed_cellname, "\$" => "")))
+        elseif is_valid_sheet_cellname(n)
+            push!(noncontig, CellRef(match(RGX_SHEET_CELLNAME_RIGHT, n).match))
+        elseif is_valid_fixed_sheet_cellrange(n)
+            fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
+            push!(noncontig, CellRange(replace(fixed_cellrange, "\$" => "")))
+        elseif is_valid_sheet_cellrange(n)
+            push!(noncontig, CellRange(match(RGX_SHEET_CELLRANGE_RIGHT, n).match))
+        elseif is_valid_cellrange(n)
+            push!(noncontig, CellRange(n))
+        elseif is_valid_cellname(n)
+            push!(noncontig, CellRef(n))
+        else
+            error("Invalid non-contiguous range: $n.")
+        end
+    end
+
+    return NonContiguousRange(s, noncontig)
+end

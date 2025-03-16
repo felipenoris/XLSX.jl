@@ -221,6 +221,11 @@ struct SheetCellRange
    rng::CellRange
 end
 
+struct NonContiguousRange
+    sheet::String
+    rng::Vector{Union{CellRef, CellRange}}
+end
+
 struct SheetColumnRange
     sheet::String
     colrng::ColumnRange
@@ -322,7 +327,7 @@ mutable struct SharedStringTable
     is_loaded::Bool # for lazy-loading of sst XML file (implies that this struct must be mutable)
 end
 
-const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missing}
+const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, Int, Float64, String, Missing}
 
 # Workbook is the result of parsing file `xl/workbook.xml`.
 mutable struct Workbook
