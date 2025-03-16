@@ -1065,7 +1065,8 @@ ouside edge of the range will be set to the specified style and color. The
 borders of internal edges and any diagonal will remain unchanged. Border 
 settings for all internal cells in the range will remain unchanged.
 
-Top and bottom borders for column ranges are taken from the worksheet `dimension`.
+Top and bottom borders for column ranges and left and right borders for 
+row ranges are taken from the worksheet `dimension`.
 
 The value returned is is -1.
 
@@ -2232,4 +2233,135 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     return -1 # Row specified not found (is empty)
 
+end
+
+"""
+    getMergedCells(ws::Worksheet) -> Union{Vector{CellRange}, Nothing}
+
+Return a vector of the `CellRange` of all merged cells in the specified worksheet.
+Return nothing if the worksheet contains no merged cells
+
+
+# Examples:
+```julia
+julia> f = XLSX.readxlsx("test.xlsx")
+XLSXFile("C:\\Users\\tim\\Downloads\\test.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 2x2           A1:B2
+
+julia> s = f["Sheet1"]
+2×2 XLSX.Worksheet: ["Sheet1"](A1:B2)
+
+julia> XLSX.getMergedCells(s)
+1-element Vector{XLSX.CellRange}:
+ B1:B2
+ 
+```
+"""
+function getMergedCells(ws::Worksheet)::Union{Vector{CellRange}, Nothing}
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <mergeCells> block in the worksheet's xml file
+    i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
+
+    if isnothing(j) # There are no existing merged cells.
+        return nothing
+    end
+
+    c = XML.children(sheetdoc[i][j])
+    @assert length(c) == parse(Int, sheetdoc[i][j]["count"]) "Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."
+
+    mergedCells = Vector{CellRange}()
+    for cell in c
+        @assert haskey(cell, "ref") "No `ref` attribute found in `mergeCell` element."
+        push!(mergedCells, CellRange(cell["ref"]))
+    end
+
+    return mergedCells
+end
+
+"""
+    isMergedCell(ws::Worksheet,  cr::String) -> Bool
+    isMergedCell(xf::XLSXFile,   cr::String) -> Bool
+
+Return `true` if a cell is part of a merged cell range and `false` if not.
+
+Alternatively, if you have already obtained the merged cells for the worksheet,
+you can avoid repeated determinations and pass them as an argument to the function:
+
+    isMergedCell(ws::Worksheet, cr::CellRef, mergedCells::Union{Vector{CellRange}, Nothing}) -> Bool
+
+# Examples:
+```julia
+julia> XLSX.isMergedCell(xf, "Sheet1!A1")
+
+julia> XLSX.isMergedCell(sh, "A1")
+
+julia> mc = XLSX.getMergedCells(sh)
+julia> XLSX.isMergedCell(sh, XLSX.CellRef("A1"), mc)
+ 
+```
+"""
+function isMergedCell end
+isMergedCell(xl::XLSXFile, sheetcell::String)::Bool = process_get_sheetcell(isMergedCell, xl, sheetcell)
+isMergedCell(ws::Worksheet, cr::String)::Bool = process_get_cellname(isMergedCell, ws, cr)
+isMergedCell(ws::Worksheet, cellref::CellRef)::Bool = isMergedCell(ws, cellref, getMergedCells(ws))
+function isMergedCell(ws::Worksheet, cellref::CellRef, mergedCells::Union{Vector{CellRange}, Nothing})::Bool
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+
+    if isnothing(mergedCells)
+        return false
+    end
+    for rng in mergedCells
+        if cellref ∈ rng
+            return true
+        end
+    end
+
+    return false
+end
+
+"""
+    getMergedBaseCell(ws::Worksheet, cr::String) -> Union{Nothing, NamedTuple{CellRef, Any}}
+    getMergedBaseCell(xf::XLSXFile,  cr::String) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
+Return the cell reference and cell value of the base cell of a merged cell range in a worksheet as a named tuple.
+If the specified cell is not part of a merged cell range, return `nothing`.
+
+The base cell is the top-left cell of the merged cell range and is the reference cell for the range.
+
+The tuple returned contains:
+- `baseCell`  : the reference (`CellRef`) of the base cell
+- `baseValue` : the value of the base cell
+
+# Examples:
+```julia
+julia> XLSX.getMergedBaseCell(xf, "Sheet1!B2")
+(baseCell = B1, baseValue = 3)
+
+julia> XLSX.getMergedBaseCell(sh, "B2")
+(baseCell = B1, baseValue = 3)
+
+
+```
+"""
+function getMergedBaseCell end
+getMergedBaseCell(xl::XLSXFile, sheetcell::String) = process_get_sheetcell(getMergedBaseCell, xl, sheetcell)
+getMergedBaseCell(ws::Worksheet, cr::String) = process_get_cellname(getMergedBaseCell, ws, cr)
+getMergedBaseCell(ws::Worksheet, cellref::CellRef) = getMergedBaseCell(ws, cellref, getMergedCells(ws))
+function getMergedBaseCell(ws::Worksheet, cellref::CellRef, mergedCells::Union{Vector{CellRange}, Nothing})
+
+    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+
+#    @assert isMergedCell(ws, cellref, mergedCells) "Cell $cellref is not part of a merged cell." # Just return nothing instead!
+
+    for rng in mergedCells
+        if cellref ∈ rng
+            return (; baseCell=rng.start, baseValue = ws[rng.start])
+        end
+    end
+    return nothing
 end
