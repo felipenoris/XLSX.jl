@@ -183,3 +183,83 @@ end
 
 @inline is_defined_name_value_a_reference(v::DefinedNameValueTypes) = isa(v, SheetCellRef) || isa(v, SheetCellRange)
 @inline is_defined_name_value_a_constant(v::DefinedNameValueTypes) = !is_defined_name_value_a_reference(v)
+
+function is_valid_defined_name(name::AbstractString) :: Bool
+    if isempty(name)
+        return false
+    end
+    if !isletter(name[1]) && name[1] != '_'
+        return false
+    end
+    for c in name
+        if !isletter(c) && !isdigit(c) && c != '_' && c != '\\'
+            return false
+        end
+    end
+    return true
+end
+
+function addDefName(wb::Workbook, name::AbstractString, value::DefinedNameValueTypes)
+    if is_workbook_defined_name(wb, name)
+        error("Workbook already has a defined name called $name.")
+    end
+    if !is_valid_defined_name(name)
+        error("Invalid defined name: $name.")
+    end
+    wb.workbook_names[name] = value
+end
+function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValueTypes)
+    wb = get_workbook(ws)
+    if is_worksheet_defined_name(wb, ws.sheetId, name)
+        error("Worksheet $(ws.name) already has a defined name called $name.")
+    end
+    if !is_valid_defined_name(name)
+        error("Invalid defined name: $name.")
+    end
+    wb.worksheet_names[(ws.sheetId, name)] = value
+end
+
+"""
+When naming workbook name references (or named ranges) in Excel, there are specific rules and guidelines to follow to ensure they work properly. Here's a summary:
+
+Start with a Letter: The name must begin with a letter or an underscore (_) and cannot start with a number or special character.
+
+Avoid Spaces: Names cannot contain spaces. Instead, use an underscore (_) or capitalize the first letter of each word (e.g., "SalesData" or "Sales_Data").
+
+Length: The name can be up to 255 characters long, though shorter, meaningful names are preferable for clarity.
+
+Unique within a Workbook: Each name must be unique within a workbook. You cannot reuse the same name for multiple references.
+
+Restricted Characters: Names cannot include special characters such as +, -, /, *, ,, or .. They can only contain letters, numbers, underscores (_), and backslashes (\\).
+
+No Cell References: A name cannot look like a cell reference (e.g., "A1" or "Z100") to avoid confusion.
+
+Reserved Words: Names cannot use reserved words like "R" or "C," as Excel uses these for row and column references in certain settings.
+"""
+function addDefinedName end
+addDefinedName(wb::Workbook, name::AbstractString, value::Union{Int, Float64, Missing}) = addDefName(wb, name, value)
+addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64, Missing}) = addDefName(ws, name, value)
+function addDefinedName(wb::Workbook, name::AbstractString, value::AbstractString)
+    if value == ""
+        error("Defined name value cannot be an empty string.")
+    end
+    if is_valid_sheet_cellname(value)
+        return addDefName(wb, name, SheetCellRef(value))
+    elseif is_valid_sheet_cellrange(value)
+        return addDefName(wb, name, SheetCellRange(value))
+    else
+        return addDefName(wb, name, value)
+    end
+end
+function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractString)
+    if value == ""
+        error("Defined name value cannot be an empty string.")
+    end
+    if is_valid_cellname(value)
+        return addDefName(ws, name, SheetCellRef(ws.name, CellRef(value)))
+    elseif is_valid_cellrange(value)
+        return addDefName(ws, name, SheetCellRange(ws.name, CellRange(value)))
+    else
+        return addDefName(ws, name, value)
+    end
+end

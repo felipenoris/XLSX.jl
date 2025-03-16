@@ -341,7 +341,8 @@ end
 """
 `XLSXFile` represents a reference to an Excel file.
 
-It is created by using [`XLSX.readxlsx`](@ref) or [`XLSX.openxlsx`](@ref).
+It is created by using [`XLSX.readxlsx`](@ref) or [`XLSX.openxlsx`](@ref) 
+or [`XLSX.opentemplate`](@ref) or [`XLSX.newxlsx`](@ref).
 
 From a `XLSXFile` you can navigate to a `XLSX.Worksheet` reference
 as shown in the example below.
