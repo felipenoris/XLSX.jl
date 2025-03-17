@@ -583,7 +583,7 @@ function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
     return true
 end
 
-nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(s.name, string.(split(v, ",")))
+nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR("'$(s.name)'", string.(split(v, ",")))
 function nonContiguousRange(v::AbstractString)::NonContiguousRange
 
     @assert is_valid_non_contiguous_range(v) "$v is not a valid non-contiguous range."
