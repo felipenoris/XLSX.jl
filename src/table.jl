@@ -59,7 +59,7 @@ function _colname_prefix_string(sheet::Worksheet, cell::Cell)
         return string(d)
     end
 end
-_colname_prefix_symbol(sheet::Worksheet, ::EmptyCell) = "#Empty"
+_colname_prefix_string(sheet::Worksheet, ::EmptyCell) = "#Empty"
 
 # helper function to manage problematic column labels
 # Empty cell -> "#Empty"
@@ -151,40 +151,43 @@ function eachtablerow(
             normalizenames::Bool=false
         ) :: TableRowIterator
 
+    #let col_lab
+
         if first_row === nothing
-        first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
-    end
+            first_row = _find_first_row_with_data(sheet, convert(ColumnRange, cols).start)
+        end
 
-    itr = eachrow(sheet)
-    column_range = convert(ColumnRange, cols)
-
-    if column_labels === nothing
+        itr = eachrow(sheet)
+        column_range = convert(ColumnRange, cols)
         col_lab = Vector{String}()
-        if header
-            # will use getdata to get column names
-            for column_index in column_range.start:column_range.stop
-                sheet_row = find_row(itr, first_row)
-                cell = getcell(sheet_row, column_index)
-                push_unique!(col_lab, sheet, cell)
+
+        if column_labels === nothing
+            if header
+                # will use getdata to get column names
+                for column_index in column_range.start:column_range.stop
+                    sheet_row = find_row(itr, first_row)
+                    cell = getcell(sheet_row, column_index)
+                    push_unique!(col_lab, sheet, cell)
+                end
+            else
+                # generate column_labels if there's no header information anywhere
+                for c in column_range
+                    push!(col_lab, string(c))
+                end
             end
         else
-            # generate column_labels if there's no header information anywhere
-            for c in column_range
-                push!(col_lab, string(c))
-            end
+            # check consistency for column_range and column_labels
+            @assert length(column_labels) == length(column_range) "`column_range` (length=$(length(column_range))) and `column_labels` (length=$(length(column_labels))) must have the same length."
         end
-    else
-        # check consistency for column_range and column_labels
-        @assert length(col_lab) == length(column_range) "`column_range` (length=$(length(column_range))) and `column_labels` (length=$(length(col_lab))) must have the same length."
-    end
-    if normalizenames
-        column_labels = normalizename.(column_labels===nothing ? col_lab : column_labels)
-    else
-        column_labels = Symbol.(column_labels===nothing ? col_lab : column_labels)
-    end
-
-    first_data_row = header ? first_row + 1 : first_row
-    return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function, keep_empty_rows)
+        if normalizenames
+            column_labels = normalizename.(column_labels===nothing ? col_lab : column_labels)
+        else
+            column_labels = Symbol.(column_labels===nothing ? col_lab : column_labels)
+        end
+ 
+        first_data_row = header ? first_row + 1 : first_row
+        return TableRowIterator(sheet, Index(column_range, column_labels), first_data_row, stop_in_empty_row, stop_in_row_function, keep_empty_rows)
+   # end
 end
 
 function TableRowIterator(sheet::Worksheet, index::Index, first_data_row::Int, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, keep_empty_rows::Bool=false)

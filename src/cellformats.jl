@@ -220,14 +220,21 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
         else
             error("Unexpected defined name value: $v.")
         end
+    elseif is_valid_non_contiguous_sheetcellrange(sheetcell)
+        sheetncrng = nonContiguousRange(sheetcell)
+        @assert hassheet(xl, sheetncrng.sheet) "Sheet $(ref.sheet) not found."
+        newid = f(xl[sheetncrng.sheet], sheetncrng; kw...)
     elseif is_valid_sheet_column_range(sheetcell)
         sheetcolrng = SheetColumnRange(sheetcell)
+        @assert hassheet(xl, sheetcolrng.sheet) "Sheet $(ref.sheet) not found."
         newid = f(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
     elseif is_valid_sheet_row_range(sheetcell)
         sheetrowrng = SheetRowRange(sheetcell)
+        @assert hassheet(xl, sheetrowrng.sheet) "Sheet $(ref.sheet) not found."
         newid = f(xl[sheetrowrng.sheet], sheetrowrng.rowrng; kw...)
     elseif is_valid_sheet_cellrange(sheetcell)
         sheetcellrng = SheetCellRange(sheetcell)
+        @assert hassheet(xl, sheetcellrng.sheet) "Sheet $(ref.sheet) not found."
         newid = f(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
     elseif is_valid_sheet_cellname(sheetcell)
         ref = SheetCellRef(sheetcell)
@@ -256,7 +263,7 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
         if is_defined_name_value_a_constant(v)
             error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
         elseif is_defined_name_value_a_reference(v)
-            if is_non_contiguous_range(v)
+            if is_valid_non_contiguous_range(string(v))
                 _ = f.(Ref(get_xlsxfile(wb)), replace.(split(string(v), ","), "'" => "", "\$" => ""); kw...)
                 newid = -1
             else
@@ -322,6 +329,12 @@ function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...):
     else
         error("Row range $rowrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
     end
+end
+function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
+    for r in ncrng.rng
+        _ = f(ws, r; kw...)
+    end
+    return -1
 end
 function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
     for cellref in rng
@@ -496,6 +509,7 @@ function setFont end
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
 setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
 setFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFont, ws, rowrng; kw...)
+setFont(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFont, ws, ncrng; kw...)
 setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
 setFont(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFont, xl, sheetcell; kw...)
 function setFont(sh::Worksheet, cellref::CellRef; 
@@ -636,6 +650,7 @@ julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                  
 function setUniformFont end
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
 setUniformFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFont, ws, rowrng; kw...)
+setUniformFont(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFont, ws, ncrng; kw...)
 setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFont, xl, sheetcell; kw...)
 setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFont, ws, ref_or_rng; kw...)
 setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFont, ws, rng, ["fontId", "applyFont"]; kw...)
@@ -911,6 +926,7 @@ function setBorder end
 setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
 setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setBorder, ws, colrng; kw...)
 setBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setBorder, ws, rowrng; kw...)
+setBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setBorder, ws, ncrng; kw...)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
 setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
 function setBorder(sh::Worksheet, cellref::CellRef;
@@ -1045,6 +1061,7 @@ Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "c
 function setUniformBorder end
 setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
 setUniformBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformBorder, ws, rowrng; kw...)
+setUniformBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformBorder, ws, ncrng; kw...)
 setUniformBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformBorder, xl, sheetcell; kw...)
 setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformBorder, ws, ref_or_rng; kw...)
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
@@ -1067,6 +1084,8 @@ settings for all internal cells in the range will remain unchanged.
 
 Top and bottom borders for column ranges and left and right borders for 
 row ranges are taken from the worksheet `dimension`.
+
+An outside border cannot be set for a non-contiguous range.
 
 The value returned is is -1.
 
@@ -1297,6 +1316,7 @@ Julia> setFill(sh, "11:24"; pattern="none", fgColor = "88FF8800")
 function setFill end
 setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
 setFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFill, ws, rowrng; kw...)
+setFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFill, ws, ncrng; kw...)
 setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFill, ws, colrng; kw...)
 setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
 setFill(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFill, xl, sheetcell; kw...)
@@ -1409,6 +1429,7 @@ Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
 function setUniformFill end
 setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFill, ws, colrng; kw...)
 setUniformFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFill, ws, rowrng; kw...)
+setUniformFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFill, ws, ncrng; kw...)
 setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFill, xl, sheetcell; kw...)
 setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
 setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)
@@ -1543,6 +1564,7 @@ function setAlignment end
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
 setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
 setAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setAlignment, ws, rowrng; kw...)
+setAlignment(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setAlignment, ws, ncrng; kw...)
 setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
 setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setAlignment, xl, sheetcell; kw...)
 function setAlignment(sh::Worksheet, cellref::CellRef; 
@@ -1663,6 +1685,7 @@ Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="t
 function setUniformAlignment end
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
 setUniformAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformAlignment, ws, rowrng; kw...)
+setUniformAlignment(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformAlignment, ws, ncrng; kw...)
 setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformAlignment, xl, sheetcell; kw...)
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
 setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
@@ -1777,6 +1800,7 @@ julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£*
 function setFormat end
 setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
 setFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFormat, ws, colrng; kw...)
+setFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFormat, ws, ncrng; kw...)
 setFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFormat, ws, rowrng; kw...)
 setFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFormat, ws, ref_or_rng; kw...)
 setFormat(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFormat, xl, sheetcell; kw...)
@@ -1877,6 +1901,7 @@ julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
 function setUniformFormat end
 setUniformFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFormat, ws, colrng; kw...)
 setUniformFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFormat, ws, rowrng; kw...)
+setUniformFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFormat, ws, ncrng; kw...)
 setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFormat, xl, sheetcell; kw...)
 setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
 setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng; kw...)
@@ -1916,6 +1941,7 @@ julia> XLSX.setUniformStyle(sh, "F1:F5")
 function setUniformStyle end
 setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
 setUniformStyle(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformStyle, ws, rowrng; kw...)
+setUniformStyle(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformStyle, ws, ncrng; kw...)
 setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
 setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
 function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
@@ -1988,6 +2014,7 @@ julia> XLSX.setColumnWidth(sh, "I"; width = 24.37)
 function setColumnWidth end
 setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setColumnWidth, ws, colrng; kw...)
 setColumnWidth(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setColumnWidth, ws, rowrng; kw...)
+setColumnWidth(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setColumnWidth, ws, ncrng; kw...)
 setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
@@ -2157,6 +2184,7 @@ julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
 function setRowHeight end
 setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
 setRowHeight(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setRowHeight, ws, rowrng; kw...)
+setRowHeight(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setRowHeight, ws, ncrng; kw...)
 setRowHeight(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setRowHeight, ws, ref_or_rng; kw...)
 setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setRowHeight, xl, sheetcell; kw...)
 setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)

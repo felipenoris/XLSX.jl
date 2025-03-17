@@ -120,13 +120,7 @@ function getdata(xl::XLSXFile, rng::SheetColumnRange)
 end
 
 function getdata(xl::XLSXFile, s::AbstractString)
-    if is_valid_sheet_cellname(s)
-        return getdata(xl, SheetCellRef(s))
-    elseif is_valid_sheet_cellrange(s)
-        return getdata(xl, SheetCellRange(s))
-    elseif is_valid_sheet_column_range(s)
-        return getdata(xl, SheetColumnRange(s))
-    elseif is_workbook_defined_name(xl, s)
+    if is_workbook_defined_name(xl, s)
         v = get_defined_name_value(xl.workbook, s)
         if is_defined_name_value_a_constant(v)
             return v
@@ -135,9 +129,15 @@ function getdata(xl::XLSXFile, s::AbstractString)
         else
             error("Unexpected defined name value: $v.")
         end
+    elseif is_valid_sheet_cellname(s)
+        return getdata(xl, SheetCellRef(s))
+    elseif is_valid_sheet_cellrange(s)
+        return getdata(xl, SheetCellRange(s))
+    elseif is_valid_sheet_column_range(s)
+        return getdata(xl, SheetColumnRange(s))
     end
 
-    error("$s is not a valid sheetname or cell/range reference.")
+    error("$s is not a valid definedName or cell/range reference.")
 end
 
 function getcell(xl::XLSXFile, ref::SheetCellRef)
@@ -222,6 +222,8 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
     wb.worksheet_names[(ws.sheetId, name)] = value
 end
 
+quoteit(x::AbstractString) = occursin(r"^[0-9]|[\s,:!&#@*]", x) ? "'$x'" : x
+
 """
     addDefinedName(xf::XLSXFile,  name::AbstractString, value::Union{Int, Float64, Missing})
     addDefinedName(xf::XLSXFile,  name::AbstractString, value::AbstractString)
@@ -272,7 +274,7 @@ function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractStrin
     elseif is_valid_non_contiguous_sheetcellrange(value)
         return addDefName(xf, name, nonContiguousRange(value))
     else
-        return addDefName(xf, name, value)
+        return addDefName(xf, name, value isa String ? "\"$value\"" : value)
     end
 end
 function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractString)
@@ -280,14 +282,14 @@ function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractStri
         error("Defined name value cannot be an empty string.")
     end
     if is_valid_cellname(value)
-        return addDefName(ws, name, SheetCellRef("'$(ws.name)'", CellRef(value)))
+        return addDefName(ws, name, SheetCellRef(quoteit(ws.name), CellRef(value)))
     elseif is_valid_cellrange(value)
-        return addDefName(ws, name, SheetCellRange("'$(ws.name)'", CellRange(value)))
+        return addDefName(ws, name, SheetCellRange(quoteit(ws.name), CellRange(value)))
     elseif is_valid_non_contiguous_sheetcellrange(value)
         return addDefName(ws, name, nonContiguousRange(value))
     elseif is_valid_non_contiguous_cellrange(value)
         return addDefName(ws, name, nonContiguousRange(ws, value))
     else
-        return addDefName(ws, name, value)
+        return addDefName(ws, name, value isa String ? "\"$value\"" : value)
     end
 end

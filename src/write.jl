@@ -357,22 +357,37 @@ function update_workbook_xml!(xl::XLSXFile)
     wb = get_workbook(xl)
 
     wbdoc = xmlroot(xl, "xl/workbook.xml") # find the <definedNames> block in the workbook's xml file
-    i, j = get_idces(wbdoc, "definedNames", "definedName")
-    println(i, " ", j)
+    i, j = get_idces(wbdoc, "workbook", "definedNames")
 
-    definedNames = unlink_definedNames(wbdoc[i][j]) # Remove old defined names
+    definedNames = isnothing(j) ? XML.Element("definedNames") : unlink_definedNames(wbdoc[i][j]) # Remove old defined names
 
-    definedNames = XML.Element("definedNames") # Create a new definedNames block
+    if isnothing(j)
+    # there is no <definedNames> block in the workbook's xml file, so we'll need to create one
+    # The <definedNames> block goes after the <sheets> block. Need to move everything down one to make room.    
+        m, n = get_idces(wbdoc, "workbook", "sheets")
+        nchildren = length(XML.children(wbdoc[m]))
+        push!(wbdoc[m], wbdoc[m][end])
+        for c in nchildren-1:-1:n+1
+            wbdoc[m][c+1]=wbdoc[m][c]
+        end
+        definedNames = XML.Element("definedNames")
+        j=n+1
+
+    else
+        definedNames = unlink_definedNames(wbdoc[i][j]) # Remove old defined names
+    end
+
     for (k, v) in wb.workbook_names
-        dn_node = XML.Element("definedName", name=dn[k], XML.Text(dn[v]))
+        dn_node = XML.Element("definedName", name=k, XML.Text(v))
         push!(definedNames, dn_node)
     end
     for (k, v) in wb.worksheet_names
-        dn_node = XML.Element("definedName", name=last(dn[k]), localSheetId=first(dn[k]), XML.Text(dn[v]))
+        dn_node = XML.Element("definedName", name=last(k), localSheetId=first(k)-1, XML.Text(v))
         push!(definedNames, dn_node)
     end
-    println(XML.write(definedNames))
+
     wbdoc[i][j] = definedNames # Add the new definedNames block to the workbook's xml file
+
     return nothing
 end
 
@@ -661,7 +676,6 @@ function writetable!(
 
     # write table header
     if write_columnnames
-        columnnames = map(col -> eltype(col) <: String ? col : (s -> "$s").(col), columnnames) # Address issue #239
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
             sheet[target_cell_ref] = strip_illegal_chars(xlsx_escape(string(columnnames[c])))
@@ -670,11 +684,13 @@ function writetable!(
     end
 
     # write table data
-    data = map(col -> eltype(col) <: Union{Float64, Int64, String, Bool, Date, DateTime} ? col : (s -> "$s").(col), data) # Address issue #239
     for c in 1:col_count
         for r in 1:row_count
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
             v = data[c][r]
+            if !(typeof(v) <: Union{Number, String, Bool, Dates.Date, Dates.Time, Dates.DateTime, Missing, Nothing})
+                v = "$v"
+            end
             sheet[target_cell_ref] = v isa String ? strip_illegal_chars(xlsx_escape(v)) : v
         end
     end

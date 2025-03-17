@@ -266,7 +266,7 @@ function relative_cell_position(ref::CellRef, rng::CellRange)
 end
 
 #
-# ColumnRange
+# ColumnRange and RowRange
 #
 
 Base.string(cr::ColumnRange) = "$(encode_column_number(cr.start)):$(encode_column_number(cr.stop))"
@@ -274,6 +274,12 @@ Base.show(io::IO, cr::ColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::ColumnRange, cr2::ColumnRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::ColumnRange) = hash(cr.start) + hash(cr.stop)
 Base.in(column_number::Integer, rng::ColumnRange) = rng.start <= column_number && column_number <= rng.stop
+
+Base.string(cr::RowRange) = "$(cr.start):$(cr.stop)"
+Base.show(io::IO, cr::RowRange) = print(io, string(cr))
+Base.:(==)(cr1::RowRange, cr2::RowRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
+Base.hash(cr::RowRange) = hash(cr.start) + hash(cr.stop)
+Base.in(row_number::Integer, rng::RowRange) = rng.start <= row_number && row_number <= rng.stop
 
 function relative_column_position(column_number::Integer, rng::ColumnRange)
     @assert column_number ∈ rng "Column $column_number is outside range $rng."
@@ -292,7 +298,7 @@ const RGX_ROW_RANGE_STOP = r"[1-9][0-9]*$"
 const RGX_SINGLE_ROW = r"^[1-9][0-9]*$"
 
 # Returns tuple (column_name_start, column_name_stop).
-# Also works for row ranges!
+# Also works for row ranges (row_name_start, row_name_stop)!
 @inline function split_column_range(n::AbstractString)
     if !occursin(":", n)
         return n, n
@@ -324,7 +330,7 @@ function is_valid_row_range(r::AbstractString) :: Bool
     if !occursin(RGX_ROW_RANGE, r)
         return false
     end
-    start_name, stop_name = split_column_range(r)
+    start_name, stop_name = split_column_range(r) # Function works for row ranges too.
     if !is_valid_row_name(start_name) || !is_valid_row_name(stop_name)
         return false
     end
@@ -333,7 +339,7 @@ end
 
 function RowRange(r::AbstractString)
     @assert is_valid_row_range(r) "Invalid row range: $r."
-    start_name, stop_name = split_column_range(r)
+    start_name, stop_name = split_column_range(r) # Function works for row ranges too.
     return RowRange(parse(Int, start_name), parse(Int, stop_name))
 end
 function ColumnRange(r::AbstractString)
@@ -383,7 +389,7 @@ function Base.length(rng::CellRange)
 end
 
 #
-# SheetCellRef, SheetCellRange, SheetColumnRange
+# SheetCellRef, SheetCellRange, SheetColumnRange, SheetRowRange, NonContiguousRange
 #
 
 Base.string(cr::SheetCellRef) = string(cr.sheet, "!", cr.cellref)
@@ -400,6 +406,11 @@ Base.string(cr::SheetColumnRange) = string(cr.sheet, "!", cr.colrng)
 Base.show(io::IO, cr::SheetColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetColumnRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.colrng == cr2.colrng
 Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
+
+Base.string(cr::SheetRowRange) = string(cr.sheet, "!", cr.colrng)
+Base.show(io::IO, cr::SheetRowRange) = print(io, string(cr))
+Base.:(==)(cr1::SheetRowRange, cr2::SheetRowRange) = cr1.sheet == cr2.sheet && cr2.rowrng == cr2.rowrng
+Base.hash(cr::SheetRowRange) = hash(cr.sheet) + hash(cr.colrng)
 
 Base.string(cr::NonContiguousRange) = join([string(cr.sheet, "!", x) for x in cr.rng],",")
 Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
@@ -537,7 +548,7 @@ const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLNAME, s)
 is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)
 
-is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+# is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
 
 is_valid_non_contiguous_range(v::AbstractString) :: Bool = is_valid_non_contiguous_cellrange(v) || is_valid_non_contiguous_sheetcellrange(v)
 
@@ -583,7 +594,7 @@ function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
     return true
 end
 
-nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR("'$(s.name)'", string.(split(v, ",")))
+nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(quoteit(s.name), string.(split(v, ",")))
 function nonContiguousRange(v::AbstractString)::NonContiguousRange
 
     @assert is_valid_non_contiguous_range(v) "$v is not a valid non-contiguous range."
