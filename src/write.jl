@@ -65,6 +65,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
     end
 
    update_worksheets_xml!(xf)
+   update_workbook_xml!(xf)
 
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
@@ -185,6 +186,22 @@ function unlink_rows(node::XML.Node) # removes all rows from a sheetData XML nod
     end
     return new_worksheet
 end
+function unlink_definedNames(node::XML.Node) # removes each `col` from a `cols` XML node.
+    new_cols = XML.Element("definedNames")
+    a = XML.attributes(node)
+    if !isnothing(a) # Copy attributes across to new node (probably none)
+        for (k, v) in XML.attributes(node)
+            new_cols[k] = v
+        end
+    end
+    for child in XML.children(node) # Copy any child nodes that are not cols across to new node
+        if XML.tag(child) != "definedName"  # Shouldn't be any.
+            push!(new_cols, child)
+        end
+    end
+    return new_cols
+end
+
 function get_idces(doc, t, b)
     i=1
     j=1
@@ -334,6 +351,29 @@ function update_worksheets_xml!(xl::XLSXFile)
     end
 
     nothing
+end
+
+function update_workbook_xml!(xl::XLSXFile)
+    wb = get_workbook(xl)
+
+    wbdoc = xmlroot(xl, "xl/workbook.xml") # find the <definedNames> block in the workbook's xml file
+    i, j = get_idces(wbdoc, "definedNames", "definedName")
+    println(i, " ", j)
+
+    definedNames = unlink_definedNames(wbdoc[i][j]) # Remove old defined names
+
+    definedNames = XML.Element("definedNames") # Create a new definedNames block
+    for (k, v) in wb.workbook_names
+        dn_node = XML.Element("definedName", name=dn[k], XML.Text(dn[v]))
+        push!(definedNames, dn_node)
+    end
+    for (k, v) in wb.worksheet_names
+        dn_node = XML.Element("definedName", name=last(dn[k]), localSheetId=first(dn[k]), XML.Text(dn[v]))
+        push!(definedNames, dn_node)
+    end
+    println(XML.write(definedNames))
+    wbdoc[i][j] = definedNames # Add the new definedNames block to the workbook's xml file
+    return nothing
 end
 
 function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)

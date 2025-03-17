@@ -19,6 +19,7 @@ Tables = "1"
 XML = "0.3.4"
 ZipArchives = "2"
 julia = "1.7"
+Unicode = 3
 
 [extras]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

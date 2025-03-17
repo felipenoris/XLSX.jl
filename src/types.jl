@@ -330,6 +330,9 @@ end
 const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, Int, Float64, String, Missing}
 
 # Workbook is the result of parsing file `xl/workbook.xml`.
+# The `xl/workbook.xml` wi9ll need to be updated using the Workbook_names and 
+# worksheet_names from here when a workbook is saved in case any new defined 
+# names have been created.
 mutable struct Workbook
     package::MSOfficePackage # parent XLSXFile
     sheets::Vector{Worksheet} # workbook -> sheets -> <sheet name="Sheet1" r:id="rId1" sheetId="1"/>. sheetId determines the index of the WorkSheet in this vector.
