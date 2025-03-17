@@ -586,6 +586,12 @@ starting at `anchor_cell`.
 `data` must be a vector of columns.
 `columnnames` must be a vector of column labels.
 
+Column labels that are not of type `String` will be converted 
+to strings before writing. Any data columns that are not of 
+type `String`, `Float64`, `Int64`, `Bool`, `Date`, or `DateTime` 
+will be converted to strings before writing.
+
+
 See also: [`XLSX.writetable`](@ref).
 """
 function writetable!(
@@ -612,8 +618,10 @@ function writetable!(
     anchor_row = row_number(anchor_cell)
     anchor_col = column_number(anchor_cell)
     start_from_anchor = 1
+
     # write table header
     if write_columnnames
+        columnnames = map(col -> eltype(col) <: String ? col : (s -> "$s").(col), columnnames) # Address issue #239
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
             sheet[target_cell_ref] = strip_illegal_chars(xlsx_escape(string(columnnames[c])))
@@ -622,6 +630,7 @@ function writetable!(
     end
 
     # write table data
+    data = map(col -> eltype(col) <: Union{Float64, Int64, String, Bool, Date, DateTime} ? col : (s -> "$s").(col), data) # Address issue #239
     for c in 1:col_count
         for r in 1:row_count
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
