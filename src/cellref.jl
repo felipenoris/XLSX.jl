@@ -417,6 +417,56 @@ Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
 Base.:(==)(cr1::NonContiguousRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
 Base.hash(cr::NonContiguousRange) = hash(cr.sheet) + hash(cr.rng)
 
+function Base.in(ref::SheetCellRef, ncrng::NonContiguousRange) :: Bool # Assumes the same sheet name for both `CellRef` and `NonContiguousRange`.
+    if ref.sheet != ncrng.sheet
+        return false
+    end
+    for r in ncrng.rng
+        if r isa CellRef
+            if ref == r
+                return true
+            end
+        else
+            if ref in r
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function nc_bounds(r::NonContiguousRange)::CellRange # Smallest rectangualar `CellRange` that contains all the elements in `r`.
+    top = EXCEL_MAX_ROWS
+    bottom = 0
+    left = EXCEL_MAX_COLS
+    right = 0
+    for rng in r.rng
+        if isa(rng, CellRef)
+            top = min(top, row_number(rng))
+            bottom = max(bottom, row_number(rng))
+            left = min(left, column_number(rng))
+            right = max(right, column_number(rng))
+        else
+            top = min(top, row_number(rng.start))
+            bottom = max(bottom, row_number(rng.stop))
+            left = min(left, column_number(rng.start))
+            right = max(right, column_number(rng.stop))
+        end
+    end
+    return CellRange(CellRef(top, left), CellRef(bottom, right))
+end
+function Base.length(r::NonContiguousRange)::Int # Number of cells in `rng`.
+    s = 0
+    for rng in r.rng
+        if rng isa CellRef
+            s += 1
+        else
+            s += length(rng)
+        end
+    end
+    return s
+end
+
 const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE = r"^.+![A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE = r"^.+![A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
@@ -490,7 +540,7 @@ end
 
 const RGX_SHEET_PREFIX = r"^.+!"
 const RGX_CELLNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+$"
-const RGX_SHEET_CELNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
+const RGX_SHEET_CELLNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
 function parse_sheetname_from_sheetcell_name(n::AbstractString) :: SubString
     @assert occursin(RGX_SHEET_PREFIX, n) "$n is not a SheetCell reference."
@@ -517,7 +567,7 @@ function SheetCellRange(n::AbstractString)
     local cellrange::CellRange
 
     if is_valid_fixed_sheet_cellrange(n)
-        fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
+        fixed_cellrange = match(RGX_SHEET_CELLNAME_RIGHT_FIXED, n).match
         cellrange = CellRange(replace(fixed_cellrange, "\$" => ""))
     else
         @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
@@ -548,8 +598,6 @@ const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLNAME, s)
 is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)
 
-# is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
-
 is_valid_non_contiguous_range(v::AbstractString) :: Bool = is_valid_non_contiguous_cellrange(v) || is_valid_non_contiguous_sheetcellrange(v)
 
 function is_valid_non_contiguous_sheetcellrange(v::AbstractString) :: Bool
@@ -571,7 +619,6 @@ function is_valid_non_contiguous_sheetcellrange(v::AbstractString) :: Bool
     if any(parse_sheetname_from_sheetcell_name(r) != firstsheet for r in ranges) # All `SheetCellRef`s and `SheetCellRange`s should have the same sheet name
         return false
     end
-
 
     return true
 end
@@ -616,7 +663,7 @@ function nCR(s::AbstractString, ranges::Vector{String}) :: NonContiguousRange
         elseif is_valid_sheet_cellname(n)
             push!(noncontig, CellRef(match(RGX_SHEET_CELLNAME_RIGHT, n).match))
         elseif is_valid_fixed_sheet_cellrange(n)
-            fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
+            fixed_cellrange = match(RGX_SHEET_CELLNAME_RIGHT_FIXED, n).match
             push!(noncontig, CellRange(replace(fixed_cellrange, "\$" => "")))
         elseif is_valid_sheet_cellrange(n)
             push!(noncontig, CellRange(match(RGX_SHEET_CELLRANGE_RIGHT, n).match))

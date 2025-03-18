@@ -20,7 +20,7 @@ end
 # About Iterators
 
 * `SheetRowIterator` is an abstract iterator that has `SheetRow` as its elements. `SheetRowStreamIterator` and `WorksheetCache` implements `SheetRowIterator` interface.
-* `SheetRowStreamIterator` is a dumb iterator for row elements in sheetData XML tag of a worksheet.
+* `SheetRowStreamIterator` is a dumb iterator for row elements in sheetData XML tag of a worksheet. Empty rows are not represented in the XML file so cannot be seen by the iterator.
 * `WorksheetCache` has a `SheetRowStreamIterator` and caches all values read from the stream.
 * `TableRowIterator` is a smart iterator that looks for tabular data, but uses a SheetRowIterator under the hood.
 
@@ -306,6 +306,10 @@ for sheetrow in XLSX.eachrow(sheet)
     end
 end
 ```
+
+Note: The `eachrow` row iterator will not return any row that 
+consists entirely of `EmptyCell`s. These are simply not seen 
+by the iterator.
 """
 function eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)

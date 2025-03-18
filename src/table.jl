@@ -487,7 +487,8 @@ function check_table_data_dimension(data::Vector)
     nothing
 end
 
-function gettable(itr::TableRowIterator; infer_eltypes::Bool=false, normalizenames::Bool=false) :: DataTable
+#function gettable(itr::TableRowIterator; infer_eltypes::Bool=false, normalizenames::Bool=false) :: DataTable
+function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)
     data = Vector{Any}(undef, columns_count)

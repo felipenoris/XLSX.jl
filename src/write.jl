@@ -626,6 +626,20 @@ function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim:
     return target_cell_ref_from_offset(row_number(anchor_cell), column_number(anchor_cell), offset, dim)
 end
 
+const ALLOWED_TYPES = Union{Number, String, Bool, Dates.Date, Dates.Time, Dates.DateTime, Missing, Nothing}
+function process_vector(col) # Convert any disallowed types to strings. #239.
+    if eltype(col) <: ALLOWED_TYPES
+        # Case 1: All elements are of allowed types
+        return col
+    elseif eltype(col) <: Any && all(x -> !(typeof(x) <: ALLOWED_TYPES), col)
+        # Case 2: All elements are of disallowed types
+        return map(x -> "$x", col)
+    else
+        # Case 3: Mixed types, process each element
+        return [typeof(x) <: ALLOWED_TYPES ? x : "$x" for x in col]
+    end
+end
+
 """
     writetable!(
         sheet::Worksheet,
@@ -643,8 +657,9 @@ starting at `anchor_cell`.
 
 Column labels that are not of type `String` will be converted 
 to strings before writing. Any data columns that are not of 
-type `String`, `Float64`, `Int64`, `Bool`, `Date`, or `DateTime` 
-will be converted to strings before writing.
+type `String`, `Float64`, `Int64`, `Bool`, `Date`, `Time`, 
+`DateTime`, `Missing`, or `Nothing` will be converted to strings 
+before writing.
 
 
 See also: [`XLSX.writetable`](@ref).
@@ -684,13 +699,11 @@ function writetable!(
     end
 
     # write table data
+    data = [process_vector(col) for col in data] # Address issue #239
     for c in 1:col_count
         for r in 1:row_count
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
             v = data[c][r]
-            if !(typeof(v) <: Union{Number, String, Bool, Dates.Date, Dates.Time, Dates.DateTime, Missing, Nothing})
-                v = "$v"
-            end
             sheet[target_cell_ref] = v isa String ? strip_illegal_chars(xlsx_escape(v)) : v
         end
     end

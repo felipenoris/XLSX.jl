@@ -82,6 +82,10 @@ julia> sheet = f["mysheet"]
 
 julia> matrix = sheet["A1:B4"]
 
+julia> matrix = sheet["A:B"]
+
+julia> matrix = sheet["1:4"]
+
 julia> single_value = sheet[2, 2] # B2
 ```
 
@@ -162,15 +166,40 @@ function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
 
     return hcat(columns...)
 end
+function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
+    dim = get_dimension(ws)
+    
+    rows = Vector{Vector{Any}}()
+
+    let
+        top, bottom = row_bounds(rng)
+        left = dim.start.column_number
+        right = dim.stop.column_number
+    
+        for (i, sheetrow) in enumerate(eachrow(ws))
+            push!(rows, Vector{Any}())
+            if top <= sheetrow.row && sheetrow.row <= bottom
+                for column in left:right
+                    cell = getcell(sheetrow, column)
+                    push!(rows[i], getdata(ws, cell))
+                end
+            end
+            if sheetrow.row > bottom
+                break
+            end
+        end
+    end
+
+    cols = length(rows[1])
+    for r in rows
+        @assert length(r) == cols "Inconsistent state: Each row should have the same number of columns."
+    end
+
+    return permutedims(hcat(rows...))
+end
 
 function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
-    if is_valid_cellname(ref)
-        return getdata(ws, CellRef(ref))
-    elseif is_valid_cellrange(ref)
-        return getdata(ws, CellRange(ref))
-    elseif is_valid_column_range(ref)
-        return getdata(ws, ColumnRange(ref))
-    elseif is_worksheet_defined_name(ws, ref)
+    if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
         if is_defined_name_value_a_constant(v)
             return v
@@ -189,6 +218,14 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         else
             error("Unexpected defined name value: $v.")
         end
+    elseif is_valid_cellname(ref)
+        return getdata(ws, CellRef(ref))
+    elseif is_valid_cellrange(ref)
+        return getdata(ws, CellRange(ref))
+    elseif is_valid_column_range(ref)
+        return getdata(ws, ColumnRange(ref))
+    elseif is_valid_row_range(ref)
+        return getdata(ws, RowRange(ref))
     else
         error("$ref is not a valid cell or range reference.")
     end
@@ -271,8 +308,11 @@ getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, co
 """
     getcellrange(sheet, rng)
 
-Returns a matrix with cells as `Array{AbstractCell, 2}`.
-`rng` must be a valid cell range, as in `"A1:B2"`.
+Return a matrix with cells as `Array{AbstractCell, 2}`.
+`rng` must be a valid cell range, column range or row range,
+as in `"A1:B2"`, `"A:B"` or `"1:2"`.
+For row and column ranges, the extent of the range in the other 
+dimension is determined by the worksheet's dimension.
 """
 function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
     result = Array{AbstractCell, 2}(undef, size(rng))
@@ -333,11 +373,45 @@ function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
     return hcat(columns...)
 end
 
+function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
+    dim = get_dimension(ws)
+    
+    rows = Vector{Vector{AbstractCell}}()
+
+    let
+        top, bottom = row_bounds(rng)
+        left = dim.start.column_number
+        right = dim.stop.column_number
+    
+        for (i, sheetrow) in enumerate(eachrow(ws))
+            push!(rows, Vector{AbstractCell}())
+            if top <= sheetrow.row && sheetrow.row <= bottom
+                for column in left:right
+                    cell = getcell(sheetrow, column)
+                    push!(rows[i], cell)
+                end
+            end
+            if sheetrow.row > bottom
+                break
+            end
+        end
+    end
+
+    cols = length(rows[1])
+    for r in rows
+        @assert length(r) == cols "Inconsistent state: Each row should have the same number of columns."
+    end
+
+    return permutedims(hcat(rows...))
+end
+
 function getcellrange(ws::Worksheet, rng::AbstractString)
     if is_valid_cellrange(rng)
         return getcellrange(ws, CellRange(rng))
     elseif is_valid_column_range(rng)
         return getcellrange(ws, ColumnRange(rng))
+    elseif is_valid_row_range(rng)
+        return getcellrange(ws, RowRange(rng))
     else
         error("$rng is not a valid cell range.")
     end

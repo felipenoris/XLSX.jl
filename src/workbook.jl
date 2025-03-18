@@ -119,6 +119,11 @@ function getdata(xl::XLSXFile, rng::SheetColumnRange)
     return getdata(getsheet(xl, rng.sheet), rng.colrng)
 end
 
+function getdata(xl::XLSXFile, rng::SheetRowRange)
+    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    return getdata(getsheet(xl, rng.sheet), rng.rowrng)
+end
+
 function getdata(xl::XLSXFile, s::AbstractString)
     if is_workbook_defined_name(xl, s)
         v = get_defined_name_value(xl.workbook, s)
@@ -155,6 +160,11 @@ end
 function getcellrange(xl::XLSXFile, rng::SheetColumnRange)
     @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
     return getcellrange(getsheet(xl, rng.sheet), rng.colrng)
+end
+
+function getcellrange(xl::XLSXFile, rng::SheetRowRange)
+    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    return getcellrange(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
 function getcellrange(xl::XLSXFile, rng_str::AbstractString)

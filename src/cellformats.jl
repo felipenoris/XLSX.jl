@@ -331,10 +331,20 @@ function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...):
     end
 end
 function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
-    for r in ncrng.rng
-        _ = f(ws, r; kw...)
+    bounds = nc_bounds(ncrng)
+    dim = (get_dimension(ws))
+    OK  = dim.start.column_number <= bounds.start.column_number
+    OK &= dim.stop.column_number >= bounds.stop.column_number
+    OK &= dim.start.row_number <= bounds.start.row_number
+    OK &= dim.stop.row_number >= bounds.stop.row_number
+    if OK
+        for r in ncrng.rng
+            _ = f(ws, r; kw...)
+        end
+        return -1
+    else
+        error("Non-contiguous range $ncrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
     end
-    return -1
 end
 function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
     for cellref in rng

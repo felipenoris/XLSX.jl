@@ -396,12 +396,14 @@ function parse_workbook!(xf::XLSXFile)
                     else
 
                         # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
-                        # continue
+                        # Actually is just interpreted as a string anyway and added to the defined names (is this true?).
+                         defined_value = string(defined_value_string)
+                        #continue
 
-                        # debug
-                        error("Could not parse value $(defined_value_string) for definedName $name.")
+                        # debug - Now more important since we are writing updated defined names to back to output file.
+                        # error("Could not parse value $(defined_value_string) for definedName $name.")
                     end
-                   a = XML.attributes(defined_name_node)
+                    a = XML.attributes(defined_name_node)
                     if haskey(a,"localSheetId")
                         # is a Worksheet level name
 
