@@ -378,7 +378,9 @@ function parse_workbook!(xf::XLSXFile)
 
                     local defined_value::DefinedNameValueTypes
 
-                    if is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
+                    if is_valid_non_contiguous_range(defined_value_string)
+                        defined_value = nonContiguousRange(defined_value_string)   
+                    elseif is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
                         defined_value = SheetCellRef(defined_value_string)
                     elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
                         defined_value = SheetCellRange(defined_value_string)

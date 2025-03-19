@@ -27,7 +27,7 @@ Return `true` if `wb` contains a sheet named `sheetname`.
 """
 function hassheet(wb::Workbook, sheetname::AbstractString) :: Bool
     for s in wb.sheets
-        if s.name == sheetname
+        if s.name == unquoteit(sheetname)
             return true
         end
     end
@@ -50,7 +50,7 @@ Count the number of sheets in the Workbook.
 
 function getsheet(wb::Workbook, sheetname::String) :: Worksheet
     for ws in wb.sheets
-        if ws.name == xlsx_escape(sheetname)
+        if ws.name == unquoteit(sheetname)
             return ws
         end
     end
@@ -124,6 +124,11 @@ function getdata(xl::XLSXFile, rng::SheetRowRange)
     return getdata(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
+function getdata(xl::XLSXFile, rng::NonContiguousRange)
+    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    return getdata(getsheet(xl, rng.sheet), rng)
+end
+
 function getdata(xl::XLSXFile, s::AbstractString)
     if is_workbook_defined_name(xl, s)
         v = get_defined_name_value(xl.workbook, s)
@@ -140,6 +145,10 @@ function getdata(xl::XLSXFile, s::AbstractString)
         return getdata(xl, SheetCellRange(s))
     elseif is_valid_sheet_column_range(s)
         return getdata(xl, SheetColumnRange(s))
+    elseif is_valid_sheet_row_range(s)
+        return getdata(xl, SheetRowRange(s))
+    elseif is_valid_non_contiguous_range(s)
+        return getdata(xl, nonContiguousRange(s))
     end
 
     error("$s is not a valid definedName or cell/range reference.")
@@ -167,11 +176,20 @@ function getcellrange(xl::XLSXFile, rng::SheetRowRange)
     return getcellrange(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
+function getcellrange(xl::XLSXFile, rng::NonContiguousRange)
+    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    return getcellrange(getsheet(xl, rng.sheet), rng)
+end
+
 function getcellrange(xl::XLSXFile, rng_str::AbstractString)
     if is_valid_sheet_cellrange(rng_str)
         return getcellrange(xl, SheetCellRange(rng_str))
     elseif is_valid_sheet_column_range(rng_str)
         return getcellrange(xl, SheetColumnRange(rng_str))
+    elseif is_valid_sheet_row_range(rng_str)
+        return getcellrange(xl, SheetRowRange(rng_str))
+    elseif is_valid_non_contiguous_range(rng_str)
+        return getcellrange(xl, nonContiguousRange(rng_str))
     end
 
     error("$rng_str is not a valid range reference.")
@@ -233,6 +251,7 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
 end
 
 quoteit(x::AbstractString) = occursin(r"^[0-9]|[\s,:!&#@*]", x) ? "'$x'" : x
+unquoteit(x::AbstractString) = replace(x, "'" => "")
 
 """
     addDefinedName(xf::XLSXFile,  name::AbstractString, value::Union{Int, Float64, Missing})

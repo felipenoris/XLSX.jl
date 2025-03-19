@@ -99,7 +99,6 @@ const RGX_CELLNAME_RIGHT = r"[0-9]+$"
         if isdigit(c) # this block is safe since n is encoded as ASCII
             column_name = SubString(n, 1, i-1)
             row = parse(Int, SubString(n, i, length(n)))
-
             return column_name, row
         end
     end
@@ -109,6 +108,7 @@ end
 
 # Checks whether `n` is a valid name for a cell.
 function is_valid_cellname(n::AbstractString) :: Bool
+
     if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
         return false
     end
@@ -603,13 +603,12 @@ is_valid_non_contiguous_range(v::AbstractString) :: Bool = is_valid_non_contiguo
 function is_valid_non_contiguous_sheetcellrange(v::AbstractString) :: Bool
 
     if !occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
-
         return false
     end
 
     ranges = split(v, ",")
     for r in ranges
-        if !is_valid_sheet_cellname(r) && !is_valid_sheet_cellrange(r)
+        if !is_valid_sheet_cellname(r) && !is_valid_sheet_cellrange(r) && !is_valid_fixed_sheet_cellname(r) && !is_valid_fixed_sheet_cellrange(r)
             return false
         end
     end

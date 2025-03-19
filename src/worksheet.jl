@@ -198,6 +198,20 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
     return permutedims(hcat(rows...))
 end
 
+function getdata(ws::Worksheet, rng::NonContiguousRange) :: Vector{Any}
+    results=Vector{Any}()
+    for r in rng.rng
+        if r isa CellRef
+            push!(results, getdata(ws, r))
+        else
+            for cell in r
+                push!(results, getdata(ws, cell))
+            end
+        end
+    end
+    return results
+end
+
 function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
@@ -226,6 +240,8 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         return getdata(ws, ColumnRange(ref))
     elseif is_valid_row_range(ref)
         return getdata(ws, RowRange(ref))
+    elseif is_valid_non_contiguous_range(ref)
+        return getdata(ws, nonContiguousRange(ws, ref))
     else
         error("$ref is not a valid cell or range reference.")
     end
@@ -404,6 +420,19 @@ function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
 
     return permutedims(hcat(rows...))
 end
+function getcellrange(ws::Worksheet, rng::NonContiguousRange) :: Vector{AbstractCell}
+    results=Vector{AbstractCell}()
+    for r in rng.rng
+        if r isa CellRef
+            push!(results, getcell(ws, r))
+        else
+            for cell in r
+                push!(results, getcell(ws, cell))
+            end
+        end
+    end
+    return results
+end
 
 function getcellrange(ws::Worksheet, rng::AbstractString)
     if is_valid_cellrange(rng)
@@ -412,6 +441,8 @@ function getcellrange(ws::Worksheet, rng::AbstractString)
         return getcellrange(ws, ColumnRange(rng))
     elseif is_valid_row_range(rng)
         return getcellrange(ws, RowRange(rng))
+    elseif is_valid_non_contiguous_range(rng)
+        return getcellrange(ws, nonContiguousRange(ws, rng))
     else
         error("$rng is not a valid cell range.")
     end
