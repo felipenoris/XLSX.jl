@@ -366,14 +366,14 @@ function make_absolute(dn::DefinedNameValue)
         for (i, r) in enumerate(dn.value.rng)
             cr = r isa CellRange ? SheetCellRange(dn.value.sheet, r) : SheetCellRef(dn.value.sheet, r) # need to separate and handle separately
             if dn.isabs[i]
-                v *= cr.sheet * "!" * mkabs(cr) * ","
+                v *= quoteit(cr.sheet) * "!" * mkabs(cr) * ","
             else                
                 v *= string(cr) * ","
             end
         end
         return v[1:end-1]
      else
-        return dn.isabs ? dn.value.sheet * "!" *  mkabs(dn.value) : string(dn.value)
+        return dn.isabs ? quoteit(dn.value.sheet) * "!" *  mkabs(dn.value) : string(dn.value)
     end
 end
 

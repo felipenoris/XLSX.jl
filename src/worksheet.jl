@@ -68,7 +68,7 @@ end
     getdata(sheet, ref)
     getdata(sheet, row, column)
 
-Returns a scalar or a matrix with values from a spreadsheet.
+Returns a scalar, vector or a matrix with values from a spreadsheet.
 `ref` can be a cell reference or a range.
 
 Indexing in a `Worksheet` will dispatch to `getdata` method.
@@ -85,6 +85,8 @@ julia> matrix = sheet["A1:B4"]
 julia> matrix = sheet["A:B"]
 
 julia> matrix = sheet["1:4"]
+
+julia> vector = sheet["A1:A4,C1:C4,G5"] # non-contiguous range
 
 julia> single_value = sheet[2, 2] # B2
 ```

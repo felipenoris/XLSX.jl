@@ -247,7 +247,7 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
     end
 #    local abs::Union{Bool, Vector{Bool}}
     if value isa NonContiguousRange
-        @assert replace(value.sheet, "'" => "") == ws.name "Non-contiguous range must be in the same worksheet."
+        @assert value.sheet == ws.name "Non-contiguous range must be in the same worksheet."
         abs = absolute ? fill(true, length(value.rng)) : fill(false, length(value.rng))
     else
         abs = absolute ? true : false
@@ -255,7 +255,7 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
     wb.worksheet_names[(ws.sheetId, name)] = DefinedNameValue(value, abs)
 end
 
-quoteit(x::AbstractString) = occursin(r"^[0-9]|[\s,:!&#@*]", x) ? "'$x'" : x
+quoteit(x::AbstractString) = occursin(r"[^\w]|\s", x) ? "'$x'" : x
 unquoteit(x::AbstractString) = replace(x, "'" => "")
 
 """

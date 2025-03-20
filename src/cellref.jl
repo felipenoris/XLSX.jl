@@ -392,27 +392,27 @@ end
 # SheetCellRef, SheetCellRange, SheetColumnRange, SheetRowRange, NonContiguousRange
 #
 
-Base.string(cr::SheetCellRef) = string(cr.sheet, "!", cr.cellref)
+Base.string(cr::SheetCellRef) = string(quoteit(cr.sheet), "!", cr.cellref)
 Base.show(io::IO, cr::SheetCellRef) = print(io, string(cr))
 Base.:(==)(cr1::SheetCellRef, cr2::SheetCellRef) = cr1.sheet == cr2.sheet && cr2.cellref == cr2.cellref
 Base.hash(cr::SheetCellRef) = hash(cr.sheet) + hash(cr.cellref)
 
-Base.string(cr::SheetCellRange) = string(cr.sheet, "!", cr.rng)
+Base.string(cr::SheetCellRange) = string(quoteit(cr.sheet), "!", cr.rng)
 Base.show(io::IO, cr::SheetCellRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetCellRange, cr2::SheetCellRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
 Base.hash(cr::SheetCellRange) = hash(cr.sheet) + hash(cr.rng)
 
-Base.string(cr::SheetColumnRange) = string(cr.sheet, "!", cr.colrng)
+Base.string(cr::SheetColumnRange) = string(quoteit(cr.sheet), "!", cr.colrng)
 Base.show(io::IO, cr::SheetColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetColumnRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.colrng == cr2.colrng
 Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
 
-Base.string(cr::SheetRowRange) = string(cr.sheet, "!", cr.colrng)
+Base.string(cr::SheetRowRange) = string(quoteit(cr.sheet), "!", cr.colrng)
 Base.show(io::IO, cr::SheetRowRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetRowRange, cr2::SheetRowRange) = cr1.sheet == cr2.sheet && cr2.rowrng == cr2.rowrng
 Base.hash(cr::SheetRowRange) = hash(cr.sheet) + hash(cr.colrng)
 
-Base.string(cr::NonContiguousRange) = join([string(cr.sheet, "!", x) for x in cr.rng],",")
+Base.string(cr::NonContiguousRange) = join([string(quoteit(cr.sheet), "!", x) for x in cr.rng],",")
 Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
 Base.:(==)(cr1::NonContiguousRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
 Base.hash(cr::NonContiguousRange) = hash(cr.sheet) + hash(cr.rng)

@@ -418,7 +418,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
     @assert !is_empty_table_row(sheet_row) || itr.keep_empty_rows
     table_row = TableRow(table_row_index, itr.index, sheet_row)
 
-    # user asked to stop
+    # user asked to stop (or end of row range)
     if itr.stop_in_row_function !== nothing && itr.stop_in_row_function(table_row)
         return nothing
     end
@@ -603,11 +603,11 @@ julia> df = XLSX.openxlsx("myfile.xlsx") do xf
 See also: [`XLSX.readtable`](@ref).
 """
 function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    itr = eachtablerow(sheet, cols; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
-    return gettable(itr; infer_eltypes=infer_eltypes)
+    itr = eachtablerow(sheet, cols; first_row, column_labels, header, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
+    return gettable(itr; infer_eltypes)
 end
 
 function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    itr = eachtablerow(sheet; first_row=first_row, column_labels=column_labels, header=header, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
-    return gettable(itr; infer_eltypes=infer_eltypes)
+    itr = eachtablerow(sheet; first_row, column_labels, header, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
+    return gettable(itr; infer_eltypes)
 end

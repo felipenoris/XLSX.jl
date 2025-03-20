@@ -378,23 +378,23 @@ function parse_workbook!(xf::XLSXFile)
 
                     local defined_value::DefinedNameValueTypes
                     if is_valid_non_contiguous_range(defined_value_string)
-                        defined_value = nonContiguousRange(defined_value_string) 
+                        defined_value = nonContiguousRange(unquoteit(defined_value_string)) 
                         isabs=Vector{Bool}(undef,length(defined_value.rng))
                         for (i, d) in enumerate(split(defined_value_string, ","))
                             isabs[i]=is_valid_fixed_sheet_cellname(d) || is_valid_fixed_sheet_cellrange(d)
                         end
                         @assert length(isabs)==length(defined_value.rng) "Error parsing absolute references in non-contiguous range."
                     elseif is_valid_fixed_sheet_cellname(defined_value_string)
-                        defined_value = SheetCellRef(defined_value_string)
+                        defined_value = SheetCellRef(unquoteit(defined_value_string))
                         isabs=true
                     elseif is_valid_sheet_cellname(defined_value_string)
-                        defined_value = SheetCellRef(defined_value_string)
+                        defined_value = SheetCellRef(unquoteit(defined_value_string))
                         isabs=false
                     elseif is_valid_fixed_sheet_cellrange(defined_value_string)
-                        defined_value = SheetCellRange(defined_value_string)
+                        defined_value = SheetCellRange(unquoteit(defined_value_string))
                         isabs=true
                     elseif is_valid_sheet_cellrange(defined_value_string)
-                        defined_value = SheetCellRange(defined_value_string)
+                        defined_value = SheetCellRange(unquoteit(defined_value_string))
                         isabs=false
                     elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
                         defined_value = defined_value_string[2:end-1] # remove enclosing quotes
@@ -494,7 +494,7 @@ end
     readdata(source, sheet, ref)
     readdata(source, sheetref)
 
-Returns a scalar or matrix with values from a spreadsheet.
+Returns a scalar or matrix with values from a spreadsheet file.
 
 See also [`XLSX.getdata`](@ref).
 
@@ -559,10 +559,14 @@ For example, `"B:D"` will select columns `B`, `C` and `D`.
 If `columns` is not given, the algorithm will find the first sequence
 of consecutive non-empty cells.
 
+Alternatively, use `columns` to specify a row range, like `"2:4"`.
+This will select rows `2`, `3` and `4`.
+
 Use `first_row` to indicate the first row from the table.
 `first_row=5` will look for a table starting at sheet row `5`.
 If `first_row` is not given, the algorithm will look for the first
-non-empty row in the spreadsheet.
+non-empty row in the spreadsheet (if a column range is specified) 
+or range (if a row range is specified).
 
 `header` is a `Bool` indicating if the first row is a header.
 If `header=true` and `column_labels` is not specified, the column labels
@@ -577,11 +581,13 @@ Use `normalizenames=true` to normalize column names to valid Julia identifiers.
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
 The default value is `infer_eltypes=false`.
 
-`stop_in_empty_row` is a boolean indicating whether an empty row marks the end of the table.
-If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
+`stop_in_empty_row` is a boolean indicating whether an empty row marks the 
+end of the table. If `stop_in_empty_row=false`, the `TableRowIterator` will 
+continue to fetch rows until there's no more rows in the Worksheet or range.
 The default behavior is `stop_in_empty_row=true`.
 
-`stop_in_row_function` is a Function that receives a `TableRow` and returns a `Bool` indicating if the end of the table was reached.
+`stop_in_row_function` is a Function that receives a `TableRow` and returns
+ a `Bool` indicating if the end of the table was reached.
 
 Example for `stop_in_row_function`:
 
@@ -592,9 +598,14 @@ function stop_function(r)
 end
 ```
 
-`keep_empty_rows` determines whether rows where all column values are equal to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
-`keep_empty_rows` never affects the *bounds* of the table; the number of rows read from a sheet is only affected by, `first_row`, `stop_in_empty_row` and `stop_in_row_function` (if specified).
-`keep_empty_rows` is only checked once the first and last row of the table have been determined, to see whether to keep or drop empty rows between the first and the last row.
+`keep_empty_rows` determines whether rows where all column values are equal 
+to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
+`keep_empty_rows` never affects the *bounds* of the table; the number of 
+rows read from a sheet is only affected by, `first_row`, `stop_in_empty_row` 
+and `stop_in_row_function` (if specified).
+`keep_empty_rows` is only checked once the first and last row of the table 
+have been determined, to see whether to keep or drop empty rows between the 
+first and the last row.
 
 # Example
 
@@ -608,14 +619,34 @@ See also: [`XLSX.gettable`](@ref).
 """
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
-        gettable(getsheet(xf, sheet); first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
+        gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::ColumnRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
-        gettable(getsheet(xf, sheet), columns; first_row=first_row, column_labels=column_labels, header=header, infer_eltypes=infer_eltypes, stop_in_empty_row=stop_in_empty_row, stop_in_row_function=stop_in_row_function, keep_empty_rows=keep_empty_rows, normalizenames=normalizenames)
+        gettable(getsheet(xf, sheet), columns; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
+end
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, rows::RowRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    first_row = isnothing(first_row) ? rows.start : first_row
+    stop_in_row_function = isnothing(stop_in_row_function) ? r -> r.row == rows.stop : stop_in_row_function
+#    return readtable(source, sheet; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function=stop_function, enable_cache, keep_empty_rows, normalizenames)
+#    end
+    c = openxlsx(source, enable_cache=enable_cache) do xf
+        gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
+    end
+    return c
+end
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    if is_valid_row_range(range)
+        range = RowRange(range)
+    elseif is_valid_column_range(range)
+        range = ColumnRange(range)
+    else
+        error("The columns argument must be a valid column range or row range.")
+    end
+    return readtable(source, sheet, range; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, enable_cache, keep_empty_rows, normalizenames)
 end
