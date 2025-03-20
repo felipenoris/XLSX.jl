@@ -377,29 +377,46 @@ function parse_workbook!(xf::XLSXFile)
                     name = XML.attributes(defined_name_node)["name"]
 
                     local defined_value::DefinedNameValueTypes
-
                     if is_valid_non_contiguous_range(defined_value_string)
-                        defined_value = nonContiguousRange(defined_value_string)   
-                    elseif is_valid_fixed_sheet_cellname(defined_value_string) || is_valid_sheet_cellname(defined_value_string)
+                        defined_value = nonContiguousRange(defined_value_string) 
+                        isabs=Vector{Bool}(undef,length(defined_value.rng))
+                        for (i, d) in enumerate(split(defined_value_string, ","))
+                            isabs[i]=is_valid_fixed_sheet_cellname(d) || is_valid_fixed_sheet_cellrange(d)
+                        end
+                        @assert length(isabs)==length(defined_value.rng) "Error parsing absolute references in non-contiguous range."
+                    elseif is_valid_fixed_sheet_cellname(defined_value_string)
                         defined_value = SheetCellRef(defined_value_string)
-                    elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
+                        isabs=true
+                    elseif is_valid_sheet_cellname(defined_value_string)
+                        defined_value = SheetCellRef(defined_value_string)
+                        isabs=false
+                    elseif is_valid_fixed_sheet_cellrange(defined_value_string)
                         defined_value = SheetCellRange(defined_value_string)
+                        isabs=true
+                    elseif is_valid_sheet_cellrange(defined_value_string)
+                        defined_value = SheetCellRange(defined_value_string)
+                        isabs=false
                     elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
                         defined_value = defined_value_string[2:end-1] # remove enclosing quotes
                         if isempty(defined_value)
                             defined_value = missing
                         end
+                        isabs=false
                     elseif tryparse(Int, defined_value_string) !== nothing
                         defined_value = parse(Int, defined_value_string)
+                        isabs=false
                     elseif tryparse(Float64, defined_value_string) !== nothing
                         defined_value = parse(Float64, defined_value_string)
+                        isabs=false
                     elseif isempty(defined_value_string)
                         defined_value = missing
+                        isabs=false
                     else
 
                         # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
                         # Actually is just interpreted as a string anyway and added to the defined names (is this true?).
-                         defined_value = string(defined_value_string)
+                        defined_value = string(defined_value_string)
+                        isabs=false
                         #continue
 
                         # debug - Now more important since we are writing updated defined names to back to output file.
@@ -414,10 +431,10 @@ function parse_workbook!(xf::XLSXFile)
                         # Which is the order of the elements under <sheets> element in workbook.xml .
                         localSheetId = parse(Int, a["localSheetId"])+1
                         sheetId = workbook.sheets[localSheetId].sheetId
-                        workbook.worksheet_names[(sheetId, name)] = defined_value
+                        workbook.worksheet_names[(sheetId, name)] = DefinedNameValue(defined_value, isabs)
                     else
                         # is a Workbook level name
-                        workbook.workbook_names[name] = defined_value
+                        workbook.workbook_names[name] = DefinedNameValue(defined_value, isabs)
                     end
                 end
 

@@ -353,6 +353,30 @@ function update_worksheets_xml!(xl::XLSXFile)
     nothing
 end
 
+function abscell(c::CellRef)
+    col, row = split_cellname(c.name)
+    return "\$$col\$$row"
+end
+
+mkabs(c::SheetCellRef) = abscell(c.cellref)
+mkabs(c::SheetCellRange) = abscell(c.rng.start) * ":" * abscell(c.rng.stop)
+function make_absolute(dn::DefinedNameValue)
+    if dn.value isa NonContiguousRange
+        v=""
+        for (i, r) in enumerate(dn.value.rng)
+            cr = r isa CellRange ? SheetCellRange(dn.value.sheet, r) : SheetCellRef(dn.value.sheet, r) # need to separate and handle separately
+            if dn.isabs[i]
+                v *= cr.sheet * "!" * mkabs(cr) * ","
+            else                
+                v *= string(cr) * ","
+            end
+        end
+        return v[1:end-1]
+     else
+        return dn.isabs ? dn.value.sheet * "!" *  mkabs(dn.value) : string(dn.value)
+    end
+end
+
 function update_workbook_xml!(xl::XLSXFile)
     wb = get_workbook(xl)
 
@@ -378,10 +402,16 @@ function update_workbook_xml!(xl::XLSXFile)
     end
 
     for (k, v) in wb.workbook_names
+        if typeof(v.value) <: DefinedNameRangeTypes
+            v=make_absolute(v)
+        end
         dn_node = XML.Element("definedName", name=k, XML.Text(v))
         push!(definedNames, dn_node)
     end
     for (k, v) in wb.worksheet_names
+        if typeof(v.value) <: DefinedNameRangeTypes
+            v=make_absolute(v)
+        end
         dn_node = XML.Element("definedName", name=last(k), localSheetId=first(k)-1, XML.Text(v))
         push!(definedNames, dn_node)
     end

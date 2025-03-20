@@ -328,6 +328,12 @@ mutable struct SharedStringTable
 end
 
 const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, Int, Float64, String, Missing}
+const DefinedNameRangeTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange}
+
+struct DefinedNameValue
+    value::DefinedNameValueTypes
+    isabs::Union{Bool, Vector{Bool}}
+end
 
 # Workbook is the result of parsing file `xl/workbook.xml`.
 # The `xl/workbook.xml` wi9ll need to be updated using the Workbook_names and 
@@ -341,8 +347,8 @@ mutable struct Workbook
     sst::SharedStringTable # shared string table
     buffer_styles_is_float::Dict{Int, Bool}      # cell style -> true if is float
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
-    workbook_names::Dict{String, DefinedNameValueTypes} # definedName
-    worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
+    workbook_names::Dict{String, DefinedNameValue} # definedName
+    worksheet_names::Dict{Tuple{Int, String}, DefinedNameValue} # definedName. (sheetId, name) -> value.
     styles_xroot::Union{XML.Node, Nothing}
 end
 

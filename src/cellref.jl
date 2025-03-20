@@ -592,9 +592,13 @@ function SheetRowRange(n::AbstractString)
 end
 
 # Named ranges
+const RGX_FIXED_CELLNAME = r"^\$[A-Z]+\$[0-9]+$"
+const RGX_FIXED_CELLRANGE = r"^\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 const RGX_FIXED_SHEET_CELLNAME = r"^.+!\$[A-Z]+\$[0-9]+$"
 const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
+is_valid_fixed_cellname(s::AbstractString) = occursin(RGX_FIXED_CELLNAME, s)
+is_valid_fixed_cellrange(s::AbstractString) = occursin(RGX_FIXED_CELLRANGE, s)
 is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLNAME, s)
 is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)
 
@@ -632,7 +636,7 @@ function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
     ranges = split(v, ",")
 
     for r in ranges
-        if !is_valid_cellname(r) && !is_valid_cellrange(r)
+        if !is_valid_cellname(r) && !is_valid_cellrange(r) &&!is_valid_fixed_cellname(r) && !is_valid_fixed_cellrange(r)
             return false
         end
     end
@@ -640,7 +644,7 @@ function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
     return true
 end
 
-nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(quoteit(s.name), string.(split(v, ",")))
+nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(s.name, string.(split(v, ",")))
 function nonContiguousRange(v::AbstractString)::NonContiguousRange
 
     @assert is_valid_non_contiguous_range(v) "$v is not a valid non-contiguous range."
@@ -649,7 +653,7 @@ function nonContiguousRange(v::AbstractString)::NonContiguousRange
     firstsheet = parse_sheetname_from_sheetcell_name(ranges[1])
     @assert all(parse_sheetname_from_sheetcell_name(r) == firstsheet for r in ranges) "All `CellRef`s and `CellRange`s should have the same sheet name."
 
-    return nCR(firstsheet, ranges)
+    return nCR(unquoteit(firstsheet), ranges)
 end
 
 function nCR(s::AbstractString, ranges::Vector{String}) :: NonContiguousRange
@@ -666,10 +670,14 @@ function nCR(s::AbstractString, ranges::Vector{String}) :: NonContiguousRange
             push!(noncontig, CellRange(replace(fixed_cellrange, "\$" => "")))
         elseif is_valid_sheet_cellrange(n)
             push!(noncontig, CellRange(match(RGX_SHEET_CELLRANGE_RIGHT, n).match))
-        elseif is_valid_cellrange(n)
-            push!(noncontig, CellRange(n))
+        elseif is_valid_fixed_cellname(n)
+            push!(noncontig, CellRef(replace(n, "\$" => "")))
+        elseif is_valid_fixed_cellrange(n)
+            push!(noncontig, CellRange(replace(n, "\$" => "")))
         elseif is_valid_cellname(n)
             push!(noncontig, CellRef(n))
+        elseif is_valid_cellrange(n)
+            push!(noncontig, CellRange(n))
         else
             error("Invalid non-contiguous range: $n.")
         end
