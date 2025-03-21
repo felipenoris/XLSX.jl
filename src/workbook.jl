@@ -132,10 +132,10 @@ end
 function getdata(xl::XLSXFile, s::AbstractString)
     if is_workbook_defined_name(xl, s)
         v = get_defined_name_value(xl.workbook, s)
-        if is_defined_name_value_a_constant(v)
+       if is_defined_name_value_a_constant(v)
             return v
         elseif is_defined_name_value_a_reference(v)
-            return getdata(xl, v)
+             return getdata(xl, v)
         else
             error("Unexpected defined name value: $v.")
         end
@@ -148,7 +148,7 @@ function getdata(xl::XLSXFile, s::AbstractString)
     elseif is_valid_sheet_row_range(s)
         return getdata(xl, SheetRowRange(s))
     elseif is_valid_non_contiguous_range(s)
-        return getdata(xl, nonContiguousRange(s))
+        return getdata(xl, NonContiguousRange(s))
     end
 
     error("$s is not a valid definedName or cell/range reference.")
@@ -189,7 +189,7 @@ function getcellrange(xl::XLSXFile, rng_str::AbstractString)
     elseif is_valid_sheet_row_range(rng_str)
         return getcellrange(xl, SheetRowRange(rng_str))
     elseif is_valid_non_contiguous_range(rng_str)
-        return getcellrange(xl, nonContiguousRange(rng_str))
+        return getcellrange(xl, NonContiguousRange(rng_str))
     end
 
     error("$rng_str is not a valid range reference.")
@@ -235,7 +235,12 @@ function addDefName(xf::XLSXFile, name::AbstractString, value::DefinedNameValueT
     if is_workbook_defined_name(xf, name)
         error("Workbook already has a defined name called $name.")
     end
-    xf.workbook.workbook_names[name] = DefinedNameValue(value, absolute)
+    if value isa NonContiguousRange
+        abs = absolute ? fill(true, length(value.rng)) : fill(false, length(value.rng))
+    else
+        abs = absolute ? true : false
+    end
+    xf.workbook.workbook_names[name] = DefinedNameValue(value, abs)
 end
 function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValueTypes; absolute=true)
     wb = get_workbook(ws)
@@ -245,7 +250,7 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
     if is_worksheet_defined_name(ws, name)
         error("Worksheet $(ws.name) already has a defined name called $name.")
     end
-#    local abs::Union{Bool, Vector{Bool}}
+
     if value isa NonContiguousRange
         @assert value.sheet == ws.name "Non-contiguous range must be in the same worksheet."
         abs = absolute ? fill(true, length(value.rng)) : fill(false, length(value.rng))
@@ -303,9 +308,9 @@ function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractStrin
     elseif is_valid_sheet_cellrange(value)
         return addDefName(xf, name, SheetCellRange(value); absolute)
     elseif is_valid_non_contiguous_sheetcellrange(value)
-        return addDefName(xf, name, nonContiguousRange(value); absolute)
+        return addDefName(xf, name, NonContiguousRange(value); absolute)
     else
-        return addDefName(xf, name, value isa String ? "\"$value\"" : value)
+        return addDefName(xf, name, value)
     end
 end
 function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractString; absolute=true)
@@ -317,10 +322,10 @@ function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractStri
     elseif is_valid_cellrange(value)
         return addDefName(ws, name, SheetCellRange(ws.name, CellRange(value)); absolute)
     elseif is_valid_non_contiguous_sheetcellrange(value)
-        return addDefName(ws, name, nonContiguousRange(value); absolute)
+        return addDefName(ws, name, NonContiguousRange(value); absolute)
     elseif is_valid_non_contiguous_cellrange(value)
-        return addDefName(ws, name, nonContiguousRange(ws, value); absolute)
+        return addDefName(ws, name, NonContiguousRange(ws, value); absolute)
     else
-        return addDefName(ws, name, value isa String ? "\"$value\"" : value)
+        return addDefName(ws, name, value)
     end
 end

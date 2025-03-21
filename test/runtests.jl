@@ -416,25 +416,56 @@ end
     @test !XLSX.is_defined_name_value_a_reference("Hey")
     @test !XLSX.is_defined_name_value_a_reference(missing)
 
-    XLSX.openxlsx(joinpath(data_directory, "general.xlsx")) do f
-        @test f["SINGLE_CELL"] == "single cell A2"
-        @test f["RANGE_B4C5"] == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
-        @test f["CONST_DATE"] == 43383
-        @test isapprox(f["CONST_FLOAT"], 10.2)
-        @test f["CONST_INT"] == 100
-        @test f["LOCAL_INT"] == 2000
-        @test f["named_ranges_2"]["LOCAL_INT"] == 2000
-        @test f["named_ranges"]["LOCAL_INT"] == 1000
-        @test f["named_ranges"]["LOCAL_NAME"] == "Hey You"
-        @test f["named_ranges_2"]["LOCAL_NAME"] == "out there in the cold"
-        @test f["named_ranges"]["SINGLE_CELL"] == "single cell A2"
+    f = XLSX.opentemplate(joinpath(data_directory, "general.xlsx"))
+    @test f["SINGLE_CELL"] == "single cell A2"
+    @test f["RANGE_B4C5"] == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
+    @test f["CONST_DATE"] == 43383
+    @test isapprox(f["CONST_FLOAT"], 10.2)
+    @test f["CONST_INT"] == 100
+    @test f["LOCAL_INT"] == 2000
+    @test f["named_ranges_2"]["LOCAL_INT"] == 2000
+    @test f["named_ranges"]["LOCAL_INT"] == 1000
+    @test f["named_ranges"]["LOCAL_NAME"] == "Hey You"
+    @test f["named_ranges_2"]["LOCAL_NAME"] == "out there in the cold"
+    @test f["named_ranges"]["SINGLE_CELL"] == "single cell A2"
 
-        @test_throws ErrorException f["header_error"]["LOCAL_REF"]
-        @test f["named_ranges"]["LOCAL_REF"][1] == 10
-        @test f["named_ranges"]["LOCAL_REF"][2] == 20
-        @test f["named_ranges_2"]["LOCAL_REF"][1] == "local"
-        @test f["named_ranges_2"]["LOCAL_REF"][2] == "reference"
-    end
+    @test_throws ErrorException f["header_error"]["LOCAL_REF"]
+    @test f["named_ranges"]["LOCAL_REF"][1] == 10
+    @test f["named_ranges"]["LOCAL_REF"][2] == 20
+    @test f["named_ranges_2"]["LOCAL_REF"][1] == "local"
+    @test f["named_ranges_2"]["LOCAL_REF"][2] == "reference"
+
+    XLSX.addDefinedName(f["lookup"], "Life_the_Universe_and_Everything", 42)
+    XLSX.addDefinedName(f["lookup"], "FirstName", "Hello World")
+    XLSX.addDefinedName(f["lookup"], "single", "C2"; absolute=true)
+    XLSX.addDefinedName(f["lookup"], "range", "C3:C5"; absolute=true)
+    XLSX.addDefinedName(f["lookup"], "NonContig", "C3:C5,D3:D5"; absolute=true)
+    @test f["lookup"]["Life_the_Universe_and_Everything"] == 42
+    @test f["lookup"]["FirstName"] == "Hello World"
+    @test f["lookup"]["single"] == "NAME"
+    @test f["lookup"]["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
+    @test f["lookup"]["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+
+    XLSX.addDefinedName(f, "Life_the_Universe_and_Everything", 42)
+    XLSX.addDefinedName(f, "FirstName", "Hello World")
+    XLSX.addDefinedName(f, "single", "lookup!C2"; absolute=true)
+    XLSX.addDefinedName(f, "range", "lookup!C3:C5"; absolute=true)
+    XLSX.addDefinedName(f, "NonContig", "lookup!C3:C5,lookup!D3:D5"; absolute=true)
+    @test f["Life_the_Universe_and_Everything"] == 42
+    @test f["FirstName"] == "Hello World"
+    @test f["single"] == "NAME"
+    @test f["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
+    @test f["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+
+    XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+
+    f = XLSX.readxlsx("mytest.xlsx")
+    @test f["Life_the_Universe_and_Everything"] == 42
+    @test f["FirstName"] == "Hello World"
+    @test f["single"] == "NAME"
+    @test f["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
+    @test f["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+    isfile("mytest.xlsx") && rm("mytest.xlsx")
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
@@ -541,6 +572,49 @@ end
     @test collect(cr) == ["B", "C", "D"]
     @test XLSX.ColumnRange("B:D") == XLSX.ColumnRange("B:D")
     @test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
+end
+
+@testset "Row Range" begin
+    cr = XLSX.RowRange("2:5")
+    @test string(cr) == "2:5"
+    @test cr.start == 2
+    @test cr.stop == 5
+    @test length(cr) == 4
+    @test_throws AssertionError XLSX.RowRange("B1:D3")
+    @test_throws AssertionError XLSX.RowRange("5:2")
+    @test collect(cr) == ["2", "3", "4", "5"]
+    @test XLSX.RowRange("2:5") == XLSX.RowRange("2:5")
+    @test hash(XLSX.RowRange("2:5")) == hash(XLSX.RowRange("2:5"))
+end
+
+@testset "Non-contiguous Range" begin
+    cr = XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") 
+    @test string(cr) == "Sheet1!D1:D3,Sheet1!B1:B3"
+    @test cr.sheet == "Sheet1"
+    @test cr.rng == [XLSX.CellRange("D1:D3"), XLSX.CellRange("B1:B3")]
+    @test length(cr) == 6
+    @test collect(cr.rng) == [XLSX.CellRange("D1:D3"), XLSX.CellRange("B1:B3")]
+    @test XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3")  == XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") 
+    @test hash(XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") ) == hash(XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3"))
+
+    f=XLSX.newxlsx("Sheet 1")
+    s=f["Sheet 1"]
+    for cell in XLSX.CellRange("A1:D6")
+        s[cell]=""
+    end
+    cr = XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") 
+    @test string(cr) == "'Sheet 1'!D1:D3,'Sheet 1'!A2,'Sheet 1'!B1:B3"
+    @test cr.sheet == "Sheet 1"
+    @test cr.rng == [XLSX.CellRange("D1:D3"), XLSX.CellRef("A2"),XLSX.CellRange("B1:B3")]
+    @test length(cr) == 7
+    @test collect(cr.rng) == [XLSX.CellRange("D1:D3"), XLSX.CellRef("A2"), XLSX.CellRange("B1:B3")]
+    @test XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")  == XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") 
+    @test hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") ) == hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3"))
+
+    @test_throws AssertionError XLSX.NonContiguousRange("Sheet1!D1:D3,B1:B3")
+    @test_throws AssertionError XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet2!B1:B3")
+    @test_throws AssertionError XLSX.NonContiguousRange("B1:D3")
+    @test_throws AssertionError XLSX.NonContiguousRange("2:5")
 end
 
 @testset "CellRange iterator" begin
@@ -970,6 +1044,21 @@ end
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
     end
+
+    @testset "normalizenames" begin
+
+        data = Vector{Any}()
+        push!(data, [:sym1, :sym2, :sym3])
+        push!(data, [1.0, 2.0, 3.0])
+        push!(data, ["abc", "DeF", "gHi"])
+        push!(data, [true, true, false])
+        cols = ["1 col", "col \$2", "local", "col:4"]
+        
+        XLSX.writetable("mytest.xlsx", data, cols; overwrite=true)
+        df = DataFrames.DataFrame(XLSX.readtable("mytest.xlsx", "Sheet1",normalizenames=true))
+        @test DataFrames.names(df) == Any["_1_col", "col_2", "_local", "col_4"]
+
+    end
 end
 
 @testset "Write" begin
@@ -1236,14 +1325,39 @@ end
         @test dt_read.column_label_index == dt.column_label_index
     end
 
+    @testset "extended types" begin
+        @enum enums begin
+            enum1
+            enum2
+            enum3
+        end
+        
+        data = Vector{Any}()
+        push!(data, [:sym1, :sym2, :sym3])
+        push!(data, [1.0, 2.0, 3.0])
+        push!(data, ["abc", "DeF", "gHi"])
+        push!(data, [true, true, false])
+        push!(data, [XLSX.CellRef("A1"), XLSX.CellRef("B2"), XLSX.CellRef("CCC34000")])
+        push!(data, collect(instances(enums)))
+        cols = [string(eltype(x)) for x in data]
+        
+        XLSX.writetable("mytest.xlsx", data, cols; overwrite=true)
+
+        f=XLSX.readxlsx("mytest.xlsx")
+        @test f[1]["A1"] == "Symbol"
+        @test f[1]["A1:A4"] == Any["Symbol"; "sym1"; "sym2"; "sym3";;] # A 2D Array, size (4, 1)
+        @test f[1]["A1"] == "Symbol"
+        @test f[1]["E1:E4"] == Any["XLSX.CellRef"; "A1"; "B2"; "CCC34000";;]
+    end
+
     # delete files created by this testset
-    delete_files = ["output_table.xlsx", "output_tables.xlsx"]
+    delete_files = ["output_table.xlsx", "output_tables.xlsx", "mytest.xlsx"]
     for f in delete_files
         isfile(f) && rm(f)
     end
 end
 
-@testset "Styles" verbose = true begin
+@testset "Styles" begin
 
     @testset "Original" begin
         using XLSX: CellValue, id, getcell, setdata!, CellRef

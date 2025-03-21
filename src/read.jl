@@ -378,7 +378,7 @@ function parse_workbook!(xf::XLSXFile)
 
                     local defined_value::DefinedNameValueTypes
                     if is_valid_non_contiguous_range(defined_value_string)
-                        defined_value = nonContiguousRange(unquoteit(defined_value_string)) 
+                        defined_value = NonContiguousRange(unquoteit(defined_value_string)) 
                         isabs=Vector{Bool}(undef,length(defined_value.rng))
                         for (i, d) in enumerate(split(defined_value_string, ","))
                             isabs[i]=is_valid_fixed_sheet_cellname(d) || is_valid_fixed_sheet_cellrange(d)

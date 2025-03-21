@@ -221,7 +221,7 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
             error("Unexpected defined name value: $v.")
         end
     elseif is_valid_non_contiguous_sheetcellrange(sheetcell)
-        sheetncrng = nonContiguousRange(sheetcell)
+        sheetncrng = NonContiguousRange(sheetcell)
         @assert hassheet(xl, sheetncrng.sheet) "Sheet $(ref.sheet) not found."
         newid = f(xl[sheetncrng.sheet], sheetncrng; kw...)
     elseif is_valid_sheet_column_range(sheetcell)

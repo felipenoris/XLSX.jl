@@ -367,6 +367,15 @@ function Base.iterate(itr::ColumnRange, state::Int=itr.start)
     return encode_column_number(state), state + 1
 end
 
+# RowRange iterator: element is a String with the row name (e.g. "1"), the state is the row number.
+function Base.iterate(itr::RowRange, state::Int=itr.start)
+    if state > itr.stop
+        return nothing
+    end
+
+    return string(state), state + 1
+end
+
 # CellRange iterator: element is a CellRef, the state is a CellPosition.
 function Base.iterate(rng::CellRange, state::CellPosition=CellPosition(rng.start))
 
@@ -414,7 +423,7 @@ Base.hash(cr::SheetRowRange) = hash(cr.sheet) + hash(cr.colrng)
 
 Base.string(cr::NonContiguousRange) = join([string(quoteit(cr.sheet), "!", x) for x in cr.rng],",")
 Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
-Base.:(==)(cr1::NonContiguousRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
+Base.:(==)(cr1::NonContiguousRange, cr2::NonContiguousRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
 Base.hash(cr::NonContiguousRange) = hash(cr.sheet) + hash(cr.rng)
 
 function Base.in(ref::SheetCellRef, ncrng::NonContiguousRange) :: Bool # Assumes the same sheet name for both `CellRef` and `NonContiguousRange`.
@@ -644,8 +653,8 @@ function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
     return true
 end
 
-nonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(s.name, string.(split(v, ",")))
-function nonContiguousRange(v::AbstractString)::NonContiguousRange
+NonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(s.name, string.(split(v, ",")))
+function NonContiguousRange(v::AbstractString)::NonContiguousRange
 
     @assert is_valid_non_contiguous_range(v) "$v is not a valid non-contiguous range."
     

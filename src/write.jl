@@ -31,7 +31,7 @@ julia> xf = newxlsx()
 ```
 
 """
-newxlsx() = open_empty_template()
+newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path()) :: XLSXFile = open_empty_template(sheetname; path)
 
 function open_empty_template(
             sheetname::AbstractString="";
@@ -404,6 +404,8 @@ function update_workbook_xml!(xl::XLSXFile)
     for (k, v) in wb.workbook_names
         if typeof(v.value) <: DefinedNameRangeTypes
             v=make_absolute(v)
+        else
+            v= string(v.value)
         end
         dn_node = XML.Element("definedName", name=k, XML.Text(v))
         push!(definedNames, dn_node)
@@ -411,6 +413,8 @@ function update_workbook_xml!(xl::XLSXFile)
     for (k, v) in wb.worksheet_names
         if typeof(v.value) <: DefinedNameRangeTypes
             v=make_absolute(v)
+        else
+            v= string(v.value)
         end
         dn_node = XML.Element("definedName", name=last(k), localSheetId=first(k)-1, XML.Text(v))
         push!(definedNames, dn_node)

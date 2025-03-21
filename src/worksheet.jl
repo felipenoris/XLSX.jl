@@ -206,6 +206,12 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
     return permutedims(hcat(rows...))
 end
 
+# Needed for definedName references
+getdata(ws::Worksheet, s::SheetCellRef) = getdata(ws, s.cellref)
+getdata(ws::Worksheet, s::SheetCellRange) = getdata(ws, s.rng)
+getdata(ws::Worksheet, s::SheetColumnRange) = getdata(ws, s.colrng)
+getdata(ws::Worksheet, s::SheetRowRange) = getdata(ws, s.rowrng)
+
 function getdata(ws::Worksheet, rng::NonContiguousRange) :: Vector{Any}
     results=Vector{Any}()
     for r in rng.rng
@@ -249,13 +255,13 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     elseif is_valid_row_range(ref)
         return getdata(ws, RowRange(ref))
     elseif is_valid_non_contiguous_range(ref)
-        return getdata(ws, nonContiguousRange(ws, ref))
+        return getdata(ws, NonContiguousRange(ws, ref))
     else
         error("$ref is not a valid cell or range reference.")
     end
 end
 
-getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
+#getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
 
 function getdata(ws::Worksheet)
     if ws.dimension !== nothing
@@ -450,7 +456,7 @@ function getcellrange(ws::Worksheet, rng::AbstractString)
     elseif is_valid_row_range(rng)
         return getcellrange(ws, RowRange(rng))
     elseif is_valid_non_contiguous_range(rng)
-        return getcellrange(ws, nonContiguousRange(ws, rng))
+        return getcellrange(ws, NonContiguousRange(ws, rng))
     else
         error("$rng is not a valid cell range.")
     end
