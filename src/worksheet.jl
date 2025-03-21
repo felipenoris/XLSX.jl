@@ -169,25 +169,31 @@ function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
     return hcat(columns...)
 end
 function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
+    rows_count = length(rng)
     dim = get_dimension(ws)
     
-    rows = Vector{Vector{Any}}()
+    rows = Vector{Vector{Any}}(undef, rows_count)
+    for i in 1:rows_count
+        rows[i] = Vector{Any}()
+    end
 
     let
         top, bottom = row_bounds(rng)
         left = dim.start.column_number
         right = dim.stop.column_number
     
-        for (i, sheetrow) in enumerate(eachrow(ws))
-            push!(rows, Vector{Any}())
-            if top <= sheetrow.row && sheetrow.row <= bottom
-                for column in left:right
-                    cell = getcell(sheetrow, column)
-                    push!(rows[i], getdata(ws, cell))
-                end
-            end
+        for sheetrow in eachrow(ws)
             if sheetrow.row > bottom
                 break
+            end
+            if top > sheetrow.row
+                continue
+            else
+                row_index=sheetrow.row-top+1
+                for column in left:right
+                    cell = getcell(sheetrow, column)
+                    push!(rows[row_index], getdata(ws, cell))
+                end
             end
         end
     end

@@ -630,11 +630,20 @@ function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractStrin
     end
     return c
 end
+
+# `readtable` on a row range only partially works.
+# Each row in the table is truncated when there is an empty column even if there are more columns in the row.
+# It also evaluates the rows on the basis of the table row count, not the sheet row count, giving wrong results.
+# These limitations arise because I am trying to implement this functionality without changing the existing code.
+# It probably needs a dedicated RowRange implementation.
+# It is best not to use this function with row ranges. Use `readdata` or `getdata` instead, both of which work 
+# on row ranges, or index the sheet directly to get the rows you want (e.g. sh["3"] or sh["3:5"]).
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, rows::RowRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    if rows.start == rows.stop && header==true
+        error("Only 1 row specified in `RowRange` with `header=true`.\nThe header row is the same as the data row. Specify at least two rows to read header data with `header=true`.")
+    end
     first_row = isnothing(first_row) ? rows.start : first_row
-    stop_in_row_function = isnothing(stop_in_row_function) ? r -> r.row == rows.stop : stop_in_row_function
-#    return readtable(source, sheet; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function=stop_function, enable_cache, keep_empty_rows, normalizenames)
-#    end
+    stop_in_row_function = isnothing(stop_in_row_function) ? r -> r.row >= rows.stop-first_row+1 : stop_in_row_function
     c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end

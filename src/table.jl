@@ -348,7 +348,7 @@ function Base.iterate(itr::TableRowIterator)
             table_row_index = 1
             return TableRow(table_row_index, itr.index, sheet_row), TableRowIteratorState(table_row_index, row_number(sheet_row), sheet_row_iterator_state)
         else
-            next = iterate(itr.itr, sheet_row_iterator_state)
+           next = iterate(itr.itr, sheet_row_iterator_state)
         end
     end
 
@@ -393,7 +393,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
     end
 
     if is_empty_table_row(sheet_row)
-        if itr.stop_in_empty_row
+        if itr.stop_in_empty_row 
             # user asked to stop fetching table rows if we find an empty row
             return nothing
         elseif !itr.keep_empty_rows
