@@ -494,7 +494,10 @@ end
     readdata(source, sheet, ref)
     readdata(source, sheetref)
 
-Returns a scalar or matrix with values from a spreadsheet file.
+Return a scalar, vector or matrix with values from a spreadsheet file.
+'ref' can be a defined name, a cell reference or a cell, column, row 
+or non-contiguous range.
+
 
 See also [`XLSX.getdata`](@ref).
 
@@ -520,6 +523,15 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
  1  "first"
  2  "second"
  3  "third"
+
+Non-contiguous ranges return vectors.
+
+julia> XLSX.readdata("customXml.xlsx", "Mock-up", "Location") # `Location` is a `definedName` for a non-contiguous range
+4-element Vector{Any}:
+ "Here"
+ missing
+ missing
+ missing
 ```
 """
 function readdata(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, ref)

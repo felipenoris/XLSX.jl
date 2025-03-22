@@ -69,7 +69,7 @@ end
     getdata(sheet, row, column)
 
 Returns a scalar, vector or a matrix with values from a spreadsheet.
-`ref` can be a cell reference or a range.
+`ref` can be a cell reference or a range or a valid defined name.
 
 Indexing in a `Worksheet` will dispatch to `getdata` method.
 
@@ -78,17 +78,21 @@ Indexing in a `Worksheet` will dispatch to `getdata` method.
 ```julia
 julia> f = XLSX.readxlsx("myfile.xlsx")
 
-julia> sheet = f["mysheet"]
+julia> sheet = f["mysheet"] # Worksheet
 
-julia> matrix = sheet["A1:B4"]
+julia> matrix = sheet["A1:B4"] # CellRange
 
-julia> matrix = sheet["A:B"]
+julia> matrix = sheet["A:B"] # Column range
 
-julia> matrix = sheet["1:4"]
+julia> matrix = sheet["1:4"] # Row range
 
-julia> vector = sheet["A1:A4,C1:C4,G5"] # non-contiguous range
+julia> matrix = sheet["Contiguous"] # Named range
 
-julia> single_value = sheet[2, 2] # B2
+julia> vector = sheet["A1:A4,C1:C4,G5"] # Non-contiguous range
+
+julia> vector = sheet["Location"] # Non-contiguous named range
+
+julia> single_value = sheet[2, 2] # Cell "B2"
 ```
 
 See also [`XLSX.readdata`](@ref).
