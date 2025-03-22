@@ -638,6 +638,7 @@ end
 # It probably needs a dedicated RowRange implementation.
 # It is best not to use this function with row ranges. Use `readdata` or `getdata` instead, both of which work 
 # on row ranges, or index the sheet directly to get the rows you want (e.g. sh["3"] or sh["3:5"]).
+#=
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, rows::RowRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     if rows.start == rows.stop && header==true
         error("Only 1 row specified in `RowRange` with `header=true`.\nThe header row is the same as the data row. Specify at least two rows to read header data with `header=true`.")
@@ -649,6 +650,7 @@ function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractStrin
     end
     return c
 end
+=#
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     if is_valid_row_range(range)
         range = RowRange(range)

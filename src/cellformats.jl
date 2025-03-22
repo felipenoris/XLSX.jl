@@ -355,12 +355,12 @@ function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::
     end
     return -1 # Each cell may have a different attribute Id so we can't return a single value.
 end
-function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String)
+function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)
     ref = SheetCellRef(sheetcell)
     @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-    return f(getsheet(xl, ref.sheet), ref.cellref)
+    return f(getsheet(xl, ref.sheet), ref.cellref; kw...)
 end
-function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef)
+function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef; kw...)
     wb = get_workbook(ws)
     cell = getcell(ws, cellref)
 
@@ -369,21 +369,21 @@ function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef)
     end
 
     cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    return f(wb, cell_style)
+    return f(wb, cell_style; kw...)
 end
-function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractString)
+function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)
     if is_workbook_defined_name(get_workbook(ws), ref_or_rng)
         wb = get_workbook(ws)
         v = get_defined_name_value(wb, ref_or_rng)
         if is_defined_name_value_a_constant(v) # Can these have fonts?
             error("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
         elseif is_defined_name_value_a_reference(v)
-            new_att = f(get_xlsxfile(wb), replace(string(v), "'" => ""))
+            new_att = f(get_xlsxfile(wb), replace(string(v), "'" => ""); kw...)
         else
             error("Unexpected defined name value: $v.")
         end
     elseif is_valid_cellname(ref_or_rng)
-        new_att = f(ws, CellRef(ref_or_rng))
+        new_att = f(ws, CellRef(ref_or_rng); kw...)
     else
         error("Invalid cell reference or range: $ref_or_rng")
     end
@@ -2335,9 +2335,11 @@ end
 Return `true` if a cell is part of a merged cell range and `false` if not.
 
 Alternatively, if you have already obtained the merged cells for the worksheet,
-you can avoid repeated determinations and pass them as an argument to the function:
+you can avoid repeated determinations and pass them as a keyword argument to 
+the function:
 
-    isMergedCell(ws::Worksheet, cr::CellRef, mergedCells::Union{Vector{CellRange}, Nothing}) -> Bool
+    isMergedCell(ws::Worksheet, cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
+    isMergedCell(xf::XLSXFile,  cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
 
 # Examples:
 ```julia
@@ -2351,14 +2353,17 @@ julia> XLSX.isMergedCell(sh, XLSX.CellRef("A1"), mc)
 ```
 """
 function isMergedCell end
-isMergedCell(xl::XLSXFile, sheetcell::String)::Bool = process_get_sheetcell(isMergedCell, xl, sheetcell)
-isMergedCell(ws::Worksheet, cr::String)::Bool = process_get_cellname(isMergedCell, ws, cr)
-isMergedCell(ws::Worksheet, cellref::CellRef)::Bool = isMergedCell(ws, cellref, getMergedCells(ws))
-function isMergedCell(ws::Worksheet, cellref::CellRef, mergedCells::Union{Vector{CellRange}, Nothing})::Bool
-
+isMergedCell(xl::XLSXFile, sheetcell::String; kw...)::Bool = process_get_sheetcell(isMergedCell, xl, sheetcell; kw...)
+isMergedCell(ws::Worksheet, cr::String; kw...)::Bool = process_get_cellname(isMergedCell, ws, cr; kw...)
+#isMergedCell(ws::Worksheet, cellref::CellRef)::Bool = isMergedCell(ws, cellref, getMergedCells(ws))
+function isMergedCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange}, Nothing, Missing} = missing)::Bool
+    
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
 
-    if isnothing(mergedCells)
+    if ismissing(mergedCells) # Get mergedCells if missing
+        mergedCells=getMergedCells(ws)
+    end
+    if isnothing(mergedCells) # No merged cells in sheet
         return false
     end
     for rng in mergedCells
@@ -2383,6 +2388,13 @@ The tuple returned contains:
 - `baseCell`  : the reference (`CellRef`) of the base cell
 - `baseValue` : the value of the base cell
 
+Additionally, if you have already obtained the merged cells for the worksheet,
+you can avoid repeated determinations and pass them as a keyword argument to 
+the function:
+
+    getMergedBaseCell(ws::Worksheet, cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
+    getMergedBaseCell(xf::XLSXFile,  cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
 # Examples:
 ```julia
 julia> XLSX.getMergedBaseCell(xf, "Sheet1!B2")
@@ -2395,12 +2407,19 @@ julia> XLSX.getMergedBaseCell(sh, "B2")
 ```
 """
 function getMergedBaseCell end
-getMergedBaseCell(xl::XLSXFile, sheetcell::String) = process_get_sheetcell(getMergedBaseCell, xl, sheetcell)
-getMergedBaseCell(ws::Worksheet, cr::String) = process_get_cellname(getMergedBaseCell, ws, cr)
-getMergedBaseCell(ws::Worksheet, cellref::CellRef) = getMergedBaseCell(ws, cellref, getMergedCells(ws))
-function getMergedBaseCell(ws::Worksheet, cellref::CellRef, mergedCells::Union{Vector{CellRange}, Nothing})
+getMergedBaseCell(xl::XLSXFile, sheetcell::String; kw...) = process_get_sheetcell(getMergedBaseCell, xl, sheetcell; kw...)
+getMergedBaseCell(ws::Worksheet, cr::String; kw...) = process_get_cellname(getMergedBaseCell, ws, cr; kw...)
+#getMergedBaseCell(ws::Worksheet, cellref::CellRef) = getMergedBaseCell(ws, cellref, getMergedCells(ws))
+function getMergedBaseCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing)
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+
+    if ismissing(mergedCells) # Get mergedCells if missing
+        mergedCells=getMergedCells(ws)
+    end
+    if isnothing(mergedCells) # No merged cells in sheet
+        return nothing
+    end
 
     for rng in mergedCells
         if cellref ∈ rng

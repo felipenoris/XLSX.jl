@@ -58,6 +58,7 @@ Base.string(c::CellRef) = c.name
 Base.show(io::IO, c::CellRef) = print(io, string(c))
 Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
+Base.isless(c1::CellRef, c2::CellRef) = Base.isless(string(c1), string(c2))
 
 const RGX_COLUMN_NAME = r"^[A-Z]?[A-Z]?[A-Z]$"
 const RGX_ROW_NAME = r"^[1-9][0-9]*$"
@@ -189,6 +190,7 @@ Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
 Base.show(io::IO, cr::CellRange) = print(io, string(cr))
 Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::CellRange) = hash(cr.start) + hash(cr.stop)
+Base.isless(cr1::CellRange, cr2::CellRange) = Base.isless(string(cr1), string(cr2)) # needed for tests
 
 macro range_str(cellrange)
     CellRange(cellrange)
@@ -367,7 +369,7 @@ function Base.iterate(itr::ColumnRange, state::Int=itr.start)
     return encode_column_number(state), state + 1
 end
 
-# RowRange iterator: element is a String with the row name (e.g. "1"), the state is the row number.
+# RowRange iterator: element is a String with the row name (e.g. "1"). The state is the row number.
 function Base.iterate(itr::RowRange, state::Int=itr.start)
     if state > itr.stop
         return nothing
@@ -426,7 +428,7 @@ Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
 Base.:(==)(cr1::NonContiguousRange, cr2::NonContiguousRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
 Base.hash(cr::NonContiguousRange) = hash(cr.sheet) + hash(cr.rng)
 
-function Base.in(ref::SheetCellRef, ncrng::NonContiguousRange) :: Bool # Assumes the same sheet name for both `CellRef` and `NonContiguousRange`.
+function Base.in(ref::SheetCellRef, ncrng::NonContiguousRange) :: Bool
     if ref.sheet != ncrng.sheet
         return false
     end
@@ -464,7 +466,7 @@ function nc_bounds(r::NonContiguousRange)::CellRange # Smallest rectangualar `Ce
     end
     return CellRange(CellRef(top, left), CellRef(bottom, right))
 end
-function Base.length(r::NonContiguousRange)::Int # Number of cells in `rng`.
+function Base.length(r::NonContiguousRange)::Int # Number of cells in `r`.
     s = 0
     for rng in r.rng
         if rng isa CellRef

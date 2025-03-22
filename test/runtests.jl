@@ -581,14 +581,14 @@ end
     @test cr.stop == 5
     @test length(cr) == 4
     @test collect(cr) == ["2", "3", "4", "5"]
-   
+
     cr = XLSX.RowRange("2")
     @test string(cr) == "2:2"
     @test cr.start == 2
     @test cr.stop == 2
     @test length(cr) == 1
     @test collect(cr) == ["2"]
-   
+
     @test_throws AssertionError XLSX.RowRange("B1:D3")
     @test_throws AssertionError XLSX.RowRange("5:2")
     @test XLSX.RowRange("2:5") == XLSX.RowRange("2:5")
@@ -596,28 +596,28 @@ end
 end
 
 @testset "Non-contiguous Range" begin
-    cr = XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") 
+    cr = XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3")
     @test string(cr) == "Sheet1!D1:D3,Sheet1!B1:B3"
     @test cr.sheet == "Sheet1"
     @test cr.rng == [XLSX.CellRange("D1:D3"), XLSX.CellRange("B1:B3")]
     @test length(cr) == 6
     @test collect(cr.rng) == [XLSX.CellRange("D1:D3"), XLSX.CellRange("B1:B3")]
-    @test XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3")  == XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") 
-    @test hash(XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") ) == hash(XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3"))
+    @test XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3") == XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3")
+    @test hash(XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3")) == hash(XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet1!B1:B3"))
 
-    f=XLSX.newxlsx("Sheet 1")
-    s=f["Sheet 1"]
+    f = XLSX.newxlsx("Sheet 1")
+    s = f["Sheet 1"]
     for cell in XLSX.CellRange("A1:D6")
-        s[cell]=""
+        s[cell] = ""
     end
-    cr = XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") 
+    cr = XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")
     @test string(cr) == "'Sheet 1'!D1:D3,'Sheet 1'!A2,'Sheet 1'!B1:B3"
     @test cr.sheet == "Sheet 1"
-    @test cr.rng == [XLSX.CellRange("D1:D3"), XLSX.CellRef("A2"),XLSX.CellRange("B1:B3")]
+    @test cr.rng == [XLSX.CellRange("D1:D3"), XLSX.CellRef("A2"), XLSX.CellRange("B1:B3")]
     @test length(cr) == 7
     @test collect(cr.rng) == [XLSX.CellRange("D1:D3"), XLSX.CellRef("A2"), XLSX.CellRange("B1:B3")]
-    @test XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")  == XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") 
-    @test hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") ) == hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3"))
+    @test XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") == XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")
+    @test hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")) == hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3"))
 
     @test_throws AssertionError XLSX.NonContiguousRange("Sheet1!D1:D3,B1:B3")
     @test_throws AssertionError XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet2!B1:B3")
@@ -1061,9 +1061,9 @@ end
         push!(data, ["abc", "DeF", "gHi"])
         push!(data, [true, true, false])
         cols = ["1 col", "col \$2", "local", "col:4"]
-        
+
         XLSX.writetable("mytest.xlsx", data, cols; overwrite=true)
-        df = DataFrames.DataFrame(XLSX.readtable("mytest.xlsx", "Sheet1",normalizenames=true))
+        df = DataFrames.DataFrame(XLSX.readtable("mytest.xlsx", "Sheet1", normalizenames=true))
         @test DataFrames.names(df) == Any["_1_col", "col_2", "_local", "col_4"]
 
     end
@@ -1339,7 +1339,7 @@ end
             enum2
             enum3
         end
-        
+
         data = Vector{Any}()
         push!(data, [:sym1, :sym2, :sym3])
         push!(data, [1.0, 2.0, 3.0])
@@ -1348,10 +1348,10 @@ end
         push!(data, [XLSX.CellRef("A1"), XLSX.CellRef("B2"), XLSX.CellRef("CCC34000")])
         push!(data, collect(instances(enums)))
         cols = [string(eltype(x)) for x in data]
-        
+
         XLSX.writetable("mytest.xlsx", data, cols; overwrite=true)
 
-        f=XLSX.readxlsx("mytest.xlsx")
+        f = XLSX.readxlsx("mytest.xlsx")
         @test f[1]["A1"] == "Symbol"
         @test f[1]["A1:A4"] == Any["Symbol"; "sym1"; "sym2"; "sym3";;] # A 2D Array, size (4, 1)
         @test f[1]["A1"] == "Symbol"
@@ -1764,6 +1764,7 @@ end
 
         # Can't set a uniform attribute to a single cell.
         @test_throws MethodError XLSX.setUniformFill(s, "D4"; pattern="gray125", bgColor="FF000000")
+        @test_throws MethodError XLSX.setUniformFill(s, "ID"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
         @test_throws MethodError XLSX.setUniformFont(s, "B4"; size=12, name="Times New Roman", color="FF040404")
         @test_throws MethodError XLSX.setUniformBorder(f, "Mock-up!D4"; left=["style" => "dotted", "color" => "FF000FF0"],
             right=["style" => "medium", "color" => "FF765000"],
@@ -1771,7 +1772,6 @@ end
             bottom=["style" => "medium", "color" => "FF0000FF"],
             diagonal=["style" => "none"]
         )
-        @test_throws MethodError XLSX.setUniformFill(s, "ID"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
 
     end
 
@@ -1790,13 +1790,13 @@ end
         @test XLSX.getFill(s, "ID").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
 
         # Location is a non-contiguous range
-        XLSX.setFill(s, "Location"; pattern="lightVertical")
+        XLSX.setFill(s, "Location"; pattern="lightVertical") # Default colors unchanged
         @test XLSX.getFill(s, "D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
         @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
         @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
         @test XLSX.getFill(s, "J18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "lightVertical", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
 
-        XLSX.setFill(s, "Contiguous"; pattern="lightVertical")
+        XLSX.setFill(s, "Contiguous"; pattern="lightVertical")  # Default colors unchanged
         @test XLSX.getFill(s, "D23").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
         @test XLSX.getFill(s, "D24").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
         @test XLSX.getFill(s, "D25").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
@@ -1995,8 +1995,8 @@ end
         f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
         s = f["Mock-up"]
 
-        XLSX.setColumnWidth(s, "Location"; width = 60)
-        XLSX.setRowHeight(s, "Location"; height = 50)
+        XLSX.setColumnWidth(s, "Location"; width=60)
+        XLSX.setRowHeight(s, "Location"; height=50)
         @test XLSX.getRowHeight(s, "D18") ≈ 50.2109375
         @test XLSX.getColumnWidth(s, "D18") ≈ 60.7109375
         @test XLSX.getRowHeight(f, "Mock-up!J20") ≈ 50.2109375
@@ -2007,7 +2007,7 @@ end
     @testset "No cache" begin
         XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=true) do f
             @test XLSX.getRowHeight(f, "Mock-up!B2") ≈ 23.25
-            @test_throws AssertionError  XLSX.getColumnWidth(f, "Mock-up!B2")
+            @test_throws AssertionError XLSX.getColumnWidth(f, "Mock-up!B2")
         end
         XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=false) do f
             @test_throws AssertionError XLSX.getRowHeight(f, "Mock-up!B2")
@@ -2034,7 +2034,39 @@ end
     end
 
 end
+@testset "merged cells" begin
+    XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx")) do f
+        mc = sort(XLSX.getMergedCells(f["Mock-up"]))
+        @test length(mc) == 25
+        @test mc == sort(XLSX.CellRange[XLSX.CellRange("D49:H49"), XLSX.CellRange("D72:J72"), XLSX.CellRange("F94:J94"), XLSX.CellRange("F96:J96"), XLSX.CellRange("F84:J84"), XLSX.CellRange("F86:J86"), XLSX.CellRange("D62:J63"), XLSX.CellRange("D51:J53"), XLSX.CellRange("D55:J60"), XLSX.CellRange("D92:J92"), XLSX.CellRange("D82:J82"), XLSX.CellRange("D74:J74"), XLSX.CellRange("D67:J68"), XLSX.CellRange("D47:H47"), XLSX.CellRange("D9:H9"), XLSX.CellRange("D11:G11"), XLSX.CellRange("D12:G12"), XLSX.CellRange("D14:E14"), XLSX.CellRange("D16:E16"), XLSX.CellRange("D32:F32"), XLSX.CellRange("D38:J38"), XLSX.CellRange("D34:J34"), XLSX.CellRange("D18:E18"), XLSX.CellRange("D20:E20"), XLSX.CellRange("D13:G13")])
+        s=f["Mock-up"]
+        @test XLSX.isMergedCell(f, "Mock-up!D47")
+        @test XLSX.isMergedCell(f, "Mock-up!D49"; mergedCells=mc)
+        @test XLSX.isMergedCell(s, "H84")
+        @test XLSX.isMergedCell(s, "G84"; mergedCells=mc)
+        @test XLSX.isMergedCell(s, "Short_Description")
+        @test !XLSX.isMergedCell(f, "Mock-up!B2")
+        @test !XLSX.isMergedCell(s, "H40"; mergedCells=mc)
+        @test !XLSX.isMergedCell(s, "ID"; mergedCells=mc)
+        @test_throws AssertionError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
+        @test_throws AssertionError XLSX.getMergedBaseCell(s, "Location")
 
+        @test isnothing(XLSX.getMergedCells(f["Document History"]))
+        s=f["Document History"]
+        @test !XLSX.isMergedCell(f, "Document History!B2")
+        @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
+
+        @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
+        @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
+        @test XLSX.getMergedBaseCell(s, "H53") == (baseCell = CellRef("D51"), baseValue = "Hello World")
+        @test XLSX.getMergedBaseCell(s, "G52") == (baseCell = CellRef("D51"), baseValue = "Hello World")
+        @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell = CellRef("D51"), baseValue = "Hello World")
+        @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
+        @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
+        @test_throws AssertionError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
+
+    end
+end
 @testset "filemodes" begin
 
     sheetname = "New Sheet"
