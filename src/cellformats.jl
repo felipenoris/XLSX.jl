@@ -2420,7 +2420,6 @@ function getMergedBaseCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{V
     if isnothing(mergedCells) # No merged cells in sheet
         return nothing
     end
-
     for rng in mergedCells
         if cellref ∈ rng
             return (; baseCell=rng.start, baseValue = ws[rng.start])

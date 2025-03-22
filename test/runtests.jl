@@ -2051,11 +2051,6 @@ end
         @test_throws AssertionError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
         @test_throws AssertionError XLSX.getMergedBaseCell(s, "Location")
 
-        @test isnothing(XLSX.getMergedCells(f["Document History"]))
-        s=f["Document History"]
-        @test !XLSX.isMergedCell(f, "Document History!B2")
-        @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
-
         @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
         @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
         @test XLSX.getMergedBaseCell(s, "H53") == (baseCell = CellRef("D51"), baseValue = "Hello World")
@@ -2064,6 +2059,12 @@ end
         @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
         @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
         @test_throws AssertionError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
+
+        @test isnothing(XLSX.getMergedCells(f["Document History"]))
+        s=f["Document History"]
+        @test !XLSX.isMergedCell(f, "Document History!B2")
+        @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
+
 
     end
 end
