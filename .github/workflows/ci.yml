@@ -34,7 +34,7 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: actions/cache@v2
+      - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
         continue-on-error: ${{ matrix.version == 'nightly' }}
       - uses: julia-actions/julia-runtest@v1
