@@ -206,12 +206,6 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
     return permutedims(hcat(rows...))
 end
 
-# Needed for definedName references
-getdata(ws::Worksheet, s::SheetCellRef) = getdata(ws, s.cellref)
-getdata(ws::Worksheet, s::SheetCellRange) = getdata(ws, s.rng)
-getdata(ws::Worksheet, s::SheetColumnRange) = getdata(ws, s.colrng)
-getdata(ws::Worksheet, s::SheetRowRange) = getdata(ws, s.rowrng)
-
 function getdata(ws::Worksheet, rng::NonContiguousRange) :: Vector{Any}
     results=Vector{Any}()
     for r in rng.rng
@@ -225,6 +219,12 @@ function getdata(ws::Worksheet, rng::NonContiguousRange) :: Vector{Any}
     end
     return results
 end
+
+# Needed for definedName references
+getdata(ws::Worksheet, s::SheetCellRef) = getdata(ws, s.cellref)
+getdata(ws::Worksheet, s::SheetCellRange) = getdata(ws, s.rng)
+getdata(ws::Worksheet, s::SheetColumnRange) = getdata(ws, s.colrng)
+getdata(ws::Worksheet, s::SheetRowRange) = getdata(ws, s.rowrng)
 
 function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
     if is_worksheet_defined_name(ws, ref)
@@ -260,8 +260,6 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         error("$ref is not a valid cell or range reference.")
     end
 end
-
-#getdata(ws::Worksheet, rng::SheetCellRange) = getdata(get_xlsxfile(ws), rng)
 
 function getdata(ws::Worksheet)
     if ws.dimension !== nothing
@@ -340,9 +338,10 @@ getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, co
 
 Return a matrix with cells as `Array{AbstractCell, 2}`.
 `rng` must be a valid cell range, column range or row range,
-as in `"A1:B2"`, `"A:B"` or `"1:2"`.
+as in `"A1:B2"`, `"A:B"` or `"1:2"`, or a non-contiguous range.
 For row and column ranges, the extent of the range in the other 
 dimension is determined by the worksheet's dimension.
+A non-contiguous range (which is not rectangular) will return a vector.
 """
 function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
     result = Array{AbstractCell, 2}(undef, size(rng))

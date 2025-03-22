@@ -41,4 +41,8 @@ XLSX.setUniformAlignment
 XLSX.setUniformStyle
 XLSX.setColumnWidth
 XLSX.setRowHeight
+XLSX.getMergedCells
+XLSX.isMergedCell
+XLSX.getMergedBaseCell
+XLSX.addDefinedName
 ```

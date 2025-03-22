@@ -408,7 +408,7 @@ end
     end
 end
 
-@testset "Defined Names" begin
+@testset "Defined Names" begin # Issue #148 
     @test XLSX.is_defined_name_value_a_reference(XLSX.SheetCellRef("Sheet1!A1"))
     @test XLSX.is_defined_name_value_a_reference(XLSX.SheetCellRange("Sheet1!A1:B2"))
     @test !XLSX.is_defined_name_value_a_reference(1)
@@ -574,15 +574,23 @@ end
     @test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
 end
 
-@testset "Row Range" begin
+@testset "Row Range" begin # Issue #150
     cr = XLSX.RowRange("2:5")
     @test string(cr) == "2:5"
     @test cr.start == 2
     @test cr.stop == 5
     @test length(cr) == 4
+    @test collect(cr) == ["2", "3", "4", "5"]
+   
+    cr = XLSX.RowRange("2")
+    @test string(cr) == "2:2"
+    @test cr.start == 2
+    @test cr.stop == 2
+    @test length(cr) == 1
+    @test collect(cr) == ["2"]
+   
     @test_throws AssertionError XLSX.RowRange("B1:D3")
     @test_throws AssertionError XLSX.RowRange("5:2")
-    @test collect(cr) == ["2", "3", "4", "5"]
     @test XLSX.RowRange("2:5") == XLSX.RowRange("2:5")
     @test hash(XLSX.RowRange("2:5")) == hash(XLSX.RowRange("2:5"))
 end
@@ -1045,7 +1053,7 @@ end
         check_test_data(data, test_data)
     end
 
-    @testset "normalizenames" begin
+    @testset "normalizenames" begin # Issue #260
 
         data = Vector{Any}()
         push!(data, [:sym1, :sym2, :sym3])
@@ -1325,7 +1333,7 @@ end
         @test dt_read.column_label_index == dt.column_label_index
     end
 
-    @testset "extended types" begin
+    @testset "extended types" begin # Issue #239
         @enum enums begin
             enum1
             enum2
@@ -1730,9 +1738,9 @@ end
         @test XLSX.getBorder(s, "D18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
         @test XLSX.getBorder(s, "D20").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
         @test XLSX.getBorder(s, "J18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
-        @test XLSX.getBorder(s, "J18").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
+        @test XLSX.getBorder(s, "J20").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair"))
 
-        # Cant get attributes on a range.
+        # Can't get attributes on a range.
         @test_throws AssertionError XLSX.getBorder(s, "Contiguous")
 
         f = XLSX.open_empty_template()
