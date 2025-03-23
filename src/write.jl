@@ -377,13 +377,15 @@ function make_absolute(dn::DefinedNameValue)
     end
 end
 
-function update_workbook_xml!(xl::XLSXFile)
+function update_workbook_xml!(xl::XLSXFile) # Only the <definedNames> block will need updating. 
     wb = get_workbook(xl)
+
+    if length(wb.workbook_names)==0 && length(wb.workbook_names)==0 # No-op if no defined names present
+        return nothing
+    end
 
     wbdoc = xmlroot(xl, "xl/workbook.xml") # find the <definedNames> block in the workbook's xml file
     i, j = get_idces(wbdoc, "workbook", "definedNames")
-
-    definedNames = isnothing(j) ? XML.Element("definedNames") : unlink_definedNames(wbdoc[i][j]) # Remove old defined names
 
     if isnothing(j)
     # there is no <definedNames> block in the workbook's xml file, so we'll need to create one

@@ -1,5 +1,6 @@
 name: CI
 on:
+  workflow_dispatch:  # <-- Add this to allow manual execution
   pull_request:
     branches:
       - master
@@ -17,6 +18,8 @@ jobs:
         version:
           - '1.8'
           - '1.9'
+          - '1.10'
+          - '1.11'
           - '1' # automatically expands to the latest stable 1.x release of Julia
           - 'pre'
           - 'nightly'
