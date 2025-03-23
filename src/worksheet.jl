@@ -31,6 +31,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
     wb = get_workbook(xf)
     target_file = get_relationship_target_by_id("xl", wb, relationship_id)
     zip_io, doc = open_internal_file_stream(xf, target_file)
+    println("worksheet34 : ", name)
 
     reader = iterate(doc)
     # Now let's look for a row element, if it exists
