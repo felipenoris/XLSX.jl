@@ -30,6 +30,9 @@ jobs:
           - macOS-latest
         arch:
           - x64
+        include:
+          - os: macOS-latest
+            arch: aarch64
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
