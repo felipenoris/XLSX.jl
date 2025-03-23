@@ -20,6 +20,7 @@ jobs:
           - '1.9'
           - '1.10'
           - '1.11'
+          - 'lts'
           - '1' # automatically expands to the latest stable 1.x release of Julia
           - 'pre'
           - 'nightly'
