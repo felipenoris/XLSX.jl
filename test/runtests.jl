@@ -1712,6 +1712,31 @@ end
         @test XLSX.getcell(s, "D11") isa XLSX.EmptyCell
         @test isnothing(XLSX.getBorder(s, "D11")) # Cannot set a border in an EmptyCell (outside sheet dimension).
 
+        f = XLSX.newxlsx()
+        s=f[1]
+        for i = 1:6
+            for j = 1:6
+                s[i, j]=""
+            end
+        end
+        XLSX.setOutsideBorder(s, "B2:E5"; color="FFFF0000", style="thick")
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B5").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "C2").border == Dict("left" => nothing, "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "C3") === nothing
+        @test XLSX.getBorder(s, "C4") === nothing
+        @test XLSX.getBorder(s, "C5").border == Dict("left" => nothing, "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "D2").border == Dict("left" => nothing, "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "D3") === nothing
+        @test XLSX.getBorder(s, "D4") === nothing
+        @test XLSX.getBorder(s, "D5").border == Dict("left" => nothing, "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "E2").border == Dict("left" => nothing, "bottom" => nothing, "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "E3").border == Dict("left" => nothing, "bottom" => nothing, "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "E4").border == Dict("left" => nothing, "bottom" => nothing, "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "E5").border == Dict("left" => nothing, "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
+
         f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
         s = f["Sheet1"]
 
@@ -1756,9 +1781,13 @@ end
             diagonal=["style" => "none"]
         ) == -1
         @test XLSX.setUniformFill(s, "B2:D4"; pattern="gray125", bgColor="FF000000") == -1
-        @test XLSX.setFont(s, "A1:B2"; size=18, name="Arial") == -1
+        @test XLSX.setFont(s, "A1:F20"; size=18, name="Arial") == -1
         @test XLSX.setBorder(f, "Sheet1!B2:D4"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"]) == -1
-        @test XLSX.setFill(f, "Sheet1!A1:F20"; pattern="none", fgColor="88FF8800") == -1
+        @test XLSX.setAlignment(s, "A1:F20"; horizontal="right", wrapText=true) == -1
+        @test_throws AssertionError XLSX.setFill(f, "Sheet1!A1"; pattern="none", fgColor="88FF8800")
+        @test_throws AssertionError XLSX.setFont(s, "A1"; size=18, name="Arial")
+        @test_throws AssertionError XLSX.setBorder(f, "Sheet1!B2"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"])
+        @test_throws AssertionError XLSX.setFill(s, "F20"; pattern="none", fgColor="88FF8800")
 
         f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
         s = f["Mock-up"]

@@ -1123,8 +1123,8 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
 
     topLeft      = CellRef(rng.start.row_number, rng.start.column_number)
     topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
-    bottomLeft   = CellRef(rng.stop.row_number, rng.start.column_number)
-    bottomRight  = CellRef(rng.stop.row_number, rng.stop.column_number)
+    bottomLeft   = CellRef(rng.stop.row_number,  rng.start.column_number)
+    bottomRight  = CellRef(rng.stop.row_number,  rng.stop.column_number)
     if !isnothing(style) && !isnothing(color)
         setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "color" => color])
         setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "color" => color])
