@@ -445,6 +445,32 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
         return newid
     end
 end
+const valid_colors = Dict("black" => "FF000000", # color name => RGB
+    "white" => "FFFFFFFF",
+    "red" => "FFFF0000",
+    "lime" => "FF00FF00",
+    "blue" => "FF0000FF",
+    "yellow" => "FFFFFF00",
+    "cyan" => "FF00FFFF",
+    "mMagenta" => "FFFF00FF",
+    "silver" => "FFC0C0C0",
+    "gray" => "FF808080",
+    "maroon" => "FF800000",
+    "olive" => "FF808000",
+    "green" => "FF008000",
+    "purple" => "FF800080",
+    "teal" => "FF008080",
+    "navy" => "FF000080"
+    )
+
+
+function get_color(s::String)::String
+    if occursin(r"^[0-9A-F]{8}$", s) # is a valid 6 digit hexadecimal color
+        return s
+    end
+    @assert haskey(valid_colors, s) "Invalid color value: $s. Must be an 8-digit hexadecimal RGB value or one of Black, White, Red, Lime, Blue, Yellow, Cyan, Magenta, Silver, Gray, Maroon, Olive, Green, Purple, Teal, Navy."
+    return allowed_colors[s]
+end
 
 # ==========================================================================================
 #
@@ -478,7 +504,7 @@ As an expedient to get fonts to work, the `scheme` attribute is simply dropped f
 new font definitions.
 
 The `color` attribute can only be defined as rgb values.
-- The first two digits represent transparency (α). FF is fully opaque, while 00 is fully transparent.
+- The first two digits represent transparency (α). Excel ignores transparency.
 - The next two digits give the red component.
 - The next two digits give the green component.
 - The next two digits give the blue component.
@@ -575,11 +601,11 @@ function setFont(sh::Worksheet, cellref::CellRef;
                 new_font_atts["strike"] = nothing
             end
         elseif a == "color"
-            @assert isnothing(color) || occursin(r"^[0-9A-F]{8}$", color) "Invalid color value: $color. Must be an 8-digit hexadecimal RGB value."
+            #@assert isnothing(color) || occursin(r"^[0-9A-F]{8}$", color) "Invalid color value: $color. Must be an 8-digit hexadecimal RGB value."
             if isnothing(color) && haskey(old_font_atts, "color")
                 new_font_atts["color"] = old_font_atts["color"]
             elseif !isnothing(color)
-                new_font_atts["color"] = Dict("rgb" => color)
+                new_font_atts["color"] = Dict("rgb" => get_color(color))
             end
         elseif a == "sz"
             @assert isnothing(size) || (size > 0 && size < 410) "Invalid size value: $size. Must be between 1 and 409."
@@ -1010,8 +1036,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
                 end
             elseif haskey(kwdict[a], "color")
                 v = kwdict[a]["color"]
-                @assert occursin(r"^[0-9A-F]{8}$", v) "Invalid color value: $v. Must be an 8-digit hexadecimal RGB value."
-                new_border_atts[a]["rgb"] = v
+                #@assert occursin(r"^[0-9A-F]{8}$", v) "Invalid color value: $v. Must be an 8-digit hexadecimal RGB value."
+                new_border_atts[a]["rgb"] = get_color(v)
             end
         end
     end
@@ -1371,8 +1397,8 @@ function setFill(sh::Worksheet, cellref::CellRef;
                     end
                 end
             else
-                @assert occursin(r"^[0-9A-F]{8}$", fgColor) "Invalid color value: $fgColor. Must be an 8-digit hexadecimal RGB value."
-                patternFill["fgrgb"] = fgColor
+                #@assert occursin(r"^[0-9A-F]{8}$", fgColor) "Invalid color value: $fgColor. Must be an 8-digit hexadecimal RGB value."
+                patternFill["fgrgb"] = get_color(fgColor)
             end
         elseif a == "bg"
             if isnothing(bgColor)
@@ -1382,8 +1408,8 @@ function setFill(sh::Worksheet, cellref::CellRef;
                     end
                 end
             else
-                @assert occursin(r"^[0-9A-F]{8}$", bgColor) "Invalid color value: $bgColor. Must be an 8-digit hexadecimal RGB value."
-                patternFill["bgrgb"] = bgColor
+                #@assert occursin(r"^[0-9A-F]{8}$", bgColor) "Invalid color value: $bgColor. Must be an 8-digit hexadecimal RGB value."
+                patternFill["bgrgb"] = get_color(bgColor)
             end
         end
     end
