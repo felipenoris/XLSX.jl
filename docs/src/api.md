@@ -33,7 +33,6 @@ XLSX.setFont
 XLSX.setUniformFont
 XLSX.setBorder
 XLSX.setUniformBorder
-XLSX.setOutsideBorder
 XLSX.setFill
 XLSX.setUniformFill
 XLSX.setAlignment

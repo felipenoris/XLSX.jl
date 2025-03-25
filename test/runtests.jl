@@ -1719,7 +1719,7 @@ end
                 s[i, j]=""
             end
         end
-        XLSX.setOutsideBorder(s, "B2:E5"; color="FFFF0000", style="thick")
+        XLSX.setBorder(s, "B2:E5"; outside = ["color"=>"FFFF0000", "style"=>"thick"])
         @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
         @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
@@ -1737,7 +1737,7 @@ end
         @test XLSX.getBorder(s, "E4").border == Dict("left" => nothing, "bottom" => nothing, "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "E5").border == Dict("left" => nothing, "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
 
-        XLSX.setOutsideBorder(s, "B2:E5"; color="dodgerblue4", style="thick")
+        XLSX.setBorder(s, "B2:E5"; outside = ["color"=>"dodgerblue4"])
         @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FF104E8B", "style" => "thick"), "diagonal" => nothing)
         @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)

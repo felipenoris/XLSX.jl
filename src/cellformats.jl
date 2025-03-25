@@ -144,21 +144,7 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
     end
     return new_node
 end
-function unlink_cols(node::XML.Node) # removes each `col` from a `cols` XML node.
-    new_cols = XML.Element("cols")
-    a = XML.attributes(node)
-    if !isnothing(a) # Copy attributes across to new node
-        for (k, v) in XML.attributes(node)
-            new_cols[k] = v
-        end
-    end
-    for child in XML.children(node) # Copy any child nodes that are not cols across to new node
-        if XML.tag(child) != "col"  # Shouldn't be any.
-            push!(new_cols, child)
-        end
-    end
-    return new_cols
-end
+
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
@@ -890,16 +876,23 @@ Borders are independently defined for the keywords:
 - `bottom::Vector{Pair{String,String} = nothing`
 - `diagonal::Vector{Pair{String,String} = nothing`
 - `[allsides::Vector{Pair{String,String} = nothing]`
+- `[outside::Vector{Pair{String,String} = nothing]`
 
-These represent each of the sides of a cell . The keyword `diagonal` defines diagonal lines running 
-across the cell. These lines must share the same style and color in any cell.
+These represent each of the sides of a cell . The keyword `diagonal` defines 
+diagonal lines running across the cell. These lines must share the same style 
+and color in any cell.
 
 An additional keyword, `allsides`, is provided for convenience. It can be used 
 in place of the four side keywords to apply the same border setting to all four 
 sides at once. It cannot be used in conjunction with any of the side-specific 
-keywords but it can be used together with `diagonal`.
+keywords or with `outside` but it can be used together with `diagonal`.
 
-The two attributes that can be set for each keyword are `style` and `rgb`.
+A further keyword, `outside`, can be used to set the outside border around a 
+range. Any internal borders will remain unchanged. An outside border cannot be 
+set for a non-contiguous range and `outside` cannot be used in conjunction with 
+any other keywords.
+
+The two attributes that can be set for each keyword are `style` and `color`.
 Additionally, for diagonal borders, a third keyword, `direction` can be used.
 
 Allowed values for `style` are:
@@ -918,7 +911,9 @@ Allowed values for `style` are:
 - `mediumDashDotDot`
 - `slantDashDot`
 
-The `color` attribute can set by specifying an 8-digit hexadecimal value.
+The `color` attribute can set by specifying an 8-digit hexadecimal value 
+in the format "AARRGGBB". The transparency ("AA") is ignored by Excel but 
+is required.
 Alternatively, you can use the name of any named color from Colors.jl
 (https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
 
@@ -950,19 +945,80 @@ Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "F
                                   right    = ["style" => "medium", "color" => "FF765000"],
                                   top      = ["style" => "thick",  "color" => "FF230000"],
                                   bottom   = ["style" => "medium", "color" => "FF0000FF"],
-                                  diagonal = ["style" => "dotted", "color" => "FF00D4D4"]
+                                  diagonal = ["style" => "dotted", "color" => "FF00D4D4", "direction" => "both"]
                                   )
  
 ```
 """
 function setBorder end
-setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
-setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setBorder, ws, colrng; kw...)
-setBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setBorder, ws, rowrng; kw...)
-setBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setBorder, ws, ncrng; kw...)
+setBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setBorder, ws, ncrng; outside)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
-setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
+function setBorder(ws::Worksheet, rng::CellRange; 
+        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    )::Int
+    if isnothing(outside)
+        return process_cellranges(setBorder, ws, rng; allsides, left, right, top, bottom, diagonal)
+    else
+        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        return setOutsideBorder(ws, rng; outside)
+    end
+end
+function setBorder(ws::Worksheet, colrng::ColumnRange;  
+        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    )::Int
+    if isnothing(outside)
+        return process_columnranges(setBorder, ws, colrng; allsides, left, right, top, bottom, diagonal)
+    else
+        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        return process_columnranges(setOutsideBorder, ws, colrng; outside)
+    end
+end
+function setBorder(ws::Worksheet, rowrng::RowRange;  
+        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    )::Int 
+    if isnothing(outside)
+        return process_rowranges(setBorder, ws, rowrng; allsides, left, right, top, bottom, diagonal)
+    else
+        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        return process_rowranges(setOutsideBorder, ws, rowrng; outside)
+    end
+end
+function setBorder(xl::XLSXFile, sheetcell::String;   
+        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    )::Int
+    if isnothing(outside)
+        return process_sheetcell(setBorder, xl, sheetcell; allsides, left, right, top, bottom, diagonal)
+    else
+        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        return process_sheetcell(setOutsideBorder, xl, sheetcell; outside)
+    end
+end
 function setBorder(sh::Worksheet, cellref::CellRef;
+        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
@@ -980,6 +1036,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     kwdict["top"] = isnothing(top) ? nothing : Dict{String,String}(p for p in top)
     kwdict["bottom"] = isnothing(bottom) ? nothing : Dict{String,String}(p for p in bottom)
     kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
+
+    @assert isnothing(outside) "Cannot set an outside border on a single cell."
 
     if !isnothing(allsides)
         @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
@@ -1106,13 +1164,14 @@ setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
 Set the border around the outside of a cell range, a column range or row range 
 or a named range in a worksheet or XLSXfile.
 
-Two key words can be defined:
-- `style::String = nothing`   : defines the style of the outside border
-- `color::String = nothing`   : defines the color of the outside border
+There is one key word:
+- `outside::Vector{Pair{String,String} = nothing`
+
+For keyword definition see [`setBorder()`](@ref).
 
 Only the border definitions for the sides of boundary cells that are on the 
 ouside edge of the range will be set to the specified style and color. The 
-borders of internal edges and any diagonal will remain unchanged. Border 
+borders of internal edges and any diagonals will remain unchanged. Border 
 settings for all internal cells in the range will remain unchanged.
 
 Top and bottom borders for column ranges and left and right borders for 
@@ -1122,15 +1181,13 @@ An outside border cannot be set for a non-contiguous range.
 
 The value returned is is -1.
 
-For keyword definitions see [`setBorder()`](@ref).
-
 # Examples:
 ```julia
-Julia> setOutsideBorder(sh, "B2:D6"; style = "thick")
+Julia> setOutsideBorder(sh, "B2:D6"; outside = ["style" => "thick")
 
-Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", color = "FF000FF0")
- 
+Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; outside = ["style" => "dotted", "color" => "FF000FF0"])
 ```
+This function is equivalent to `setBorder()` called with the same arguments and keywords.
 """
 function setOutsideBorder end
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
@@ -1138,32 +1195,24 @@ setOutsideBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowrange
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
 function setOutsideBorder(ws::Worksheet, rng::CellRange; 
-    style::Union{String, Nothing}=nothing,
-    color::Union{String, Nothing}=nothing
-    )::Int
+    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+)::Int
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
+
+    kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
+    kwdict["outside"] = Dict{String,String}(p for p in outside)
+
 
     topLeft      = CellRef(rng.start.row_number, rng.start.column_number)
     topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
     bottomLeft   = CellRef(rng.stop.row_number,  rng.start.column_number)
     bottomRight  = CellRef(rng.stop.row_number,  rng.stop.column_number)
-    if !isnothing(style) && !isnothing(color)
-        setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "color" => color])
-        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "color" => color])
-        setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "color" => color])
-        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "color" => color])
-    elseif !isnothing(style)
-        setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style])
-        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style])
-        setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style])
-        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style])
-    elseif !isnothing(color)
-        setBorder(ws, CellRange(topLeft, topRight); top= ["color" => color])
-        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["color" => color])
-        setBorder(ws, CellRange(topRight, bottomRight); right= ["color" => color])
-        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["color" => color])
-    end
+
+    setBorder(ws, CellRange(topLeft, topRight); top = outside)
+    setBorder(ws, CellRange(topLeft, bottomLeft); left = outside)
+    setBorder(ws, CellRange(topRight, bottomRight); right = outside)
+    setBorder(ws, CellRange(bottomLeft, bottomRight); bottom = outside)
 
     return -1
 
@@ -2104,7 +2153,7 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
         end
     end
 
-    new_cols = unlink_cols(sheetdoc[i][j]) # Create the new <cols> Node
+    new_cols = unlink(sheetdoc[i][j], ["cols", "col"]) # Create the new <cols> Node
     for atts in values(child_list)
         new_col = XML.Element("col")
         for (k, v) in atts
