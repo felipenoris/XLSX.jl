@@ -1737,6 +1737,15 @@ end
         @test XLSX.getBorder(s, "E4").border == Dict("left" => nothing, "bottom" => nothing, "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "E5").border == Dict("left" => nothing, "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
 
+        XLSX.setOutsideBorder(s, "B2:E5"; color="dodgerblue4", style="thick")
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FF104E8B", "style" => "thick"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B5").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => Dict("rgb" => "FF104E8B", "style" => "thick"), "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "C2").border == Dict("left" => nothing, "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FF104E8B", "style" => "thick"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "C3") === nothing
+        @test XLSX.getBorder(s, "C4") === nothing
+
         f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
         s = f["Sheet1"]
 

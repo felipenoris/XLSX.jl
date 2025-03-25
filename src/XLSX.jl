@@ -8,6 +8,7 @@ import ZipArchives
 import XML
 import Tables
 import Unicode
+import Colors
 import Base.convert
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"

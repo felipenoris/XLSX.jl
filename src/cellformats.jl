@@ -445,31 +445,27 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
         return newid
     end
 end
-const valid_colors = Dict("black" => "FF000000", # color name => RGB
-    "white" => "FFFFFFFF",
-    "red" => "FFFF0000",
-    "lime" => "FF00FF00",
-    "blue" => "FF0000FF",
-    "yellow" => "FFFFFF00",
-    "cyan" => "FF00FFFF",
-    "mMagenta" => "FFFF00FF",
-    "silver" => "FFC0C0C0",
-    "gray" => "FF808080",
-    "maroon" => "FF800000",
-    "olive" => "FF808000",
-    "green" => "FF008000",
-    "purple" => "FF800080",
-    "teal" => "FF008080",
-    "navy" => "FF000080"
-    )
 
+# Check if a string is a valid colorant in Colors.jlfunction is_valid_colorant(color_string::String)
+function get_colorant(color_string::String)
+    try
+        c = Colors.parse(Colors.Colorant, color_string)
+        rgb = Colors.hex(c, :RRGGBB)
+        return "FF"*rgb
+    catch
+        return nothing
+    end
+end
 
 function get_color(s::String)::String
     if occursin(r"^[0-9A-F]{8}$", s) # is a valid 6 digit hexadecimal color
         return s
     end
-    @assert haskey(valid_colors, s) "Invalid color value: $s. Must be an 8-digit hexadecimal RGB value or one of Black, White, Red, Lime, Blue, Yellow, Cyan, Magenta, Silver, Gray, Maroon, Olive, Green, Purple, Teal, Navy."
-    return allowed_colors[s]
+    c = get_colorant(s)
+    if isnothing(c)
+        error("Invalid colorant name or rgb color specified: $s. Either give an valid colors.jl colorant name or an 8-digit rgb color in the form AARRGGBB")
+    end
+    return c
 end
 
 # ==========================================================================================
@@ -490,7 +486,7 @@ Font attributes are specified using keyword arguments:
 - `under::String = nothing` : set to `single`, `double` or `none`.
 - `strike::Bool = nothing`  : set to `true` to strike through the font.
 - `size::Int = nothing`     : set the font size (0 < size < 410).
-- `color::String = nothing` : set the font color using an 8-digit hexadecimal RGB value.
+- `color::String = nothing` : set the font color.
 - `name::String = nothing`  : set the font name.
 
 Only the attributes specified will be changed. If an attribute is not specified, the current
@@ -509,6 +505,9 @@ The `color` attribute can only be defined as rgb values.
 - The next two digits give the green component.
 - The next two digits give the blue component.
 So, FF000000 means a fully opaque black color.
+
+Alternatively, you can use the name of any named color from Colors.jl
+(https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
@@ -820,8 +819,6 @@ The `color` element can have the following attributes:
 `tint` can only be used in conjunction with the theme attribute to derive different shades of the theme color.
 For example: <color theme="1" tint="-0.5"/>.
 
-Only the `rgb` attribute can be used in `setBorder()` to define a border color.
-
 # Examples:
 ```julia
 julia> getBorder(sh, "A1")
@@ -922,8 +919,9 @@ Allowed values for `style` are:
 - `mediumDashDotDot`
 - `slantDashDot`
 
-The `color` attribute is set by specifying an 8-digit hexadecimal value.
-No other color attributes can be applied.
+The `color` attribute can set by specifying an 8-digit hexadecimal value.
+Alternatively, you can use the name of any named color from Colors.jl
+(https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
 
 Valid values for the `direction` keyword (for diagonal borders) are:
 - `up`   : diagonal border runs bottom-left to top-right
@@ -1167,7 +1165,6 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
         setBorder(ws, CellRange(topRight, bottomRight); right= ["color" => color])
         setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["color" => color])
     end
-    
 
     return -1
 
@@ -1324,8 +1321,10 @@ Here is a list of the available `pattern` values (thanks to Copilot!):
 - `gray125`
 - `gray0625`
 
-The two colors are set by specifying an 8-digit hexadecimal value for the `fgColor`
-and/or `bgColor` keywords. No other color attributes can be applied.
+The two colors may be set by specifying an 8-digit hexadecimal value for the `fgColor`
+and/or `bgColor` keywords. 
+Alternatively, you can use the name of any named color from Colors.jl
+(https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
 
 Setting only one or two of the attributes leaves the other attribute(s) unchanged 
 for that cell's fill.
