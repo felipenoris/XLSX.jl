@@ -446,7 +446,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
     end
 end
 
-# Check if a string is a valid colorant in Colors.jlfunction is_valid_colorant(color_string::String)
+# Check if a string is a valid named color in Colors.jl and convert to "FFRRGGBB" if it is.
 function get_colorant(color_string::String)
     try
         c = Colors.parse(Colors.Colorant, color_string)
@@ -456,14 +456,13 @@ function get_colorant(color_string::String)
         return nothing
     end
 end
-
 function get_color(s::String)::String
-    if occursin(r"^[0-9A-F]{8}$", s) # is a valid 6 digit hexadecimal color
+    if occursin(r"^[0-9A-F]{8}$", s) # is a valid 8 digit hexadecimal color
         return s
     end
     c = get_colorant(s)
     if isnothing(c)
-        error("Invalid colorant name or rgb color specified: $s. Either give an valid colors.jl colorant name or an 8-digit rgb color in the form AARRGGBB")
+        error("Invalid color specified: $s. Either give a valid color name (from Colors.jl) or an 8-digit rgb color in the form AARRGGBB")
     end
     return c
 end
@@ -1884,7 +1883,7 @@ function setFormat(sh::Worksheet, cellref::CellRef;
 
             format_node = XML.Element("numFmt";
                 numFmtId = string(existing_elements_count + PREDEFINED_NUMFMT_COUNT),
-                formatCode = xlsx_escape(format)
+                formatCode = XML.escape(format)
             )
 
             new_formatid = styles_add_cell_attribute(wb, format_node, "numFmts") + PREDEFINED_NUMFMT_COUNT

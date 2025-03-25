@@ -18,7 +18,7 @@ ZipArchives = "49080126-0e18-4c2a-b176-c102e4b3760c"
 [compat]
 Colors = "0.13.0"
 Tables = "1"
-XML = "0.3.4"
+XML = "0.3.5"
 ZipArchives = "2"
 julia = "1.8"
 

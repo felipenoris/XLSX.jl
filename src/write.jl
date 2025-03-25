@@ -503,14 +503,14 @@ function strip_illegal_chars(x::String)
     return result
 end
 
-const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
-function xlsx_escape(x::String)# Adaped from XML.escape()
-    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
-    for (pat, r) in ESCAPE_CHARS[2:end]
-        result = replace(result, pat => r)
-    end
-    return result
-end
+#const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
+#function xlsx_escape(x::String)# Adaped from XML.escape()
+#    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
+#    for (pat, r) in ESCAPE_CHARS[2:end]
+#        result = replace(result, pat => r)
+#    end
+#    return result
+#end
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
@@ -518,7 +518,7 @@ function xlsx_encode(ws::Worksheet, val::AbstractString)
         return ("", "")
     end
 
-    sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(xlsx_escape(val)))
+    sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(XML.escape(val)))
 
     return ("s", string(sst_ind))
 end
@@ -729,7 +729,7 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-            sheet[target_cell_ref] = strip_illegal_chars(xlsx_escape(string(columnnames[c])))
+            sheet[target_cell_ref] = strip_illegal_chars(XML.escape(string(columnnames[c])))
         end
         start_from_anchor = 0
     end
@@ -740,7 +740,7 @@ function writetable!(
         for r in 1:row_count
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
             v = data[c][r]
-            sheet[target_cell_ref] = v isa String ? strip_illegal_chars(xlsx_escape(v)) : v
+            sheet[target_cell_ref] = v isa String ? strip_illegal_chars(XML.escape(v)) : v
         end
     end
 end

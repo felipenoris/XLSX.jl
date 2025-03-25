@@ -118,7 +118,7 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt = XML.Element("numFmt";
         numFmtId = fmt_code,
-        formatCode = xlsx_escape(format_code)
+        formatCode = XML.escape(format_code)
     )
     push!(numfmts, new_fmt)
     return fmt_code
