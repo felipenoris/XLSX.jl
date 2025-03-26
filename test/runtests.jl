@@ -215,7 +215,7 @@ end
 
     @assert length(v_column_names) == length(v_column_numbers) "Test script is wrong."
 
-    for i in 1:length(v_column_names)
+    for i in axes(v_column_names, 1)
         @test XLSX.encode_column_number(v_column_numbers[i]) == v_column_names[i]
         @test XLSX.decode_column_number(v_column_names[i]) == v_column_numbers[i]
     end
@@ -1237,7 +1237,7 @@ end
         dtable = XLSX.readtable("output_table.xlsx", "report")
         read_data, read_column_names = dtable.data, dtable.column_labels
         @test length(read_column_names) == length(col_names)
-        for c in 1:length(col_names)
+        for c in axes(col_names, 1)
             @test Symbol(col_names[c]) == read_column_names[c]
         end
         check_test_data(read_data, data)

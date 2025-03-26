@@ -2153,7 +2153,7 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
         end
     end
 
-    new_cols = unlink(sheetdoc[i][j], ["cols", "col"]) # Create the new <cols> Node
+    new_cols = unlink(sheetdoc[i][j], ("cols", "col")) # Create the new <cols> Node
     for atts in values(child_list)
         new_col = XML.Element("col")
         for (k, v) in atts

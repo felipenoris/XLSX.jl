@@ -173,8 +173,8 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
 end
 
 # Remove all children with tag givenn by att[2] from a parent XML node with a tag given by att[1].
-function unlink(node::XML.Node, att::Vector{String})
-    new_node = XML.Element(att[1])
+function unlink(node::XML.Node, att::Tuple{String, String})
+    new_node = XML.Element(first(att))
     a = XML.attributes(node)
     if !isnothing(a) # Copy attributes across to new node
         for (k, v) in XML.attributes(node)
@@ -182,7 +182,7 @@ function unlink(node::XML.Node, att::Vector{String})
         end
     end
     for child in XML.children(node) # Copy any child nodes with tags that are not att[2] across to new node
-        if XML.tag(child) != att[2]
+        if XML.tag(child) != last(att)
             push!(new_node, child)
         end
     end
@@ -254,7 +254,7 @@ function update_worksheets_xml!(xl::XLSXFile)
                 end            
             end
 
-            doc[i][j] = unlink(parent, ["sheetData", "row"])
+            doc[i][j] = unlink(parent, ("sheetData", "row"))
         end
 
         # updates sheetData
@@ -386,7 +386,7 @@ function update_workbook_xml!(xl::XLSXFile) # Only the <definedNames> block will
         j=n+1
 
     else
-        definedNames = unlink(wbdoc[i][j], ["definedNames", "definedName"]) # Remove old defined names
+        definedNames = unlink(wbdoc[i][j], ("definedNames", "definedName")) # Remove old defined names
     end
 
     for (k, v) in wb.workbook_names
