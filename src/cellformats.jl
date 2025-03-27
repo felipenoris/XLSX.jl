@@ -402,6 +402,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
         return newid
     end
 end
+
 function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
@@ -507,21 +508,21 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 ```julia
 julia> setFont(sh, "A1"; bold=true, italic=true, size=12, name="Arial")          # Single cell
 
-julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="FFB3081F")           # Single cell
+julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="yellow")             # Single cell
 
 julia> setFont(sh, "A1:B7"; name="Aptos", under="double", strike=true)           # Cell range
 
 julia> setFont(xf, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
 
-julia> setFont(sh, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
+julia> setFont(sh, "A:B"; italic=true, color="green", under="single")            # Column range
 
-julia> setFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
+julia> setFont(xf, "Sheet1!A:B"; italic=true, color="red", under="single")       # Column range
 
 julia> setFont(xf, "Sheet1!6:12"; italic=false, color="FF8888FF", under="none")  # Row range
 
 julia> setFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
-julia> setFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
+julia> setFont(xf, "bigred"; size=48, color="magenta")                           # Named cell or range
  
 ```
 """
@@ -1986,7 +1987,7 @@ setUniformFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowrange
 setUniformFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFormat, ws, ncrng; kw...)
 setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFormat, xl, sheetcell; kw...)
 setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
-setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng; kw...)
+setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng, ["numFmtId", "applyNumberFormat"]; kw...)
 
 #
 # -- Set uniform styles
@@ -2038,16 +2039,16 @@ function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
                 continue
             end
             if first                           # Get the style of the first cell in the range.
-                newid = cell.style
+                newid = parse(Int, cell.style)
                 first = false
             else                               # Apply the same style to the rest of the cells in the range.
-                cell.style = newid
+                cell.style = string(newid)
             end
         end
         if first
             newid = -1
         end
-        return isnothing(newID) ? nothing : newid
+        return isnothing(newid) ? nothing : newid
     end
 end    
 
