@@ -103,13 +103,14 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
-        nchildren = length(XML.children(stylesheet))
-        numfmts = XML.Element("numFmts", count="1")                                                                                    
-        push!(stylesheet, stylesheet[end])
-        for i in nchildren-1:-1:1
-            stylesheet[i+1]=stylesheet[i]
-        end
-        stylesheet[1]=numfmts
+#        nchildren = length(XML.children(stylesheet))
+        numfmts = XML.Element("numFmts", count="1") 
+        XML.pushfirst!(stylesheet, numfmts)
+#        push!(stylesheet, stylesheet[end])
+#        for i in nchildren-1:-1:1
+#            stylesheet[i+1]=stylesheet[i]
+#        end
+#        stylesheet[1]=numfmts
     else
         numfmts = numfmts[1]
     end

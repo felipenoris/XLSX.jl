@@ -1,6 +1,6 @@
 name: CI
 on:
-  workflow_dispatch:  # <-- Add this to allow manual execution
+#  workflow_dispatch:  # <-- Add this to allow manual execution
   pull_request:
     branches:
       - master
@@ -30,7 +30,7 @@ jobs:
           - macOS-latest
         arch:
           - x64
-        include:
+        include: # must be a better way!
           - os: macOS-latest
             arch: aarch64
             version: '1.8'

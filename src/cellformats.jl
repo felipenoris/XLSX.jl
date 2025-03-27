@@ -837,7 +837,7 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
                 @assert length(XML.attributes(side)) == 1 "Too many border attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."
                 for (k, v) in XML.attributes(side) # style is the only possible attribute of a side
                     border_atts[XML.tag(side)] = Dict(k => v)
-                    if side == "diagonal" && !isnothing(diag_atts)
+                    if XML.tag(side) == "diagonal" && !isnothing(diag_atts)
                         if haskey(diag_atts, "diagonalUp") && haskey(diag_atts, "diagonalDown")
                             border_atts[XML.tag(side)]["direction"] = "both"
                         elseif haskey(diag_atts, "diagonalUp")
@@ -1018,7 +1018,6 @@ function setBorder(xl::XLSXFile, sheetcell::String;
     end
 end
 function setBorder(sh::Worksheet, cellref::CellRef;
-        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
@@ -1036,8 +1035,6 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     kwdict["top"] = isnothing(top) ? nothing : Dict{String,String}(p for p in top)
     kwdict["bottom"] = isnothing(bottom) ? nothing : Dict{String,String}(p for p in bottom)
     kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
-
-    @assert isnothing(outside) "Cannot set an outside border on a single cell."
 
     if !isnothing(allsides)
         @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
@@ -1136,6 +1133,8 @@ If all cells in the range are `EmptyCells` the returned value is -1.
 
 For keyword definitions see [`setBorder()`](@ref).
 
+Note: `setUniformBorder` cannot be used with the `outside` keyword.
+
 # Examples:
 ```julia
 Julia> setUniformBorder(sh, "B2:D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
@@ -1195,8 +1194,8 @@ setOutsideBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowrange
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
 function setOutsideBorder(ws::Worksheet, rng::CellRange; 
-    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-)::Int
+        outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    )::Int
 
     @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
 
