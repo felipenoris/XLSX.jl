@@ -942,9 +942,9 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "direction" => "up"])
 
 Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "FF000FF0"],
-                                  right    = ["style" => "medium", "color" => "FF765000"],
+                                  right    = ["style" => "medium", "color" => "firebrick2"],
                                   top      = ["style" => "thick",  "color" => "FF230000"],
-                                  bottom   = ["style" => "medium", "color" => "FF0000FF"],
+                                  bottom   = ["style" => "medium", "color" => "goldenrod3"],
                                   diagonal = ["style" => "dotted", "color" => "FF00D4D4", "direction" => "both"]
                                   )
  
@@ -1118,7 +1118,7 @@ As a result, every cell in the range will have a uniform border setting.
 
 This differs from `setBorder()` which merges the attributes defined by `kw...` into 
 the border definition used by each cell individually. For example, if you set the 
-border style to `thin` for a range of cells, but these cells all use different border  
+border style to `thin` for a range of cells, but these cells all use different border 
 colors, `setBorder()` will change the border style but leave the border color unchanged 
 for each cell individually. 
 
