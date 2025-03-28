@@ -822,7 +822,7 @@ end
     @test_throws ErrorException XLSX.getcellrange(s, "A:C1")
 
     d = XLSX.getdata(s, "B:D")
-    @test size(d) == (11, 3)
+    @test size(d) == (12, 3)
     @test_throws ErrorException XLSX.getdata(s, "A:C1")
     @test d[1, 1] == "Column B"
     @test d[1, 2] == "Column C"
@@ -830,12 +830,12 @@ end
     @test d[9, 1] == 8
     @test d[9, 2] == "Str2"
     @test d[9, 3] == Date(2018, 4, 28)
-    @test d[10, 1] == "trash"
-    @test ismissing(d[10, 2])
-    @test d[10, 3] == "trash"
-    @test ismissing(d[11, 1])
+    @test d[11, 1] == "trash"
     @test ismissing(d[11, 2])
-    @test ismissing(d[11, 3])
+    @test d[11, 3] == "trash"
+    @test ismissing(d[12, 1])
+    @test ismissing(d[12, 2])
+    @test ismissing(d[12, 3])
 
     d2 = f["table!B:D"]
     @test size(d) == size(d2)

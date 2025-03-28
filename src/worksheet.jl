@@ -374,9 +374,10 @@ function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
     result = Array{AbstractCell, 2}(undef, size(rng))
     for cellref in rng
         (r, c) = relative_cell_position(cellref, rng)
-        result[r, c] = EmptyCell(cellref)
-    end
-
+        cell = getcell(ws, cellref)
+        result[r, c] = isempty(cell) ? EmptyCell(cellref) : cell
+     end
+#=
     top = row_number(rng.start)
     bottom = row_number(rng.stop)
     left = column_number(rng.start)
@@ -398,10 +399,23 @@ function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
             break
         end
     end
-
+=#
     return result
 end
+function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
+    dim=get_dimension(ws)
+    start = CellRef(dim.start.row_number, rng.start)
+    stop = CellRef(dim.stop.row_number, rng.stop)
+    getcellrange(ws, CellRange(start, stop))
+end
+function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
+    dim=get_dimension(ws)
+    start = CellRef(rng.start, dim.start.column_number, )
+    stop = CellRef(rng.stop, dim.stop.column_number)
+    getcellrange(ws, CellRange(start, stop))
+end
 
+#=
 function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
     columns_count = length(rng)
     columns = Vector{Vector{AbstractCell}}(undef, columns_count)
@@ -460,7 +474,7 @@ function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
 
     return permutedims(hcat(rows...))
 end
-
+=#
 function getcellrange(ws::Worksheet, rng::NonContiguousRange) :: Vector{AbstractCell}
     results=Vector{AbstractCell}()
     for r in rng.rng

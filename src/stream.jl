@@ -313,9 +313,11 @@ end
 
 Note: The `eachrow` row iterator will not return any row that 
 consists entirely of `EmptyCell`s. These are simply not seen 
-by the iterator.
+by the iterator. The `length(eachrow(sheet))` function therefore 
+defines the number of rows that are not entirely empty and will, 
+in any case, only succeed if the worksheet cache is in use.
 """
-function eachrow(ws::Worksheet) :: SheetRowIterator
+function Base.eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
         if ws.cache === nothing
             ws.cache = WorksheetCache(ws)
@@ -329,3 +331,5 @@ end
 function Base.isempty(sr::SheetRow)
     return isempty(sr.rowcells)
 end
+
+Base.length(r::XLSX.WorksheetCache)=length(r.cells)
