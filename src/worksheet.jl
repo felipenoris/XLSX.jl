@@ -156,6 +156,20 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
 end
 
 function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
+    dim=get_dimension(ws)
+    start = CellRef(dim.start.row_number, rng.start)
+    stop = CellRef(dim.stop.row_number, rng.stop)
+    getdata(ws, CellRange(start, stop))
+end
+function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
+    dim=get_dimension(ws)
+    start = CellRef(rng.start, dim.start.column_number, )
+    stop = CellRef(rng.stop, dim.stop.column_number)
+    getdata(ws, CellRange(start, stop))
+end
+
+#=
+function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
     columns_count = length(rng)
     columns = Vector{Vector{Any}}(undef, columns_count)
     for i in 1:columns_count
@@ -179,6 +193,7 @@ function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
 
     return hcat(columns...)
 end
+
 function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
     rows_count = length(rng)
     dim = get_dimension(ws)
@@ -216,6 +231,7 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
 
     return permutedims(hcat(rows...))
 end
+=#
 
 function getdata(ws::Worksheet, rng::NonContiguousRange) :: Vector{Any}
     results=Vector{Any}()
