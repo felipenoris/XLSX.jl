@@ -39,7 +39,7 @@ function open_empty_template(
         ) :: XLSXFile
 
     empty_excel_template = joinpath(path, "blank.xlsx")
-    @assert isfile(empty_excel_template) "Couldn't find template file $empty_excel_template."
+    !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
     xf = open_xlsx_template(empty_excel_template)
 
     if sheetname != ""
@@ -58,10 +58,12 @@ If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it
 """
 function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overwrite::Bool=false)
 
-    @assert is_writable(xf) "XLSXFile instance is not writable."
-    @assert all(values(xf.files)) "Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"
+    !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
+    if !all(values(xf.files)) 
+        throw(XLSXError("Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"))
+    end
     if output_source isa AbstractString && !overwrite
-        @assert !isfile(output_source) "Output file $output_source already exists."
+        isfile(output_source) && throw(XLSXError("Output file $output_source already exists."))
     end
 
    update_worksheets_xml!(xf)
@@ -97,16 +99,16 @@ get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl",
 get_worksheet_xml_document(ws::Worksheet) = get_xlsxfile(ws).data[ get_worksheet_internal_file(ws) ]
 
 function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
-    @assert XML.nodetype(xdoc) == XML.Document "Expected an XML Document node, got $(XML.nodetype(xdoc))."
+    XML.nodetype(xdoc) != XML.Document && throw(XLSXError("Expected an XML Document node, got $(XML.nodetype(xdoc))."))
     xf = get_xlsxfile(ws)
     filename = get_worksheet_internal_file(ws)
-    @assert haskey(xf.data, filename) "Internal file not found for $(ws.name)."
+    !haskey(xf.data, filename) && throw(XLSXError("Internal file not found for $(ws.name)."))
     xf.data[filename] = xdoc
     
 end
 
 function generate_sst_xml_string(sst::SharedStringTable) :: String
-    @assert sst.is_loaded "Can't generate XML string from a Shared String Table that is not loaded."
+    !sst.is_loaded && throw(XLSXError("Can't generate XML string from a Shared String Table that is not loaded."))
     buff = IOBuffer()
 
     # TODO: <sst count="89"
@@ -138,7 +140,7 @@ function add_node_formula!(node, f::ReferencedFormula)
 end
 
 function find_all_nodes(givenpath::String, doc::XML.Node)::Vector{XML.Node}
-    @assert XML.nodetype(doc) == XML.Document
+    XML.nodetype(doc) != XML.Document && throw(XLSXError("Something wrong here!"))
     found_nodes = Vector{XML.Node}()
     for xp in get_node_paths(doc)
         if xp.path == givenpath
@@ -148,7 +150,7 @@ function find_all_nodes(givenpath::String, doc::XML.Node)::Vector{XML.Node}
     return found_nodes
 end
 function get_node_paths(node::XML.Node)
-    @assert XML.nodetype(node) == XML.Document
+    XML.nodetype(node) != XML.Document && throw(XLSXError("Something wrong here!"))
     default_ns = get_default_namespace(node[end])
     xpaths = Vector{xpath}()
     get_node_paths!(xpaths, node, default_ns, "")
@@ -216,8 +218,8 @@ function update_worksheets_xml!(xl::XLSXFile)
         xroot = doc[end]
 
         # check namespace and root node name
-        @assert get_default_namespace(xroot) == SPREADSHEET_NAMESPACE_XPATH_ARG "Unsupported Spreadsheet XML namespace $(get_default_namespace(xroot))."
-        @assert XML.tag(xroot) == "worksheet" "Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."
+        get_default_namespace(xroot) != SPREADSHEET_NAMESPACE_XPATH_ARG && throw(XLSXError("Unsupported Spreadsheet XML namespace $(get_default_namespace(xroot))."))
+        XML.tag(xroot) != "worksheet" && throw(XLSXError("Malformed Excel file. Expected root node named `worksheet` in worksheet XML file."))
 
         # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
         # |- Column formatting is preserved in the <cols> subtree.
@@ -445,8 +447,8 @@ function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)
 end
 
 function setdata!(ws::Worksheet, cell::Cell)
-    @assert is_writable(get_xlsxfile(ws)) "XLSXFile instance is not writable."
-    @assert ws.cache !== nothing "Can't write data to a Worksheet with empty cache."
+    !is_writable(get_xlsxfile(ws)) && throw(XLSXError("XLSXFile instance is not writable."))
+    ws.cache === nothing && throw(XLSXError("Can't write data to a Worksheet with empty cache."))
     cache = ws.cache
 
     r = row_number(cell)
@@ -590,7 +592,7 @@ setdata!(sheet::Worksheet, ::Colon, col::Integer, data::AbstractVector) = setdat
 setdata!(sheet::Worksheet, row::Integer, ::Colon, data::AbstractVector) = setdata!(sheet, row, 1, data, 2)
 
 function setdata!(sheet::Worksheet, row::Integer, cols::UnitRange{T}, data::AbstractVector) where {T<:Integer}
-    @assert length(data) == length(cols) "Column count mismatch between `data` ($(length(data)) columns) and column range $cols ($(length(cols)) columns)."
+    length(data) != length(cols) && throw(XLSXError("Column count mismatch between `data` ($(length(data)) columns) and column range $cols ($(length(cols)) columns)."))
     anchor_cell_ref = CellRef(row, first(cols))
 
     # since cols is the unit range, this is a column-based operation
@@ -598,7 +600,7 @@ function setdata!(sheet::Worksheet, row::Integer, cols::UnitRange{T}, data::Abst
 end
 
 function setdata!(sheet::Worksheet, rows::UnitRange{T}, col::Integer, data::AbstractVector) where {T<:Integer}
-    @assert length(data) == length(rows) "Row count mismatch between `data` ($(length(data)) rows) and row range $rows ($(length(rows)) rows)."
+    length(data) != length(rows) && throw(XLSXError("Row count mismatch between `data` ($(length(data)) rows) and row range $rows ($(length(rows)) rows)."))
     anchor_cell_ref = CellRef(first(rows), col)
 
     # since rows is the unit range, this is a row-based operation
@@ -626,7 +628,7 @@ function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T}
 end
 
 function setdata!(sheet::Worksheet, rng::CellRange, matrix::Array{T, 2}) where {T}
-    @assert size(rng) == size(matrix) "Target range $rng size ($(size(rng))) must be equal to the input matrix size ($(size(matrix))) "
+    size(rng) != size(matrix) && throw(XLSXError("Target range $rng size ($(size(rng))) must be equal to the input matrix size ($(size(matrix)))"))
     setdata!(sheet, rng.start, matrix)
 end
 
@@ -696,14 +698,14 @@ function writetable!(
 
     # read dimensions
     col_count = length(data)
-    @assert col_count == length(columnnames) "Column count mismatch between `data` ($col_count columns) and `columnnames` ($(length(columnnames)) columns)."
-    @assert col_count > 0 "Can't write table with no columns."
-    @assert col_count <= EXCEL_MAX_COLS "`data` contains $col_count columns, but Excel only supports up to $EXCEL_MAX_COLS; must reduce `data` size"
+    col_count != length(columnnames) && throw(XLSXError("Column count mismatch between `data` ($col_count columns) and `columnnames` ($(length(columnnames)) columns)."))
+    col_count <= 0 && throw(XLSXError("Can't write table with no columns."))
+    col_count > EXCEL_MAX_COLS && throw(XLSXError("`data` contains $col_count columns, but Excel only supports up to $EXCEL_MAX_COLS; must reduce `data` size"))
     row_count = length(data[1])
-    @assert row_count <= EXCEL_MAX_ROWS-1 "`data` contains $row_count rows, but Excel only supports up to $(EXCEL_MAX_ROWS-1); must reduce `data` size"
+    row_count > EXCEL_MAX_ROWS-1 && throw(XLSXError("`data` contains $row_count rows, but Excel only supports up to $(EXCEL_MAX_ROWS-1); must reduce `data` size"))
     if col_count > 1
         for c in 2:col_count
-            @assert length(data[c]) == row_count "Row count mismatch between column 1 ($row_count rows) and column $c ($(length(data[c])) rows)."
+            length(data[c]) != row_count && throw(XLSXError("Row count mismatch between column 1 ($row_count rows) and column $c ($(length(data[c])) rows)."))
         end
     end
 
@@ -745,8 +747,8 @@ function rename!(ws::Worksheet, name::AbstractString)
     end
 
     xf = get_xlsxfile(ws)
-    @assert is_writable(xf) "XLSXFile instance is not writable."
-    @assert name ∉ sheetnames(xf) "Sheetname $name is already in use."
+    !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
+    name ∈ sheetnames(xf) && throw(XLSXError("Sheetname $name is already in use."))
 
     # updates XML
     xroot = xmlroot(xf, "xl/workbook.xml")[end]
@@ -781,10 +783,10 @@ If `name` is not provided, a unique name is created.
 """
 function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: Worksheet
     xf = get_xlsxfile(wb)
-    @assert is_writable(xf) "XLSXFile instance is not writable."
+    !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
 
     file_sheet_template = joinpath(relocatable_data_path, "sheet_template.xml")
-    @assert isfile(file_sheet_template) "Couldn't find template file $file_sheet_template."
+    !isfile(file_sheet_template) && throw(XLSXError("Couldn't find template file $file_sheet_template."))
 
     if name == ""
         # name was not provided. Will find a unique name.
@@ -801,20 +803,20 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     else
     end
 
-    @assert name != ""
+    name == "" && throw(XLSXError("Something wrong here!"))
 
     # checks if name is a unique sheet name
-    @assert name ∉ sheetnames(wb) "A sheet named `$name` already exists in this workbook."
+    name ∈ sheetnames(wb) && throw(XLSXError("A sheet named `$name` already exists in this workbook."))
 
     function check_valid_sheetname(n::AbstractString)
         max_length = 31
-        @assert(length(n) <= max_length,
-                "Invalid sheetname $n: must have at most $max_length characters. Found $(length(n))"
-               )
+        if length(n) > max_length
+            throw(XLSXError("Invalid sheetname $n: must have at most $max_length characters. Found $(length(n))"))
+        end
 
-        @assert(!occursin(r"[:\\/\?\*\[\]]+", n),
-                "Sheetname cannot contain characters: ':', '\\', '/', '?', '*', '[', ']'."
-               )
+        if occursin(r"[:\\/\?\*\[\]]+", n)
+            throw(XLSXError("Sheetname cannot contain characters: ':', '\\', '/', '?', '*', '[', ']'."))
+        end
     end
 
     check_valid_sheetname(name)
@@ -868,7 +870,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     # update [Content_Types].xml (fix for issue #275)
     ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
-    @assert XML.tag(ctype_root) == "Types"
+    XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
     override_node = XML.Element("Override";
         ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
         PartName = "/xl/worksheets/sheet$sheetId.xml"
@@ -916,7 +918,7 @@ See also: [`XLSX.writetable!`](@ref).
 function writetable(filename::Union{AbstractString, IO}, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
 
     if filename isa AbstractString && !overwrite
-        @assert !isfile(filename) "$filename already exists."
+        isfile(filename) && throw(XLSXError("$filename already exists."))
     end
 
     xf = open_empty_template(sheetname)
@@ -957,7 +959,7 @@ julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df2)
 function writetable(filename::Union{AbstractString, IO}; overwrite::Bool=false, kw...)
 
     if filename isa AbstractString && !overwrite
-        @assert !isfile(filename) "$filename already exists."
+        isfile(filename) && throw(XLSXError("$filename already exists."))
     end
 
     xf = open_empty_template()
@@ -985,7 +987,7 @@ end
 function writetable(filename::Union{AbstractString, IO}, tables::Vector{Tuple{String, S, Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where U, T<:Union{String, Symbol}}
 
     if filename isa AbstractString && !overwrite
-        @assert !isfile(filename) "$filename already exists."
+        isfile(filename) && throw(XLSXError("$filename already exists."))
     end
 
     xf = open_empty_template()

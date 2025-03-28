@@ -30,31 +30,31 @@ jobs:
           - macOS-latest
         arch:
           - x64
-        include: # must be a better way!
-          - os: macOS-latest
-            arch: aarch64
-            version: '1.8'
-          - os: macOS-latest
-            arch: aarch64
-            version: '1.9'
-          - os: macOS-latest
-            arch: aarch64
-            version: '1.10'
-          - os: macOS-latest
-            arch: aarch64
-            version: '1.11'
-          - os: macOS-latest
-            arch: aarch64
-            version: 'lts'
-          - os: macOS-latest
-            arch: aarch64
-            version: '1'
-          - os: macOS-latest
-            arch: aarch64
-            version: 'pre'
-          - os: macOS-latest
-            arch: aarch64
-            version: 'nightly'
+#        include: # must be a better way!
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: '1.8'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: '1.9'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: '1.10'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: '1.11'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: 'lts'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: '1'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: 'pre'
+#          - os: macOS-latest
+#            arch: aarch64
+#            version: 'nightly'
 
     steps:
       - uses: actions/checkout@v4

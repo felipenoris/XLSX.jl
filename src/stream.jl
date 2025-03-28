@@ -48,8 +48,10 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
 # Opens a file for streaming.
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
-    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
-    @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
+    !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
+    if !(xf.source isa IO || isfile(xf.source))
+        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."))
+    end
 
     if filename in ZipArchives.zip_names(xf.io)
         return XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
@@ -78,8 +80,8 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             reader = open_internal_file_stream(get_xlsxfile(ws), target_file)
 
-            @assert length(reader) > 0 "Couldn't open reader for Worksheet $(ws.name)."
-            @assert XML.tag(reader[end]) == "worksheet" "Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."
+            length(reader) <= 0 && throw(XLSXError("Couldn't open reader for Worksheet $(ws.name)."))
+            XML.tag(reader[end]) != "worksheet" && throw(XLSXError("Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."))
             ws_elements = XML.children(reader[end])
             idx = findfirst(y -> y=="sheetData", [XML.tag(x) for x in ws_elements])
             next_element= idx===nothing ? "" : (ws_elements[idx+1])
@@ -93,7 +95,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                     if nrows == 0
                         return nothing
                     end
-                    @assert XML.depth(lznode) == 2 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."
+                    XML.depth(lznode) != 2 && throw(XLSXError("Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."))
                     break
                 end
 
@@ -122,7 +124,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     end
 
     # given that the first iteration case is done in the code above, we shouldn't get it again in here
-    @assert state !== nothing "Error processing Worksheet $(ws.name): shouldn't get first iteration case again."
+    state === nothing && throw(XLSXError("Error processing Worksheet $(ws.name): shouldn't get first iteration case again."))
 
     reader = state.itr
     lzstate = state.itr_state
@@ -146,7 +148,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
             cell_no += 1
             cell = Cell(lznode)
-            @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
+            if row_number(cell) != current_row
+                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
+            end
             rowcells[column_number(cell)] = cell
             if cell_no == nc # when all cells found
 
@@ -281,7 +285,7 @@ function getcell(r::SheetRow, column_index::Int) :: AbstractCell
 end
 
 function getcell(r::SheetRow, column_name::AbstractString)
-    @assert is_valid_column_name(column_name) "$column_name is not a valid column name."
+    !is_valid_column_name(column_name) && throw(XLSXError("$column_name is not a valid column name."))
     return getcell(r, decode_column_number(column_name))
 end
 

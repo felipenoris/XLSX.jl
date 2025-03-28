@@ -105,27 +105,27 @@ function Base.getindex(xl::XLSXFile, s::AbstractString)
 end
 
 function getdata(xl::XLSXFile, ref::SheetCellRef)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
     return getdata(getsheet(xl, ref.sheet), ref.cellref)
 end
 
 function getdata(xl::XLSXFile, rng::SheetCellRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getdata(getsheet(xl, rng.sheet), rng.rng)
 end
 
 function getdata(xl::XLSXFile, rng::SheetColumnRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getdata(getsheet(xl, rng.sheet), rng.colrng)
 end
 
 function getdata(xl::XLSXFile, rng::SheetRowRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getdata(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
 function getdata(xl::XLSXFile, rng::NonContiguousRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getdata(getsheet(xl, rng.sheet), rng)
 end
 
@@ -155,29 +155,29 @@ function getdata(xl::XLSXFile, s::AbstractString)
 end
 
 function getcell(xl::XLSXFile, ref::SheetCellRef)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
     return getcell(getsheet(xl, ref.sheet), ref.cellref)
 end
 
 getcell(xl::XLSXFile, ref_str::AbstractString) = getcell(xl, SheetCellRef(ref_str))
 
 function getcellrange(xl::XLSXFile, rng::SheetCellRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng.rng)
 end
 
 function getcellrange(xl::XLSXFile, rng::SheetColumnRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng.colrng)
 end
 
 function getcellrange(xl::XLSXFile, rng::SheetRowRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
 function getcellrange(xl::XLSXFile, rng::NonContiguousRange)
-    @assert hassheet(xl, rng.sheet) "Sheet $(rng.sheet) not found."
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng)
 end
 
@@ -252,7 +252,7 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
     end
 
     if value isa NonContiguousRange
-        @assert value.sheet == ws.name "Non-contiguous range must be in the same worksheet."
+        value.sheet != ws.name && throw(XLSXError("Non-contiguous range must be in the same worksheet."))
         abs = absolute ? fill(true, length(value.rng)) : fill(false, length(value.rng))
     else
         abs = absolute ? true : false

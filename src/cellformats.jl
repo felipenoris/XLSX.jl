@@ -133,7 +133,9 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                             bgcolor[k[3:end]] = v
                         end
                     end
-                    @assert haskey(patternfill, "patternType") "No `patternType` attribute found."
+                    if !haskey(patternfill, "patternType")
+                        throw(XLSXError("No `patternType` attribute found."))
+                    end
                     length(XML.attributes(fgcolor)) > 0 && push!(patternfill, fgcolor)
                     length(XML.attributes(bgcolor)) > 0 && push!(patternfill, bgcolor)
                 end
@@ -148,7 +150,9 @@ end
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
-    @assert length(attributes) == length(vals) "Attributes and values must be of the same length."
+    if length(attributes) != length(vals)
+        throw(XLSXError("Attributes and values must be of the same length."))
+    end
     for (a, v) in zip(attributes, vals)
         new_cell_xf[a] = v
     end
@@ -176,7 +180,9 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
     xroot = styles_xmlroot(wb)
     i, j = get_idces(xroot, "styleSheet", att)
     existing_elements_count = length(XML.children(xroot[i][j]))
-    @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of elements elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
+    if parse(Int, xroot[i][j]["count"]) != existing_elements_count
+        throw(XLSXError("Wrong number of elements elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
+    end
 
     # Check new_att doesn't duplicate any existing att. If yes, use that rather than create new.
     for (k, node) in enumerate(XML.children(xroot[i][j]))
@@ -208,26 +214,26 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
         end
     elseif is_valid_non_contiguous_sheetcellrange(sheetcell)
         sheetncrng = NonContiguousRange(sheetcell)
-        @assert hassheet(xl, sheetncrng.sheet) "Sheet $(ref.sheet) not found."
+        !hassheet(xl, sheetncrng.sheet) && throw(XLSXError("Sheet $(sheetncrng.sheet) not found."))
         newid = f(xl[sheetncrng.sheet], sheetncrng; kw...)
     elseif is_valid_sheet_column_range(sheetcell)
         sheetcolrng = SheetColumnRange(sheetcell)
-        @assert hassheet(xl, sheetcolrng.sheet) "Sheet $(ref.sheet) not found."
+        !hassheet(xl, sheetcolrng.sheet)  && throw(XLSXError("Sheet $(sheetcolrng.sheet) not found."))
         newid = f(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
     elseif is_valid_sheet_row_range(sheetcell)
         sheetrowrng = SheetRowRange(sheetcell)
-        @assert hassheet(xl, sheetrowrng.sheet) "Sheet $(ref.sheet) not found."
+        !hassheet(xl, sheetrowrng.sheet)  && throw(XLSXError("Sheet $(sheetrowrng.sheet) not found."))
         newid = f(xl[sheetrowrng.sheet], sheetrowrng.rowrng; kw...)
     elseif is_valid_sheet_cellrange(sheetcell)
         sheetcellrng = SheetCellRange(sheetcell)
-        @assert hassheet(xl, sheetcellrng.sheet) "Sheet $(ref.sheet) not found."
+        !hassheet(xl, sheetcellrng.sheet)  && throw(XLSXError("Sheet $(sheetcellrng.sheet) not found."))
         newid = f(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
     elseif is_valid_sheet_cellname(sheetcell)
         ref = SheetCellRef(sheetcell)
-        @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+        !hassheet(xl, ref.sheet)  && throw(XLSXError("Sheet $(ref.sheet) not found."))
         newid = f(getsheet(xl, ref.sheet), ref.cellref; kw...)
      else
-        error("Invalid sheet cell reference: $sheetcell")
+        throw(XLSXError("Invalid sheet cell reference: $sheetcell"))
     end
     return newid
 end
@@ -343,7 +349,7 @@ function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::
 end
 function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)
     ref = SheetCellRef(sheetcell)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
+    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
     return f(getsheet(xl, ref.sheet), ref.cellref; kw...)
 end
 function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef; kw...)
@@ -377,7 +383,9 @@ function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractSt
 end
 function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...)
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError( "Cannot set uniform attributes because cache is not enabled."))
+    end
 
     let newid
         first = true
@@ -405,7 +413,9 @@ end
 
 function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError( "Cannot set uniform attributes because cache is not enabled."))
+    end
 
     let newid, alignment_node
         first = true
@@ -543,12 +553,16 @@ function setFont(sh::Worksheet, cellref::CellRef;
         name::Union{Nothing,String}=nothing
     )::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set font because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError( "Cannot set font because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."
+     if cell isa EmptyCell
+        throw(XLSXError("Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."))
+     end
 
     if cell.style == ""
         cell.style = string(get_num_style_index(sh, 0).id)
@@ -571,7 +585,9 @@ function setFont(sh::Worksheet, cellref::CellRef;
                 new_font_atts["i"] = nothing
             end
         elseif a == "u"
-            @assert isnothing(under) || under ∈ ["none", "single", "double"] "Invalid value for under: $under. Must be one of: `none`, `single`, `double`."
+            if !isnothing(under) && under ∉ ["none", "single", "double"]
+                throw(XLSXError("Invalid value for under: $under. Must be one of: `none`, `single`, `double`."))
+            end
             if isnothing(under) && haskey(old_font_atts, "u")
                 new_font_atts["u"] = old_font_atts["u"]
             elseif !isnothing(under)
@@ -586,14 +602,13 @@ function setFont(sh::Worksheet, cellref::CellRef;
                 new_font_atts["strike"] = nothing
             end
         elseif a == "color"
-            #@assert isnothing(color) || occursin(r"^[0-9A-F]{8}$", color) "Invalid color value: $color. Must be an 8-digit hexadecimal RGB value."
             if isnothing(color) && haskey(old_font_atts, "color")
                 new_font_atts["color"] = old_font_atts["color"]
             elseif !isnothing(color)
                 new_font_atts["color"] = Dict("rgb" => get_color(color))
             end
         elseif a == "sz"
-            @assert isnothing(size) || (size > 0 && size < 410) "Invalid size value: $size. Must be between 1 and 409."
+            (!isnothing(size) && (size < 1 || size > 409)) && throw(XLSXError("Invalid size value: $size. Must be between 1 and 409."))
             if isnothing(size) && haskey(old_font_atts, "sz")
                 new_font_atts["sz"] = old_font_atts["sz"]
             elseif !isnothing(size)
@@ -724,21 +739,24 @@ getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_
 getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get font because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get font because cache is not enabled."))
+    end
 
     if haskey(cell_style, "fontId")
         fontid = cell_style["fontId"]
         applyfont = haskey(cell_style, "applyFont") ? cell_style["applyFont"] : "0"
         xroot = styles_xmlroot(wb)
         font_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts", xroot)[begin]
-        @assert parse(Int, font_elements["count"]) == length(XML.children(font_elements)) "Unexpected number of font definitions found : $(length(XML.children(font_elements))). Expected $(parse(Int, font_elements["count"]))"
+        if parse(Int, font_elements["count"]) != length(XML.children(font_elements))
+            throw(XLSXError("Unexpected number of font definitions found : $(length(XML.children(font_elements))). Expected $(parse(Int, font_elements["count"]))"))
+        end
         current_font = XML.children(font_elements)[parse(Int, fontid)+1] # Zero based!
         font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         for c in XML.children(current_font)
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
-##                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
@@ -820,14 +838,18 @@ getBorder(ws::Worksheet, cr::String) = process_get_cellname(getBorder, ws, cr)
 getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get border because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get border because cache is not enabled."))
+    end
 
     if haskey(cell_style, "borderId")
         borderid = cell_style["borderId"]
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
         xroot = styles_xmlroot(wb)
         border_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:borders", xroot)[begin]
-        @assert parse(Int, border_elements["count"]) == length(XML.children(border_elements)) "Unexpected number of border definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"
+        if parse(Int, border_elements["count"]) != length(XML.children(border_elements))
+            throw(XLSXError("Unexpected number of border definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"))
+        end
         current_border = XML.children(border_elements)[parse(Int, borderid)+1] # Zero based!
         diag_atts = XML.attributes(current_border)
         border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
@@ -835,7 +857,9 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
             if isnothing(XML.attributes(side)) || length(XML.attributes(side)) == 0
                 border_atts[XML.tag(side)] = nothing
             else
-                @assert length(XML.attributes(side)) == 1 "Too many border attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."
+                if length(XML.attributes(side)) != 1
+                    throw(XLSXError("Too many border attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."))
+                end
                 for (k, v) in XML.attributes(side) # style is the only possible attribute of a side
                     border_atts[XML.tag(side)] = Dict(k => v)
                     if XML.tag(side) == "diagonal" && !isnothing(diag_atts)
@@ -846,7 +870,7 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
                         elseif haskey(diag_atts, "diagonalDown")
                             border_atts[XML.tag(side)]["direction"] = "down"
                         else
-                            @assert false "No direction set for `diagonal` border"
+                            throw(XLSXError("No direction set for `diagonal` border"))
                         end
                     end
                     for subc in XML.children(side) # color is a child of a border element
@@ -966,7 +990,9 @@ function setBorder(ws::Worksheet, rng::CellRange;
     if isnothing(outside)
         return process_cellranges(setBorder, ws, rng; allsides, left, right, top, bottom, diagonal)
     else
-        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides]) 
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords."))
+        end
         return setOutsideBorder(ws, rng; outside)
     end
 end
@@ -982,7 +1008,9 @@ function setBorder(ws::Worksheet, colrng::ColumnRange;
     if isnothing(outside)
         return process_columnranges(setBorder, ws, colrng; allsides, left, right, top, bottom, diagonal)
     else
-        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides]) 
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords"))
+        end
         return process_columnranges(setOutsideBorder, ws, colrng; outside)
     end
 end
@@ -998,7 +1026,9 @@ function setBorder(ws::Worksheet, rowrng::RowRange;
     if isnothing(outside)
         return process_rowranges(setBorder, ws, rowrng; allsides, left, right, top, bottom, diagonal)
     else
-        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides]) 
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords except `diagonal`."))
+        end
         return process_rowranges(setOutsideBorder, ws, rowrng; outside)
     end
 end
@@ -1014,7 +1044,9 @@ function setBorder(xl::XLSXFile, sheetcell::String;
     if isnothing(outside)
         return process_sheetcell(setBorder, xl, sheetcell; allsides, left, right, top, bottom, diagonal)
     else
-        @assert all(isnothing, [left, right, top, bottom, diagonal, allsides]) "Keyword `outside` is incompatible with any other keywords except `diagonal`."
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides]) 
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords except `diagonal`."))
+        end
         return process_sheetcell(setOutsideBorder, xl, sheetcell; outside)
     end
 end
@@ -1027,7 +1059,9 @@ function setBorder(sh::Worksheet, cellref::CellRef;
         diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
     )::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set borders because cache is not enabled."))
+    end
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["allsides"] = isnothing(allsides) ? nothing : Dict{String,String}(p for p in allsides)
@@ -1038,14 +1072,18 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
 
     if !isnothing(allsides)
-        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
+        if !all(isnothing, [left, right, top, bottom])
+            throw(XLSXError("Keyword `allsides` is incompatible with any other keywords except `diagonal`."))
+        end
         return setBorder(sh, cellref; left=allsides, right=allsides, top=allsides, bottom=allsides, diagonal=diagonal)
     end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set border for an `EmptyCell`: $(cellref.name). Set the value first."
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set border for an `EmptyCell`: $(cellref.name). Set the value first."))
+    end
 
     if cell.style == ""
         cell.style = string(get_num_style_index(sh, 0).id)
@@ -1066,7 +1104,9 @@ function setBorder(sh::Worksheet, cellref::CellRef;
             if !haskey(kwdict[a], "style") && haskey(old_border_atts, a) && haskey(old_border_atts[a], "style")
                 new_border_atts[a]["style"] = old_border_atts[a]["style"]
             elseif haskey(kwdict[a], "style")
-                @assert kwdict[a]["style"] ∈ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"] "Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."
+                if kwdict[a]["style"] ∉ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"]
+                    throw(XLSXError("Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."))
+                end                
                 new_border_atts[a]["style"] = kwdict[a]["style"]
             end
             if a == "diagonal"
@@ -1077,7 +1117,9 @@ function setBorder(sh::Worksheet, cellref::CellRef;
                         new_border_atts[a]["direction"] = "both" # default if direction not specified or inherited
                     end
                 elseif haskey(kwdict[a], "direction")
-                    @assert kwdict[a]["direction"] ∈ ["up", "down", "both"] "Invalid direction: $v. Must be one of: `up`, `down`, `both`."
+                    if kwdict[a]["direction"] ∉ ["up", "down", "both"]
+                        throw(XLSXError("Invalid direction: $v. Must be one of: `up`, `down`, `both`."))
+                    end
                     new_border_atts[a]["direction"] = kwdict[a]["direction"]
                 end
             end
@@ -1089,7 +1131,6 @@ function setBorder(sh::Worksheet, cellref::CellRef;
                 end
             elseif haskey(kwdict[a], "color")
                 v = kwdict[a]["color"]
-                #@assert occursin(r"^[0-9A-F]{8}$", v) "Invalid color value: $v. Must be an 8-digit hexadecimal RGB value."
                 new_border_atts[a]["rgb"] = get_color(v)
             end
         end
@@ -1198,7 +1239,9 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
         outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
     )::Int
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set borders because cache is not enabled."))
+    end
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["outside"] = Dict{String,String}(p for p in outside)
@@ -1302,26 +1345,36 @@ getFill(ws::Worksheet, cr::String) = process_get_cellname(getFill, ws, cr)
 getDefaultFill(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get fill because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get fill because cache is not enabled."))
+    end
 
     if haskey(cell_style, "fillId")
         fillid = cell_style["fillId"]
         applyfill = haskey(cell_style, "applyFill") ? cell_style["applyFill"] : "0"
         xroot = styles_xmlroot(wb)
         fill_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fills", xroot)[begin]
-        @assert parse(Int, fill_elements["count"]) == length(XML.children(fill_elements)) "Unexpected number of font definitions found : $(length(XML.children(fill_elements))). Expected $(parse(Int, fill_elements["count"]))"
+        if parse(Int, fill_elements["count"]) != length(XML.children(fill_elements))
+            throw(XLSXError("Unexpected number of font definitions found : $(length(XML.children(fill_elements))). Expected $(parse(Int, fill_elements["count"]))"))
+        end
         current_fill = XML.children(fill_elements)[parse(Int, fillid)+1] # Zero based!
         fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         for pattern in XML.children(current_fill)
             if isnothing(XML.attributes(pattern)) || length(XML.attributes(pattern)) == 0
                 fill_atts[XML.tag(pattern)] = nothing
             else
-                @assert length(XML.attributes(pattern)) == 1 "Too many fill attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(pattern)))."
+                if length(XML.attributes(pattern)) != 1
+                    throw(XLSXError("Too many fill attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(pattern)))."))
+                end
                 for (k, v) in XML.attributes(pattern) # patternType is the only possible attribute of a fill
                     fill_atts[XML.tag(pattern)] = Dict(k => v)
                     for subc in XML.children(pattern) # foreground and background colors are children of a patternFill element
-                        @assert !isnothing(XML.children(subc)) && length(XML.attributes(subc)) > 0 "Too few children found for $(XML.tag(subc)) Expected 1, found 0."
-                        @assert length(XML.children(subc)) < 3 "Too many children found for $(XML.tag(subc)) Expected < 3, found $(length(XML.attributes(subc)))."
+                        if !isnothing(XML.children(subc)) && length(XML.attributes(subc)) <= 0
+                            throw(XLSXError("Too few children found for $(XML.tag(subc)) Expected 1, found 0."))
+                        end
+                        if length(XML.children(subc)) > 2
+                            throw(XLSXError("Too many children found for $(XML.tag(subc)) Expected < 3, found $(length(XML.attributes(subc)))."))
+                        end
                         tag = first(XML.tag(subc), 2)
                         for (k, v) in XML.attributes(subc)
                             fill_atts[XML.tag(pattern)][tag*k] = v
@@ -1409,12 +1462,16 @@ function setFill(sh::Worksheet, cellref::CellRef;
         bgColor::Union{Nothing,String}=nothing,
     )::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set fill because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set fill because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."))
+    end
 
     if cell.style == ""
         cell.style = string(get_num_style_index(sh, 0).id)
@@ -1444,7 +1501,6 @@ function setFill(sh::Worksheet, cellref::CellRef;
                     end
                 end
             else
-                #@assert occursin(r"^[0-9A-F]{8}$", fgColor) "Invalid color value: $fgColor. Must be an 8-digit hexadecimal RGB value."
                 patternFill["fgrgb"] = get_color(fgColor)
             end
         elseif a == "bg"
@@ -1455,7 +1511,6 @@ function setFill(sh::Worksheet, cellref::CellRef;
                     end
                 end
             else
-                #@assert occursin(r"^[0-9A-F]{8}$", bgColor) "Invalid color value: $bgColor. Must be an 8-digit hexadecimal RGB value."
                 patternFill["bgrgb"] = get_color(bgColor)
             end
         end
@@ -1576,13 +1631,17 @@ getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws,
 #getDefaultAlignment(ws::Worksheet) = getAlignment(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAlignment}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get alignment because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get alignment because cache is not enabled."))
+    end
 
     if length(XML.children(cell_style)) == 0 # `alignment` is a child node of the cell `xf`.
         return nothing
     end
-    @assert length(XML.children(cell_style)) == 1 "Expected cell `xf` to have 1 child node, found $(length(XML.children(cell_style)))"
-    @assert XML.tag(cell_style[1]) == "alignment" "Error cell alignment found but it has no attributes!"
+    if length(XML.children(cell_style)) != 1
+        throw(XLSXError("Expected cell style to have 1 child node, found $(length(XML.children(cell_style)))"))
+    end
+    XML.tag(cell_style[1]) != "alignment" && throw(XLSXError("Cell style has a child node but it is not for alignment!"))
     atts = Dict{String,String}()
     for (k, v) in XML.attributes(cell_style[1])
         atts[k]=v
@@ -1659,12 +1718,16 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     rotation::Union{Nothing,Int}=nothing
     )::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set alignment because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set alignment because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."))
+    end
 
     if cell.style == ""
         cell.style = string(get_num_style_index(sh, 0).id)
@@ -1680,12 +1743,12 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
         old_applyAlignment = cell_alignment.applyAlignment
     end
 
-    @assert isnothing(horizontal) || horizontal ∈ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] "Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."
-    @assert isnothing(vertical) || vertical ∈ ["top", "center", "bottom", "justify", "distributed"] "Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."
-    @assert isnothing(wrapText) || wrapText ∈ [true, false] "Invalid wrap option: $wrapText. Must be one of: `true`, `false`."
-    @assert isnothing(shrink) || shrink ∈ [true, false] "Invalid shrink option: $shrink. Must be one of: `true`, `false`."
-    @assert isnothing(indent) || indent > 0 "Invalid indent value specified: $indent. Must be a postive integer."
-    @assert isnothing(rotation) || rotation ∈ -90:90 "Invalid rotation value specified: $rotation. Must be an integer between -90 and 90."
+    !isnothing(horizontal) && horizontal ∉ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] && throw(XLSXError("Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."))
+    !isnothing(vertical) && vertical ∉ ["top", "center", "bottom", "justify", "distributed"] && throw(XLSXError("Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."))
+    !isnothing(wrapText) && wrapText ∉ [true, false] && throw(XLSXError("Invalid wrap option: $wrapText. Must be one of: `true`, `false`."))
+    !isnothing(shrink) && shrink ∉ [true, false] && throw(XLSXError("Invalid shrink option: $shrink. Must be one of: `true`, `false`."))
+    !isnothing(indent) && indent > 0 && throw(XLSXError("Invalid indent value specified: $indent. Must be a postive integer."))
+    !isnothing(rotation) && rotation ∉ -90:90 && throw(XLSXError("Invalid rotation value specified: $rotation. Must be an integer between -90 and 90."))
 
     if isnothing(horizontal) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "horizontal")
         atts["horizontal"] = old_alignment_atts["horizontal"]
@@ -1810,7 +1873,9 @@ getFormat(ws::Worksheet, cr::String) = process_get_cellname(getFormat, ws, cr)
 #getDefaultFill(ws::Worksheet) = getFormat(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get number formats because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get number formats because cache is not enabled."))
+    end
 
     if haskey(cell_style, "numFmtId")
         numfmtid = cell_style["numFmtId"]
@@ -1819,16 +1884,22 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
         if parse(Int, numfmtid) >= PREDEFINED_NUMFMT_COUNT
             xroot = styles_xmlroot(wb)
             format_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)[begin]
-            @assert parse(Int, format_elements["count"]) == length(XML.children(format_elements)) "Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"
+            if parse(Int, format_elements["count"]) != length(XML.children(format_elements))
+                throw(XLSXError("Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"))
+            end
             current_format = XML.children(format_elements)[parse(Int, numfmtid)+1-PREDEFINED_NUMFMT_COUNT] # Zero based!
-            @assert length(XML.attributes(current_format)) == 2 "Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."
+            if length(XML.attributes(current_format)) != 2
+                throw(XLSXError("Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."))
+            end
             for (k, v) in XML.attributes(current_format)
                 format_atts[XML.tag(current_format)] = Dict(k => XML.unescape(v))
             end
         else
 #            any(num in r for r in ranges)
             ranges = [0:22, 37:40, 45:49]
-            @assert any(parse(Int, numfmtid) == n for r ∈ ranges for n ∈ r) "Expected a built in format ID in the following ranges: 1:22, 37:40, 45:49. Got $numfmtid."
+            if !any(parse(Int, numfmtid) == n for r ∈ ranges for n ∈ r)
+                throw(XLSXError("Expected a built in format ID in the following ranges: 1:22, 37:40, 45:49. Got $numfmtid."))
+            end
             if haskey(builtinFormats, numfmtid)
                 format_atts["numFmt"] = Dict("numFmtId" => numfmtid, "formatCode" => builtinFormats[numfmtid])
             end
@@ -1891,12 +1962,16 @@ function setFormat(sh::Worksheet, cellref::CellRef;
         format::Union{Nothing,String}=nothing,
     )::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set number formats because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set number formats because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
+    end
 
     if cell.style == ""
         cell.style = string(get_num_style_index(sh, 0).id)
@@ -1920,7 +1995,9 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     else                                      # user specified a format code
         code = lowercase(format)
         code = remove_formatting(code)
-        @assert occursin(floatformats, code) || any(map(x->occursin(x, code), DATETIME_CODES)) "Specified format is not a valid numFmt: $format"
+        if !occursin(floatformats, code) && !any(map(x->occursin(x, code), DATETIME_CODES))
+            throw(XLSXError("Specified format is not a valid numFmt: $format"))
+        end
   
         xroot = styles_xmlroot(wb)
         i, j = get_idces(xroot, "styleSheet", "numFmts")
@@ -1928,7 +2005,9 @@ function setFormat(sh::Worksheet, cellref::CellRef;
             new_formatid = styles_add_numFmt(wb, format)
         else
             existing_elements_count = length(XML.children(xroot[i][j]))
-            @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
+            if parse(Int, xroot[i][j]["count"]) != existing_elements_count
+                throw(XLSXError("Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
+            end
 
             format_node = XML.Element("numFmt";
                 numFmtId = string(existing_elements_count + PREDEFINED_NUMFMT_COUNT),
@@ -2029,7 +2108,9 @@ setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcel
 setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
 function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set styles because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set styles because cache is not enabled."))
+    end
 
     let newid::Union{Nothing, Int},
         first = true
@@ -2103,7 +2184,9 @@ setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
 function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real}=nothing)::Int
     
-    @assert get_xlsxfile(ws).is_writable "Cannot set column widths: `XLSXFile` is not writable."
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot set column widths: `XLSXFile` is not writable."))
+    end
 
     # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
     update_worksheets_xml!(get_xlsxfile(ws)) 
@@ -2111,7 +2194,9 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
     left  = rng.start.column_number
     right = rng.stop.column_number
     padded_width = isnothing(width) ? -1 : width + 0.7109375 # Excel adds cell padding to a user specified width
-    @assert isnothing(width) || width >= 0 "Invalid value specified for width: $width. Width must be >= 0."
+    if !isnothing(width) && width < 0
+        throw(XLSXError("Invalid value specified for width: $width. Width must be >= 0."))
+    end
 
     if isnothing(width) # No-op
         return 0
@@ -2123,7 +2208,7 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
     if isnothing(j) # There are no existing column formats. Insert before the <sheetData> block and push everything else down one.
         k, l = get_idces(sheetdoc, "worksheet", "sheetData")
         len = length(sheetdoc[k])
-        @assert i==k "Some problem here!"
+        i != k && throw(XLSXError("Some problem here!"))
         push!(sheetdoc[k], sheetdoc[k][end])
         if l < len
             for pos = len-1:-1:l
@@ -2193,10 +2278,14 @@ getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth,
 function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
     # May be better if column width were part of ws.cache?
 
-    @assert get_xlsxfile(ws).is_writable "Cannot get column width: `XLSXFile` is not writable."
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get column width: `XLSXFile` is not writable."))
+    end
 
     d = get_dimension(ws)
-    @assert cellref.row_number >= d.start.row_number && cellref.row_number <= d.stop.row_number "Cell specified is outside sheet dimension \"$d\""
+    if cellref.row_number < d.start.row_number || cellref.row_number > d.stop.row_number
+        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+    end
 
     # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
     update_worksheets_xml!(get_xlsxfile(ws)) 
@@ -2273,12 +2362,16 @@ setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(se
 setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)
 function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}=nothing)::Int
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set row heights because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set row heights because cache is not enabled."))
+    end
 
     top  = rng.start.row_number
     bottom = rng.stop.row_number
     padded_height = isnothing(height) ? -1 : height + 0.2109375 # Excel adds cell padding to a user specified width
-    @assert isnothing(height) || height >= 0 "Invalid value specified for height: $height. Height must be >= 0."
+    if !isnothing(height) && height < 0
+        throw(XLSXError("Invalid value specified for height: $height. Height must be >= 0."))
+    end
 
     if isnothing(height) # No-op
         return 0
@@ -2287,10 +2380,10 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     for r in eachrow(ws)
         if r.row in top:bottom
             
-                if haskey(ws.cache.row_ht, r.row)
-                    ws.cache.row_ht[r.row] = padded_height
-                    first = false
-                end
+            if haskey(ws.cache.row_ht, r.row)
+                ws.cache.row_ht[r.row] = padded_height
+                first = false
+            end
             
         end
     end
@@ -2328,17 +2421,21 @@ getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,Real} = process_get
 getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws, cr)
 function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get row height because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get row height because cache is not enabled."))
+    end
 
     d = get_dimension(ws)
-    @assert cellref.row_number >= d.start.row_number && cellref.row_number <= d.stop.row_number "Cell specified is outside sheet dimension \"$d\""
+    if cellref.row_number < d.start.row_number && cellref.row_number > d.stop.row_number
+        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+    end
 
     for r in eachrow(ws)
         if r.row == cellref.row_number
             
-                if haskey(ws.cache.row_ht, r.row)
-                    return ws.cache.row_ht[r.row]
-                end
+            if haskey(ws.cache.row_ht, r.row)
+                return ws.cache.row_ht[r.row]
+            end
             
         end
     end
@@ -2378,7 +2475,9 @@ julia> XLSX.getMergedCells(s)
 function getMergedCells(ws::Worksheet)::Union{Vector{CellRange}, Nothing}
     # May be better if merged cells were part of ws.cache?
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
 
     # No need to update the xml file using the worksheet cache first (like we did for column width)  
     # because we cannot change merged cells in XLSX.jl. 
@@ -2390,11 +2489,13 @@ function getMergedCells(ws::Worksheet)::Union{Vector{CellRange}, Nothing}
     end
 
     c = XML.children(sheetdoc[i][j])
-    @assert length(c) == parse(Int, sheetdoc[i][j]["count"]) "Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."
+    if length(c) != parse(Int, sheetdoc[i][j]["count"])
+        throw(XLSXError("Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."))
+    end
 
     mergedCells = Vector{CellRange}()
     for cell in c
-        @assert haskey(cell, "ref") "No `ref` attribute found in `mergeCell` element."
+        !haskey(cell, "ref") && throw(XLSXError("No `ref` attribute found in `mergeCell` element."))
         push!(mergedCells, CellRange(cell["ref"]))
     end
 
@@ -2431,7 +2532,9 @@ isMergedCell(ws::Worksheet, cr::String; kw...)::Bool = process_get_cellname(isMe
 #isMergedCell(ws::Worksheet, cellref::CellRef)::Bool = isMergedCell(ws, cellref, getMergedCells(ws))
 function isMergedCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange}, Nothing, Missing} = missing)::Bool
     
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
 
     if ismissing(mergedCells) # Get mergedCells if missing
         mergedCells=getMergedCells(ws)
@@ -2485,7 +2588,9 @@ getMergedBaseCell(ws::Worksheet, cr::String; kw...) = process_get_cellname(getMe
 #getMergedBaseCell(ws::Worksheet, cellref::CellRef) = getMergedBaseCell(ws, cellref, getMergedCells(ws))
 function getMergedBaseCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing)
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get merged cells because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
 
     if ismissing(mergedCells) # Get mergedCells if missing
         mergedCells=getMergedCells(ws)

@@ -186,7 +186,9 @@ struct CellRange
         left = column_number(a)
         right = column_number(b)
 
-        @assert left <= right && top <= bottom "Invalid CellRange. Start cell should be at the top left corner of the range."
+        if left > right || top > bottom
+            throw(XLSXError("Invalid CellRange. Start cell should be at the top left corner of the range."))
+        end
 
         return new(a, b)
     end
@@ -197,7 +199,9 @@ struct ColumnRange
     stop::Int  # column number
 
     function ColumnRange(a::Int, b::Int)
-        @assert a <= b "Invalid ColumnRange. Start column must be located before end column."
+        if a > b 
+            throw(XLSXError("Invalid ColumnRange. Start column must be located before end column."))
+        end
         return new(a, b)
     end
 end
@@ -206,7 +210,9 @@ struct RowRange
     stop::Int  # row number
 
     function RowRange(a::Int, b::Int)
-        @assert a <= b "Invalid RowRange. Start row must be located before end row."
+        if a > b
+            throw(XLSXError("Invalid RowRange. Start row must be located before end row."))
+        end
         return new(a, b)
     end
 end
@@ -407,7 +413,9 @@ struct Index # based on DataFrames.jl
     function Index(column_range::Union{ColumnRange, AbstractString}, column_labels)
         column_labels_as_syms = [ Symbol(i) for i in column_labels ]
         column_range = convert(ColumnRange, column_range)
-        @assert length(unique(column_labels_as_syms)) == length(column_labels_as_syms) "Column labels must be unique."
+        if length(unique(column_labels_as_syms)) != length(column_labels_as_syms)
+            throw(XLSXError("Column labels must be unique."))
+        end
 
         lookup = Dict{Symbol, Int}()
         for (i, n) in enumerate(column_labels_as_syms)
@@ -453,11 +461,15 @@ struct DataTable
             column_labels::Vector{Symbol},
         )
 
-        @assert length(data) == length(column_labels) "data has $(length(data)) columns but $(length(column_labels)) column labels."
+        if length(data) != length(column_labels)
+            throw(XLSXError("Data has $(length(data)) columns but $(length(column_labels)) column labels."))
+        end
 
         column_label_index = Dict{Symbol, Int}()
         for (i, sym) in enumerate(column_labels)
-            @assert !haskey(column_label_index, sym) "DataTable has repeated label for column `$sym`"
+            if haskey(column_label_index, sym)
+                throw(XLSXError("DataTable has repeated label for column `$sym`"))
+            end
             column_label_index[sym] = i
         end
 
@@ -473,3 +485,8 @@ struct xpath
         new(node, path)
     end
 end
+
+struct XLSXError <: Exception
+    msg::String
+end
+Base.showerror(io::IO, e::XLSXError) = print(io, "XLSXError: $(e.msg)")

@@ -24,7 +24,7 @@ function check_for_xlsx_file_format(source::IO, label::AbstractString="input")
 end
 
 function check_for_xlsx_file_format(filepath::AbstractString)
-    @assert isfile(filepath) "File $filepath not found."
+    !isfile(filepath) && throw(XLSXError("File $filepath not found."))
 
     open(filepath, "r") do io
         check_for_xlsx_file_format(io, filepath)
@@ -132,7 +132,9 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
     _read, _write = parse_file_mode(mode)
 
     if _read
-        @assert source isa IO || isfile(source) "File $source not found."
+        if !(source isa IO || isfile(source))
+            throw(XLSXError("File $source not found."))
+        end
         xf = open_or_read_xlsx(source, _write, enable_cache, _write) # Why _write, _write here???
     else
         xf = open_empty_template()
@@ -165,7 +167,9 @@ function openxlsx(source::Union{AbstractString, IO};
     _read, _write = parse_file_mode(mode)
 
     if _read
-        @assert source isa IO || isfile(source) "File $source not found."
+        if !(source isa IO || isfile(source))
+            throw(XLSXError("File $source not found."))
+        end
         return open_or_read_xlsx(source, _write, enable_cache, _write) # Why _write, _write here???
     else
         return open_empty_template()
@@ -187,7 +191,7 @@ end
 function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
     # sanity check
     if read_as_template
-        @assert read_files && enable_cache
+        !(read_files && enable_cache) && throw(XLSXError("Something wrong here!"))
     end
 
     xf = XLSXFile(source, enable_cache, read_as_template)
@@ -285,7 +289,7 @@ function check_minimum_requirements(xf::XLSXFile)
                        ]
 
     for f in mandatory_files
-        @assert in(f, filenames(xf)) "Malformed XLSX File. Couldn't find file $f in the package."
+        !in(f, filenames(xf)) && throw(XLSXError("Malformed XLSX File. Couldn't find file $f in the package."))
     end
 
     nothing
@@ -300,7 +304,7 @@ function parse_relationships!(xf::XLSXFile)
     for el in XML.children(xroot)
         push!(xf.relationships, Relationship(el))
     end
-    @assert !isempty(xf.relationships) "Relationships not found in _rels/.rels!"
+    isempty(xf.relationships) && throw(XLSXError("Relationships not found in _rels/.rels!"))
 
     # workbook level relationships
     wb = get_workbook(xf)
@@ -308,7 +312,7 @@ function parse_relationships!(xf::XLSXFile)
     for el in XML.children(xroot)
         push!(wb.relationships, Relationship(el))
     end
-    @assert !isempty(wb.relationships) "Relationships not found in xl/_rels/workbook.xml.rels"
+    isempty(wb.relationships) && throw(XLSXError("Relationships not found in xl/_rels/workbook.xml.rels"))
 
     nothing
 end
@@ -317,7 +321,7 @@ end
 function parse_workbook!(xf::XLSXFile)
     xroot = xmlroot(xf, "xl/workbook.xml")[end]
     chn=XML.children(xroot)
-    @assert XML.tag(xroot) == "workbook" "Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(XML.tag(xroot))'."
+    XML.tag(xroot) != "workbook" && throw(XLSXError("Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(XML.tag(xroot))'."))
 
     # workbook to be parsed
     workbook = get_workbook(xf)
@@ -356,7 +360,7 @@ function parse_workbook!(xf::XLSXFile)
         if XML.tag(node) == "sheets"
 
            for sheet_node in XML.children(node)
-                @assert XML.tag(sheet_node) == "sheet" "Unsupported node $(XML.tag(sheet_node)) in node $(XML.tag(node)) in 'xl/workbook.xml'."
+                XML.tag(sheet_node) != "sheet" && throw(XLSXError("Unsupported node $(XML.tag(sheet_node)) in node $(XML.tag(node)) in 'xl/workbook.xml'."))
                 worksheet = Worksheet(xf, sheet_node)
                 push!(sheets, worksheet)
             end
@@ -383,7 +387,7 @@ function parse_workbook!(xf::XLSXFile)
                         for (i, d) in enumerate(split(defined_value_string, ","))
                             isabs[i]=is_valid_fixed_sheet_cellname(d) || is_valid_fixed_sheet_cellrange(d)
                         end
-                        @assert length(isabs)==length(defined_value.rng) "Error parsing absolute references in non-contiguous range."
+                        length(isabs) != length(defined_value.rng) && throw(XLSXError("Error parsing absolute references in non-contiguous range."))
                     elseif is_valid_fixed_sheet_cellname(defined_value_string)
                         defined_value = SheetCellRef(unquoteit(defined_value_string))
                         isabs=true
@@ -456,13 +460,13 @@ end
 @inline internal_xml_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
 
 function internal_xml_file_add!(xl::XLSXFile, filename::String)
-    @assert endswith(filename, ".xml") || endswith(filename, ".rels")
+    !(endswith(filename, ".xml") || endswith(filename, ".rels")) && throw(XLSXError("Something wrong here!"))
     xl.files[filename] = false
     nothing
 end
 
 function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
-        @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
+        !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
     if !internal_xml_file_isread(xf, filename)
 

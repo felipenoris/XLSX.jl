@@ -6,7 +6,7 @@
 # Returns a tuple with the first and last index of the columns for a `SheetRow`.
 function column_bounds(sr::SheetRow)
 
-    @assert !isempty(sr) "Can't get column bounds from an empty row."
+    isempty(sr) && throw(XLSXError("Can't get column bounds from an empty row."))
 
     local first_column_index::Int = first(keys(sr.rowcells))
     local last_column_index::Int = first_column_index
@@ -27,7 +27,7 @@ end
 # anchor_column will be the leftmost column of the column_bounds
 function last_column_index(sr::SheetRow, anchor_column::Int) :: Int
 
-    @assert !isempty(getcell(sr, anchor_column)) "Can't get column bounds based on an empty anchor cell."
+    isempty(getcell(sr, anchor_column)) && throw(XLSXError("Can't get column bounds based on an empty anchor cell."))
 
     local first_column_index::Int = anchor_column
     local last_column_index::Int = first_column_index
@@ -177,7 +177,9 @@ function eachtablerow(
             end
         else
             # check consistency for column_range and column_labels
-            @assert length(column_labels) == length(column_range) "`column_range` (length=$(length(column_range))) and `column_labels` (length=$(length(column_labels))) must have the same length."
+            if length(column_labels) != length(column_range) 
+                throw(XLSXError("`column_range` (length=$(length(column_range))) and `column_labels` (length=$(length(column_labels))) must have the same length."))
+            end
         end
         if normalizenames
             column_labels = normalizename.(column_labels===nothing ? col_lab : column_labels)
@@ -415,7 +417,9 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
     end
 
     # if the `is_empty_table_row` check above was successful, we can't get empty sheet_row here
-    @assert !is_empty_table_row(sheet_row) || itr.keep_empty_rows
+    if is_empty_table_row(sheet_row) && !itr.keep_empty_rows
+        throw(XLSXError("Something wrong here!"))
+    end
     table_row = TableRow(table_row_index, itr.index, sheet_row)
 
     # user asked to stop (or end of row range)
@@ -471,7 +475,9 @@ function check_table_data_dimension(data::Vector)
 
     # all columns should be vectors
     for (colindex, colvec) in enumerate(data)
-        @assert isa(colvec, Vector) "Data type at index $colindex is not a vector. Found: $(typeof(colvec))."
+        if !isa(colvec, Vector)
+            throw(XLSXError("Data type at index $colindex is not a vector. Found: $(typeof(colvec))."))
+        end
     end
 
     # no need to check row count
@@ -481,7 +487,9 @@ function check_table_data_dimension(data::Vector)
     col_count = length(data)
     row_count = length(data[1])
     for colindex in 2:col_count
-        @assert length(data[colindex]) == row_count "Not all columns have the same number of rows. Check column $colindex."
+        if length(data[colindex]) != row_count
+            throw(XLSXError("Not all columns have the same number of rows. Check column $colindex."))
+        end
     end
 
     nothing

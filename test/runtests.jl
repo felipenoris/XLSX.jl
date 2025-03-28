@@ -276,8 +276,8 @@ end
 
     @test XLSX.is_valid_cellrange("B2:C8")
     @test !XLSX.is_valid_cellrange("A:B")
-    @test_throws AssertionError XLSX.CellRange("Z10:A1")
-    @test_throws AssertionError XLSX.CellRange("Z1:A1")
+    @test_throws XLSX.XLSXError XLSX.CellRange("Z10:A1")
+    @test_throws XLSX.XLSXError XLSX.CellRange("Z1:A1")
 
     # hashing and equality
     @test XLSX.CellRef("AMI1") == XLSX.CellRef("AMI1")
@@ -305,7 +305,7 @@ end
     ref = XLSX.SheetCellRange("Sheet1!A1:B4")
     @test ref.sheet == "Sheet1"
     @test ref.rng == XLSX.CellRange("A1:B4")
-    @test_throws AssertionError XLSX.SheetCellRange("Sheet1!B4:A1")
+    @test_throws XLSX.XLSXError XLSX.SheetCellRange("Sheet1!B4:A1")
     @test XLSX.SheetCellRange("Sheet1!A1:B4") == XLSX.SheetCellRange("Sheet1!A1:B4")
     @test hash(XLSX.SheetCellRange("Sheet1!A1:B4")) == hash(XLSX.SheetCellRange("Sheet1!A1:B4"))
     show(IOBuffer(), ref)
@@ -568,8 +568,8 @@ end
     @test cr.start == 2
     @test cr.stop == 4
     @test length(cr) == 3
-    @test_throws AssertionError XLSX.ColumnRange("B1:D3")
-    @test_throws AssertionError XLSX.ColumnRange("D:A")
+    @test_throws XLSX.XLSXError XLSX.ColumnRange("B1:D3")
+    @test_throws XLSX.XLSXError XLSX.ColumnRange("D:A")
     @test collect(cr) == ["B", "C", "D"]
     @test XLSX.ColumnRange("B:D") == XLSX.ColumnRange("B:D")
     @test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
@@ -590,8 +590,8 @@ end
     @test length(cr) == 1
     @test collect(cr) == ["2"]
 
-    @test_throws AssertionError XLSX.RowRange("B1:D3")
-    @test_throws AssertionError XLSX.RowRange("5:2")
+    @test_throws XLSX.XLSXError XLSX.RowRange("B1:D3")
+    @test_throws XLSX.XLSXError XLSX.RowRange("5:2")
     @test XLSX.RowRange("2:5") == XLSX.RowRange("2:5")
     @test hash(XLSX.RowRange("2:5")) == hash(XLSX.RowRange("2:5"))
 end
@@ -620,10 +620,10 @@ end
     @test XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3") == XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")
     @test hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3")) == hash(XLSX.NonContiguousRange(s, "D1:D3,A2,B1:B3"))
 
-    @test_throws AssertionError XLSX.NonContiguousRange("Sheet1!D1:D3,B1:B3")
-    @test_throws AssertionError XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet2!B1:B3")
-    @test_throws AssertionError XLSX.NonContiguousRange("B1:D3")
-    @test_throws AssertionError XLSX.NonContiguousRange("2:5")
+    @test_throws XLSX.XLSXError XLSX.NonContiguousRange("Sheet1!D1:D3,B1:B3")
+    @test_throws XLSX.XLSXError XLSX.NonContiguousRange("Sheet1!D1:D3,Sheet2!B1:B3")
+    @test_throws XLSX.XLSXError XLSX.NonContiguousRange("B1:D3")
+    @test_throws XLSX.XLSXError XLSX.NonContiguousRange("2:5")
 end
 
 @testset "CellRange iterator" begin
@@ -701,7 +701,7 @@ end
                     @test XLSX.last_column_index(r, 2) == 4
                     @test XLSX.last_column_index(r, 3) == 4
                     @test XLSX.last_column_index(r, 4) == 4
-                    @test_throws AssertionError XLSX.last_column_index(r, 5)
+                    @test_throws XLSX.XLSXError XLSX.last_column_index(r, 5)
                 elseif XLSX.row_number(r) == 9
                     @test XLSX.last_column_index(r, 2) == 3
                     @test XLSX.last_column_index(r, 3) == 3
@@ -818,7 +818,7 @@ end
     y = XLSX.getcellrange(s, "B:D")
     @test size(y) == (11, 3)
     @test x == y
-    @test_throws AssertionError XLSX.getcellrange(s, "D:B")
+    @test_throws XLSX.XLSXError XLSX.getcellrange(s, "D:B")
     @test_throws ErrorException XLSX.getcellrange(s, "A:C1")
 
     d = XLSX.getdata(s, "B:D")
@@ -842,7 +842,7 @@ end
     @test all(d .=== d2)
 
     @test_throws ErrorException f["table!B1:D"]
-    @test_throws AssertionError f["table!D:B"]
+    @test_throws XLSX.XLSXError f["table!D:B"]
 
     s = f["table2"]
     test_data = Vector{Any}(undef, 3)
@@ -1155,7 +1155,7 @@ end
         ]
 
         for invalid_name in invalid_names
-            @test_throws AssertionError XLSX.addsheet!(f, invalid_name)
+            @test_throws XLSX.XLSXError XLSX.addsheet!(f, invalid_name)
         end
     end
 
@@ -1176,7 +1176,7 @@ end
     s = f["general"]
     @test_throws ErrorException s["A1"] = :sym
     XLSX.rename!(s, "general") # no-op
-    @test_throws AssertionError XLSX.rename!(s, "table") # name is taken
+    @test_throws XLSX.XLSXError XLSX.rename!(s, "table") # name is taken
     XLSX.rename!(s, "renamed_sheet")
     @test s.name == "renamed_sheet"
     s["A1"] = "Hey You!"
@@ -1776,7 +1776,7 @@ end
         @test XLSX.getBorder(s, "J20").border == Dict("left" => Dict("rgb" => "FF111111", "style" => "hair"), "bottom" => Dict("rgb" => "FF111111", "style" => "hair"), "right" => Dict("rgb" => "FF111111", "style" => "hair"), "top" => Dict("rgb" => "FF111111", "style" => "hair"), "diagonal" => Dict("rgb" => "FF111111", "style" => "hair", "direction" => "both"))
 
         # Can't get attributes on a range.
-        @test_throws AssertionError XLSX.getBorder(s, "Contiguous")
+        @test_throws XLSX.XLSXError XLSX.getBorder(s, "Contiguous")
 
         f = XLSX.open_empty_template()
         s = f["Sheet1"]
@@ -1793,10 +1793,10 @@ end
         @test XLSX.setFont(s, "A1:F20"; size=18, name="Arial") == -1
         @test XLSX.setBorder(f, "Sheet1!B2:D4"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"]) == -1
         @test XLSX.setAlignment(s, "A1:F20"; horizontal="right", wrapText=true) == -1
-        @test_throws AssertionError XLSX.setFill(f, "Sheet1!A1"; pattern="none", fgColor="88FF8800")
-        @test_throws AssertionError XLSX.setFont(s, "A1"; size=18, name="Arial")
-        @test_throws AssertionError XLSX.setBorder(f, "Sheet1!B2"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"])
-        @test_throws AssertionError XLSX.setFill(s, "F20"; pattern="none", fgColor="88FF8800")
+        @test_throws XLSX.XLSXError XLSX.setFill(f, "Sheet1!A1"; pattern="none", fgColor="88FF8800")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, "A1"; size=18, name="Arial")
+        @test_throws XLSX.XLSXError XLSX.setBorder(f, "Sheet1!B2"; left=["style" => "hair"], right=["color" => "FF111111"], top=["style" => "hair"], bottom=["color" => "FF111111"], diagonal=["style" => "hair"])
+        @test_throws XLSX.XLSXError XLSX.setFill(s, "F20"; pattern="none", fgColor="88FF8800")
 
         f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
         s = f["Mock-up"]
@@ -1843,7 +1843,7 @@ end
         @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
 
         # Can't get attributes on a range.
-        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
+        @test_throws XLSX.XLSXError XLSX.getFill(s, "Contiguous")
 
         XLSX.setUniformFill(s, "B3:D5"; pattern="lightGrid", fgColor="FF0000FF", bgColor="FF00FF00")
         @test XLSX.getFill(s, "B3").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
@@ -1868,7 +1868,7 @@ end
         @test XLSX.getFill(s, "D27").fill == Dict("patternFill" => Dict("patternType" => "lightVertical", "bgindexed" => "64", "fgtheme" => "0"))
 
         # Can't get attributes on a range.
-        @test_throws AssertionError XLSX.getFill(s, "Contiguous")
+        @test_throws XLSX.XLSXError XLSX.getFill(s, "Contiguous")
 
         XLSX.writexlsx("output.xlsx", f, overwrite=true)
         @test isfile("output.xlsx")
@@ -2046,29 +2046,29 @@ end
     @testset "No cache" begin
         XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=true) do f
             @test XLSX.getRowHeight(f, "Mock-up!B2") ≈ 23.25
-            @test_throws AssertionError XLSX.getColumnWidth(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getColumnWidth(f, "Mock-up!B2")
         end
         XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=false) do f
-            @test_throws AssertionError XLSX.getRowHeight(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.getColumnWidth(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.getFont(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.getFill(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.getBorder(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.getFormat(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.getAlignment(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setRowHeight(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setColumnWidth(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setFont(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setFill(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setBorder(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setFormat(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setAlignment(f, "Mock-up!B2")
-            @test_throws AssertionError XLSX.setUniformFont(f, "Mock-up!B2:C4")
-            @test_throws AssertionError XLSX.setUniformFill(f, "Mock-up!B2:C4")
-            @test_throws AssertionError XLSX.setUniformBorder(f, "Mock-up!B2:C4")
-            @test_throws AssertionError XLSX.setUniformFormat(f, "Mock-up!B2:C4")
-            @test_throws AssertionError XLSX.setUniformAlignment(f, "Mock-up!B2:C4")
-            @test_throws AssertionError XLSX.setOutsideBorder(f, "Mock-up!B2:C4")
+            @test_throws XLSX.XLSXError XLSX.getRowHeight(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getColumnWidth(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getFont(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getFill(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getBorder(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getFormat(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.getAlignment(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setRowHeight(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setColumnWidth(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setFont(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setFill(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setBorder(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setFormat(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setAlignment(f, "Mock-up!B2")
+            @test_throws XLSX.XLSXError XLSX.setUniformFont(f, "Mock-up!B2:C4")
+            @test_throws XLSX.XLSXError XLSX.setUniformFill(f, "Mock-up!B2:C4")
+            @test_throws XLSX.XLSXError XLSX.setUniformBorder(f, "Mock-up!B2:C4")
+            @test_throws XLSX.XLSXError XLSX.setUniformFormat(f, "Mock-up!B2:C4")
+            @test_throws XLSX.XLSXError XLSX.setUniformAlignment(f, "Mock-up!B2:C4")
+            @test_throws XLSX.XLSXError XLSX.setOutsideBorder(f, "Mock-up!B2:C4")
         end
     end
 
@@ -2087,8 +2087,8 @@ end
         @test !XLSX.isMergedCell(f, "Mock-up!B2")
         @test !XLSX.isMergedCell(s, "H40"; mergedCells=mc)
         @test !XLSX.isMergedCell(s, "ID"; mergedCells=mc)
-        @test_throws AssertionError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
-        @test_throws AssertionError XLSX.getMergedBaseCell(s, "Location")
+        @test_throws XLSX.XLSXError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
+        @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location")
 
         @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
         @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
@@ -2097,7 +2097,7 @@ end
         @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell = CellRef("D51"), baseValue = "Hello World")
         @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
         @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
-        @test_throws AssertionError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
+        @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
 
         @test isnothing(XLSX.getMergedCells(f["Document History"]))
         s=f["Document History"]
@@ -2122,11 +2122,11 @@ end
     ]
 
     # can't read or edit a file that does not exist
-    @test_throws AssertionError XLSX.openxlsx(filename, mode="r") do xf
+    @test_throws XLSX.XLSXError XLSX.openxlsx(filename, mode="r") do xf
         error("This should fail.")
     end
 
-    @test_throws AssertionError XLSX.openxlsx(filename, mode="rw") do xf
+    @test_throws XLSX.XLSXError XLSX.openxlsx(filename, mode="rw") do xf
         error("This should fail.")
     end
 
@@ -2186,7 +2186,7 @@ end
     # test writing throws error if flag not set
     XLSX.openxlsx(filename) do xf
         sheet = xf[1]
-        @test_throws AssertionError sheet[1, 1] = "failure"
+        @test_throws XLSX.XLSXError sheet[1, 1] = "failure"
     end
 
     @testset "write column" begin
@@ -2246,7 +2246,7 @@ end
         test_data = [1 2 3; 4 5 6; 7 8 9]
         XLSX.openxlsx(filename, mode="w") do xf
             sheet = xf[1]
-            @test_throws AssertionError sheet["A7:C10"] = test_data
+            @test_throws XLSX.XLSXError sheet["A7:C10"] = test_data
         end
     end
 

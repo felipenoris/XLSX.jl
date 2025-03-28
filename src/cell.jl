@@ -38,7 +38,9 @@ function Cell(c::XML.LazyNode)
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert XML.tag(c) == "c" "`Cell` Expects a `c` (cell) XML node."
+    if XML.tag(c) != "c"
+        throw(XLSXError("`Cell` Expects a `c` (cell) XML node."))
+    end
 
     a = XML.attributes(c) # Dict of cell attributes
 
@@ -255,11 +257,15 @@ end
 function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}
 
     # does not allow empty string
-    @assert !isempty(v) "Cannot convert an empty string into a datetime value."
+    if isempty(v) 
+        throw(XLSXError("Cannot convert an empty string into a datetime value."))
+    end
 
     if occursin(".", v) || v == "0"
         time_value = parse(Float64, v)
-        @assert time_value >= 0
+        if time_value < 0
+            throw(XLSXError("Cannot have a datetime value < 0. Got $time_value"))
+        end
 
         if time_value <= 1
             # Time
@@ -279,8 +285,11 @@ end
 # To represent Time, Excel uses the decimal part
 # of a floating point number. `1` equals one day.
 function excel_value_to_time(x::Float64) :: Dates.Time
-    @assert x >= 0 && x <= 1
-    return Dates.Time(Dates.Nanosecond(round(Int, x * 86400) * 1E9 ))
+    if x >= 0 && x <= 1
+        return Dates.Time(Dates.Nanosecond(round(Int, x * 86400) * 1E9 ))
+    else
+        throw(XLSXError("A value must be between 0 and 1 to be converted to time. Got $x"))
+    end
 end
 
 time_to_excel_value(x::Dates.Time) :: Float64 = Dates.value(x) / ( 86400 * 1E9 )
@@ -307,7 +316,9 @@ end
 # The integer part represents the Date.
 # See also XLSX.isdate1904.
 function excel_value_to_datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
-    @assert x >= 0
+    if x < 0
+        throw(XLSXError("Cannot have a datetime value < 0. Got $XML"))
+    end
 
     local dt::Dates.Date
     local hr::Dates.Time

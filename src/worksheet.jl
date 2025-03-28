@@ -1,6 +1,6 @@
 
 function Worksheet(xf::XLSXFile, sheet_element::XML.Node)
-    @assert XML.tag(sheet_element) == "sheet"
+    XML.tag(sheet_element) != "sheet" && throw(XLSXError("Something wrong here!"))
     a = XML.attributes(sheet_element)
     sheetId = parse(Int, a["sheetId"])
     relationship_id = a["r:id"]
@@ -37,7 +37,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
     while reader !== nothing # go next node
         (sheet_row, state) = reader
         if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
-            @assert XML.depth(sheet_row) == 2 "Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."
+            XML.depth(sheet_row) != 2 && throw(XLSXError("Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."))
             ref_str = XML.attributes(sheet_row)["ref"]
             if is_valid_cellname(ref_str)
                 result = CellRange("$(ref_str):$(ref_str)")
@@ -167,7 +167,7 @@ function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
 
     rows = length(columns[1])
     for i in 1:columns_count
-        @assert length(columns[i]) == rows "Inconsistent state: Each column should have the same number of rows."
+        length(columns[i]) != rows && throw(XLSXError("Inconsistent state: Each column should have the same number of rows."))
     end
 
     return hcat(columns...)
@@ -204,7 +204,7 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
 
     cols = length(rows[1])
     for r in rows
-        @assert length(r) == cols "Inconsistent state: Each row should have the same number of columns."
+        length(r) != cols && throw(XLSXError("Inconsistent state: Each row should have the same number of columns."))
     end
 
     return permutedims(hcat(rows...))
@@ -400,7 +400,7 @@ function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
 
     rows = length(columns[1])
     for i in 1:columns_count
-        @assert length(columns[i]) == rows "Inconsistent state: Each column should have the same number of rows."
+        length(columns[i]) != rows && throw(XLSXError("Inconsistent state: Each column should have the same number of rows."))
     end
 
     return hcat(columns...)
@@ -432,11 +432,12 @@ function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
 
     cols = length(rows[1])
     for r in rows
-        @assert length(r) == cols "Inconsistent state: Each row should have the same number of columns."
+        length(r) != cols && throw(XLSXError("Inconsistent state: Each row should have the same number of columns."))
     end
 
     return permutedims(hcat(rows...))
 end
+
 function getcellrange(ws::Worksheet, rng::NonContiguousRange) :: Vector{AbstractCell}
     results=Vector{AbstractCell}()
     for r in rng.rng
