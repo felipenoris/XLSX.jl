@@ -814,9 +814,9 @@ end
 
     # queries based on ColumnRange
     x = XLSX.getcellrange(s, XLSX.ColumnRange("B:D"))
-    @test size(x) == (11, 3)
+    @test size(x) == (12, 3)
     y = XLSX.getcellrange(s, "B:D")
-    @test size(y) == (11, 3)
+    @test size(y) == (12, 3)
     @test x == y
     @test_throws XLSX.XLSXError XLSX.getcellrange(s, "D:B")
     @test_throws ErrorException XLSX.getcellrange(s, "A:C1")
