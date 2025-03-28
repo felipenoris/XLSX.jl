@@ -88,6 +88,10 @@ julia> matrix = sheet["1:4"] # Row range
 
 julia> matrix = sheet["Contiguous"] # Named range
 
+julia> matrix = sheet[1:30, 1] # use unit ranges to define rows and/or columns
+
+julia> matrix = sheet[[1, 2, 3], 1] # vectors of integers to define rows and/or columns
+
 julia> vector = sheet["A1:A4,C1:C4,G5"] # Non-contiguous range
 
 julia> vector = sheet["Location"] # Non-contiguous named range
@@ -99,6 +103,9 @@ See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
+getdata(ws::Worksheet, row::Int, col::Vector{Int}) = [getdata(ws, a, b) for a in [row], b in col]
+getdata(ws::Worksheet, row::Vector{Int}, col::Int) = [getdata(ws, a, b) for a in row, b in [col]]
+getdata(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getdata(ws, a, b) for a in row, b in col]
 getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
