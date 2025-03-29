@@ -123,7 +123,7 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     @test XLSX.isdate1904(ef_Book1["Sheet1"]) == false
 
     @testset "Read XLS file error" begin
-        @test_throws ErrorException XLSX.readxlsx(joinpath(data_directory, "old.xls"))
+        @test_throws XLSX.XLSXError XLSX.readxlsx(joinpath(data_directory, "old.xls"))
         try
             XLSX.readxlsx(joinpath(data_directory, "old.xls"))
             @test false # didn't throw exception
@@ -133,7 +133,7 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
     end
 
     @testset "Read invalid XLSX error" begin
-        @test_throws ErrorException XLSX.readxlsx(joinpath(data_directory, "sheet_template.xml"))
+        @test_throws XLSX.XLSXError XLSX.readxlsx(joinpath(data_directory, "sheet_template.xml"))
         try
             XLSX.readxlsx(joinpath(data_directory, "sheet_template.xml"))
             @test false # didn't throw exception
@@ -355,7 +355,7 @@ end
     @test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
     XLSX.getcellrange(sheet1, "B2:C3")
     XLSX.getcellrange(f, "Sheet1!B2:C3")
-    @test_throws ErrorException XLSX.getcellrange(f, "B2:C3")
+    @test_throws XLSX.XLSXError XLSX.getcellrange(f, "B2:C3")
 
     # a cell can be put in a dict
     c = XLSX.getcell(sheet1, "B2")
@@ -429,7 +429,7 @@ end
     @test f["named_ranges_2"]["LOCAL_NAME"] == "out there in the cold"
     @test f["named_ranges"]["SINGLE_CELL"] == "single cell A2"
 
-    @test_throws ErrorException f["header_error"]["LOCAL_REF"]
+    @test_throws XLSX.XLSXError f["header_error"]["LOCAL_REF"]
     @test f["named_ranges"]["LOCAL_REF"][1] == 10
     @test f["named_ranges"]["LOCAL_REF"][2] == 20
     @test f["named_ranges_2"]["LOCAL_REF"][1] == "local"
@@ -819,11 +819,11 @@ end
     @test size(y) == (12, 3)
     @test x == y
     @test_throws XLSX.XLSXError XLSX.getcellrange(s, "D:B")
-    @test_throws ErrorException XLSX.getcellrange(s, "A:C1")
+    @test_throws XLSX.XLSXError XLSX.getcellrange(s, "A:C1")
 
     d = XLSX.getdata(s, "B:D")
     @test size(d) == (12, 3)
-    @test_throws ErrorException XLSX.getdata(s, "A:C1")
+    @test_throws XLSX.XLSXError XLSX.getdata(s, "A:C1")
     @test d[1, 1] == "Column B"
     @test d[1, 2] == "Column C"
     @test d[1, 3] == "Column D"
@@ -841,7 +841,7 @@ end
     @test size(d) == size(d2)
     @test all(d .=== d2)
 
-    @test_throws ErrorException f["table!B1:D"]
+    @test_throws XLSX.XLSXError f["table!B1:D"]
     @test_throws XLSX.XLSXError f["table!D:B"]
 
     s = f["table2"]
@@ -870,7 +870,7 @@ end
         @test XLSX.get_column_label(rowdata, 2) == :HB
         @test XLSX.get_column_label(rowdata, 3) == :HC
 
-        @test_throws ErrorException XLSX.getdata(rowdata, :INVALID_COLUMN)
+        @test_throws XLSX.XLSXError XLSX.getdata(rowdata, :INVALID_COLUMN)
     end
 
     override_col_names_strs = ["ColumnA", "ColumnB", "ColumnC"]
@@ -927,7 +927,7 @@ end
     data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
     check_test_data(data, test_data)
-    @test_throws ErrorException XLSX.find_row(XLSX.eachrow(s), 20)
+    @test_throws XLSX.XLSXError XLSX.find_row(XLSX.eachrow(s), 20)
 
     for r in XLSX.eachrow(s)
         @test isempty(XLSX.getcell(r, "A"))
@@ -938,7 +938,7 @@ end
     end
 
     @test XLSX._find_first_row_with_data(s, 5) == 5
-    @test_throws ErrorException XLSX._find_first_row_with_data(s, 7)
+    @test_throws XLSX.XLSXError XLSX._find_first_row_with_data(s, 7)
 
     s = f["table4"]
     dtable = XLSX.gettable(s)
@@ -949,10 +949,10 @@ end
     @testset "empty/invalid" begin
         XLSX.openxlsx(joinpath(data_directory, "general.xlsx")) do xf
             empty_sheet = XLSX.getsheet(xf, "empty")
-            @test_throws ErrorException XLSX.gettable(empty_sheet)
+            @test_throws XLSX.XLSXError XLSX.gettable(empty_sheet)
             itr = XLSX.eachrow(empty_sheet)
-            @test_throws ErrorException XLSX.find_row(itr, 1)
-            @test_throws ErrorException XLSX.getsheet(xf, "invalid_sheet")
+            @test_throws XLSX.XLSXError XLSX.find_row(itr, 1)
+            @test_throws XLSX.XLSXError XLSX.getsheet(xf, "invalid_sheet")
         end
     end
 
@@ -1174,7 +1174,7 @@ end
 @testset "Edit" begin
     f = XLSX.open_xlsx_template(joinpath(data_directory, "general.xlsx"))
     s = f["general"]
-    @test_throws ErrorException s["A1"] = :sym
+    @test_throws XLSX.XLSXError s["A1"] = :sym
     XLSX.rename!(s, "general") # no-op
     @test_throws XLSX.XLSXError XLSX.rename!(s, "table") # name is taken
     XLSX.rename!(s, "renamed_sheet")
@@ -1713,13 +1713,13 @@ end
         @test isnothing(XLSX.getBorder(s, "D11")) # Cannot set a border in an EmptyCell (outside sheet dimension).
 
         f = XLSX.newxlsx()
-        s=f[1]
+        s = f[1]
         for i = 1:6
             for j = 1:6
-                s[i, j]=""
+                s[i, j] = ""
             end
         end
-        XLSX.setBorder(s, "B2:E5"; outside = ["color"=>"FFFF0000", "style"=>"thick"])
+        XLSX.setBorder(s, "B2:E5"; outside=["color" => "FFFF0000", "style" => "thick"])
         @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
         @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
@@ -1737,7 +1737,7 @@ end
         @test XLSX.getBorder(s, "E4").border == Dict("left" => nothing, "bottom" => nothing, "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "E5").border == Dict("left" => nothing, "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => nothing, "diagonal" => nothing)
 
-        XLSX.setBorder(s, "B2:E5"; outside = ["color"=>"dodgerblue4"])
+        XLSX.setBorder(s, "B2:E5"; outside=["color" => "dodgerblue4"])
         @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FF104E8B", "style" => "thick"), "diagonal" => nothing)
         @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
         @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FF104E8B", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
@@ -2078,7 +2078,7 @@ end
         mc = sort(XLSX.getMergedCells(f["Mock-up"]))
         @test length(mc) == 25
         @test mc == sort(XLSX.CellRange[XLSX.CellRange("D49:H49"), XLSX.CellRange("D72:J72"), XLSX.CellRange("F94:J94"), XLSX.CellRange("F96:J96"), XLSX.CellRange("F84:J84"), XLSX.CellRange("F86:J86"), XLSX.CellRange("D62:J63"), XLSX.CellRange("D51:J53"), XLSX.CellRange("D55:J60"), XLSX.CellRange("D92:J92"), XLSX.CellRange("D82:J82"), XLSX.CellRange("D74:J74"), XLSX.CellRange("D67:J68"), XLSX.CellRange("D47:H47"), XLSX.CellRange("D9:H9"), XLSX.CellRange("D11:G11"), XLSX.CellRange("D12:G12"), XLSX.CellRange("D14:E14"), XLSX.CellRange("D16:E16"), XLSX.CellRange("D32:F32"), XLSX.CellRange("D38:J38"), XLSX.CellRange("D34:J34"), XLSX.CellRange("D18:E18"), XLSX.CellRange("D20:E20"), XLSX.CellRange("D13:G13")])
-        s=f["Mock-up"]
+        s = f["Mock-up"]
         @test XLSX.isMergedCell(f, "Mock-up!D47")
         @test XLSX.isMergedCell(f, "Mock-up!D49"; mergedCells=mc)
         @test XLSX.isMergedCell(s, "H84")
@@ -2090,17 +2090,17 @@ end
         @test_throws XLSX.XLSXError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
         @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location")
 
-        @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
-        @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell = CellRef("D72"), baseValue = Dates.Date("2025-03-24"))
-        @test XLSX.getMergedBaseCell(s, "H53") == (baseCell = CellRef("D51"), baseValue = "Hello World")
-        @test XLSX.getMergedBaseCell(s, "G52") == (baseCell = CellRef("D51"), baseValue = "Hello World")
-        @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell = CellRef("D51"), baseValue = "Hello World")
+        @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell=CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
+        @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell=CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
+        @test XLSX.getMergedBaseCell(s, "H53") == (baseCell=CellRef("D51"), baseValue="Hello World")
+        @test XLSX.getMergedBaseCell(s, "G52") == (baseCell=CellRef("D51"), baseValue="Hello World")
+        @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell=CellRef("D51"), baseValue="Hello World")
         @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
         @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
         @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
 
         @test isnothing(XLSX.getMergedCells(f["Document History"]))
-        s=f["Document History"]
+        s = f["Document History"]
         @test !XLSX.isMergedCell(f, "Document History!B2")
         @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
 

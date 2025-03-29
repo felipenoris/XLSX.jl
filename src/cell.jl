@@ -77,7 +77,7 @@ function Cell(c::XML.LazyNode)
                     elseif length(c) == 1
                         v= XML.value(c[1])
                     else
-                        error("Too amny children in `t` node. Expected >=1, found: $(length(c))")
+                        throw(XLSXError("Too amny children in `t` node. Expected >=1, found: $(length(c))"))
                     end
                 end
             end
@@ -87,7 +87,7 @@ function Cell(c::XML.LazyNode)
 
                 # we should have only one v element
                 if found_v
-                    error("Unsupported: cell $(ref) has more than 1 `v` elements.")
+                    throw(XLSXError("Unsupported: cell $(ref) has more than 1 `v` elements."))
                 else
                     found_v = true
                 end
@@ -98,7 +98,7 @@ function Cell(c::XML.LazyNode)
 
                 # we should have only one f element
                 if found_f
-                    error("Unsupported: cell $(ref) has more than 1 `f` elements.")
+                    throw(XLSXError("Unsupported: cell $(ref) has more than 1 `f` elements."))
                 else
                     found_f = true
                 end
@@ -113,7 +113,7 @@ end
 function parse_formula_from_element(c_child_element) :: AbstractFormula
 
     if XML.tag(c_child_element) != "f"
-        error("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`")
+        throw(XLSXError("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`"))
     end
 
     if XML.is_simple(c_child_element)
@@ -133,7 +133,7 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
 
         if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
 
-            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+            haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
 
             return ReferencedFormula(
                 formula_string,
@@ -143,7 +143,7 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
 
         elseif haskey(a, "t") && a["t"] == "shared"
 
-            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+            haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
 
             return FormulaReference(
                 parse(Int, a["si"]),
@@ -240,7 +240,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         elseif cell.value == "1"
             return true
         else
-            error("Unknown boolean value: $(cell.value).")
+            throw(XLSXError("Unknown boolean value: $(cell.value)."))
         end
     elseif cell.datatype == "str"
         # plain string
@@ -251,7 +251,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         end
     end
 
-    error("Couldn't parse data for $cell.")
+    throw(XLSXError("Couldn't parse data for $cell."))
 end
 
 function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}

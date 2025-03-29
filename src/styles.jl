@@ -69,7 +69,7 @@ function styles_xmlroot(workbook::Workbook)
             XML.tag(styles_root[end]) != "styleSheet" && throw(XLSXError("Malformed package. Expected root node named `styleSheet` in `styles.xml`."))
             workbook.styles_xroot = styles_root
         else
-            error("Styles not found for this workbook.")
+            throw(XLSXError("Styles not found for this workbook."))
         end
     end
 

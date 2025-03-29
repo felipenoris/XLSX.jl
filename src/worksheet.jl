@@ -25,8 +25,8 @@ function Base.axes(ws::Worksheet, d)
 end
 
 # 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
-function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{Nothing, CellRange}
-    local result::Union{Nothing, CellRange} = nothing
+function read_worksheet_dimension(xf::XLSXFile, relationship_id, name)::Union{Nothing,CellRange}
+    local result::Union{Nothing,CellRange} = nothing
 
     wb = get_workbook(xf)
     target_file = get_relationship_target_by_id("xl", wb, relationship_id)
@@ -57,7 +57,7 @@ end
 
 # Returns the dimension of this worksheet as a CellRange.
 # Returns `nothing` if the dimension is unknown.
-@inline get_dimension(ws::Worksheet) :: Union{Nothing, CellRange} = ws.dimension
+@inline get_dimension(ws::Worksheet)::Union{Nothing,CellRange} = ws.dimension
 
 function set_dimension!(ws::Worksheet, rng::CellRange)
     ws.dimension = rng
@@ -109,25 +109,23 @@ getdata(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getdata(ws, a, b) 
 getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
-    return if dim === nothing
-        @warn "No worksheet dimension found"
-        []
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
     else
         getdata(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
     end
 end
 function getdata(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
     dim = get_dimension(ws)
-    return if dim === nothing
-        @warn "No worksheet dimension found"
-        []
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
     else
         getdata(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
     end
 end
 
-function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
-    result = Array{Any, 2}(undef, size(rng))
+function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
+    result = Array{Any,2}(undef, size(rng))
     fill!(result, missing)
 
     top = row_number(rng.start)
@@ -155,17 +153,25 @@ function getdata(ws::Worksheet, rng::CellRange) :: Array{Any,2}
     return result
 end
 
-function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
-    dim=get_dimension(ws)
-    start = CellRef(dim.start.row_number, rng.start)
-    stop = CellRef(dim.stop.row_number, rng.stop)
-    getdata(ws, CellRange(start, stop))
+function getdata(ws::Worksheet, rng::ColumnRange)::Array{Any,2}
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        start = CellRef(dim.start.row_number, rng.start)
+        stop = CellRef(dim.stop.row_number, rng.stop)
+        return getdata(ws, CellRange(start, stop))
+    end
 end
-function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
-    dim=get_dimension(ws)
-    start = CellRef(rng.start, dim.start.column_number, )
-    stop = CellRef(rng.stop, dim.stop.column_number)
-    getdata(ws, CellRange(start, stop))
+function getdata(ws::Worksheet, rng::RowRange)::Array{Any,2}
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        start = CellRef(rng.start, dim.start.column_number,)
+        stop = CellRef(rng.stop, dim.stop.column_number)
+        return getdata(ws, CellRange(start, stop))
+    end
 end
 
 #=
@@ -197,7 +203,7 @@ end
 function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
     rows_count = length(rng)
     dim = get_dimension(ws)
-    
+
     rows = Vector{Vector{Any}}(undef, rows_count)
     for i in 1:rows_count
         rows[i] = Vector{Any}()
@@ -207,7 +213,7 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
         top, bottom = row_bounds(rng)
         left = dim.start.column_number
         right = dim.stop.column_number
-    
+
         for sheetrow in eachrow(ws)
             if sheetrow.row > bottom
                 break
@@ -233,8 +239,8 @@ function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
 end
 =#
 
-function getdata(ws::Worksheet, rng::NonContiguousRange) :: Vector{Any}
-    results=Vector{Any}()
+function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Any}
+    results = Vector{Any}()
     for r in rng.rng
         if r isa CellRef
             push!(results, getdata(ws, r))
@@ -253,7 +259,7 @@ getdata(ws::Worksheet, s::SheetCellRange) = getdata(ws, s.rng)
 getdata(ws::Worksheet, s::SheetColumnRange) = getdata(ws, s.colrng)
 getdata(ws::Worksheet, s::SheetRowRange) = getdata(ws, s.rowrng)
 
-function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
+function getdata(ws::Worksheet, ref::AbstractString)::Union{Array{Any,2},Any}
     if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
         if is_defined_name_value_a_constant(v)
@@ -261,7 +267,7 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         elseif is_defined_name_value_a_reference(v)
             return getdata(ws, v)
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected defined name value: $v."))
         end
     elseif is_workbook_defined_name(get_workbook(ws), ref)
         wb = get_workbook(ws)
@@ -271,7 +277,7 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         elseif is_defined_name_value_a_reference(v)
             return getdata(get_xlsxfile(ws), v)
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected defined name value: $v."))
         end
     elseif is_valid_cellname(ref)
         return getdata(ws, CellRef(ref))
@@ -281,10 +287,18 @@ function getdata(ws::Worksheet, ref::AbstractString) :: Union{Array{Any,2}, Any}
         return getdata(ws, ColumnRange(ref))
     elseif is_valid_row_range(ref)
         return getdata(ws, RowRange(ref))
+    elseif is_valid_sheet_cellname(ref)
+        return getdata(ws, SheetCellRef(ref))
+    elseif is_valid_sheet_cellrange(ref)
+        return getdata(ws, SheetCellRange(ref))
+    elseif is_valid_sheet_column_range(ref)
+        return getdata(ws, SheetColumnRange(ref))
+    elseif is_valid_sheet_row_range(ref)
+        return getdata(ws, SheetRowRange(ref))
     elseif is_valid_non_contiguous_range(ref)
         return getdata(ws, NonContiguousRange(ws, ref))
     else
-        error("$ref is not a valid cell or range reference.")
+        throw(XLSXError("`$ref` is not a valid cell or range reference."))
     end
 end
 
@@ -292,7 +306,7 @@ function getdata(ws::Worksheet)
     if ws.dimension !== nothing
         return getdata(ws, get_dimension(ws))
     else
-        error("Worksheet dimension is unknown.")
+        throw(XLSXError("Worksheet dimension is unknown."))
     end
 end
 
@@ -316,6 +330,8 @@ end
 
 Returns an `AbstractCell` that represents a cell in the spreadsheet.
 
+If `ref` is a range, `getcell` dispatches to `getcellrange`.
+
 Example:
 
 ```julia
@@ -326,7 +342,7 @@ julia> sheet = xf["mysheet"]
 julia> cell = XLSX.getcell(sheet, "A1")
 ```
 """
-function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
+function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     # Access cache directly if it exists and if file `isread` - much faster!
     if is_cache_enabled(ws) && ws.cache !== nothing
@@ -349,13 +365,49 @@ function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
 
     return EmptyCell(single)
 end
+getcell(ws::Worksheet, s::SheetCellRef) = getcell(ws, s.cellref)
+getcell(ws::Worksheet, s::SheetCellRange) = getcell(ws, s.rng)
+getcell(ws::Worksheet, s::SheetColumnRange) = getcell(ws, s.colrng)
+getcell(ws::Worksheet, s::SheetRowRange) = getcell(ws, s.rowrng)
 
 function getcell(ws::Worksheet, ref::AbstractString)
-    if is_valid_cellname(ref)
+    if is_worksheet_defined_name(ws, ref)
+        v = get_defined_name_value(ws, ref)
+        if is_defined_name_value_a_reference(v)
+            return getcell(ws, v)
+        else
+            throw(XLSXError("`$ref` is not a valid cell or range reference."))
+        end
+    elseif is_workbook_defined_name(get_workbook(ws), ref)
+        wb = get_workbook(ws)
+        v = get_defined_name_value(wb, ref)
+        if is_defined_name_value_a_reference(v)
+            return isa(v, SheetCellRef) ? getcell(get_xlsxfile(ws), v) : getcellrange(get_xlsxfile(ws), v)
+        else
+            throw(XLSXError("`$ref` is not a valid cell or range reference."))
+        end
+    elseif is_valid_cellname(ref)
         return getcell(ws, CellRef(ref))
-    else
-        error("$ref is not a valid cell reference.")
+    elseif is_valid_sheet_cellname(ref)
+        return getcell(ws, SheetCellRef(ref))
+    elseif is_valid_cellrange(ref)
+        return getcellrange(ws, CellRange(ref))
+    elseif is_valid_column_range(ref)
+        return getcellrange(ws, ColumnRange(ref))
+    elseif is_valid_row_range(ref)
+        return getcellrange(ws, RowRange(ref))
+    elseif is_valid_non_contiguous_range(ref)
+        return getcellrange(ws, NonContiguousRange(ws, ref))
+    elseif is_valid_sheet_cellrange(ref)
+        return getcellrange(ws, SheetCellRange(ref))
+    elseif is_valid_sheet_column_range(ref)
+        return getcellrange(ws, SheetColumnRange(ref))
+    elseif is_valid_sheet_row_range(ref)
+        return getcellrange(ws, SheetRowRange(ref))
+    elseif is_valid_non_contiguous_range(ref)
+        return getcellrange(ws, NonContiguousRange(ref))
     end
+    throw(XLSXError("`$ref` is not a valid cell or range reference."))
 end
 
 getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
@@ -370,49 +422,63 @@ For row and column ranges, the extent of the range in the other
 dimension is determined by the worksheet's dimension.
 A non-contiguous range (which is not rectangular) will return a vector.
 """
-function getcellrange(ws::Worksheet, rng::CellRange) :: Array{AbstractCell,2}
-    result = Array{AbstractCell, 2}(undef, size(rng))
+function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
+    result = Array{AbstractCell,2}(undef, size(rng))
     for cellref in rng
         (r, c) = relative_cell_position(cellref, rng)
         cell = getcell(ws, cellref)
         result[r, c] = isempty(cell) ? EmptyCell(cellref) : cell
-     end
-#=
-    top = row_number(rng.start)
-    bottom = row_number(rng.stop)
-    left = column_number(rng.start)
-    right = column_number(rng.stop)
+    end
+    #=
+        top = row_number(rng.start)
+        bottom = row_number(rng.stop)
+        left = column_number(rng.start)
+        right = column_number(rng.stop)
 
-    for sheetrow in eachrow(ws)
-        if top <= sheetrow.row && sheetrow.row <= bottom
-            for column in left:right
-                cell = getcell(sheetrow, column)
-                if !isempty(cell)
-                    (r, c) = relative_cell_position(cell, rng)
-                    result[r, c] = cell
+        for sheetrow in eachrow(ws)
+            if top <= sheetrow.row && sheetrow.row <= bottom
+                for column in left:right
+                    cell = getcell(sheetrow, column)
+                    if !isempty(cell)
+                        (r, c) = relative_cell_position(cell, rng)
+                        result[r, c] = cell
+                    end
                 end
             end
-        end
 
-        # don't need to read new rows
-        if sheetrow.row > bottom
-            break
+            # don't need to read new rows
+            if sheetrow.row > bottom
+                break
+            end
         end
-    end
-=#
+    =#
     return result
 end
-function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
-    dim=get_dimension(ws)
-    start = CellRef(dim.start.row_number, rng.start)
-    stop = CellRef(dim.stop.row_number, rng.stop)
-    getcellrange(ws, CellRange(start, stop))
+
+getcellrange(ws::Worksheet, s::SheetCellRef) = getcellrange(ws, s.cellref)
+getcellrange(ws::Worksheet, s::SheetCellRange) = getcellrange(ws, s.rng)
+getcellrange(ws::Worksheet, s::SheetColumnRange) = getcellrange(ws, s.colrng)
+getcellrange(ws::Worksheet, s::SheetRowRange) = getcellrange(ws, s.rowrng)
+
+function getcellrange(ws::Worksheet, rng::ColumnRange)::Array{AbstractCell,2}
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        start = CellRef(dim.start.row_number, rng.start)
+        stop = CellRef(dim.stop.row_number, rng.stop)
+        return getcellrange(ws, CellRange(start, stop))
+    end
 end
-function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
-    dim=get_dimension(ws)
-    start = CellRef(rng.start, dim.start.column_number, )
-    stop = CellRef(rng.stop, dim.stop.column_number)
-    getcellrange(ws, CellRange(start, stop))
+function getcellrange(ws::Worksheet, rng::RowRange)::Array{AbstractCell,2}
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        start = CellRef(rng.start, dim.start.column_number,)
+        stop = CellRef(rng.stop, dim.stop.column_number)
+        return getcellrange(ws, CellRange(start, stop))
+    end
 end
 
 #=
@@ -445,14 +511,14 @@ end
 
 function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
     dim = get_dimension(ws)
-    
+
     rows = Vector{Vector{AbstractCell}}()
 
     let
         top, bottom = row_bounds(rng)
         left = dim.start.column_number
         right = dim.stop.column_number
-    
+
         for (i, sheetrow) in enumerate(eachrow(ws))
             push!(rows, Vector{AbstractCell}())
             if top <= sheetrow.row && sheetrow.row <= bottom
@@ -475,8 +541,8 @@ function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
     return permutedims(hcat(rows...))
 end
 =#
-function getcellrange(ws::Worksheet, rng::NonContiguousRange) :: Vector{AbstractCell}
-    results=Vector{AbstractCell}()
+function getcellrange(ws::Worksheet, rng::NonContiguousRange)::Vector{AbstractCell}
+    results = Vector{AbstractCell}()
     for r in rng.rng
         if r isa CellRef
             push!(results, getcell(ws, r))
@@ -490,7 +556,23 @@ function getcellrange(ws::Worksheet, rng::NonContiguousRange) :: Vector{Abstract
 end
 
 function getcellrange(ws::Worksheet, rng::AbstractString)
-    if is_valid_cellrange(rng)
+    if is_worksheet_defined_name(ws, rng)
+        v = get_defined_name_value(ws, rng)
+        if is_defined_name_value_a_reference(v)
+            return getcellrange(ws, v)
+        else
+            throw(XLSXError("$rng is not a valid cell range."))
+        end
+    elseif is_workbook_defined_name(get_workbook(ws), rng)
+        wb = get_workbook(ws)
+        v = get_defined_name_value(wb, rng)
+        if is_defined_name_value_a_reference(v)
+            isa(v, SheetCellRef) && throw(XLSXError("`$rng` is not a valid cell range."))
+            return getcellrange(get_xlsxfile(ws), v)
+        else
+            throw(XLSXError("`$rng` is not a valid cell range."))
+        end
+    elseif is_valid_cellrange(rng)
         return getcellrange(ws, CellRange(rng))
     elseif is_valid_column_range(rng)
         return getcellrange(ws, ColumnRange(rng))
@@ -498,7 +580,14 @@ function getcellrange(ws::Worksheet, rng::AbstractString)
         return getcellrange(ws, RowRange(rng))
     elseif is_valid_non_contiguous_range(rng)
         return getcellrange(ws, NonContiguousRange(ws, rng))
-    else
-        error("$rng is not a valid cell range.")
+    elseif is_valid_sheet_cellrange(rng)
+        return getcellrange(s, SheetCellRange(rng))
+    elseif is_valid_sheet_column_range(rng)
+        return getcellrange(s, SheetColumnRange(rng))
+    elseif is_valid_sheet_row_range(rng)
+        return getcellrange(s, SheetRowRange(rng))
+    elseif is_valid_non_contiguous_range(rng)
+        return getcellrange(s, NonContiguousRange(rng))
     end
+    throw(XLSXError("`$rng` is not a valid cell range."))
 end

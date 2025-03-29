@@ -17,9 +17,9 @@ function check_for_xlsx_file_format(source::IO, label::AbstractString="input")
     if header == ZIP_FILE_HEADER # valid Zip file header
         return
     elseif header == XLS_FILE_HEADER # old XLS file
-        error("$label looks like an old XLS file (not XLSX). This package does not support XLS file format.")
+        throw(XLSXError("$label looks like an old XLS file (not XLSX). This package does not support XLS file format."))
     else
-        error("$label is not a valid XLSX file.")
+        throw(XLSXError("$label is not a valid XLSX file."))
     end
 end
 
@@ -184,7 +184,7 @@ function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
     elseif mode == "rw" || mode == "wr"
         return (true, true)
     else
-        error("Couldn't parse file mode $mode.")
+        throw(XLSXError("Couldn't parse file mode $mode."))
     end
 end
 
@@ -277,7 +277,7 @@ function get_default_namespace(r::XML.Node) :: String
         end
     end
 
-    error("No default namespace found.")
+    throw(XLSXError("No default namespace found."))
 end
 
 # See section 12.2 - Package Structure
@@ -344,7 +344,7 @@ function parse_workbook!(xf::XLSXFile)
                     elseif attribute_value_date1904 == "0" || attribute_value_date1904 == "false"
                         workbook.date1904 = false
                     else
-                        error("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904).")
+                        throw(XLSXError("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904)."))
                     end
                 end
              end
@@ -424,7 +424,7 @@ function parse_workbook!(xf::XLSXFile)
                         #continue
 
                         # debug - Now more important since we are writing updated defined names to back to output file.
-                        # error("Could not parse value $(defined_value_string) for definedName $name.")
+                        # throw(XLSXError("Could not parse value $(defined_value_string) for definedName $name."))
                     end
                     a = XML.attributes(defined_name_node)
                     if haskey(a,"localSheetId")
@@ -474,8 +474,7 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
             xf.data[filename] = XML.parse(XML.Node, (ZipArchives.zip_readentry(xf.io, filename, String)))
             xf.files[filename] = true # set file as read
         catch err
-            @error("Failed to parse internal XML file `$filename`")
-            rethrow()
+            throw(XLSXError("Failed to parse internal XML file `$filename`"))
 
         end
 
@@ -657,7 +656,7 @@ end
 #=
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, rows::RowRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     if rows.start == rows.stop && header==true
-        error("Only 1 row specified in `RowRange` with `header=true`.\nThe header row is the same as the data row. Specify at least two rows to read header data with `header=true`.")
+        throw(XLSXError("Only 1 row specified in `RowRange` with `header=true`.\nThe header row is the same as the data row. Specify at least two rows to read header data with `header=true`."))
     end
     first_row = isnothing(first_row) ? rows.start : first_row
     stop_in_row_function = isnothing(stop_in_row_function) ? r -> r.row >= rows.stop-first_row+1 : stop_in_row_function
@@ -673,7 +672,7 @@ function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractStrin
     elseif is_valid_column_range(range)
         range = ColumnRange(range)
     else
-        error("The columns argument must be a valid column range or row range.")
+        throw(XLSXError("The columns argument must be a valid column range or row range."))
     end
     return readtable(source, sheet, range; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, enable_cache, keep_empty_rows, normalizenames)
 end

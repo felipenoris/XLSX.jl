@@ -70,7 +70,7 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
     elseif tag == "fill"
         attribute_tags = fill_tags
     else
-        error("Unknown tag: $tag")
+        throw(XLSXError("Unknown tag: $tag"))
     end
     new_node = XML.Element(tag)
     for a in attribute_tags # Use this as a device to keep ordering constant for Excel
@@ -106,7 +106,7 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                         else#if k == "rgb"
                             color[k] = v
                         #else
-                            #error("Incorect border attribute found: $k") # shouldn't happen!
+                            #throw(XLSXError("Incorect border attribute found: $k")) # shouldn't happen!
                         end
                     end
                     if length(XML.attributes(color)) > 0 # Don't push an empty color.
@@ -206,11 +206,11 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
     if is_workbook_defined_name(xl, sheetcell)
         v = get_defined_name_value(xl.workbook, sheetcell)
         if is_defined_name_value_a_constant(v)
-            error("Can only assign attributes to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
+            throw(XLSXError("Can only assign attributes to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v."))
         elseif is_defined_name_value_a_reference(v)
             newid = process_ranges(f, xl, string(v); kw...)
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected defined name value: $v."))
         end
     elseif is_valid_non_contiguous_sheetcellrange(sheetcell)
         sheetncrng = NonContiguousRange(sheetcell)
@@ -242,18 +242,18 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
     if is_worksheet_defined_name(ws, ref_or_rng)
         v = get_defined_name_value(ws, ref_or_rng)
         if is_defined_name_value_a_constant(v)
-            error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+            throw(XLSXError("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v."))
         elseif is_defined_name_value_a_reference(v)
             wb = get_workbook(ws)
             newid = f(get_xlsxfile(wb), string(v); kw...)
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected defined name value: $v."))
         end
     elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
         wb = get_workbook(ws)
         v = get_defined_name_value(wb, ref_or_rng)
         if is_defined_name_value_a_constant(v)
-            error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+            throw(XLSXError("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v."))
         elseif is_defined_name_value_a_reference(v)
             if is_valid_non_contiguous_range(string(v))
                 _ = f.(Ref(get_xlsxfile(wb)), replace.(split(string(v), ","), "'" => "", "\$" => ""); kw...)
@@ -262,7 +262,7 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
                 newid = f(get_xlsxfile(wb), replace(string(v), "'" => "", "\$" => ""); kw...)
             end
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected defined name value: $v."))
         end
     elseif is_valid_column_range(ref_or_rng)
         colrng = ColumnRange(ref_or_rng)
@@ -276,66 +276,79 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
     elseif is_valid_cellname(ref_or_rng)
         newid = f(ws, CellRef(ref_or_rng); kw...)
     else
-        error("Invalid cell reference or range: $ref_or_rng")
+        throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
     end
     return newid
 end
 function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; kw...)::Int
     bounds = column_bounds(colrng)
     dim = (get_dimension(ws))
-
-    left = bounds[begin]
-    right = bounds[end]
-    top = dim.start.row_number
-    bottom = dim.stop.row_number
-
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
-
-    if OK
-        rng = CellRange(top, left, bottom, right)
-        return f(ws, rng; kw...)
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
     else
-        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
+        left = bounds[begin]
+        right = bounds[end]
+        top = dim.start.row_number
+        bottom = dim.stop.row_number
+
+        OK = dim.start.column_number <= left
+        OK &= dim.stop.column_number >= right
+        OK &= dim.start.row_number <= top
+        OK &= dim.stop.row_number >= bottom
+
+        if OK
+            rng = CellRange(top, left, bottom, right)
+            return f(ws, rng; kw...)
+        else
+            throw(XLSXError("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
+        end
     end
 end
 function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...)::Int
     bounds = row_bounds(rowrng)
     dim = (get_dimension(ws))
-
-    top = bounds[begin]
-    bottom = bounds[end]
-    left = dim.start.column_number
-    right = dim.stop.column_number
-
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
-
-    if OK
-        rng = CellRange(top, left, bottom, right)
-        return f(ws, rng; kw...)
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
     else
-        error("Row range $rowrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
+        top = bounds[begin]
+        bottom = bounds[end]
+        left = dim.start.column_number
+        right = dim.stop.column_number
+
+        OK = dim.start.column_number <= left
+        OK &= dim.stop.column_number >= right
+        OK &= dim.start.row_number <= top
+        OK &= dim.stop.row_number >= bottom
+
+        if OK
+            rng = CellRange(top, left, bottom, right)
+            return f(ws, rng; kw...)
+        else
+            throw(XLSXError("Row range $rowrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
+        end
     end
 end
 function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
     bounds = nc_bounds(ncrng)
     dim = (get_dimension(ws))
-    OK  = dim.start.column_number <= bounds.start.column_number
-    OK &= dim.stop.column_number >= bounds.stop.column_number
-    OK &= dim.start.row_number <= bounds.start.row_number
-    OK &= dim.stop.row_number >= bounds.stop.row_number
-    if OK
-        for r in ncrng.rng
-            _ = f(ws, r; kw...)
-        end
-        return -1
+    return if dim === nothing
+        @warn "No worksheet dimension found"
+        []
     else
-        error("Non-contiguous range $ncrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
+        OK  = dim.start.column_number <= bounds.start.column_number
+        OK &= dim.stop.column_number >= bounds.stop.column_number
+        OK &= dim.start.row_number <= bounds.start.row_number
+        OK &= dim.stop.row_number >= bounds.stop.row_number
+        if OK
+            for r in ncrng.rng
+                _ = f(ws, r; kw...)
+            end
+            return -1
+        else
+            throw(XLSXError("Non-contiguous range $ncrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
+        end
     end
 end
 function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
@@ -368,16 +381,16 @@ function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractSt
         wb = get_workbook(ws)
         v = get_defined_name_value(wb, ref_or_rng)
         if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
+            throw(XLSXError("Can only assign borders to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v."))
         elseif is_defined_name_value_a_reference(v)
             new_att = f(get_xlsxfile(wb), replace(string(v), "'" => ""); kw...)
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected defined name value: $v."))
         end
     elseif is_valid_cellname(ref_or_rng)
         new_att = f(ws, CellRef(ref_or_rng); kw...)
     else
-        error("Invalid cell reference or range: $ref_or_rng")
+        throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
     end
     return new_att
 end
@@ -459,7 +472,7 @@ function get_color(s::String)::String
     end
     c = get_colorant(s)
     if isnothing(c)
-        error("Invalid color specified: $s. Either give a valid color name (from Colors.jl) or an 8-digit rgb color in the form AARRGGBB")
+        throw(XLSXError("Invalid color specified: $s. Either give a valid color name (from Colors.jl) or an 8-digit rgb color in the form AARRGGBB"))
     end
     return c
 end
@@ -1991,7 +2004,7 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     end
 
     if haskey(builtinFormatNames, uppercasefirst(format)) # User specified a format by name
-        new_formatid = builtinFormatNames[uppercasefirst(format)]
+        new_formatid = builtinFormatNames[format]
     else                                      # user specified a format code
         code = lowercase(format)
         code = remove_formatting(code)

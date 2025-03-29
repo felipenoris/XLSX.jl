@@ -255,7 +255,7 @@ function eachtablerow(
         end
     end
 
-    error("Couldn't find a table in sheet $(sheet.name)")
+    throw(XLSXError("Couldn't find a table in sheet $(sheet.name)"))
 end
 
 function _find_first_row_with_data(sheet::Worksheet, column_number::Int)
@@ -265,7 +265,7 @@ function _find_first_row_with_data(sheet::Worksheet, column_number::Int)
             return row_number(r)
         end
     end
-    error("Column $(encode_column_number(column_number)) has no data.")
+    throw(XLSXError("Column $(encode_column_number(column_number)) has no data."))
 end
 
 @inline get_worksheet(tri::TableRowIterator) = get_worksheet(tri.itr)
@@ -332,7 +332,7 @@ function getdata(r::TableRow, column_label::Symbol)
     if haskey(index.lookup, column_label)
         return getdata(r, index.lookup[column_label])
     else
-        error("Invalid column label: $column_label.")
+        throw(XLSXError("Invalid column label: $column_label."))
     end
 end
 

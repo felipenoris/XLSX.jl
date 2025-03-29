@@ -57,7 +57,7 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
         return XML.parse(XML.LazyNode, ZipArchives.zip_readentry(xf.io, filename, String))
     end 
 
-    error("Couldn't find $filename in $(xf.source).")
+    throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 end
 
 # Creates a reader for row elements in the Worksheet's XML.
@@ -260,7 +260,7 @@ function find_row(itr::SheetRowIterator, row::Int) :: SheetRow
             return r
         end
     end
-    error("Row $row not found.")
+    throw(XLSXError("Row $row not found."))
 end
 
 

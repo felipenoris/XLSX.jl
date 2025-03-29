@@ -97,7 +97,7 @@ function sst_load!(workbook::Workbook)
             return
         end
 
-        error("Shared Strings Table not found for this workbook.")
+        throw(XLSXError("Shared Strings Table not found for this workbook."))
     end
 end
 

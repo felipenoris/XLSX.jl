@@ -54,7 +54,7 @@ function getsheet(wb::Workbook, sheetname::String) :: Worksheet
             return ws
         end
     end
-    error("$(get_xlsxfile(wb).source) does not have a Worksheet named $sheetname.")
+    throw(XLSXError("$(get_xlsxfile(wb).source) does not have a Worksheet named $sheetname."))
 end
 
 @inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]
@@ -105,27 +105,27 @@ function Base.getindex(xl::XLSXFile, s::AbstractString)
 end
 
 function getdata(xl::XLSXFile, ref::SheetCellRef)
-    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
+    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet `$(ref.sheet)` not found."))
     return getdata(getsheet(xl, ref.sheet), ref.cellref)
 end
 
 function getdata(xl::XLSXFile, rng::SheetCellRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getdata(getsheet(xl, rng.sheet), rng.rng)
 end
 
 function getdata(xl::XLSXFile, rng::SheetColumnRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getdata(getsheet(xl, rng.sheet), rng.colrng)
 end
 
 function getdata(xl::XLSXFile, rng::SheetRowRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getdata(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
 function getdata(xl::XLSXFile, rng::NonContiguousRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getdata(getsheet(xl, rng.sheet), rng)
 end
 
@@ -137,7 +137,7 @@ function getdata(xl::XLSXFile, s::AbstractString)
         elseif is_defined_name_value_a_reference(v)
              return getdata(xl, v)
         else
-            error("Unexpected defined name value: $v.")
+            throw(XLSXError("Unexpected Workbook defined name value: $v."))
         end
     elseif is_valid_sheet_cellname(s)
         return getdata(xl, SheetCellRef(s))
@@ -151,38 +151,66 @@ function getdata(xl::XLSXFile, s::AbstractString)
         return getdata(xl, NonContiguousRange(s))
     end
 
-    error("$s is not a valid definedName or cell/range reference.")
+    throw(XLSXError("`$s` is not a valid definedName or cell/range reference."))
 end
 
 function getcell(xl::XLSXFile, ref::SheetCellRef)
-    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
+    !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet `$(ref.sheet)` not found."))
     return getcell(getsheet(xl, ref.sheet), ref.cellref)
 end
 
-getcell(xl::XLSXFile, ref_str::AbstractString) = getcell(xl, SheetCellRef(ref_str))
+function getcell(xl::XLSXFile, ref_str::AbstractString)
+    if is_workbook_defined_name(xl, ref_str)
+        v = get_defined_name_value(xl.workbook, ref_str)
+        if is_defined_name_value_a_reference(v)
+            return isa(v, SheetCellRef) ? getcell(xl, v) : getcellrange(xl, v)
+        else
+            throw(XLSXError("`$ref_str` is not a valid Workbook definedName reference."))
+        end
+    elseif is_valid_sheet_cellname(ref_str)
+        return getcell(xl, SheetCellRef(ref_str))
+    elseif is_valid_sheet_cellrange(ref_str)
+        return getcellrange(xl, SheetCellRange(ref_str))
+    elseif is_valid_sheet_column_range(ref_str)
+        return getcellrange(xl, SheetColumnRange(ref_str))
+    elseif is_valid_sheet_row_range(ref_str)
+        return getcellrange(xl, SheetRowRange(ref_str))
+    elseif is_valid_non_contiguous_range(ref_str)
+        return getcellrange(xl, NonContiguousRange(ref_str))
+    end
+    throw(XLSXError("`$ref_str` is not a valid SheetCellRef."))
+end
 
 function getcellrange(xl::XLSXFile, rng::SheetCellRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng.rng)
 end
 
 function getcellrange(xl::XLSXFile, rng::SheetColumnRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng.colrng)
 end
 
 function getcellrange(xl::XLSXFile, rng::SheetRowRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng.rowrng)
 end
 
 function getcellrange(xl::XLSXFile, rng::NonContiguousRange)
-    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet $(rng.sheet) not found."))
+    !hassheet(xl, rng.sheet) && throw(XLSXError("Sheet `$(rng.sheet)` not found."))
     return getcellrange(getsheet(xl, rng.sheet), rng)
 end
 
 function getcellrange(xl::XLSXFile, rng_str::AbstractString)
-    if is_valid_sheet_cellrange(rng_str)
+    wb = get_workbook(xl)
+    if is_workbook_defined_name(wb, rng_str)
+        v = get_defined_name_value(wb, rng_str)
+        if is_defined_name_value_a_reference(v)
+            return getcellrange(xl, v)
+        else
+            throw(XLSXError("`$rng_str` is not a valid Workbook definedName reference."))
+        end
+    elseif is_valid_sheet_cellrange(rng_str)
         return getcellrange(xl, SheetCellRange(rng_str))
     elseif is_valid_sheet_column_range(rng_str)
         return getcellrange(xl, SheetColumnRange(rng_str))
@@ -191,8 +219,7 @@ function getcellrange(xl::XLSXFile, rng_str::AbstractString)
     elseif is_valid_non_contiguous_range(rng_str)
         return getcellrange(xl, NonContiguousRange(rng_str))
     end
-
-    error("$rng_str is not a valid range reference.")
+    throw(XLSXError("`$rng_str` is not a valid SheetCellRange."))
 end
 
 @inline is_workbook_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.workbook_names, name)
@@ -201,7 +228,7 @@ end
 @inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString) :: Bool = haskey(wb.worksheet_names, (sheetId, name))
 @inline is_worksheet_defined_name(wb::Workbook, sheet_name::AbstractString, name::AbstractString) :: Bool = is_worksheet_defined_name(wb, getsheet(wb, sheet_name).sheetId, name)
 
-@inline get_defined_name_value(wb::Workbook, name::AbstractString) :: DefinedNameValueTypes = wb.workbook_names[name].value
+    @inline get_defined_name_value(wb::Workbook, name::AbstractString) :: DefinedNameValueTypes = wb.workbook_names[name].value
 
 function get_defined_name_value(ws::Worksheet, name::AbstractString) :: DefinedNameValueTypes
     wb = get_workbook(ws)
@@ -230,10 +257,10 @@ end
 
 function addDefName(xf::XLSXFile, name::AbstractString, value::DefinedNameValueTypes; absolute=true)
     if !is_valid_defined_name(name)
-        error("Invalid defined name: $name.")
+        throw(XLSXError("Invalid defined name: `$name`."))
     end
     if is_workbook_defined_name(xf, name)
-        error("Workbook already has a defined name called $name.")
+        throw(XLSXError("Workbook already has a defined name called `$name`."))
     end
     if value isa NonContiguousRange
         abs = absolute ? fill(true, length(value.rng)) : fill(false, length(value.rng))
@@ -245,10 +272,10 @@ end
 function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValueTypes; absolute=true)
     wb = get_workbook(ws)
     if !is_valid_defined_name(name)
-        error("Invalid defined name: $name.")
+        throw(XLSXError("Invalid defined name: `$name`."))
     end
     if is_worksheet_defined_name(ws, name)
-        error("Worksheet $(ws.name) already has a defined name called $name.")
+        throw(XLSXError("Worksheet `$(ws.name)` already has a defined name called `$name`."))
     end
 
     if value isa NonContiguousRange
@@ -301,7 +328,7 @@ addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int, Float64}; a
 addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(ws, name, value)
 function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractString; absolute=true)
     if value == ""
-        error("Defined name value cannot be an empty string.")
+        throw(XLSXError("Defined name value cannot be an empty string."))
     end
     if is_valid_sheet_cellname(value)
         return addDefName(xf, name, SheetCellRef(value); absolute)
@@ -315,7 +342,7 @@ function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractStrin
 end
 function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractString; absolute=true)
     if value == ""
-        error("Defined name value cannot be an empty string.")
+        throw(XLSXError("Defined name value cannot be an empty string."))
     end
     if is_valid_cellname(value)
         return addDefName(ws, name, SheetCellRef(ws.name, CellRef(value)); absolute)

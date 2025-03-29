@@ -106,7 +106,7 @@ const RGX_CELLNAME_RIGHT = r"[0-9]+$"
         end
     end
 
-    error("Couldn't split (column_name, row) for cellname $n.")
+    throw(XLSXError("Couldn't split (column_name, row) for cellname $n."))
 end
 
 # Checks whether `n` is a valid name for a cell.
@@ -696,7 +696,7 @@ function nCR(s::AbstractString, ranges::Vector{String}) :: NonContiguousRange
         elseif is_valid_cellrange(n)
             push!(noncontig, CellRange(n))
         else
-            error("Invalid non-contiguous range: $n.")
+            throw(XLSXError("Invalid non-contiguous range: $n."))
         end
     end
 

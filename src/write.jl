@@ -576,7 +576,7 @@ end
 setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
 setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
 setdata!(ws::Worksheet, row::Integer, col::Integer, data) = setdata!(ws, CellRef(row, col), data)
-setdata!(ws::Worksheet, ref::CellRef, value) = error("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue).")
+setdata!(ws::Worksheet, ref::CellRef, value) = throw(XLSXError("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue)."))
 setdata!(ws::Worksheet, row::Integer, col::Integer, data::AbstractVector, dim::Integer) = setdata!(ws, CellRef(row, col), data, dim)
 
 function setdata!(sheet::Worksheet, ref::CellRef, data::AbstractVector, dim::Integer)
@@ -613,7 +613,7 @@ function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T,
     elseif is_valid_cellname(ref_or_rng)
         setdata!(sheet, CellRef(ref_or_rng), matrix)
     else
-        error("Invalid cell reference or range: $ref_or_rng")
+        throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
     end
 end
 
@@ -642,7 +642,7 @@ function target_cell_ref_from_offset(anchor_row::Integer, anchor_col::Integer, o
     elseif dim == 2
         return CellRef(anchor_row, anchor_col + offset)
     else
-        error("Invalid dimension: $dim.")
+        throw(XLSXError("Invalid dimension: $dim."))
     end
 end
 

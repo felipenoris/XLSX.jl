@@ -26,7 +26,7 @@ function get_relationship_target_by_id(prefix::String, wb::Workbook, Id::String)
             return parse_relationship_target(prefix, r.Target)
         end
     end
-    error("Relationship Id=$(Id) not found")
+    throw(XLSXError("Relationship Id=$(Id) not found"))
 end
 
 function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::String) :: String
@@ -35,7 +35,7 @@ function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::S
             return parse_relationship_target(prefix, r.Target)
         end
     end
-    error("Relationship Type=$(_type_) not found")
+    throw(XLSXError("Relationship Type=$(_type_) not found"))
 end
 
 function has_relationship_by_type(wb::Workbook, _type_::String) :: Bool
