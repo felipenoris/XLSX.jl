@@ -360,6 +360,62 @@ function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::
     end
     return -1 # Each cell may have a different attribute Id so we can't return a single value.
 end
+function process_intcolon(f::Function, ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        f(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)); kw...)
+    end
+end
+function process_colonint(f::Function, ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        f(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))); kw...)
+    end
+end
+function process_veccolon(f::Function, ws::Worksheet, row::Vector{Int}, ::Colon; kw...)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        for a in row
+            for b in dim.start.column_number:dim.stop.column_number
+                f(ws, CellRef(a, b); kw...)
+            end
+        end
+    end
+end
+function process_colonvec(f::Function, ws::Worksheet, ::Colon, col::Vector{Int}; kw...)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        for b in col
+            for a in dim.start.row_number:dim.stop.row_number
+                f(ws, CellRef(a, b); kw...)
+            end
+        end
+    end
+end
+function process_intvec(f::Function, ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...)
+    for a in collect(row), b in col
+        f(ws, CellRef(a, b); kw...)
+    end
+end
+function process_vecint(f::Function, ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...)
+    for a in row, b in collect(col)
+        f(ws, CellRef(a, b), kw...)
+    end
+end
+function process_vecvec(f::Function, ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...)
+    for a in row, b in col
+        f(ws, CellRef(a, b); kw...)
+    end
+end
+
 function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)
     ref = SheetCellRef(sheetcell)
     !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
@@ -556,6 +612,15 @@ setFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFont
 setFont(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFont, ws, ncrng; kw...)
 setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
 setFont(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFont, xl, sheetcell; kw...)
+setFont(ws::Worksheet, row::Integer, col::Integer; kw...) = setFont(ws, CellRef(row, col); kw...)
+setFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setFont, ws, row, : ; kw...)
+setFont(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setFont, ws, :, col; kw...)
+setFont(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setFont, ws, row, : ; kw...)
+setFont(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setFont, ws, :, col; kw...)
+setFont(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setFont, ws, row, col; kw...)
+setFont(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setFont, ws, row, col; kw...)
+setFont(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setFont, ws, row, col; kw...)
+setFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFont(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFont(sh::Worksheet, cellref::CellRef; 
         bold::Union{Nothing,Bool}=nothing,
         italic::Union{Nothing,Bool}=nothing,
@@ -749,6 +814,7 @@ function getFont end
 getFont(ws::Worksheet, cr::String) = process_get_cellname(getFont, ws, cr)
 getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont} = process_get_sheetcell(getFont, xl, sheetcell)
 getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_cellref(getFont, ws, cellref)
+getFont(ws::Worksheet, row::Integer, col::Integer; kw...) = getFont(ws, CellRef(row, col); kw...)
 getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
 
@@ -848,6 +914,7 @@ function getBorder end
 getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorder} = process_get_sheetcell(getBorder, xl, sheetcell)
 getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorder} = process_get_cellref(getBorder, ws, cellref)
 getBorder(ws::Worksheet, cr::String) = process_get_cellname(getBorder, ws, cr)
+getBorder(ws::Worksheet, row::Integer, col::Integer; kw...) = getBorder(ws, CellRef(row, col); kw...)
 getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder}
 
@@ -991,6 +1058,15 @@ Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "F
 function setBorder end
 setBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setBorder, ws, ncrng; outside)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
+setBorder(ws::Worksheet, row::Integer, col::Integer; kw...) = setBorder(ws, CellRef(row, col); kw...)
+setBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setBorder, ws, row, : ; kw...)
+setBorder(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setBorder, ws, :, col; kw...)
+setBorder(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setBorder, ws, row, : ; kw...)
+setBorder(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setBorder, ws, :, col; kw...)
+setBorder(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setBorder, ws, row, col; kw...)
+setBorder(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setBorder, ws, row, col; kw...)
+setBorder(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setBorder, ws, row, col; kw...)
+setBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setBorder(ws::Worksheet, rng::CellRange; 
         outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
         allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
@@ -1355,6 +1431,7 @@ function getFill end
 getFill(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFill} = process_get_sheetcell(getFill, xl, sheetcell)
 getFill(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFill} = process_get_cellref(getFill, ws, cellref)
 getFill(ws::Worksheet, cr::String) = process_get_cellname(getFill, ws, cr)
+getFill(ws::Worksheet, row::Integer, col::Integer; kw...) = getFill(ws, CellRef(row, col); kw...)
 getDefaultFill(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
 
@@ -1469,6 +1546,15 @@ setFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges
 setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFill, ws, colrng; kw...)
 setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
 setFill(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFill, xl, sheetcell; kw...)
+setFill(ws::Worksheet, row::Integer, col::Integer; kw...) = setFill(ws, CellRef(row, col); kw...)
+setFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setFill, ws, row, : ; kw...)
+setFill(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setFill, ws, :, col; kw...)
+setFill(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setFill, ws, row, : ; kw...)
+setFill(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setFill, ws, :, col; kw...)
+setFill(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setFill, ws, row, col; kw...)
+setFill(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setFill, ws, row, col; kw...)
+setFill(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setFill, ws, row, col; kw...)
+setFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFill(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFill(sh::Worksheet, cellref::CellRef;
         pattern::Union{Nothing,String}=nothing,
         fgColor::Union{Nothing,String}=nothing,
@@ -1641,6 +1727,7 @@ function getAlignment end
 getAlignment(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellAlignment} = process_get_sheetcell(getAlignment, xl, sheetcell)
 getAlignment(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellAlignment} = process_get_cellref(getAlignment, ws, cellref)
 getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws, cr)
+getAlignment(ws::Worksheet, row::Integer, col::Integer; kw...) = getAlignment(ws, CellRef(row, col); kw...)
 #getDefaultAlignment(ws::Worksheet) = getAlignment(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAlignment}
 
@@ -1722,6 +1809,15 @@ setAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(se
 setAlignment(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setAlignment, ws, ncrng; kw...)
 setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
 setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setAlignment, xl, sheetcell; kw...)
+setAlignment(ws::Worksheet, row::Integer, col::Integer; kw...) = setAlignment(ws, CellRef(row, col); kw...)
+setAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setAlignment, ws, row, : ; kw...)
+setAlignment(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setAlignment, ws, :, col; kw...)
+setAlignment(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setAlignment, ws, row, : ; kw...)
+setAlignment(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setAlignment, ws, :, col; kw...)
+setAlignment(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setAlignment, ws, row, col; kw...)
+setAlignment(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setAlignment, ws, row, col; kw...)
+setAlignment(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setAlignment, ws, row, col; kw...)
+setAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setAlignment(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setAlignment(sh::Worksheet, cellref::CellRef; 
     horizontal::Union{Nothing,String}=nothing,
     vertical::Union{Nothing,String}=nothing,
@@ -1883,6 +1979,7 @@ function getFormat end
 getFormat(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getFormat, xl, sheetcell)
 getFormat(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFormat} = process_get_cellref(getFormat, ws, cellref)
 getFormat(ws::Worksheet, cr::String) = process_get_cellname(getFormat, ws, cr)
+getFormat(ws::Worksheet, row::Integer, col::Integer; kw...) = getFormat(ws, CellRef(row, col); kw...)
 #getDefaultFill(ws::Worksheet) = getFormat(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat}
 
@@ -1971,6 +2068,15 @@ setFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncrang
 setFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFormat, ws, rowrng; kw...)
 setFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFormat, ws, ref_or_rng; kw...)
 setFormat(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFormat, xl, sheetcell; kw...)
+setFormat(ws::Worksheet, row::Integer, col::Integer; kw...) = setFormat(ws, CellRef(row, col); kw...)
+setFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setFormat, ws, row, : ; kw...)
+setFormat(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setFormat, ws, :, col; kw...)
+setFormat(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setFormat, ws, row, : ; kw...)
+setFormat(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setFormat, ws, :, col; kw...)
+setFormat(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setFormat, ws, row, col; kw...)
+setFormat(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setFormat, ws, row, col; kw...)
+setFormat(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setFormat, ws, row, col; kw...)
+setFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFormat(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFormat(sh::Worksheet, cellref::CellRef;
         format::Union{Nothing,String}=nothing,
     )::Int
@@ -2195,6 +2301,15 @@ setColumnWidth(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_n
 setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
+setColumnWidth(ws::Worksheet, row::Integer, col::Integer; kw...) = setColumnWidth(ws, CellRef(row, col); kw...)
+setColumnWidth(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setColumnWidth, ws, row, : ; kw...)
+setColumnWidth(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setColumnWidth, ws, :, col; kw...)
+setColumnWidth(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setColumnWidth, ws, row, : ; kw...)
+setColumnWidth(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setColumnWidth, ws, :, col; kw...)
+setColumnWidth(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setColumnWidth, ws, row, col; kw...)
+setColumnWidth(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setColumnWidth, ws, row, col; kw...)
+setColumnWidth(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setColumnWidth, ws, row, col; kw...)
+setColumnWidth(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setColumnWidth(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real}=nothing)::Int
     
     if !get_xlsxfile(ws).is_writable
@@ -2288,6 +2403,7 @@ julia> XLSX.getColumnWidth(sh, "F1")
 function getColumnWidth end
 getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,Float64} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
 getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth, ws, cr)
+getColumnWidth(ws::Worksheet, row::Integer, col::Integer; kw...) = getColumnWidth(ws, CellRef(row, col); kw...)
 function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
     # May be better if column width were part of ws.cache?
 
@@ -2373,6 +2489,15 @@ setRowHeight(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncr
 setRowHeight(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setRowHeight, ws, ref_or_rng; kw...)
 setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setRowHeight, xl, sheetcell; kw...)
 setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)
+setRowHeight(ws::Worksheet, row::Integer, col::Integer; kw...) = setRowHeight(ws, CellRef(row, col); kw...)
+setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_intcolon(setRowHeight, ws, row, : ; kw...)
+setRowHeight(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colonint(setRowHeight, ws, :, col; kw...)
+setRowHeight(ws::Worksheet, row::Vector{Int}, ::Colon; kw...) = process_veccolon(setRowHeight, ws, row, : ; kw...)
+setRowHeight(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_veccolon(setRowHeight, ws, :, col; kw...)
+setRowHeight(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_intvec(setRowHeight, ws, row, col; kw...)
+setRowHeight(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) =  process_vecint(setRowHeight, ws, row, col; kw...)
+setRowHeight(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) =  process_vecvec(setRowHeight, ws, row, col; kw...)
+setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setRowHeight(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}=nothing)::Int
 
     if !get_xlsxfile(ws).use_cache_for_sheet_data
@@ -2432,6 +2557,7 @@ julia> XLSX.getRowHeight(sh, "F1")
 function getRowHeight end
 getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,Real} = process_get_sheetcell(getRowHeight, xl, sheetcell)
 getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws, cr)
+getRowHeight(ws::Worksheet, row::Integer, col::Integer; kw...) = getRowHeight(ws, CellRef(row, col); kw...)
 function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     if !get_xlsxfile(ws).use_cache_for_sheet_data

@@ -559,6 +559,7 @@ setdata!(ws::Worksheet, ref::CellRef, ::Nothing) = setdata!(ws, ref, CellValue(w
 
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
+setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, v) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
 
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existing cell format if it exists
@@ -702,7 +703,7 @@ function setdata!(ws::Worksheet, ::Colon, col::Vector{Int}, v)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        for b in column
+        for b in col
             for a in dim.start.row_number:dim.stop.row_number
                 setdata!(ws, CellRef(a, b), v)
             end
