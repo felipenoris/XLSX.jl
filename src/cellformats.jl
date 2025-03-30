@@ -542,8 +542,13 @@ end
     setFont(sh::Worksheet, cr::String; kw...) -> ::Int
     setFont(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setFont(sh::Worksheet, row, col; kw...) -> ::Int
+
+
 Set the font used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :.
 
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
@@ -602,7 +607,16 @@ julia> setFont(xf, "Sheet1!6:12"; italic=false, color="FF8888FF", under="none") 
 julia> setFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
 julia> setFont(xf, "bigred"; size=48, color="magenta")                           # Named cell or range
- 
+
+julia> setFont(sh, 1, 2; size=48, color="magenta")                               # row and column as integers
+
+julia> setFont(sh, 1:3, 2; size=48, color="magenta")                             # row as unit range
+
+julia> setFont(sh, 6, [2, 3, 8, 12]; size=48, color="magenta")                   # column as vector of indices
+
+julia> setFont(sh, :, 2:6; size=48, color="magenta")                             # all rows
+
+
 ```
 """
 function setFont end
@@ -773,7 +787,9 @@ setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
 """
     getFont(sh::Worksheet, cr::String) -> ::Union{Nothing, CellFont}
     getFont(xf::XLSXFile, cr::String)  -> ::Union{Nothing, CellFont}
-   
+
+    getFont(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellFont}
+
 Get the font used by a single cell at reference `cr` in a worksheet `sh` or XLSXfile `xf`.
 
 Return a `CellFont` object containing:
@@ -854,6 +870,8 @@ end
 """
     getBorder(sh::Worksheet, cr::String) -> ::Union{Nothing, CellBorder}
     getBorder(xf::XLSXFile, cr::String)  -> ::Union{Nothing, CellBorder}
+
+    getBorder(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellBorder}
    
 Get the borders used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
@@ -905,6 +923,8 @@ For example: <color theme="1" tint="-0.5"/>.
 # Examples:
 ```julia
 julia> getBorder(sh, "A1")
+
+julia> getBorder(sh, 3, 6)
 
 julia> getBorder(xf, "Sheet1!A1")
  
@@ -970,9 +990,14 @@ end
 """
     setBorder(sh::Worksheet, cr::String; kw...) -> ::Int}
     setBorder(xf::XLSXFile, cr::String; kw...) -> ::Int
+
+    setBorder(sh::Worksheet, row, col; kw...) -> ::Int}
+
    
 Set the borders used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :.
 
 Borders are independently defined for the keywords:
 - `left::Vector{Pair{String,String} = nothing`
@@ -1357,6 +1382,8 @@ end
 """
     getFill(sh::Worksheet, cr::String) -> ::Union{Nothing, CellFill}
     getFill(xf::XLSXFile, cr::String)  -> ::Union{Nothing, CellFill}
+
+    getFill(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellFill}
    
 Get the fill used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
@@ -1423,6 +1450,8 @@ needed, they will simply be ignored by Excel, and the default appearance will be
 ```julia
 julia> getFill(sh, "A1")
 
+julia> getFill(sh, 3, 4)
+
 julia> getFill(xf, "Sheet1!A1")
  
 ```
@@ -1482,9 +1511,13 @@ end
 """
     setFill(sh::Worksheet, cr::String; kw...) -> ::Int}
     setFill(xf::XLSXFile,  cr::String; kw...) -> ::Int
-   
+
+    setFill(sh::Worksheet, row, col; kw...) -> ::Int}
+
 Set the fill used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :.
 
 The following keywords are used to define a fill:
 - `pattern::String = nothing`   : Sets the patternType for the fill.
@@ -1678,6 +1711,8 @@ setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
 """
     getAlignment(sh::Worksheet, cr::String) -> ::Union{Nothing, CellAlignment}
     getAlignment(xf::XLSXFile,  cr::String) -> ::Union{Nothing, CellAlignment}
+
+    getAlignment(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellAlignment}
    
 Get the alignment used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
@@ -1719,6 +1754,8 @@ Excel supports the following values for the vertical alignment:
 ```julia
 julia> getAlignment(sh, "A1")
 
+julia> getAlignment(sh, 2, 5) # Cell E2
+
 julia> getAlignment(xf, "Sheet1!A1")
  
 ```
@@ -1755,9 +1792,14 @@ end
 """
     setAlignment(sh::Worksheet, cr::String; kw...) -> ::Int}
     setAlignment(xf::XLSXFile,  cr::String; kw...) -> ::Int}
+
+    setAlignment(sh::Worksheet, row, col; kw...) -> ::Int}
+
    
 Set the alignment used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :.
 
 The following keywords are used to define an alignment:
 - `horizontal::String = nothing` : Sets the horizontal alignment.
@@ -1952,6 +1994,8 @@ setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform
 """
     getFormat(sh::Worksheet, cr::String) -> ::Union{Nothing, CellFormat}
     getFormat(xf::XLSXFile,  cr::String) -> ::Union{Nothing, CellFormat}
+
+    getFormat(sh::Worksheet, row::Int, col::int) -> ::Union{Nothing, CellFormat}
    
 Get the format (numFmt) used by a single cell at reference `cr` in a worksheet or XLSXfile.
 
@@ -1972,6 +2016,8 @@ the format for built-in formats, too.
 julia> getFormat(sh, "A1")
 
 julia> getFormat(xf, "Sheet1!A1")
+
+julia> getFormat(sh, 1, 1)
  
 ```
 """
@@ -2023,9 +2069,13 @@ end
 """
     setFormat(sh::Worksheet, cr::String; kw...) -> ::Int
     setFormat(xf::XLSXFile,  cr::String; kw...) -> ::Int
+    
+    setFormat(sh::Worksheet, row, col; kw...) -> ::Int
    
 Set the format used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :.
 
 The function uses one keyword used to define a format:
 - `format::String = nothing` : Defines a built-in or custom number format
@@ -2260,11 +2310,16 @@ end
     setColumnWidth(sh::Worksheet, cr::String; kw...) -> ::Int
     setColumnWidth(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setColumnWidth(sh::Worksheet, row, col; kw...) -> ::Int
+
 Set the width of a column or column range.
 
 A standard cell reference or cell range can be used to define the column range. 
 The function will use the columns and ignore the rows. Named cells and named
 ranges can similarly be used.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :, but only the columns will be used.
+
 
 The function uses one keyword used to define a column width:
 - `width::Real = nothing` : Defines width in Excel's own (internal) units
@@ -2384,6 +2439,8 @@ end
     getColumnWidth(sh::Worksheet, cr::String) -> ::Union{Nothing, Real}
     getColumnWidth(xf::XLSXFile,  cr::String) -> ::Union{Nothing, Real}
 
+    getColumnWidth(sh::Worksheet,  row::Int, col::Int) -> ::Union{Nothing, Real}
+
 Get the width of a column defined by a cell reference or named cell.
 
 A standard cell reference or defined name may be used to define the column. 
@@ -2397,6 +2454,8 @@ does not have an explicitly defined width.
 julia> XLSX.getColumnWidth(xf, "Sheet1!A2")
 
 julia> XLSX.getColumnWidth(sh, "F1")
+
+julia> XLSX.getColumnWidth(sh, 1, 6)
  
 ```
 """
@@ -2447,11 +2506,15 @@ end
     setRowHeight(sh::Worksheet, cr::String; kw...) -> ::Int
     setRowHeight(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setRowHeight(sh::Worksheet, row, col; kw...) -> ::Int
+
 Set the height of a row or row range.
 
 A standard cell reference or cell range must be used to define the row range. 
 The function will use the rows and ignore the columns. Named cells and named
 ranges can similarly be used.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or :, but only the rows will be used.
 
 The function uses one keyword used to define a row height:
 - `height::Real = nothing` : Defines height in Excel's own (internal) units.
@@ -2536,6 +2599,8 @@ end
     getRowHeight(sh::Worksheet, cr::String) -> ::Union{Nothing, Real}
     getRowHeight(xf::XLSXFile,  cr::String) -> ::Union{Nothing, Real}
 
+    getRowHeight(sh::Worksheet,  row::Int, col::Int) -> ::Union{Nothing, Real}
+
 Get the height of a row defined by a cell reference or named cell.
 
 A standard cell reference or defined name must be used to define the row. 
@@ -2551,6 +2616,8 @@ If the row is not found (an empty row), returns -1.
 julia> XLSX.getRowHeight(xf, "Sheet1!A2")
 
 julia> XLSX.getRowHeight(sh, "F1")
+
+julia> XLSX.getRowHeight(sh, 1, 6)
  
 ```
 """
@@ -2645,6 +2712,8 @@ end
     isMergedCell(ws::Worksheet,  cr::String) -> Bool
     isMergedCell(xf::XLSXFile,   cr::String) -> Bool
 
+    isMergedCell(ws::Worksheet,  row::Int, col::Int) -> Bool
+
 Return `true` if a cell is part of a merged cell range and `false` if not.
 
 Alternatively, if you have already obtained the merged cells for the worksheet,
@@ -2654,13 +2723,18 @@ the function:
     isMergedCell(ws::Worksheet, cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
     isMergedCell(xf::XLSXFile,  cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
 
+    isMergedCell(ws::Worksheet,  row:Int, col::Int; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
+
 # Examples:
 ```julia
 julia> XLSX.isMergedCell(xf, "Sheet1!A1")
 
 julia> XLSX.isMergedCell(sh, "A1")
 
+julia> XLSX.isMergedCell(sh, 2, 4) # cell D2
+
 julia> mc = XLSX.getMergedCells(sh)
+
 julia> XLSX.isMergedCell(sh, XLSX.CellRef("A1"), mc)
  
 ```
@@ -2668,6 +2742,7 @@ julia> XLSX.isMergedCell(sh, XLSX.CellRef("A1"), mc)
 function isMergedCell end
 isMergedCell(xl::XLSXFile, sheetcell::String; kw...)::Bool = process_get_sheetcell(isMergedCell, xl, sheetcell; kw...)
 isMergedCell(ws::Worksheet, cr::String; kw...)::Bool = process_get_cellname(isMergedCell, ws, cr; kw...)
+isMergedCell(ws::Worksheet, row::Integer, col::Integer; kw...) = isMergedCell(ws, CellRef(row, col); kw...)
 #isMergedCell(ws::Worksheet, cellref::CellRef)::Bool = isMergedCell(ws, cellref, getMergedCells(ws))
 function isMergedCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange}, Nothing, Missing} = missing)::Bool
     
@@ -2694,6 +2769,8 @@ end
     getMergedBaseCell(ws::Worksheet, cr::String) -> Union{Nothing, NamedTuple{CellRef, Any}}
     getMergedBaseCell(xf::XLSXFile,  cr::String) -> Union{Nothing, NamedTuple{CellRef, Any}}
 
+    getMergedBaseCell(ws::Worksheet, row::Int, col::Int) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
 Return the cell reference and cell value of the base cell of a merged cell range in a worksheet as a named tuple.
 If the specified cell is not part of a merged cell range, return `nothing`.
 
@@ -2710,6 +2787,8 @@ the function:
     getMergedBaseCell(ws::Worksheet, cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
     getMergedBaseCell(xf::XLSXFile,  cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
 
+    getMergedBaseCell(ws::Worksheet, row::Int, col::Int; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
 # Examples:
 ```julia
 julia> XLSX.getMergedBaseCell(xf, "Sheet1!B2")
@@ -2718,13 +2797,15 @@ julia> XLSX.getMergedBaseCell(xf, "Sheet1!B2")
 julia> XLSX.getMergedBaseCell(sh, "B2")
 (baseCell = B1, baseValue = 3)
 
+julia> XLSX.getMergedBaseCell(sh, 2, 2)
+(baseCell = B1, baseValue = 3)
 
 ```
 """
 function getMergedBaseCell end
 getMergedBaseCell(xl::XLSXFile, sheetcell::String; kw...) = process_get_sheetcell(getMergedBaseCell, xl, sheetcell; kw...)
 getMergedBaseCell(ws::Worksheet, cr::String; kw...) = process_get_cellname(getMergedBaseCell, ws, cr; kw...)
-#getMergedBaseCell(ws::Worksheet, cellref::CellRef) = getMergedBaseCell(ws, cellref, getMergedCells(ws))
+getMergedBaseCell(ws::Worksheet, row::Integer, col::Integer; kw...) = getMergedBaseCell(ws, CellRef(row, col); kw...)
 function getMergedBaseCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing)
 
     if !get_xlsxfile(ws).use_cache_for_sheet_data

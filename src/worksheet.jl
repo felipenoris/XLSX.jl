@@ -327,8 +327,11 @@ end
 
 """
     getcell(sheet, ref)
+    getcell(sheet, row, col)
 
-Returns an `AbstractCell` that represents a cell in the spreadsheet.
+Return an `AbstractCell` that represents a cell in the spreadsheet.
+Return a matrix with cells as `Array{AbstractCell, 2}` if called 
+with a reference tomore than one cell.
 
 If `ref` is a range, `getcell` dispatches to `getcellrange`.
 
@@ -340,7 +343,12 @@ julia> xf = XLSX.readxlsx("myfile.xlsx")
 julia> sheet = xf["mysheet"]
 
 julia> cell = XLSX.getcell(sheet, "A1")
+
+julia> cell = XLSX.getcell(sheet, 1:3, [2,4,6])
+
+Other examples are as [`getdata()`](@ref).
 ```
+
 """
 function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
@@ -444,6 +452,9 @@ as in `"A1:B2"`, `"A:B"` or `"1:2"`, or a non-contiguous range.
 For row and column ranges, the extent of the range in the other 
 dimension is determined by the worksheet's dimension.
 A non-contiguous range (which is not rectangular) will return a vector.
+
+For example usage, see [`getdata()`](@ref).
+
 """
 function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
     result = Array{AbstractCell,2}(undef, size(rng))
