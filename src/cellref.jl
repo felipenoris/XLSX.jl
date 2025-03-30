@@ -303,7 +303,7 @@ const RGX_SINGLE_ROW = r"^[1-9][0-9]*$"
 
 # Returns tuple (column_name_start, column_name_stop).
 # Also works for row ranges (row_name_start, row_name_stop)!
-@inline function split_column_range(n::AbstractString)
+@inline function split_sheet_range(n::AbstractString)
     if !occursin(":", n)
         return n, n
     else
@@ -319,7 +319,7 @@ function is_valid_column_range(r::AbstractString) :: Bool
     if !occursin(RGX_COLUMN_RANGE, r)
         return false
     end
-    start_name, stop_name = split_column_range(r)
+    start_name, stop_name = split_sheet_range(r)
     if !is_valid_column_name(start_name) || !is_valid_column_name(stop_name)
         return false
     end
@@ -336,7 +336,7 @@ function is_valid_row_range(r::AbstractString) :: Bool
     if !occursin(RGX_ROW_RANGE, r)
         return false
     end
-    start_name, stop_name = split_column_range(r) # Function works for row ranges too.
+    start_name, stop_name = split_sheet_range(r) # Function works for row ranges too.
     if !is_valid_row_name(start_name) || !is_valid_row_name(stop_name)
         return false
     end
@@ -345,12 +345,12 @@ end
 
 function RowRange(r::AbstractString)
     !is_valid_row_range(r) && throw(XLSXError("Invalid row range: $r."))
-    start_name, stop_name = split_column_range(r) # Function works for row ranges too.
+    start_name, stop_name = split_sheet_range(r) 
     return RowRange(parse(Int, start_name), parse(Int, stop_name))
 end
 function ColumnRange(r::AbstractString)
     !is_valid_column_range(r) && throw(XLSXError("Invalid column range: $r."))
-    start_name, stop_name = split_column_range(r)
+    start_name, stop_name = split_sheet_range(r)
     return ColumnRange(decode_column_number(start_name), decode_column_number(stop_name))
 end
 

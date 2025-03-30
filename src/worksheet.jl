@@ -366,9 +366,34 @@ function getcell(ws::Worksheet, single::CellRef)::AbstractCell
     return EmptyCell(single)
 end
 getcell(ws::Worksheet, s::SheetCellRef) = getcell(ws, s.cellref)
-getcell(ws::Worksheet, s::SheetCellRange) = getcell(ws, s.rng)
-getcell(ws::Worksheet, s::SheetColumnRange) = getcell(ws, s.colrng)
-getcell(ws::Worksheet, s::SheetRowRange) = getcell(ws, s.rowrng)
+getcell(ws::Worksheet, s::SheetCellRange) = getcellrange(ws, s.rng)
+getcell(ws::Worksheet, s::SheetColumnRange) = getcellrange(ws, s.colrng)
+getcell(ws::Worksheet, s::SheetRowRange) = getcellrange(ws, s.rowrng)
+getcell(ws::Worksheet, s::CellRange) = getcellrange(ws, s.rng)
+getcell(ws::Worksheet, s::ColumnRange) = getcellrange(ws, s.colrng)
+getcell(ws::Worksheet, s::RowRange) = getcellrange(ws, s.rowrng)
+
+getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
+getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}) = [getcell(ws, a, b) for a in collect(row), b in col]
+getcell(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in collect(col)]
+getcell(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getcell(ws, a, b) for a in row, b in col]
+getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcellrange(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+function getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        getcellrange(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
+    end
+end
+function getcell(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        getcellrange(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
+    end
+end
 
 function getcell(ws::Worksheet, ref::AbstractString)
     if is_worksheet_defined_name(ws, ref)
@@ -409,8 +434,6 @@ function getcell(ws::Worksheet, ref::AbstractString)
     end
     throw(XLSXError("`$ref` is not a valid cell or range reference."))
 end
-
-getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
 
 """
     getcellrange(sheet, rng)
@@ -459,6 +482,13 @@ getcellrange(ws::Worksheet, s::SheetCellRef) = getcellrange(ws, s.cellref)
 getcellrange(ws::Worksheet, s::SheetCellRange) = getcellrange(ws, s.rng)
 getcellrange(ws::Worksheet, s::SheetColumnRange) = getcellrange(ws, s.colrng)
 getcellrange(ws::Worksheet, s::SheetRowRange) = getcellrange(ws, s.rowrng)
+
+getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}) = [getcell(ws, a, b) for a in collect(row), b in col]
+getcellrange(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in collect(col)]
+getcellrange(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getcell(ws, a, b) for a in row, b in col]
+getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcell(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = getcell(ws, row, :)
+getcellrange(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = getcell(ws, :, col)
 
 function getcellrange(ws::Worksheet, rng::ColumnRange)::Array{AbstractCell,2}
     dim = get_dimension(ws)

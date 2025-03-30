@@ -175,7 +175,11 @@ As a convenience, `@range_str` macro is provided.
 cr = XLSX.range"A1:C4"
 ```
 =#
-struct CellRange
+
+abstract type AbstractCellRange end
+abstract type ContiguousCellRange end
+
+struct CellRange <: ContiguousCellRange
     start::CellRef
     stop::CellRef
 
@@ -194,7 +198,7 @@ struct CellRange
     end
 end
 
-struct ColumnRange
+struct ColumnRange <: ContiguousCellRange
     start::Int # column number
     stop::Int  # column number
 
@@ -205,7 +209,7 @@ struct ColumnRange
         return new(a, b)
     end
 end
-struct RowRange
+struct RowRange <: ContiguousCellRange
     start::Int # row number
     stop::Int  # row number
 
@@ -222,21 +226,21 @@ struct SheetCellRef
     cellref::CellRef
 end
 
-struct SheetCellRange
+struct SheetCellRange <: ContiguousCellRange
    sheet::String
    rng::CellRange
 end
 
-struct NonContiguousRange
+struct NonContiguousRange <: AbstractCellRange
     sheet::String
     rng::Vector{Union{CellRef, CellRange}}
 end
 
-struct SheetColumnRange
+struct SheetColumnRange <: ContiguousCellRange
     sheet::String
     colrng::ColumnRange
 end
-struct SheetRowRange
+struct SheetRowRange <: ContiguousCellRange
     sheet::String
     rowrng::RowRange
 end

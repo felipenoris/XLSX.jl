@@ -518,6 +518,31 @@ xlsx_encode(ws::Worksheet, val::Dates.Date) = ("", string(date_to_excel_value(va
 xlsx_encode(ws::Worksheet, val::Dates.DateTime) = ("", string(datetime_to_excel_value(val, isdate1904(get_xlsxfile(ws)))))
 xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)))
 
+Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
+#Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = setdata!(ws, row, :, v)
+#Base.setindex!(ws::Worksheet, v, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = setdata!(ws, :, col, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Integer, UnitRange{<:Integer}}, c::UnitRange{T}) where T<:Integer = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r::UnitRange{T}, c::Union{Integer, UnitRange{<:Integer}}) where T<:Integer = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
+Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
+Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
+function Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int})
+    for a in collect(row), b in col
+        setdata!(ws, CellRef(a, b), v)
+    end
+end
+function Base.setindex!(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}})
+    for a in row, b in collect(col)
+        setdata!(ws, CellRef(a, b), v)
+    end
+end
+function Base.setindex!(ws::Worksheet, v, row::Vector{Int}, col::Vector{Int})
+    for a in row, b in col
+        setdata!(ws, CellRef(a, b), v)
+    end
+end
+
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
     cell = Cell(ref, t, id(val.styleid), v, Formula(""))
@@ -534,11 +559,6 @@ setdata!(ws::Worksheet, ref::CellRef, ::Nothing) = setdata!(ws, ref, CellValue(w
 
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
-Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
-Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
-
-Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
-Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
 
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existing cell format if it exists
@@ -572,8 +592,127 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existin
         return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
     end
 end
-# setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) = setdata!(ws, ref, CellValue(ws, val))
-setdata!(ws::Worksheet, ref_str::AbstractString, value) = setdata!(ws, CellRef(ref_str), value)
+function setdata!(ws::Worksheet, ref::AbstractString, value) 
+    if is_worksheet_defined_name(ws, ref)
+        v = get_defined_name_value(ws, ref)
+        if is_defined_name_value_a_reference(v)
+            return setdata!(ws, v, value)
+        else
+            throw(XLSXError("`$ref` is not a valid cell or range reference."))
+        end
+    elseif is_workbook_defined_name(get_workbook(ws), ref)
+        wb = get_workbook(ws)
+        v = get_defined_name_value(wb, ref)
+        if is_defined_name_value_a_reference(v)
+            return setdata!(ws, v, value)
+        else
+            throw(XLSXError("`$ref` is not a valid cell or range reference."))
+        end
+    elseif is_valid_cellname(ref)
+        return setdata!(ws, CellRef(ref), value)
+    elseif is_valid_sheet_cellname(ref)
+        return setdata!(ws, SheetCellRef(ref), value)
+    elseif is_valid_cellrange(ref)
+        return setdata!(ws, CellRange(ref), value)
+    elseif is_valid_column_range(ref)
+        return setdata!(ws, ColumnRange(ref), value)
+    elseif is_valid_row_range(ref)
+        return setdata!(ws, RowRange(ref), value)
+    elseif is_valid_non_contiguous_range(ref)
+        return setdata!(ws, NonContiguousRange(ws, ref), value)
+    elseif is_valid_sheet_cellrange(ref)
+        return setdata!(ws, SheetCellRange(ref), value)
+    elseif is_valid_sheet_column_range(ref)
+        return setdata!(ws, SheetColumnRange(ref), value)
+    elseif is_valid_sheet_row_range(ref)
+        return gsetdata!(ws, SheetRowRange(ref), value)
+    elseif is_valid_non_contiguous_range(ref)
+        return setdata!(ws, NonContiguousRange(ref), value)
+    end
+    throw(XLSXError("`$ref` is not a valid cell or range reference."))
+end
+function setdata!(ws::Worksheet, rng::CellRange, value)
+    for row in rng.start.row_number:rng.stop.row_number
+        for col in rng.start.column_number:rng.stop.column_number
+            setdata!(ws, row, col, value)
+        end
+    end
+end
+function setdata!(ws::Worksheet, rng::RowRange, value)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        start = CellRef(rng.start, dim.start.column_number,)
+        stop = CellRef(rng.stop, dim.stop.column_number)
+        setdata!(ws, CellRange(start, stop), value)
+    end
+end
+function setdata!(ws::Worksheet, rng::ColumnRange, value)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        start = CellRef(dim.start.row_number, rng.start)
+        stop = CellRef(dim.stop.row_number, rng.stop)
+        setdata!(ws, CellRange(start, stop), value)
+    end
+end
+function setdata!(ws::Worksheet, rng::NonContiguousRange, value)
+    for r in rng.rng
+        if r isa CellRef
+            setdata!(ws, r, value)
+        else
+            for cell in r
+                psetdata!(ws, cell, value)
+            end
+        end
+    end
+end
+function setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon, v)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        setdata!(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)), v)
+    end
+end
+function setdata!(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}, v)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        setdata!(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))), v)
+    end
+end
+function setdata!(ws::Worksheet, row::Vector{Int}, ::Colon, v)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        for a in row
+            for b in dim.start.column_number:dim.stop.column_number
+                setdata!(ws, CellRef(a, b), v)
+            end
+        end
+    end
+end
+function setdata!(ws::Worksheet, ::Colon, col::Vector{Int}, v)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        for b in column
+            for a in dim.start.row_number:dim.stop.row_number
+                setdata!(ws, CellRef(a, b), v)
+            end
+        end
+    end
+end
+setdata!(ws::Worksheet, ref::SheetCellRef, value) = setdata!(ws, ref.cellref, value)
+setdata!(ws::Worksheet, rng::SheetCellRange, value) = setdata!(ws, rng.rng, value)
+setdata!(ws::Worksheet, rng::SheetColumnRange, value) = setdata!(ws, rng.colrng, value)
+setdata!(ws::Worksheet, rng::SheetRowRange, value) = setdata!(ws, rng.rowrng, value)
 setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
 setdata!(ws::Worksheet, row::Integer, col::Integer, data) = setdata!(ws, CellRef(row, col), data)
 setdata!(ws::Worksheet, ref::CellRef, value) = throw(XLSXError("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue)."))
