@@ -14,7 +14,7 @@
 Set the font used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :.
+Integer, UnitRange, Vector{Integer} or `:`.
 
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
@@ -80,8 +80,7 @@ julia> setFont(sh, 1:3, 2; size=48, color="magenta")                            
 
 julia> setFont(sh, 6, [2, 3, 8, 12]; size=48, color="magenta")                   # column as vector of indices
 
-julia> setFont(sh, :, 2:6; size=48, color="magenta")                             # all rows
-
+julia> setFont(sh, :, 2:6; size=48, color="lightskyblue2")                       # all rows, columns 2 to 6
 
 ```
 """
@@ -197,8 +196,12 @@ end
     setUniformFont(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFont(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setUniformFont(sh::Worksheet, rows, cols; kw...) -> ::Int
+
 Set the font used by a cell range, a column range or row range or 
 a named range in a worksheet or XLSXfile to be uniformly the same font.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the font attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFont()`). The resultant font is 
@@ -237,7 +240,7 @@ julia> setUniformFont(sh, "33"; italic=true, color="FF8888FF", under="single")  
 
 julia> setUniformFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named range
 
-julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named range
+julia> setUniformFont(sh, 1, [2, 4, 6]; size=48, color="lightskyblue2")                 # vector of column indices
  
 ```
 """
@@ -264,7 +267,7 @@ setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
 
     getFont(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellFont}
 
-Get the font used by a single cell at reference `cr` in a worksheet `sh` or XLSXfile `xf`.
+Get the font used by a single cell reference in a worksheet `sh` or XLSXfile `xf`.
 
 Return a `CellFont` object containing:
 - `fontId`    : a 0-based index of the font in the workbook
@@ -297,6 +300,10 @@ e.g. `"color" => ("theme" => "1")`.
 julia> getFont(sh, "A1")
 
 julia> getFont(xf, "Sheet1!A1")
+
+julia> getFont(sh, "Sheet1!A1")
+
+julia> getFont(sh, 1, 1)
  
 ```
 """
@@ -347,7 +354,7 @@ end
 
     getBorder(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellBorder}
    
-Get the borders used by a single cell at reference `cr` in a worksheet or XLSXfile.
+Get the borders used by a single cell at reference in a worksheet or XLSXfile.
 
 Return a `CellBorder` object containing:
 - `borderId`    : a 0-based index of the border in the workbook
@@ -466,12 +473,11 @@ end
     setBorder(xf::XLSXFile, cr::String; kw...) -> ::Int
 
     setBorder(sh::Worksheet, row, col; kw...) -> ::Int}
-
    
 Set the borders used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :.
+Integer, UnitRange, Vector{Integer} or `:`.
 
 Borders are independently defined for the keywords:
 - `left::Vector{Pair{String,String} = nothing`
@@ -493,8 +499,8 @@ keywords or with `outside` but it can be used together with `diagonal`.
 
 A further keyword, `outside`, can be used to set the outside border around a 
 range. Any internal borders will remain unchanged. An outside border cannot be 
-set for a non-contiguous range and `outside` cannot be used in conjunction with 
-any other keywords.
+set for any non-contiguous/non-rectangular range and `outside` cannot be 
+indexed with vectors and cannot be used in conjunction with any other keywords.
 
 The two attributes that can be set for each keyword are `style` and `color`.
 Additionally, for diagonal borders, a third keyword, `direction` can be used.
@@ -544,6 +550,8 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 # Examples:
 ```julia
 Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "direction" => "up"])
+
+Julia> setBorder(sh, 2:45, 2:12; outside = ["style" => "thick", "color" => "lightskyblue2"])
 
 Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "FF000FF0"],
                                   right    = ["style" => "medium", "color" => "firebrick2"],
@@ -737,8 +745,12 @@ end
     setUniformBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformBorder(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setUniformBorder(sh::Worksheet, rows, cols; kw...) -> ::Int
+
 Set the border used by a cell range, a column range or row range or 
 a named range in a worksheet or XLSXfile to be uniformly the same border.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the border attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setBorder()`). The resultant border is 
@@ -769,6 +781,8 @@ Note: `setUniformBorder` cannot be used with the `outside` keyword.
 ```julia
 Julia> setUniformBorder(sh, "B2:D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
 
+Julia> setUniformBorder(sh, [1, 2, 3], [3, 5, 9]; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "color" => "yellow2"])
+
 Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "color" => "FF000FF0"],
                                              right    = ["style" => "medium", "color" => "FF765000"],
                                              top      = ["style" => "thick",  "color" => "FF230000"],
@@ -798,8 +812,11 @@ setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
     setOutsideBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setOutsideBorder(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setOutsideBorder(sh::Worksheet, rows, cols; kw...) -> ::Int
+
 Set the border around the outside of a cell range, a column range or row range 
 or a named range in a worksheet or XLSXfile.
+Alternatively, specify the rows and columns using integers, UnitRanges or `:`.
 
 There is one key word:
 - `outside::Vector{Pair{String,String} = nothing`
@@ -825,6 +842,7 @@ Julia> setOutsideBorder(sh, "B2:D6"; outside = ["style" => "thick")
 Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; outside = ["style" => "dotted", "color" => "FF000FF0"])
 ```
 This function is equivalent to `setBorder()` called with the same arguments and keywords.
+
 """
 function setOutsideBorder end
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
@@ -1002,7 +1020,7 @@ end
 Set the fill used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :.
+Integer, UnitRange, Vector{Integer} or `:`.
 
 The following keywords are used to define a fill:
 - `pattern::String = nothing`   : Sets the patternType for the fill.
@@ -1051,9 +1069,9 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 ```julia
 Julia> setFill(sh, "B2"; pattern="gray125", bgColor = "FF000000")
 
-Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
+Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "darkseagreen3")
  
-Julia> setFill(sh, "11:24"; pattern="none", fgColor = "88FF8800")
+Julia> setFill(sh, "11:24"; pattern="none", fgColor = "yellow2")
  
 ```
 """
@@ -1147,8 +1165,12 @@ end
     setUniformFill(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFill(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setUniformFill(sh::Worksheet, rows, cols; kw...) -> ::Int
+
 Set the fill used by a cell range, a column range or row range or a 
 named range in a worksheet or XLSXfile to be uniformly the same fill.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the fill attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFill()`). The resultant fill is 
@@ -1177,7 +1199,7 @@ For keyword definitions see [`setFill()`](@ref).
 ```julia
 Julia> setUniformFill(sh, "B2:D4"; pattern="gray125", bgColor = "FF000000")
 
-Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
+Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "darkseagreen3")
  
 ```
 """
@@ -1292,7 +1314,7 @@ end
 Set the alignment used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :.
+Integer, UnitRange, Vector{Integer} or `:`.
 
 The following keywords are used to define an alignment:
 - `horizontal::String = nothing` : Sets the horizontal alignment.
@@ -1334,6 +1356,8 @@ julia> setAlignment(sh, "D18"; horizontal="center", wrapText=true)
 julia> setAlignment(xf, "sheet1!D18"; horizontal="right", vertical="top", wrapText=true)
 
 julia> setAlignment(sh, "L6"; horizontal="center", rotation="90", shrink=true, indent="2")
+
+julia> setAlignment(sh, 1:3, 3:6; horizontal="center", rotation="90", shrink=true, indent="2")
  
 ```
 """
@@ -1437,8 +1461,12 @@ end
     setUniformAlignment(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformAlignment(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setUniformAlignment(sh::Worksheet, rows, cols; kw...) -> ::Int
+
 Set the alignment used by a cell range, a column range or row range or a 
 named range in a worksheet or XLSXfile to be uniformly the same alignment.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the alignment attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setAlignment()`). The resultant alignment 
@@ -1469,6 +1497,8 @@ For keyword definitions see [`setAlignment()`](@ref).
 Julia> setUniformAlignment(sh, "B2:D4"; horizontal="center", wrap = true)
 
 Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="top")
+
+Julia> setUniformAlignment(sh, :, 1:24; horizontal="center", vertical="top")
  
 ```
 """
@@ -1576,7 +1606,7 @@ end
 Set the format used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :.
+Integer, UnitRange, Vector{Integer} or `:`.
 
 The function uses one keyword used to define a format:
 - `format::String = nothing` : Defines a built-in or custom number format
@@ -1607,6 +1637,8 @@ julia> XLSX.setFormat(sh, "D2"; format = "h:mm AM/PM")
 julia> XLSX.setFormat(xf, "Sheet1!A2"; format = "# ??/??")
 
 julia> XLSX.setFormat(sh, "F1:F5"; format = "Currency")
+
+julia> XLSX.setFormat(sh, "named_range"; format = "Percentage")
 
 julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \\\"-\\\"??_-;_-@_-")
  
@@ -1705,8 +1737,12 @@ end
     setUniformFormat(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFormat(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setUniformFormat(sh::Worksheet, rows, cols; kw...) -> ::Int
+
 Set the number format used by a cell range, a column range or row range or a 
 named range in a worksheet or XLSXfile to be to be uniformly the same format.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the number format of the first cell in the range (the top-left cell) is
 updated according to the given `kw...` (using `setFormat()`). The resultant format is 
@@ -1754,9 +1790,13 @@ setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
     setUniformStyle(sh::Worksheet, cr::String) -> ::Int
     setUniformStyle(xf::XLSXFile,  cr::String) -> ::Int
 
+    setUniformStyle(sh::Worksheet, rows, cols) -> ::Int
+
 Set the cell `style` used by a cell range, a column range or row range 
 or a named range in a worksheet or XLSXfile to be the same as that of 
 the first cell in the range that is not an `EmptyCell`.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 As a result, every cell in the range will have a uniform `style`.
 
@@ -1775,6 +1815,10 @@ If all cells in the range are `EmptyCells`, the returned value is -1.
 julia> XLSX.setUniformStyle(xf, "Sheet1!A2:L6")
 
 julia> XLSX.setUniformStyle(sh, "F1:F5")
+
+julia> XLSX.setUniformStyle(sh, 2:5, 5)
+
+julia> XLSX.setUniformStyle(sh, 2, :)
  
 ```
 """
@@ -1828,7 +1872,7 @@ A standard cell reference or cell range can be used to define the column range.
 The function will use the columns and ignore the rows. Named cells and named
 ranges can similarly be used.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :, but only the columns will be used.
+Integer, UnitRange, Vector{Integer} or `:`, but only the columns will be used.
 
 
 The function uses one keyword used to define a column width:
@@ -2024,7 +2068,7 @@ A standard cell reference or cell range must be used to define the row range.
 The function will use the rows and ignore the columns. Named cells and named
 ranges can similarly be used.
 Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or :, but only the rows will be used.
+Integer, UnitRange, Vector{Integer} or `:`, but only the rows will be used.
 
 The function uses one keyword used to define a row height:
 - `height::Real = nothing` : Defines height in Excel's own (internal) units.
