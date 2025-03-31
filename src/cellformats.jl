@@ -805,7 +805,7 @@ setUniformBorder(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_unif
 setUniformBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_uniform_intvec(setBorder, ws, row, col, ["borderId", "applyBorder"]; kw...)
 setUniformBorder(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setBorder, ws, row, col, ["borderId", "applyBorder"]; kw...)
 setUniformBorder(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) = process_uniform_vecvec(setBorder, ws, row, col, ["borderId", "applyBorder"]; kw...)
-setUniformBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setUniformBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
 
 """
@@ -851,7 +851,7 @@ setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
 setOutsideBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_uniform_intcolon(setOutsideBorder, ws, row, :; kw...)
 setOutsideBorder(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_colonint(setOutsideBorder, ws, :, col; kw...)
-setOutsideBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), ["borderId", "applyBorder"]; kw...)
+setOutsideBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setOutsideBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setOutsideBorder(ws::Worksheet, rng::CellRange;
     outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
 )::Int
@@ -1216,7 +1216,7 @@ setUniformFill(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_unifor
 setUniformFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_uniform_intvec(setFill, ws, row, col, ["fillId", "applyFill"]; kw...)
 setUniformFill(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setFill, ws, row, col, ["fillId", "applyFill"]; kw...)
 setUniformFill(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) = process_uniform_vecvec(setFill, ws, row, col, ["fillId", "applyFill"]; kw...)
-setUniformFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFill(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setUniformFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformFill(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)
 
 #
@@ -1515,7 +1515,7 @@ setUniformAlignment(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_u
 setUniformAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_uniform_intvec(setAlignment, ws, row, col; kw...)
 setUniformAlignment(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setAlignment, ws, row, col; kw...)
 setUniformAlignment(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) = process_uniform_vecvec(setAlignment, ws, row, col; kw...)
-setUniformAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setAlignment(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformAlignment(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
 
 #
@@ -1779,7 +1779,7 @@ setUniformFormat(ws::Worksheet, ::Colon, col::Vector{Int}; kw...) = process_unif
 setUniformFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...) = process_uniform_intvec(setFormat, ws, row, col, ["numFmtId", "applyNumberFormat"]; kw...)
 setUniformFormat(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setFormat, ws, row, col, ["numFmtId", "applyNumberFormat"]; kw...)
 setUniformFormat(ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...) = process_uniform_vecvec(setFormat, ws, row, col, ["numFmtId", "applyNumberFormat"]; kw...)
-setUniformFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFormat(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setUniformFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformFormat(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng, ["numFmtId", "applyNumberFormat"]; kw...)
 
 #
