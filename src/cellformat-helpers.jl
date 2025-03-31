@@ -349,8 +349,14 @@ function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange;
     end
 end
 function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
+    if length(rng)==1
+        single=true
+    else
+        single=false
+    end
     for cellref in rng
         if getcell(ws, cellref) isa EmptyCell
+            single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
             continue
         end
         _ = f(ws, cellref; kw...)
@@ -395,12 +401,26 @@ end
 #
 # - Used for indexing `setAttribute` family of functions
 #
+function process_colon(f::Function, ws::Worksheet, ::Colon; kw...)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    elseif length(dim)==1
+        throw(XLSXError("Cannot set format for an `EmptyCell`: $(dim.start.name). Set the value first."))
+    else
+        return f(ws, dim; kw...)
+    end
+end
 function process_intcolon(f::Function, ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...)
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        return f(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)); kw...)
+        rng=CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
+        if length(rng)==1
+            throw(XLSXError("Cannot set format for an `EmptyCell`: $(rng.start.name). Set the value first."))
+        end
+        return f(ws, rng; kw...)
     end
 end
 function process_colonint(f::Function, ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...)
@@ -408,7 +428,11 @@ function process_colonint(f::Function, ws::Worksheet, ::Colon, col::Union{Intege
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        return f(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))); kw...)
+        rng=CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
+        if length(rng)==1
+            throw(XLSXError("Cannot set format for an `EmptyCell`: $(rng.start.name). Set the value first."))
+        end
+        return f(ws, rng; kw...)
     end
 end
 function process_veccolon(f::Function, ws::Worksheet, row::Vector{Int}, ::Colon; kw...)
@@ -416,10 +440,16 @@ function process_veccolon(f::Function, ws::Worksheet, row::Vector{Int}, ::Colon;
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
+        if length(row)==1 && dim.start.column_number == dim.stop.column_number
+            single=true
+        else
+            single=false
+        end
         for a in row
             for b in dim.start.column_number:dim.stop.column_number
                 cellref = CellRef(a, b)
                 if getcell(ws, cellref) isa EmptyCell
+                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
                     continue
                 end
                 f(ws, cellref; kw...)
@@ -433,10 +463,16 @@ function process_colonvec(f::Function, ws::Worksheet, ::Colon, col::Vector{Int};
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
+        if length(col)==1 && dim.start.row_number == dim.stop.row_number
+            single=true
+        else
+            single=false
+        end
         for b in col
             for a in dim.start.row_number:dim.stop.row_number
                 cellref = CellRef(a, b)
                 if getcell(ws, cellref) isa EmptyCell
+                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
                     continue
                 end
                 f(ws, cellref; kw...)
@@ -446,9 +482,15 @@ function process_colonvec(f::Function, ws::Worksheet, ::Colon, col::Vector{Int};
     return -1
 end
 function process_intvec(f::Function, ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...)
+    if length(col)==1 && length(row)==1
+        single=true
+    else
+        single=false
+    end
     for a in collect(row), b in col
         cellref = CellRef(a, b)
         if getcell(ws, cellref) isa EmptyCell
+            single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
             continue
         end
         f(ws, cellref; kw...)
@@ -456,9 +498,15 @@ function process_intvec(f::Function, ws::Worksheet, row::Union{Integer,UnitRange
     return -1
 end
 function process_vecint(f::Function, ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...)
+    if length(col)==1 && length(row)==1
+        single=true
+    else
+        single=false
+    end
     for a in row, b in collect(col)
         cellref = CellRef(a, b)
         if getcell(ws, cellref) isa EmptyCell
+            single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
             continue
         end
         f(ws, cellref; kw...)
@@ -466,10 +514,16 @@ function process_vecint(f::Function, ws::Worksheet, row::Vector{Int}, col::Union
     return -1
 end
 function process_vecvec(f::Function, ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...)
+    if length(col)==1 && length(row)==1
+        single=true
+    else
+        single=false
+    end
     for a in row, b in col
         cellref = CellRef(a, b)
         if getcell(ws, cellref) isa EmptyCell
             continue
+            single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
         end
         f(ws, cellref; kw...)
     end
@@ -543,6 +597,14 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
             newid = -1
         end
         return newid
+    end
+end
+function process_uniform_colon(f::Function, ws::Worksheet, ::Colon; kw...)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        f(ws, dim; kw...)
     end
 end
 function process_uniform_intcolon(f::Function, ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...)
@@ -662,7 +724,15 @@ function process_uniform_vecvec(f::Function, ws::Worksheet, row::Vector{Int}, co
 end
 
 # UniformStyles
-function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon, atts::Vector{String}; kw...)
+function process_uniform_colon(ws::Worksheet, ::Colon, atts::Vector{String})
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        setUniformStyle(ws, dim)
+    end
+end
+function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon, atts::Vector{String})
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
@@ -676,7 +746,7 @@ function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon, atts
                     if getcell(ws, cellref) isa EmptyCell
                         continue
                     end
-                    newid, first = process_uniform_core(ws, cellref, atts, newid, first; kw...)
+                    newid, first = process_uniform_core(ws, cellref, newid, first)
                 end
             end
             if first
@@ -686,7 +756,7 @@ function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon, atts
         end
     end
 end
-function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int}, atts::Vector{String}; kw...)
+function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int}, atts::Vector{String})
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
@@ -700,7 +770,7 @@ function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int}, atts
                     if getcell(ws, cellref) isa EmptyCell
                         continue
                     end
-                    newid, first = process_uniform_core(ws, cellref, atts, newid, first; kw...)
+                    newid, first = process_uniform_core(ws, cellref, newid, first)
                 end
             end
             if first
@@ -710,7 +780,7 @@ function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int}, atts
         end
     end
 end
-function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}, atts::Vector{String}; kw...)
+function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}, atts::Vector{String})
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
@@ -719,7 +789,7 @@ function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:In
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first = process_uniform_core(ws, cellref, atts, newid, first; kw...)
+            newid, first = process_uniform_core(ws, cellref, newid, first)
         end
         if first
             newid = -1
@@ -727,7 +797,7 @@ function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:In
         return newid
     end
 end
-function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}, atts::Vector{String}; kw...)
+function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}, atts::Vector{String})
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
@@ -736,7 +806,7 @@ function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Inte
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first = process_uniform_core(ws, cellref, atts, newid, first; kw...)
+            newid, first = process_uniform_core(ws, cellref, newid, first)
         end
         if first
             newid = -1
@@ -744,7 +814,7 @@ function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Inte
         return newid
     end
 end
-function process_uniform_vecvec(ws::Worksheet, row::Vector{Int}, col::Vector{Int}, atts::Vector{String}; kw...)
+function process_uniform_vecvec(ws::Worksheet, row::Vector{Int}, col::Vector{Int}, atts::Vector{String})
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
@@ -753,7 +823,7 @@ function process_uniform_vecvec(ws::Worksheet, row::Vector{Int}, col::Vector{Int
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first = process_uniform_core(ws, cellref, atts, newid, first; kw...)
+            newid, first = process_uniform_core(ws, cellref, newid, first)
         end
         if first
             newid = -1

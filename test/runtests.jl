@@ -2090,14 +2090,26 @@ end
     end
 
     @testset "indexing setAttribute" begin
-        f=XLSX.newxlsx()
-        s=f[1]
-        @test_throws XLSX.XLSXError XLSX.setFont(s, "B2"; color="grey42")
-        @test_throws XLSX.XLSXError XLSX.setFont(s, 3, 3; color="grey42")
+        f=XLSX.newxlsx() # Empty XLSXFile
+        s=f[1] #1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+        #Can't write to single, empty cells
+        @test_throws XLSX.XLSXError XLSX.setFont(s, "A1"; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, "A1:A1"; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, "A:A"; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, "1"; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, 1, 1; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, [1], 1; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, 1, 1:1; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, 1, :; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, :; color="grey42")
+
+        # Skip empty cells silently in ranges 
         @test XLSX.setFont(s, 2:3, 1:3; color="grey42") == -1
         @test XLSX.getFont(s, 2, 1) === nothing
         @test XLSX.getFont(s, 3, 2) === nothing
         @test XLSX.getFont(s, 2, 3) === nothing
+
         s[1:3,1:3] = " "
         default_font = XLSX.getDefaultFont(s).font
         dname = default_font["name"]["val"]
@@ -2111,11 +2123,17 @@ end
         @test XLSX.getFont(s, 2, 2).font == Dict("name" => Dict("val" => "Courier New"), "sz" => Dict("val" => dsize), "color" => Dict("rgb" => "FF707070"))
         @test XLSX.getFont(s, 3, 3).font == Dict("name" => Dict("val" => "Courier New"), "sz" => Dict("val" => dsize), "color" => Dict("rgb" => "FF707070"))
 
-
         f=XLSX.newxlsx()
         s=f[1]
-        @test_throws XLSX.XLSXError XLSX.setBorder(s, "B2"; allsides=["color" => "grey42", "style" => "thick"])
-        @test_throws XLSX.XLSXError XLSX.setBorder(s, 2, 5; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, "A1"; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, "A1:A1"; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, "A"; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, "1"; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, 1, 1; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, [1], 1; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, 1, 1:1; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, :, 1; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, :; allsides=["color" => "grey42", "style" => "thick"])
         @test XLSX.setBorder(s, [2,3], 1:3; allsides=["color" => "grey42", "style" => "thick"]) == -1
         @test XLSX.getBorder(s, 2, 1) === nothing
         @test XLSX.getBorder(s, 3, 2) === nothing
@@ -2129,6 +2147,32 @@ end
         @test XLSX.getBorder(s, 3, 1).border == Dict("left" => Dict("rgb" => "FF707070", "style" => "hair"), "bottom" => Dict("rgb" => "FF707070", "style" => "hair"), "right" => Dict("rgb" => "FF707070", "style" => "hair"), "top" => Dict("rgb" => "FF707070", "style" => "hair"), "diagonal" => Dict("rgb" => "FF707070", "style" => "thin", "direction" => "down"))
         @test XLSX.getBorder(s, 2, 2).border == Dict("left" => Dict("rgb" => "FF707070", "style" => "hair"), "bottom" => Dict("rgb" => "FF707070", "style" => "hair"), "right" => Dict("rgb" => "FF707070", "style" => "hair"), "top" => Dict("rgb" => "FF707070", "style" => "hair"), "diagonal" => Dict("rgb" => "FF707070", "style" => "thin", "direction" => "down"))
         @test XLSX.getBorder(s, 3, 3).border == Dict("left" => Dict("rgb" => "FF707070", "style" => "hair"), "bottom" => Dict("rgb" => "FF707070", "style" => "hair"), "right" => Dict("rgb" => "FF707070", "style" => "hair"), "top" => Dict("rgb" => "FF707070", "style" => "hair"), "diagonal" => Dict("rgb" => "FF707070", "style" => "thin", "direction" => "down"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        @test_throws XLSX.XLSXError XLSX.setFill(s, "A1"; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, "A1:A1"; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, "A"; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, "1"; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, 1, 1; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, [1], 1; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, 1, 1:1; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, 1, :; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, :; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test XLSX.setFill(s, [2,3], 1:3; pattern="lightVertical", fgColor="Red", bgColor="blue") == -1
+        @test XLSX.getFill(s, 2, 1) === nothing
+        @test XLSX.getFill(s, 3, 2) === nothing
+        @test XLSX.getFill(s, 2, 3) === nothing
+        s[1:3,1:3] = " "
+        XLSX.setFill(s, "A1"; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test XLSX.getFill(s, "A1").fill == Dict("patternFill" => Dict("bgrgb" => "FF0000FF", "patternType" => "lightVertical", "fgrgb" => "FFFF0000"))
+        XLSX.setFill(s, 2, 2; pattern="lightGrid", fgColor="Red", bgColor="blue")
+        @test XLSX.getFill(s, 2, 2).fill == Dict("patternFill" => Dict("bgrgb" => "FF0000FF", "patternType" => "lightGrid", "fgrgb" => "FFFF0000"))
+        XLSX.setFill(s, [2,3], 1:3; pattern="lightGrid", fgColor="Red", bgColor="blue")
+        @test XLSX.getFill(s, 3, 1).fill == Dict("patternFill" => Dict("bgrgb" => "FF0000FF", "patternType" => "lightGrid", "fgrgb" => "FFFF0000"))
+        @test XLSX.getFill(s, 2, 2).fill == Dict("patternFill" => Dict("bgrgb" => "FF0000FF", "patternType" => "lightGrid", "fgrgb" => "FFFF0000"))
+        @test XLSX.getFill(s, 3, 3).fill == Dict("patternFill" => Dict("bgrgb" => "FF0000FF", "patternType" => "lightGrid", "fgrgb" => "FFFF0000"))
+
     end
 end
 
