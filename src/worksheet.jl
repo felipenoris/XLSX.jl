@@ -107,6 +107,15 @@ getdata(ws::Worksheet, row::Int, col::Vector{Int}) = [getdata(ws, a, b) for a in
 getdata(ws::Worksheet, row::Vector{Int}, col::Int) = [getdata(ws, a, b) for a in row, b in [col]]
 getdata(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getdata(ws, a, b) for a in row, b in col]
 getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+getdata(ws::Worksheet, ::Colon, ::Colon) = getdata(ws)
+function getdata(ws::Worksheet, ::Colon)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        getdata(ws, dim)
+    end
+end
 function getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
     if dim === nothing

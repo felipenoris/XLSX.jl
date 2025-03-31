@@ -519,8 +519,6 @@ xlsx_encode(ws::Worksheet, val::Dates.DateTime) = ("", string(datetime_to_excel_
 xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)))
 
 Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
-#Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = setdata!(ws, row, :, v)
-#Base.setindex!(ws::Worksheet, v, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = setdata!(ws, :, col, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Integer, UnitRange{<:Integer}}, c::UnitRange{T}) where T<:Integer = setdata!(ws, r, c, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, r::UnitRange{T}, c::Union{Integer, UnitRange{<:Integer}}) where T<:Integer = setdata!(ws, r, c, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
@@ -668,6 +666,15 @@ function setdata!(ws::Worksheet, rng::NonContiguousRange, value)
                 psetdata!(ws, cell, value)
             end
         end
+    end
+end
+setdata!(ws::Worksheet, ::Colon, ::Colon, v) = setdata!(ws::Worksheet, :, v)
+function setdata!(ws::Worksheet, ::Colon, v)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        setdata!(ws, dim, v)
     end
 end
 function setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon, v)
