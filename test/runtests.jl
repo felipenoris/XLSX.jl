@@ -2211,8 +2211,8 @@ end
         @test_throws XLSX.XLSXError XLSX.getFormat(s, 3, 2)
         @test_throws XLSX.XLSXError XLSX.getFormat(s, 2, 3)
         s[1:3,1:3] = ""
-        XLSX.setFormat(s, "A1"; format="#,##0.000);(#,##0.000)")
-        @test XLSX.getFormat(s, "A1").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000);(#,##0.000)"))
+        XLSX.setFormat(s, "A1"; format="#,##0.000;(#,##0.000)")
+        @test XLSX.getFormat(s, "A1").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000;(#,##0.000)"))
         XLSX.setFormat(s, 2, 2; format="Currency")
         @test XLSX.getFormat(s, 2, 2).format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
         XLSX.setFormat(s, [2,3], 1:3; format="LongDate")
@@ -2245,6 +2245,38 @@ end
         @test XLSX.getRowHeight(s, 3, 1) ≈ 50.2109375
         @test XLSX.getRowHeight(s, 2, 2) ≈ 50.2109375
         @test XLSX.getRowHeight(s, 3, 3) ≈ 50.2109375
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1:30, 1:26]=""
+        XLSX.setUniformFont(s, 1:4, :; size=12, name="Times New Roman", color="FF040404")
+        @test XLSX.getFont(f, "Sheet1!A1").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(f, "Sheet1!G2").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(f, "Sheet1!N3").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(f, "Sheet1!Y4").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
+
+        XLSX.setUniformFill(s, :, 2:8; pattern="lightGrid", fgColor="FF0000FF", bgColor="FF00FF00")
+        @test XLSX.getFill(s, "B10").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+        @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+        @test XLSX.getFill(s, "F30").fill == Dict("patternFill" => Dict("bgrgb" => "FF00FF00", "patternType" => "lightGrid", "fgrgb" => "FF0000FF"))
+
+        XLSX.setUniformFormat(s, :; format="#,##0.000")
+        @test XLSX.getFormat(s, "A1").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        @test XLSX.getFormat(s, "G10").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        @test XLSX.getFormat(s, "M20").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        @test XLSX.getFormat(s, "X30").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+
+        f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
+        s = f["Sheet1"]
+        XLSX.setUniformBorder(s, [1,2,3,4], 1:4; left=["style" => "dotted", "color" => "darkseagreen3"],
+                right=["style" => "medium", "color" => "FF765000"],
+                top=["style" => "thick", "color" => "FF230000"],
+                bottom=["style" => "medium", "color" => "FF0000FF"],
+                diagonal=["style" => "none"]
+            )
+        @test XLSX.getBorder(s, 1, 1).border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9B"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, 2, 2).border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9B"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, 4, 4).border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9B"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
 
     end
 end
