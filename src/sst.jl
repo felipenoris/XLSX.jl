@@ -41,7 +41,7 @@ end
 # Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
     !is_writable(get_xlsxfile(wb)) && throw(XLSXError("XLSXFile instance is not writable."))
-    isempty(str_unformatted) || isempty(str_formatted) && throw(XLSXError("Can't add empty string to Shared String Table."))
+    (isempty(str_unformatted) || isempty(str_formatted)) && throw(XLSXError("Can't add empty string to Shared String Table."))
     sst = get_sst(wb)
 
     if !sst.is_loaded
