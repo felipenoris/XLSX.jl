@@ -191,7 +191,7 @@ end
 function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
     # sanity check
     if read_as_template
-        !(read_files && enable_cache) && throw(XLSXError("Something wrong here!"))
+        !(read_files && enable_cache) && throw(XLSXError("Cache must be enabled for files in `write` mode."))
     end
 
     xf = XLSXFile(source, enable_cache, read_as_template)

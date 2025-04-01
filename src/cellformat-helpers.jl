@@ -103,11 +103,9 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                             if v in ["down", "both"]
                                 new_node["diagonalDown"] = "1"
                             end
-                        else#if k == "rgb"
+                        else
                             color[k] = v
-                            #else
-                            #throw(XLSXError("Incorect border attribute found: $k")) # shouldn't happen!
-                        end
+                         end
                     end
                     if length(XML.attributes(color)) > 0 # Don't push an empty color.
                         push!(cnode, color)
@@ -367,12 +365,20 @@ end
 function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)
     ref = SheetCellRef(sheetcell)
     !hassheet(xl, ref.sheet) && throw(XLSXError("Sheet $(ref.sheet) not found."))
-    return f(getsheet(xl, ref.sheet), ref.cellref; kw...)
+    ws = getsheet(xl, ref.sheet)
+    d = get_dimension(ws)
+    if ref.cellref ∉ d
+        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+    end
+    return f(ws, ref.cellref; kw...)
 end
 function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef; kw...)
     wb = get_workbook(ws)
     cell = getcell(ws, cellref)
-
+    d = get_dimension(ws)
+    if cellref ∉ d
+        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+    end
     if cell isa EmptyCell || cell.style == ""
         return nothing
     end
@@ -533,7 +539,11 @@ end
 #
 # - Used for indexing `setUniformAttribute` family of functions
 #
-function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, atts::Vector{String}, newid::Union{Int,Nothing}, first::Bool; kw...) # Most functions in set
+
+#
+# Most set functions
+#
+function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, atts::Vector{String}, newid::Union{Int,Nothing}, first::Bool; kw...)
     cell = getcell(ws, cellref)
     if cell isa EmptyCell # Can't add a attribute to an empty cell.
         return newid, first
@@ -549,39 +559,7 @@ function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, atts
     end
     return newid, first
 end
-function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}; kw...) # setUniformAlignment is different
-    cell = getcell(ws, cellref)
-    if cell isa EmptyCell # Can't add a attribute to an empty cell.
-        return newid, first, alignment_node
-    end
-    if first                           # Get the attribute of the first cell in the range.
-        newid = f(ws, cellref; kw...)
-        new_alignment = getAlignment(ws, cellref).alignment["alignment"]
-        alignment_node = XML.Node(XML.Element, "alignment", new_alignment, nothing, nothing)
-        first = false
-    else                               # Apply the same attribute to the rest of the cells in the range.
-        if cell.style == ""
-            cell.style = string(get_num_style_index(ws, 0).id)
-        end
-        cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
-    end
-    return newid, first, alignment_node
-end
-function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool) # setUniformStyle is different, too
-    cell = getcell(ws, cellref)
-    if cell isa EmptyCell # Can't add a attribute to an empty cell.
-        return newid, first
-    end
-    if first                           # Get the style of the first cell in the range.
-        newid = parse(Int, cell.style)
-        first = false
-    else                               # Apply the same style to the rest of the cells in the range.
-        cell.style = string(newid)
-    end
-    return newid, first
-end
-
-function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...) # Most set functions
+function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...)
 
     if !get_xlsxfile(ws).use_cache_for_sheet_data
         throw(XLSXError("Cannot set uniform attributes because cache is not enabled."))
@@ -723,8 +701,39 @@ function process_uniform_vecvec(f::Function, ws::Worksheet, row::Vector{Int}, co
     end
 end
 
+#
 # UniformStyles
-function process_uniform_colon(ws::Worksheet, ::Colon, atts::Vector{String})
+#
+function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool)
+    cell = getcell(ws, cellref)
+    if cell isa EmptyCell # Can't add a attribute to an empty cell.
+        return newid, first
+    end
+    if first                           # Get the style of the first cell in the range.
+        newid = parse(Int, cell.style)
+        first = false
+    else                               # Apply the same style to the rest of the cells in the range.
+        cell.style = string(newid)
+    end
+    return newid, first
+end
+function process_uniform_intcolon(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        setUniformStyle(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
+    end
+end
+function process_uniform_colonint(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        setUniformStyle(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
+    end
+end
+function process_uniform_colon(ws::Worksheet, ::Colon)
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
@@ -732,7 +741,7 @@ function process_uniform_colon(ws::Worksheet, ::Colon, atts::Vector{String})
         setUniformStyle(ws, dim)
     end
 end
-function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon, atts::Vector{String})
+function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon)
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
@@ -756,7 +765,7 @@ function process_uniform_veccolon(ws::Worksheet, row::Vector{Int}, ::Colon, atts
         end
     end
 end
-function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int}, atts::Vector{String})
+function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int})
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
@@ -780,7 +789,7 @@ function process_uniform_colonvec(ws::Worksheet, ::Colon, col::Vector{Int}, atts
         end
     end
 end
-function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}, atts::Vector{String})
+function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int})
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
@@ -797,7 +806,7 @@ function process_uniform_intvec(ws::Worksheet, row::Union{Integer,UnitRange{<:In
         return newid
     end
 end
-function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}, atts::Vector{String})
+function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}})
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
@@ -814,7 +823,7 @@ function process_uniform_vecint(ws::Worksheet, row::Vector{Int}, col::Union{Inte
         return newid
     end
 end
-function process_uniform_vecvec(ws::Worksheet, row::Vector{Int}, col::Vector{Int}, atts::Vector{String})
+function process_uniform_vecvec(ws::Worksheet, row::Vector{Int}, col::Vector{Int})
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
@@ -832,8 +841,28 @@ function process_uniform_vecvec(ws::Worksheet, row::Vector{Int}, col::Vector{Int
     end
 end
 
-
-function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)  # Alignment is different
+#
+# Alignment is different
+#
+function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}; kw...) # setUniformAlignment is different
+    cell = getcell(ws, cellref)
+    if cell isa EmptyCell # Can't add a attribute to an empty cell.
+        return newid, first, alignment_node
+    end
+    if first                           # Get the attribute of the first cell in the range.
+        newid = f(ws, cellref; kw...)
+        new_alignment = getAlignment(ws, cellref).alignment["alignment"]
+        alignment_node = XML.Node(XML.Element, "alignment", new_alignment, nothing, nothing)
+        first = false
+    else                               # Apply the same attribute to the rest of the cells in the range.
+        if cell.style == ""
+            cell.style = string(get_num_style_index(ws, 0).id)
+        end
+        cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
+    end
+    return newid, first, alignment_node
+end
+function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)
 
     if !get_xlsxfile(ws).use_cache_for_sheet_data
         throw(XLSXError("Cannot set uniform attributes because cache is not enabled."))

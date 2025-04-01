@@ -56,8 +56,20 @@ end
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
 
 # Returns the dimension of this worksheet as a CellRange.
-# Returns `nothing` if the dimension is unknown.
-@inline get_dimension(ws::Worksheet)::Union{Nothing,CellRange} = ws.dimension
+# If the dimension is unknown, computes a dimension from cells in cache.
+# If cache is not being used (or is empty), return `nothing`.
+function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
+    !isnothing(ws.dimension) && return ws.dimension
+    (isnothing(ws.cache) || length(ws.cache.cells) < 1) && return nothing
+#    @warn "Dimension for worksheet $(ws.name) not found. Calculating from cells in cache."
+    row_extr = extrema(keys(ws.cache.cells))
+    row_min = first(row_extr)
+    row_max = last(row_extr)
+    col_extr= [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
+    col_min = minimum([x for x in first.(col_extr)])
+    col_max = maximum([x for x in last.(col_extr)])
+    return CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max))
+end
 
 function set_dimension!(ws::Worksheet, rng::CellRange)
     ws.dimension = rng
