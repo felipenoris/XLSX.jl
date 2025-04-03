@@ -411,8 +411,6 @@ function process_colon(f::Function, ws::Worksheet, ::Colon; kw...)
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
-    elseif length(dim)==1
-        throw(XLSXError("Cannot set format for an `EmptyCell`: $(dim.start.name). Set the value first."))
     else
         return f(ws, dim; kw...)
     end
@@ -423,9 +421,6 @@ function process_intcolon(f::Function, ws::Worksheet, row::Union{Integer,UnitRan
         throw(XLSXError("No worksheet dimension found"))
     else
         rng=CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
-        if length(rng)==1
-            throw(XLSXError("Cannot set format for an `EmptyCell`: $(rng.start.name). Set the value first."))
-        end
         return f(ws, rng; kw...)
     end
 end
@@ -435,9 +430,6 @@ function process_colonint(f::Function, ws::Worksheet, ::Colon, col::Union{Intege
         throw(XLSXError("No worksheet dimension found"))
     else
         rng=CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
-        if length(rng)==1
-            throw(XLSXError("Cannot set format for an `EmptyCell`: $(rng.start.name). Set the value first."))
-        end
         return f(ws, rng; kw...)
     end
 end

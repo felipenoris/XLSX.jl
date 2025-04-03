@@ -2125,7 +2125,7 @@ it returns a value of -1.
 ```julia
 julia> XLSX.setRowHeight(xf, "Sheet1!A2"; height = 50)
 
-julia> XLSX.setRowHeight(sh, "F1:F5"; heighth = 0)
+julia> XLSX.setRowHeight(sh, "F1:F5"; height = 0)
 
 julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
 
