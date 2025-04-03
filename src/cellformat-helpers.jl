@@ -547,7 +547,7 @@ function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, atts
         if cell.style == ""
             cell.style = string(get_num_style_index(ws, 0).id)
         end
-        cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), atts, ["$newid", "1"]).id)
+        cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), atts, [string(newid), "1"]).id)
     end
     return newid, first
 end

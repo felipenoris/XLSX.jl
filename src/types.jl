@@ -493,4 +493,4 @@ end
 struct XLSXError <: Exception
     msg::String
 end
-Base.showerror(io::IO, e::XLSXError) = print(io, "XLSXError: $(e.msg)")
+Base.showerror(io::IO, e::XLSXError) = print(io, "XLSXError: ",e.msg)

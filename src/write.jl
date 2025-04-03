@@ -234,7 +234,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         ])
 
         let
-            child_nodes = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:worksheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:sheetData/$SPREADSHEET_NAMESPACE_XPATH_ARG:row", doc)
+            child_nodes = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":worksheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":sheetData/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":row", doc)
 
             i, j = get_idces(doc, "worksheet", "sheetData")
             parent = doc[i][j]
@@ -343,7 +343,7 @@ end
 
 function abscell(c::CellRef)
     col, row = split_cellname(c.name)
-    return "\$$col\$$row"
+    return "\$"*col*"\$"*string(row)
 end
 
 mkabs(c::SheetCellRef) = abscell(c.cellref)
@@ -804,10 +804,10 @@ function process_vector(col) # Convert any disallowed types to strings. #239.
         return col
     elseif eltype(col) <: Any && all(x -> !(typeof(x) <: ALLOWED_TYPES), col)
         # Case 2: All elements are of disallowed types
-        return map(x -> "$x", col)
+        return map(x -> string(x), col)
     else
         # Case 3: Mixed types, process each element
-        return [typeof(x) <: ALLOWED_TYPES ? x : "$x" for x in col]
+        return [typeof(x) <: ALLOWED_TYPES ? x : string(x) for x in col]
     end
 end
 
@@ -940,7 +940,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
         i = 1
         current_sheet_names = sheetnames(wb)
         while true
-            name = "Sheet$i"
+            name = "Sheet"*string(i)
             if !in(name, current_sheet_names)
                 # found a unique name
                 break
@@ -978,7 +978,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     local xml_filename::String
     i = 1
     while true
-        xml_filename = "xl/worksheets/sheet$i.xml"
+        xml_filename = "xl/worksheets/sheet"*string(i)*".xml"
         if !in(xml_filename, keys(xf.files))
             break
         end
@@ -1020,7 +1020,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
     override_node = XML.Element("Override";
         ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
-        PartName = "/xl/worksheets/sheet$sheetId.xml"
+        PartName = "/xl/worksheets/sheet"*string(sheetId)*".xml"
     )
     push!(ctype_root, override_node)
 

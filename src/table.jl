@@ -68,7 +68,7 @@ function push_unique!(vect::Vector{String}, sheet::Worksheet, cell::AbstractCell
     name = _colname_prefix_string(sheet, cell)
 
     if iter > 1
-        name = name*"_$iter"
+        name = name*"_"*string(iter)
     end
 
     if name in vect

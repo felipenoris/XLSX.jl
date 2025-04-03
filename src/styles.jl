@@ -81,7 +81,7 @@ end
 # `index` is 0-based.
 function styles_cell_xf(wb::Workbook, index::Int) :: XML.Node
     xroot = styles_xmlroot(wb)
-    xf_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
+    xf_elements = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":cellXfs/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":xf", xroot)
     return xf_elements[index+1]
 end
 
@@ -99,9 +99,9 @@ end
 function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     xroot = styles_xmlroot(wb)
 
-    numfmts = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)
+    numfmts = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmts", xroot)
     if isempty(numfmts)
-        stylesheet = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet", xroot)[begin] # find first
+        stylesheet = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet", xroot)[begin] # find first
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
@@ -132,7 +132,7 @@ const FontAttribute = Union{String, Pair{String, Pair{String, String}}}
 # Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
     xroot = styles_xmlroot(wb)
-    nodes_found = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmt", xroot)
+    nodes_found = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmts/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmt", xroot)
     elements_found = filter(x->XML.attributes(x)["numFmtId"] == numFmtId, nodes_found)
     length(elements_found) != 1 && throw(XLSXError("numFmtId $numFmtId not found."))
     return XML.attributes(elements_found[1])["formatCode"]
@@ -232,7 +232,7 @@ Returns -1 if not found.
 =#
 function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
-    elements_found = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:cellXfs/$SPREADSHEET_NAMESPACE_XPATH_ARG:xf", xroot)
+    elements_found = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":cellXfs/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":xf", xroot)
 
     if isempty(elements_found)
         return EmptyCellDataFormat()

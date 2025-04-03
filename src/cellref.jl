@@ -188,7 +188,7 @@ end
 
 CellRange(start_row::Integer, start_column::Integer, stop_row::Integer, stop_column::Integer) = CellRange(CellRef(start_row, start_column), CellRef(stop_row, stop_column))
 
-Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
+Base.string(cr::CellRange) = string(cr.start)*":"*string(cr.stop)
 Base.show(io::IO, cr::CellRange) = print(io, string(cr))
 Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::CellRange) = hash(cr.start) + hash(cr.stop)
@@ -273,13 +273,13 @@ end
 # ColumnRange and RowRange
 #
 
-Base.string(cr::ColumnRange) = "$(encode_column_number(cr.start)):$(encode_column_number(cr.stop))"
+Base.string(cr::ColumnRange) = encode_column_number(cr.start)*":"*encode_column_number(cr.stop)
 Base.show(io::IO, cr::ColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::ColumnRange, cr2::ColumnRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::ColumnRange) = hash(cr.start) + hash(cr.stop)
 Base.in(column_number::Integer, rng::ColumnRange) = rng.start <= column_number && column_number <= rng.stop
 
-Base.string(cr::RowRange) = "$(cr.start):$(cr.stop)"
+Base.string(cr::RowRange) = string(cr.start)*":"*string(cr.stop)
 Base.show(io::IO, cr::RowRange) = print(io, string(cr))
 Base.:(==)(cr1::RowRange, cr2::RowRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::RowRange) = hash(cr.start) + hash(cr.stop)

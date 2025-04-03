@@ -189,7 +189,7 @@ function setFont(sh::Worksheet, cellref::CellRef;
 
     new_fontid = styles_add_cell_attribute(wb, font_node, "fonts")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], ["$new_fontid", "1"]).id)
+    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], [string(new_fontid), "1"]).id)
     cell.style = newstyle
     return new_fontid
 end
@@ -328,7 +328,7 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
         fontid = cell_style["fontId"]
         applyfont = haskey(cell_style, "applyFont") ? cell_style["applyFont"] : "0"
         xroot = styles_xmlroot(wb)
-        font_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts", xroot)[begin]
+        font_elements = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":fonts", xroot)[begin]
         if parse(Int, font_elements["count"]) != length(XML.children(font_elements))
             throw(XLSXError("Unexpected number of font definitions found : $(length(XML.children(font_elements))). Expected $(parse(Int, font_elements["count"]))"))
         end
@@ -433,7 +433,7 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
         borderid = cell_style["borderId"]
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
         xroot = styles_xmlroot(wb)
-        border_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:borders", xroot)[begin]
+        border_elements = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":borders", xroot)[begin]
         if parse(Int, border_elements["count"]) != length(XML.children(border_elements))
             throw(XLSXError("Unexpected number of border definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"))
         end
@@ -702,41 +702,45 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     for a in ["left", "right", "top", "bottom", "diagonal"]
         new_border_atts[a] = Dict{String,String}()
-        if isnothing(kwdict[a]) && haskey(old_border_atts, a)
-            new_border_atts[a] = old_border_atts[a]
-        elseif !isnothing(kwdict[a])
-            if !haskey(kwdict[a], "style") && haskey(old_border_atts, a) && haskey(old_border_atts[a], "style")
-                new_border_atts[a]["style"] = old_border_atts[a]["style"]
-            elseif haskey(kwdict[a], "style")
-                if kwdict[a]["style"] ∉ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"]
-                    throw(XLSXError("Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."))
-                end
-                new_border_atts[a]["style"] = kwdict[a]["style"]
-            end
-            if a == "diagonal"
-                if !haskey(kwdict[a], "direction")
-                    if haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "direction")
-                        new_border_atts[a]["direction"] = old_border_atts[a]["direction"]
-                    else
-                        new_border_atts[a]["direction"] = "both" # default if direction not specified or inherited
+        if !isnothing(old_border_atts)
+            if isnothing(kwdict[a]) && haskey(old_border_atts, a)
+                new_border_atts[a] = old_border_atts[a]
+            elseif !isnothing(kwdict[a])
+                if !haskey(kwdict[a], "style") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "style")
+                    new_border_atts[a]["style"] = old_border_atts[a]["style"]
+                elseif haskey(kwdict[a], "style")
+                    if kwdict[a]["style"] ∉ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"]
+                        throw(XLSXError("Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."))
                     end
-                elseif haskey(kwdict[a], "direction")
-                    if kwdict[a]["direction"] ∉ ["up", "down", "both"]
-                        throw(XLSXError("Invalid direction: $v. Must be one of: `up`, `down`, `both`."))
-                    end
-                    new_border_atts[a]["direction"] = kwdict[a]["direction"]
+                    new_border_atts[a]["style"] = kwdict[a]["style"]
                 end
-            end
-            if !haskey(kwdict[a], "color") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
-                for (k, v) in old_border_atts[a]
-                    if k != "style"
-                        new_border_atts[a][k] = v
+                if a == "diagonal"
+                    if !haskey(kwdict[a], "direction")
+                        if haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "direction")
+                            new_border_atts[a]["direction"] = old_border_atts[a]["direction"]
+                        else
+                            new_border_atts[a]["direction"] = "both" # default if direction not specified or inherited
+                        end
+                    elseif haskey(kwdict[a], "direction")
+                        if kwdict[a]["direction"] ∉ ["up", "down", "both"]
+                            throw(XLSXError("Invalid direction: $v. Must be one of: `up`, `down`, `both`."))
+                        end
+                        new_border_atts[a]["direction"] = kwdict[a]["direction"]
                     end
                 end
-            elseif haskey(kwdict[a], "color")
-                v = kwdict[a]["color"]
-                new_border_atts[a]["rgb"] = get_color(v)
+                if !haskey(kwdict[a], "color") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
+                    for (k, v) in old_border_atts[a]
+                        if k != "style"
+                            new_border_atts[a][k] = v
+                        end
+                    end
+                elseif haskey(kwdict[a], "color")
+                    v = kwdict[a]["color"]
+                    new_border_atts[a]["rgb"] = get_color(v)
+                end
             end
+        else
+            new_border_atts = kwdict
         end
     end
 
@@ -744,7 +748,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     new_borderid = styles_add_cell_attribute(wb, border_node, "borders")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["borderId", "applyBorder"], ["$new_borderid", "1"]).id)
+    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["borderId", "applyBorder"], [string(new_borderid), "1"]).id)
     cell.style = newstyle
     return new_borderid
 end
@@ -988,7 +992,7 @@ function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
         fillid = cell_style["fillId"]
         applyfill = haskey(cell_style, "applyFill") ? cell_style["applyFill"] : "0"
         xroot = styles_xmlroot(wb)
-        fill_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fills", xroot)[begin]
+        fill_elements = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":fills", xroot)[begin]
         if parse(Int, fill_elements["count"]) != length(XML.children(fill_elements))
             throw(XLSXError("Unexpected number of font definitions found : $(length(XML.children(fill_elements))). Expected $(parse(Int, fill_elements["count"]))"))
         end
@@ -1171,7 +1175,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
 
     new_fillid = styles_add_cell_attribute(wb, fill_node, "fills")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], ["$new_fillid", "1"]).id)
+    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], [string(new_fillid), "1"]).id)
     cell.style = newstyle
     return new_fillid
 end
@@ -1593,7 +1597,7 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
         format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         if parse(Int, numfmtid) >= PREDEFINED_NUMFMT_COUNT
             xroot = styles_xmlroot(wb)
-            format_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)[begin]
+            format_elements = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmts", xroot)[begin]
             if parse(Int, format_elements["count"]) != length(XML.children(format_elements))
                 throw(XLSXError("Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"))
             end
@@ -1746,10 +1750,10 @@ function setFormat(sh::Worksheet, cellref::CellRef;
 
     if new_formatid == 0
         atts = ["numFmtId"]
-        vals = ["$new_formatid"]
+        vals = [string(new_formatid)]
     else
         atts = ["numFmtId", "applyNumberFormat"]
-        vals = ["$new_formatid", "1"]
+        vals = [string(new_formatid), "1"]
     end
     newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), atts, vals).id)
     cell.style = newstyle
@@ -1970,7 +1974,7 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
         return 0
     end
 
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") # find the <cols> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "cols")
 
     if isnothing(j) # There are no existing column formats. Insert before the <sheetData> block and push everything else down one.
@@ -2064,7 +2068,7 @@ function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
     # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
     update_worksheets_xml!(get_xlsxfile(ws))
 
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") # find the <cols> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "cols")
 
     if isnothing(j) # There are no existing column formats defined.
@@ -2275,7 +2279,7 @@ function getMergedCells(ws::Worksheet)::Union{Vector{CellRange},Nothing}
 
     # No need to update the xml file using the worksheet cache first (like we did for column width)  
     # because we cannot change merged cells in XLSX.jl. 
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <mergeCells> block in the worksheet's xml file
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") # find the <mergeCells> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
 
     if isnothing(j) # There are no existing merged cells.

@@ -375,7 +375,7 @@ function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     # Access cache directly if it exists and if file `isread` - much faster!
     if is_cache_enabled(ws) && ws.cache !== nothing
-        if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet$(ws.sheetId).xml") && get_xlsxfile(ws).files["xl/worksheets/sheet$(ws.sheetId).xml"] == true
+        if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") && get_xlsxfile(ws).files["xl/worksheets/sheet"*string(ws.sheetId)*".xml"] == true
             if haskey(ws.cache.cells, single.row_number)
                 if haskey(ws.cache.cells[single.row_number], single.column_number)
                     return ws.cache.cells[single.row_number][single.column_number]
