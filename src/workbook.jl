@@ -329,8 +329,8 @@ julia> XLSX.addDefinedName(xf, "first_name", "Hello World")
 ```
 """
 function addDefinedName end
-addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(xf, name, value; kw...)
-addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(ws, name, value; kw...)
+addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(xf, name, value; absolute=true)
+addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(ws, name, value; absolute=true)
 function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractString; absolute=true)
     if value == ""
         throw(XLSXError("Defined name value cannot be an empty string."))
