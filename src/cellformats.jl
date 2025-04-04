@@ -702,7 +702,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     for a in ["left", "right", "top", "bottom", "diagonal"]
         new_border_atts[a] = Dict{String,String}()
-        if !isnothing(old_border_atts)
+        if !isnothing(old_border_atts) # Need to merge new into old atts
             if isnothing(kwdict[a]) && haskey(old_border_atts, a)
                 new_border_atts[a] = old_border_atts[a]
             elseif !isnothing(kwdict[a])

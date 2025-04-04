@@ -299,23 +299,28 @@ unquoteit(x::AbstractString) = replace(x, "'" => "")
 Add a defined name to the Workbook or Worksheet. If an `XLSXFile` is passed, the defined name 
 is added to the Workbook. If a `Worksheet` is passed, the defined name is added to the Worksheet.
 
+When adding defined name referring to a cell or range to a workbook, `value` must include the sheet 
+name (e.g. `Sheet1!A1:B2`). 
+
 If the new `definedName` is a cell reference or range, by default, it will be an absolute 
 reference (e.g. \$A\$1:\$C\$6). If `absolute=false` is specified, the new `definedName will be 
-a relative reference(e.g. A1:C6). The `absolute` argument is ignored if the `definedName` is
-not a cell reference or range.
+a relative reference(e.g. A1:C6). Any `absolute` argument specified is ignored if the 
+`definedName` is not a cell reference or range.
 
 In the context of `XLSX.jl` there is no difference between an absolute reference and a relative 
 reference. However, Excel treats them differently. When `definedNames` are read in as part of 
 an XLSXFile, we keep track of whether they are absolute or not. If the XLSXFile is subsequently 
-written out again, the status of the `definedNames` is preserved. 
+written out again, the status of the `definedNames` is preserved.
 
 # Examples
 ```julia
 julia> XLSX.addDefinedName(sh, "ID", "C21")
 
-julia> XLSX.addDefinedName(sh, "NEW", "'Mock-up'!A1:B2")
+julia> XLSX.addDefinedName(sh, "NEW", "A1:B2")
 
 julia> XLSX.addDefinedName(sh, "my_name", "A1,B2,C3")
+
+julia> XLSX.addDefinedName(xf, "New", "'Mock-up'!A1:B2")
 
 julia> XLSX.addDefinedName(xf, "Life_the_universe_and_everything", 42)
 
@@ -324,20 +329,22 @@ julia> XLSX.addDefinedName(xf, "first_name", "Hello World")
 ```
 """
 function addDefinedName end
-addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(xf, name, value)
-addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(ws, name, value)
+addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(xf, name, value; kw...)
+addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(ws, name, value; kw...)
 function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractString; absolute=true)
     if value == ""
         throw(XLSXError("Defined name value cannot be an empty string."))
     end
-    if is_valid_sheet_cellname(value)
+    if is_valid_cellname(value) || is_valid_cellrange(value) || is_valid_non_contiguous_cellrange(value)
+        throw(XLSXError("Workbook defined name reference `$value` incomplete. Must contain sheet name (e.g. `Sheet1!A1:B2`)."))
+    elseif is_valid_sheet_cellname(value)
         return addDefName(xf, name, SheetCellRef(value); absolute)
     elseif is_valid_sheet_cellrange(value)
         return addDefName(xf, name, SheetCellRange(value); absolute)
     elseif is_valid_non_contiguous_sheetcellrange(value)
         return addDefName(xf, name, NonContiguousRange(value); absolute)
     else
-        return addDefName(xf, name, value)
+        return addDefName(xf, name, value; absolute)
     end
 end
 function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractString; absolute=true)
@@ -346,13 +353,17 @@ function addDefinedName(ws::Worksheet, name::AbstractString, value::AbstractStri
     end
     if is_valid_cellname(value)
         return addDefName(ws, name, SheetCellRef(ws.name, CellRef(value)); absolute)
+    elseif is_valid_sheet_cellname(value)
+        return addDefName(ws, name, SheetCellRef(value); absolute)
     elseif is_valid_cellrange(value)
         return addDefName(ws, name, SheetCellRange(ws.name, CellRange(value)); absolute)
-    elseif is_valid_non_contiguous_sheetcellrange(value)
-        return addDefName(ws, name, NonContiguousRange(value); absolute)
+    elseif is_valid_sheet_cellrange(value)
+        return addDefName(ws, name, SheetCellRange(value); absolute)
     elseif is_valid_non_contiguous_cellrange(value)
         return addDefName(ws, name, NonContiguousRange(ws, value); absolute)
+    elseif is_valid_non_contiguous_sheetcellrange(value)
+        return addDefName(ws, name, NonContiguousRange(value); absolute)
     else
-        return addDefName(ws, name, value)
+        return addDefName(ws, name, value; absolute)
     end
 end
