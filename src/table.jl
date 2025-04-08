@@ -326,6 +326,7 @@ function TableRow(table_row::Int, index::Index, sheet_row::SheetRow)
 end
 
 getdata(r::TableRow, table_column_number::Int) = r.cell_values[table_column_number]
+getdata(r::TableRow, table_column_numbers::Union{Vector{T}, UnitRange{T}}) where {T<:Integer} = [r.cell_values[x] for x in table_column_numbers]
 
 function getdata(r::TableRow, column_label::Symbol)
     index = r.index

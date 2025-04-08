@@ -284,6 +284,7 @@ function getcell(r::SheetRow, column_name::AbstractString)
     return getcell(r, decode_column_number(column_name))
 end
 
+getdata(r::SheetRow, column::Union{Vector{T}, UnitRange{T}}) where {T<:Integer} = [getdata(get_worksheet(r), getcell(r, x)) for x in column]
 getdata(r::SheetRow, column) = getdata(get_worksheet(r), getcell(r, column))
 Base.getindex(r::SheetRow, x) = getdata(r, x)
 
