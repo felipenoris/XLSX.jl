@@ -569,23 +569,23 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existin
         isa_dt = styles_is_datetime(ws.package.workbook, existing_style)
         if val isa Dates.Date
             if isa_dt == false
-                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_DATE_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, ["numFmtId", "applyNumberFormat"], [string(DEFAULT_DATE_numFmtId), "1"]).id)
             end
         elseif val isa Dates.Time
             if isa_dt == false
-                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_TIME_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, ["numFmtId", "applyNumberFormat"], [string(DEFAULT_TIME_numFmtId), "1"]).id)
             end
         elseif val isa Dates.DateTime
             if isa_dt == false
-                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_DATETIME_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, ["numFmtId", "applyNumberFormat"], [string(DEFAULT_DATETIME_numFmtId), "1"]).id)
             end
         elseif val isa Float64 || val isa Int
             if styles_is_float(ws.package.workbook, existing_style) == false && Int(existing_style.id) ∉ [0, 1]
-                c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_NUMBER_numFmtId).id)
+                c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_NUMBER_numFmtId)]).id)
             end
         elseif val isa Bool # Now rerouted here rather than assigning an EmptyCellDataFormat.
                             # Change any style to General (0) and retiain other formatting.
-            c.style = string(update_template_xf(ws, existing_style, "numFmtId", DEFAULT_BOOL_numFmtId).id)
+            c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_BOOL_numFmtId)]).id)
         end
 
         return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
