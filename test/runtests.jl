@@ -1142,7 +1142,7 @@ end
         sheet["Q3"] = "this"
         sheet["Q4"] = "template"
     end
-    @test XLSX.writexlsx(filename_copy, template, overwrite=true) === nothing # This is where the bug will throw if custoimXml internal files present.
+    @test XLSX.writexlsx(filename_copy, template, overwrite=true) === nothing # This is where the bug will throw if customXml internal files present.
     @test isfile(filename_copy)
     f_copy = XLSX.readxlsx(filename_copy) # Don't really think this second part is necessary.
     test_Xmlread = [["Cant", "write", "this", "template"]]
@@ -2296,6 +2296,16 @@ end
         @test XLSX.getBorder(s, 2, 2).border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9B"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
         @test XLSX.getBorder(s, 4, 4).border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9B"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
 
+    end
+    @testset "existing formatting" begin
+        f=XLSX.opentemplate(joinpath(data_directory, "customXml.xlsx"))
+        s=f[1]
+        s["B2"] = pi
+        s["D20"] = "Hello World"
+        s["J45"] = Dates.Date(2025, 01, 24)
+        @test XLSX.getFont(s, "B2").font == Dict("name" => Dict("val" => "Calibri"), "family" => Dict("val" => "2"), "b" => nothing, "sz" => Dict("val" => "18"), "color" => Dict("theme" => "1"), "scheme" => Dict("val" => "minor"))
+        @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
+        @test XLSX.getBorder(s, "J45").border ==Dict("left" => Dict("indexed" => "64", "style" => "thin"), "bottom" => Dict("indexed" => "64", "style" => "thin"), "right" => Dict("indexed" => "64", "style" => "thin"), "top" => Dict("indexed" => "64", "style" => "thin"), "diagonal" => nothing)
     end
 end
 
