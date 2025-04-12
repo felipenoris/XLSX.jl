@@ -237,9 +237,9 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
             for r in eachrow(sheet)
                 nothing
             end
+            isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
         end
     end
-
     if read_as_template
         wb = get_workbook(xf)
         if has_sst(wb)

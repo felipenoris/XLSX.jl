@@ -68,7 +68,8 @@ function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
     col_extr= [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
     col_min = minimum([x for x in first.(col_extr)])
     col_max = maximum([x for x in last.(col_extr)])
-    return CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max))
+    set_dimension!(ws, CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max)))
+    return ws.dimension
 end
 
 function set_dimension!(ws::Worksheet, rng::CellRange)

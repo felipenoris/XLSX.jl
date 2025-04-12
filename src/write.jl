@@ -330,9 +330,11 @@ function update_worksheets_xml!(xl::XLSXFile)
         # updates worksheet dimension
         if get_dimension(sheet) !== nothing
             i, j = get_idces(doc, "worksheet", "dimension")
-            dimension_node = doc[i][j]
-            dimension_node["ref"] = string(get_dimension(sheet))
-            doc[i][j] = dimension_node
+            if !isnothing(j)
+                dimension_node = doc[i][j]
+                dimension_node["ref"] = string(get_dimension(sheet))
+                doc[i][j] = dimension_node
+            end
         end
 
         set_worksheet_xml_document!(sheet, doc)
@@ -584,7 +586,7 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existin
                 c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_NUMBER_numFmtId)]).id)
             end
         elseif val isa Bool # Now rerouted here rather than assigning an EmptyCellDataFormat.
-                            # Change any style to General (0) and retiain other formatting.
+                            # Change any style to General (0) and retain other formatting.
             c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_BOOL_numFmtId)]).id)
         end
 
@@ -624,7 +626,7 @@ function setdata!(ws::Worksheet, ref::AbstractString, value)
     elseif is_valid_sheet_column_range(ref)
         return setdata!(ws, SheetColumnRange(ref), value)
     elseif is_valid_sheet_row_range(ref)
-        return gsetdata!(ws, SheetRowRange(ref), value)
+        return setdata!(ws, SheetRowRange(ref), value)
     elseif is_valid_non_contiguous_range(ref)
         return setdata!(ws, NonContiguousRange(ref), value)
     end

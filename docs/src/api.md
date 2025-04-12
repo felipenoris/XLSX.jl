@@ -43,5 +43,6 @@ XLSX.setRowHeight
 XLSX.getMergedCells
 XLSX.isMergedCell
 XLSX.getMergedBaseCell
+XLSX.mergeCells
 XLSX.addDefinedName
 ```
