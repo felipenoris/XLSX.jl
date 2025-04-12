@@ -597,7 +597,7 @@ end
 
 @testset "No Dimension" begin
     noDim = XLSX.readxlsx(joinpath(data_directory, "NoDim.xlsx")) # These two files are the same except the `NoDim` file has the dimension nodes removed.
-    Dim = XLSX.readxlsx(joinpath(data_directory, "CustomXml.xlsx"))
+    Dim = XLSX.readxlsx(joinpath(data_directory, "customXml.xlsx"))
     @test noDim[1].dimension == Dim[1].dimension
     @test noDim[2].dimension == Dim[2].dimension
 end
