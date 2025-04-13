@@ -177,7 +177,9 @@ cr = XLSX.range"A1:C4"
 =#
 
 abstract type AbstractCellRange end
-abstract type ContiguousCellRange end
+abstract type ContiguousCellRange <: AbstractCellRange end
+abstract type AbstractSheetCellRange <: AbstractCellRange end
+abstract type ContiguousSheetCellRange <: AbstractSheetCellRange end
 
 struct CellRange <: ContiguousCellRange
     start::CellRef
@@ -226,21 +228,21 @@ struct SheetCellRef
     cellref::CellRef
 end
 
-struct SheetCellRange <: ContiguousCellRange
+struct SheetCellRange <: ContiguousSheetCellRange
    sheet::String
    rng::CellRange
 end
 
-struct NonContiguousRange <: AbstractCellRange
+struct NonContiguousRange <: AbstractSheetCellRange
     sheet::String
     rng::Vector{Union{CellRef, CellRange}}
 end
 
-struct SheetColumnRange <: ContiguousCellRange
+struct SheetColumnRange <: ContiguousSheetCellRange
     sheet::String
     colrng::ColumnRange
 end
-struct SheetRowRange <: ContiguousCellRange
+struct SheetRowRange <: ContiguousSheetCellRange
     sheet::String
     rowrng::RowRange
 end

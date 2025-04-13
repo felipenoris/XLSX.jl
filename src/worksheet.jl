@@ -262,6 +262,7 @@ end
 =#
 
 function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Any}
+    do_sheet_names_match(ws, rng)
     results = Vector{Any}()
     for r in rng.rng
         if r isa CellRef
@@ -276,10 +277,10 @@ function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Any}
 end
 
 # Needed for definedName references
-getdata(ws::Worksheet, s::SheetCellRef) = getdata(ws, s.cellref)
-getdata(ws::Worksheet, s::SheetCellRange) = getdata(ws, s.rng)
-getdata(ws::Worksheet, s::SheetColumnRange) = getdata(ws, s.colrng)
-getdata(ws::Worksheet, s::SheetRowRange) = getdata(ws, s.rowrng)
+getdata(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getdata(ws, s.cellref)
+getdata(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getdata(ws, s.rng)
+getdata(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getdata(ws, s.colrng)
+getdata(ws::Worksheet, s::SheetRowRange) = do_sheet_names_match(ws, s) && getdata(ws, s.rowrng)
 
 function getdata(ws::Worksheet, ref::AbstractString)::Union{Array{Any,2},Any}
     if is_worksheet_defined_name(ws, ref)
@@ -317,8 +318,11 @@ function getdata(ws::Worksheet, ref::AbstractString)::Union{Array{Any,2},Any}
         return getdata(ws, SheetColumnRange(ref))
     elseif is_valid_sheet_row_range(ref)
         return getdata(ws, SheetRowRange(ref))
-    elseif is_valid_non_contiguous_range(ref)
+    elseif is_valid_non_contiguous_cellrange(ref)
         return getdata(ws, NonContiguousRange(ws, ref))
+    elseif is_valid_non_contiguous_sheetcellrange(ref)
+        nc=NonContiguousRange(ref)
+        return do_sheet_names_match(ws, nc) && getdata!(ws, nc)
     else
         throw(XLSXError("`$ref` is not a valid cell or range reference."))
     end

@@ -85,10 +85,10 @@ julia> setFont(sh, :, 2:6; size=48, color="lightskyblue2")                      
 ```
 """
 function setFont end
-setFont(ws::Worksheet, ref::SheetCellRef; kw...) = setFont(ws, ref.cellref; kw...)
-setFont(ws::Worksheet, rng::SheetCellRange; kw...) = setFont(ws, rng.rng; kw...)
-setFont(ws::Worksheet, rng::SheetColumnRange; kw...) = setFont(ws, rng.colrng; kw...)
-setFont(ws::Worksheet, rng::SheetRowRange; kw...) = setFont(ws, rng.rowrng; kw...)
+setFont(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setFont(ws, ref.cellref; kw...)
+setFont(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setFont(ws, rng.rng; kw...)
+setFont(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setFont(ws, rng.colrng; kw...)
+setFont(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setFont(ws, rng.rowrng; kw...)
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
 setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
 setFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFont, ws, rowrng; kw...)
@@ -251,9 +251,9 @@ julia> setUniformFont(sh, 1, [2, 4, 6]; size=48, color="lightskyblue2")         
 ```
 """
 function setUniformFont end
-setUniformFont(ws::Worksheet, rng::SheetCellRange; kw...) = setUniformFont(ws, rng.rng; kw...)
-setUniformFont(ws::Worksheet, rng::SheetColumnRange; kw...) = setUniformFont(ws, rng.colrng; kw...)
-setUniformFont(ws::Worksheet, rng::SheetRowRange; kw...) = setUniformFont(ws, rng.rowrng; kw...)
+setUniformFont(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFont(ws, rng.rng; kw...)
+setUniformFont(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFont(ws, rng.colrng; kw...)
+setUniformFont(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFont(ws, rng.rowrng; kw...)
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
 setUniformFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFont, ws, rowrng; kw...)
 setUniformFont(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFont, ws, ncrng; kw...)
@@ -576,10 +576,10 @@ Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "F
 ```
 """
 function setBorder end
-setBorder(ws::Worksheet, ref::SheetCellRef; kw...) = setBorder(ws, ref.cellref; kw...)
-setBorder(ws::Worksheet, rng::SheetCellRange; kw...) = setBorder(ws, rng.rng; kw...)
-setBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = setBorder(ws, rng.colrng; kw...)
-setBorder(ws::Worksheet, rng::SheetRowRange; kw...) = setBorder(ws, rng.rowrng; kw...)
+setBorder(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setBorder(ws, ref.cellref; kw...)
+setBorder(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setBorder(ws, rng.rng; kw...)
+setBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setBorder(ws, rng.colrng; kw...)
+setBorder(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setBorder(ws, rng.rowrng; kw...)
 setBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setBorder, ws, ncrng; outside)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
 setBorder(ws::Worksheet, row::Integer, col::Integer; kw...) = setBorder(ws, CellRef(row, col); kw...)
@@ -816,9 +816,9 @@ Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "c
 ```
 """
 function setUniformBorder end
-setUniformBorder(ws::Worksheet, rng::SheetCellRange; kw...) = setUniformBorder(ws, rng.rng; kw...)
-setUniformBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = setUniformBorder(ws, rng.colrng; kw...)
-setUniformBorder(ws::Worksheet, rng::SheetRowRange; kw...) = setUniformBorder(ws, rng.rowrng; kw...)
+setUniformBorder(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformBorder(ws, rng.rng; kw...)
+setUniformBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformBorder(ws, rng.colrng; kw...)
+setUniformBorder(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformBorder(ws, rng.rowrng; kw...)
 setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
 setUniformBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformBorder, ws, rowrng; kw...)
 setUniformBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformBorder, ws, ncrng; kw...)
@@ -873,9 +873,9 @@ This function is equivalent to `setBorder()` called with the same arguments and 
 
 """
 function setOutsideBorder end
-setOutsideBorder(ws::Worksheet, rng::SheetCellRange; kw...) = setOutsideBorder(ws, rng.rng; kw...)
-setOutsideBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = setOutsideBorder(ws, rng.colrng; kw...)
-setOutsideBorder(ws::Worksheet, rng::SheetRowRange; kw...) = setOutsideBorder(ws, rng.rowrng; kw...)
+setOutsideBorder(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setOutsideBorder(ws, rng.rng; kw...)
+setOutsideBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setOutsideBorder(ws, rng.colrng; kw...)
+setOutsideBorder(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setOutsideBorder(ws, rng.rowrng; kw...)
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
 setOutsideBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setOutsideBorder, ws, rowrng; kw...)
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
@@ -1110,10 +1110,10 @@ Julia> setFill(sh, "11:24"; pattern="none", fgColor = "yellow2")
 ```
 """
 function setFill end
-setFill(ws::Worksheet, ref::SheetCellRef; kw...) = setFill(ws, ref.cellref; kw...)
-setFill(ws::Worksheet, rng::SheetCellRange; kw...) = setFill(ws, rng.rng; kw...)
-setFill(ws::Worksheet, rng::SheetColumnRange; kw...) = setFill(ws, rng.colrng; kw...)
-setFill(ws::Worksheet, rng::SheetRowRange; kw...) = setFill(ws, rng.rowrng; kw...)
+setFill(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setFill(ws, ref.cellref; kw...)
+setFill(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setFill(ws, rng.rng; kw...)
+setFill(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setFill(ws, rng.colrng; kw...)
+setFill(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setFill(ws, rng.rowrng; kw...)
 setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
 setFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFill, ws, rowrng; kw...)
 setFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFill, ws, ncrng; kw...)
@@ -1244,9 +1244,9 @@ Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "darkseagre
 ```
 """
 function setUniformFill end
-setUniformFill(ws::Worksheet, rng::SheetCellRange; kw...) = setUniformFill(ws, rng.rng; kw...)
-setUniformFill(ws::Worksheet, rng::SheetColumnRange; kw...) = setUniformFill(ws, rng.colrng; kw...)
-setUniformFill(ws::Worksheet, rng::SheetRowRange; kw...) = setUniformFill(ws, rng.rowrng; kw...)
+setUniformFill(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFill(ws, rng.rng; kw...)
+setUniformFill(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFill(ws, rng.colrng; kw...)
+setUniformFill(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFill(ws, rng.rowrng; kw...)
 setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFill, ws, colrng; kw...)
 setUniformFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFill, ws, rowrng; kw...)
 setUniformFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFill, ws, ncrng; kw...)
@@ -1408,10 +1408,10 @@ julia> setAlignment(sh, 1:3, 3:6; horizontal="center", rotation="90", shrink=tru
 ```
 """
 function setAlignment end
-setAlignment(ws::Worksheet, ref::SheetCellRef; kw...) = setAlignment(ws, ref.cellref; kw...)
-setAlignment(ws::Worksheet, rng::SheetCellRange; kw...) = setAlignment(ws, rng.rng; kw...)
-setAlignment(ws::Worksheet, rng::SheetColumnRange; kw...) = setAlignment(ws, rng.colrng; kw...)
-setAlignment(ws::Worksheet, rng::SheetRowRange; kw...) = setAlignment(ws, rng.rowrng; kw...)
+setAlignment(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setAlignment(ws, ref.cellref; kw...)
+setAlignment(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setAlignment(ws, rng.rng; kw...)
+setAlignment(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setAlignment(ws, rng.colrng; kw...)
+setAlignment(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setAlignment(ws, rng.rowrng; kw...)
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
 setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
 setAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setAlignment, ws, rowrng; kw...)
@@ -1555,9 +1555,9 @@ Julia> setUniformAlignment(sh, :, 1:24; horizontal="center", vertical="top")
 ```
 """
 function setUniformAlignment end
-setUniformAlignment(ws::Worksheet, rng::SheetCellRange; kw...) = setUniformAlignment(ws, rng.rng; kw...)
-setUniformAlignment(ws::Worksheet, rng::SheetColumnRange; kw...) = setUniformAlignment(ws, rng.colrng; kw...)
-setUniformAlignment(ws::Worksheet, rng::SheetRowRange; kw...) = setUniformAlignment(ws, rng.rowrng; kw...)
+setUniformAlignment(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformAlignment(ws, rng.rng; kw...)
+setUniformAlignment(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformAlignment(ws, rng.colrng; kw...)
+setUniformAlignment(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformAlignment(ws, rng.rowrng; kw...)
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
 setUniformAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformAlignment, ws, rowrng; kw...)
 setUniformAlignment(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformAlignment, ws, ncrng; kw...)
@@ -1702,10 +1702,10 @@ julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£*
 ```
 """
 function setFormat end
-setFormat(ws::Worksheet, ref::SheetCellRef; kw...) = setFormat(ws, ref.cellref; kw...)
-setFormat(ws::Worksheet, rng::SheetCellRange; kw...) = setFormat(ws, rng.rng; kw...)
-setFormat(ws::Worksheet, rng::SheetColumnRange; kw...) = setFormat(ws, rng.colrng; kw...)
-setFormat(ws::Worksheet, rng::SheetRowRange; kw...) = setFormat(ws, rng.rowrng; kw...)
+setFormat(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setFormat(ws, ref.cellref; kw...)
+setFormat(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setFormat(ws, rng.rng; kw...)
+setFormat(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setFormat(ws, rng.colrng; kw...)
+setFormat(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setFormat(ws, rng.rowrng; kw...)
 setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
 setFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFormat, ws, colrng; kw...)
 setFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFormat, ws, ncrng; kw...)
@@ -1830,9 +1830,9 @@ julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
 ```
 """
 function setUniformFormat end
-setUniformFormat(ws::Worksheet, rng::SheetCellRange; kw...) = setUniformFormat(ws, rng.rng; kw...)
-setUniformFormat(ws::Worksheet, rng::SheetColumnRange; kw...) = setUniformFormat(ws, rng.colrng; kw...)
-setUniformFormat(ws::Worksheet, rng::SheetRowRange; kw...) = setUniformFormat(ws, rng.rowrng; kw...)
+setUniformFormat(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFormat(ws, rng.rng; kw...)
+setUniformFormat(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFormat(ws, rng.colrng; kw...)
+setUniformFormat(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFormat(ws, rng.rowrng; kw...)
 setUniformFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFormat, ws, colrng; kw...)
 setUniformFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFormat, ws, rowrng; kw...)
 setUniformFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setUniformFormat, ws, ncrng; kw...)
@@ -1891,6 +1891,9 @@ julia> XLSX.setUniformStyle(sh, 2, :)
 ```
 """
 function setUniformStyle end
+setUniformStyle(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.rng; kw...)
+setUniformStyle(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.colrng; kw...)
+setUniformStyle(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.rowrng; kw...)
 setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
 setUniformStyle(ws::Worksheet, rowrng::RowRange)::Int = process_rowranges(setUniformStyle, ws, rowrng)
 setUniformStyle(ws::Worksheet, ncrng::NonContiguousRange)::Int = process_ncranges(setUniformStyle, ws, ncrng)
@@ -1975,10 +1978,10 @@ julia> XLSX.setColumnWidth(sh, "I"; width = 24.37)
 ```
 """
 function setColumnWidth end
-setColumnWidth(ws::Worksheet, ref::SheetCellRef; kw...) = setColumnWidth(ws, ref.cellref; kw...)
-setColumnWidth(ws::Worksheet, rng::SheetCellRange; kw...) = setColumnWidth(ws, rng.rng; kw...)
-setColumnWidth(ws::Worksheet, rng::SheetColumnRange; kw...) = setColumnWidth(ws, rng.colrng; kw...)
-setColumnWidth(ws::Worksheet, rng::SheetRowRange; kw...) = setColumnWidth(ws, rng.rowrng; kw...)
+setColumnWidth(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setColumnWidth(ws, ref.cellref; kw...)
+setColumnWidth(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setColumnWidth(ws, rng.rng; kw...)
+setColumnWidth(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setColumnWidth(ws, rng.colrng; kw...)
+setColumnWidth(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setColumnWidth(ws, rng.rowrng; kw...)
 setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setColumnWidth, ws, colrng; kw...)
 setColumnWidth(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setColumnWidth, ws, rowrng; kw...)
 setColumnWidth(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setColumnWidth, ws, ncrng; kw...)
@@ -2104,7 +2107,7 @@ function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     d = get_dimension(ws)
     if cellref ∉ d
-        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
     end
 
     # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
@@ -2178,10 +2181,10 @@ julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
 ```
 """
 function setRowHeight end
-setRowHeight(ws::Worksheet, ref::SheetCellRef; kw...) = setRowHeight(ws, ref.cellref; kw...)
-setRowHeight(ws::Worksheet, rng::SheetCellRange; kw...) = setRowHeight(ws, rng.rng; kw...)
-setRowHeight(ws::Worksheet, rng::SheetColumnRange; kw...) = setRowHeight(ws, rng.colrng; kw...)
-setRowHeight(ws::Worksheet, rng::SheetRowRange; kw...) = setRowHeight(ws, rng.rowrng; kw...)
+setRowHeight(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setRowHeight(ws, ref.cellref; kw...)
+setRowHeight(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setRowHeight(ws, rng.rng; kw...)
+setRowHeight(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setRowHeight(ws, rng.colrng; kw...)
+setRowHeight(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setRowHeight(ws, rng.rowrng; kw...)
 setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
 setRowHeight(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setRowHeight, ws, rowrng; kw...)
 setRowHeight(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setRowHeight, ws, ncrng; kw...)
@@ -2272,7 +2275,7 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     d = get_dimension(ws)
     if cellref ∉ d
-        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
     end
 
     for r in eachrow(ws)
@@ -2403,7 +2406,7 @@ function isMergedCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector
 
     d = get_dimension(ws)
     if cellref ∉ d
-        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
     end
 
     if ismissing(mergedCells) # Get mergedCells if missing
@@ -2477,7 +2480,7 @@ function getMergedBaseCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{V
 
     d = get_dimension(ws)
     if cellref ∉ d
-        throw(XLSXError("Cell specified is outside sheet dimension \"$d\""))
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
     end
 
     if ismissing(mergedCells) # Get mergedCells if missing
@@ -2524,9 +2527,9 @@ julia> XLSX.mergeCells(sh, "A:D")           # Merge columns to the extent of the
 ```
 """
 function mergeCells end
-mergeCells(ws::Worksheet, rng::SheetCellRange) = mergeCells(ws, rng.rng)
-mergeCells(ws::Worksheet, rng::SheetColumnRange) = mergeCells(ws, rng.colrng)
-mergeCells(ws::Worksheet, rng::SheetRowRange) = mergeCells(ws, rng.rowrng)
+mergeCells(ws::Worksheet, rng::SheetCellRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.rng)
+mergeCells(ws::Worksheet, rng::SheetColumnRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.colrng)
+mergeCells(ws::Worksheet, rng::SheetRowRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.rowrng)
 mergeCells(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(mergeCells, ws, colrng)
 mergeCells(ws::Worksheet, rowrng::RowRange)::Int = process_rowranges(mergeCells, ws, rowrng)
 mergeCells(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(mergeCells, xl, sheetcell)
@@ -2541,9 +2544,9 @@ function mergeCells(ws::Worksheet, cr::CellRange)
 
 #    !is_valid_cell_range(cr) && throw(XLSXError("\"$cr\" is not a valid cell range."))
 
-    !issubset(cr, get_dimension(ws)) && throw(XLSXError("Range $cr goes outside worksheet dimension."))
+    !issubset(cr, get_dimension(ws)) && throw(XLSXError("Range `$cr` goes outside worksheet dimension."))
 
-    length(cr) == 1 && throw(XLSXError("Cannot merge a single cell: \"$cr\""))
+    length(cr) == 1 && throw(XLSXError("Cannot merge a single cell: `$cr`"))
 
     if !get_xlsxfile(ws).is_writable
         throw(XLSXError("Cannot merge cells: `XLSXFile` is not writable."))
@@ -2585,7 +2588,7 @@ function mergeCells(ws::Worksheet, cr::CellRange)
         for child in c
             for cell in cr
                 if cell in CellRange(child["ref"])
-                    throw(XLSXError("Merged range (\"$cr\") cannot overlap with existing merged range (\""*child["ref"]*"\")."))
+                    throw(XLSXError("Merged range (`$cr`) cannot overlap with existing merged range (`"*child["ref"]*"`)."))
                 end
             end
         end

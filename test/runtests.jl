@@ -1654,6 +1654,9 @@ end
         dcolorkey = collect(keys(default_font["color"]))[1]
         dcolorval = collect(values(default_font["color"]))[1]
 
+        # Sheet mismatch
+        @test_throws XLSX.XLSXError XLSX.setFont(sheet, "S2!A1"; bold=true, size=24, name="Arial")
+
         XLSX.setFont(sheet, "A1"; bold=true, size=24, name="Arial")
         @test XLSX.getFont(sheet, "A1").font == Dict("b" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict(dcolorkey => dcolorval))
         XLSX.setFont(sheet, "A1"; size=18)
@@ -1800,6 +1803,22 @@ end
 
         f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
         s = f["Mock-up"]
+
+        # Sheet mismatch
+        @test_throws XLSX.XLSXError XLSX.setUniformBorder(s, "Document History!A1:D4"; left=["style" => "dotted", "color" => "darkseagreen3"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+
+        # Uniform functions can't take non-contiguous ranges
+        @test_throws XLSX.XLSXError XLSX.setUniformBorder(s, "Mock-up!A1:B4,Mock-up!D4:E6"; left=["style" => "dotted", "color" => "darkseagreen3"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
 
         XLSX.setBorder(s, "ID"; left=["style" => "dotted", "color" => "grey36"], bottom=["style" => "medium", "color" => "FF0000FF"], right=["style" => "medium", "color" => "FF765000"], top=["style" => "thick", "color" => "FF230000"], diagonal=nothing)
         @test XLSX.getBorder(s, "ID").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF5C5C5C"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
@@ -2368,10 +2387,11 @@ end
         @test XLSX.isMergedCell(f[1], "J9"; mergedCells=mc)
         @test XLSX.getMergedBaseCell(f[1], "J12") == (baseCell=XLSX.CellRef("J1"), baseValue=9)
 
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], "Sheet1!M13:M13") # Single cell
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 1, :)             # Overlapping
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 10, :)            # Overlapping
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "M1:P15")  # Outside dimension
+        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], "Sheet1!M13:M13")       # Single cell
+        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 1, :)                   # Overlapping
+        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 10, :)                  # Overlapping
+        @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "M1:P15")        # Outside dimension
+        @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "Sheet2!L1:M2")  # Sheets don't match
 
         XLSX.writexlsx("outfile.xlsx", f, overwrite=true)
 

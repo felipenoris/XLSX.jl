@@ -62,6 +62,13 @@ function copynode(o::XML.Node)
     n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
     return n
 end
+function do_sheet_names_match(ws::Worksheet, rng::T) where {T <: Union{SheetCellRef, AbstractSheetCellRange}}
+    if ws.name == rng.sheet
+        return true
+    else
+        throw(XLSXError("Worksheet `$(ws.name)` does not match sheet in cell reference: `$(rng.sheet)`"))
+    end
+end
 function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{String,String}}})::XML.Node
     if tag == "font"
         attribute_tags = font_tags
@@ -278,6 +285,8 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
         newid =  f(ws, SheetColumnRange(ref_or_rng); kw...)
     elseif is_valid_sheet_row_range(ref_or_rng)
         newid =  f(ws, SheetRowRange(ref_or_rng); kw...)
+    elseif is_valid_non_contiguous_range(ref_or_rng)
+        newid = f(ws, NonContiguousRange(ref_or_rng); kw...)
     else
         throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
     end
@@ -332,6 +341,9 @@ function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...):
     end
 end
 function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
+    if occursin("Uniform", string(nameof(f)))
+        throw(XLSXError("Cannot apply `setUnifoirmAttribute()` functions to a non-contiguous range.\nUse the equivalent `setAttribute()` function instead."))
+    end
     bounds = nc_bounds(ncrng)
     dim = (get_dimension(ws))
     if dim === nothing
