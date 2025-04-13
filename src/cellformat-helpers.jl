@@ -285,8 +285,11 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
         newid =  f(ws, SheetColumnRange(ref_or_rng); kw...)
     elseif is_valid_sheet_row_range(ref_or_rng)
         newid =  f(ws, SheetRowRange(ref_or_rng); kw...)
-    elseif is_valid_non_contiguous_range(ref_or_rng)
-        newid = f(ws, NonContiguousRange(ref_or_rng); kw...)
+    elseif is_valid_non_contiguous_cellrange(ref_or_rng)
+        newid = f(ws, NonContiguousRange(ws, ref_or_rng); kw...)
+    elseif is_valid_non_contiguous_sheetcellrange(ref_or_rng)
+        nc=NonContiguousRange(ref_or_rng)
+        newid = do_sheet_names_match(ws, nc) && f(ws, nc; kw...)
     else
         throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
     end
