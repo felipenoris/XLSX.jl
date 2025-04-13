@@ -62,7 +62,7 @@ function copynode(o::XML.Node)
     n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
     return n
 end
-function do_sheet_names_match(ws::Worksheet, rng::T) where {T <: Union{SheetCellRef, AbstractSheetCellRange}}
+function do_sheet_names_match(ws::Worksheet, rng::T) where {T<:Union{SheetCellRef,AbstractSheetCellRange}}
     if ws.name == rng.sheet
         return true
     else
@@ -112,7 +112,7 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
                             end
                         else
                             color[k] = v
-                         end
+                        end
                     end
                     if length(XML.attributes(color)) > 0 # Don't push an empty color.
                         push!(cnode, color)
@@ -278,17 +278,17 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
     elseif is_valid_cellname(ref_or_rng)
         newid = f(ws, CellRef(ref_or_rng); kw...)
     elseif is_valid_sheet_cellname(ref_or_rng)
-        newid =  f(ws, SheetCellRef(ref_or_rng); kw...)
+        newid = f(ws, SheetCellRef(ref_or_rng); kw...)
     elseif is_valid_sheet_cellrange(ref_or_rng)
-        newid =  f(ws, SheetCellRange(ref_or_rng); kw...)
+        newid = f(ws, SheetCellRange(ref_or_rng); kw...)
     elseif is_valid_sheet_column_range(ref_or_rng)
-        newid =  f(ws, SheetColumnRange(ref_or_rng); kw...)
+        newid = f(ws, SheetColumnRange(ref_or_rng); kw...)
     elseif is_valid_sheet_row_range(ref_or_rng)
-        newid =  f(ws, SheetRowRange(ref_or_rng); kw...)
+        newid = f(ws, SheetRowRange(ref_or_rng); kw...)
     elseif is_valid_non_contiguous_cellrange(ref_or_rng)
         newid = f(ws, NonContiguousRange(ws, ref_or_rng); kw...)
     elseif is_valid_non_contiguous_sheetcellrange(ref_or_rng)
-        nc=NonContiguousRange(ref_or_rng)
+        nc = NonContiguousRange(ref_or_rng)
         newid = do_sheet_names_match(ws, nc) && f(ws, nc; kw...)
     else
         throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
@@ -344,7 +344,7 @@ function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...):
     end
 end
 function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
-    if occursin("Uniform", string(nameof(f)))
+    if occursin("Uniform", string(nameof(f))) # Shouldn't happen!
         throw(XLSXError("Cannot apply `setUnifoirmAttribute()` functions to a non-contiguous range.\nUse the equivalent `setAttribute()` function instead."))
     end
     bounds = nc_bounds(ncrng)
@@ -367,10 +367,10 @@ function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange;
     end
 end
 function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
-    if length(rng)==1
-        single=true
+    if length(rng) == 1
+        single = true
     else
-        single=false
+        single = false
     end
     for cellref in rng
         if getcell(ws, cellref) isa EmptyCell
@@ -440,7 +440,7 @@ function process_intcolon(f::Function, ws::Worksheet, row::Union{Integer,UnitRan
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        rng=CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
+        rng = CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
         return f(ws, rng; kw...)
     end
 end
@@ -449,7 +449,7 @@ function process_colonint(f::Function, ws::Worksheet, ::Colon, col::Union{Intege
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        rng=CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
+        rng = CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
         return f(ws, rng; kw...)
     end
 end
@@ -458,10 +458,10 @@ function process_veccolon(f::Function, ws::Worksheet, row::Vector{Int}, ::Colon;
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        if length(row)==1 && dim.start.column_number == dim.stop.column_number
-            single=true
+        if length(row) == 1 && dim.start.column_number == dim.stop.column_number
+            single = true
         else
-            single=false
+            single = false
         end
         for a in row
             for b in dim.start.column_number:dim.stop.column_number
@@ -481,10 +481,10 @@ function process_colonvec(f::Function, ws::Worksheet, ::Colon, col::Vector{Int};
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
-        if length(col)==1 && dim.start.row_number == dim.stop.row_number
-            single=true
+        if length(col) == 1 && dim.start.row_number == dim.stop.row_number
+            single = true
         else
-            single=false
+            single = false
         end
         for b in col
             for a in dim.start.row_number:dim.stop.row_number
@@ -500,10 +500,10 @@ function process_colonvec(f::Function, ws::Worksheet, ::Colon, col::Vector{Int};
     return -1
 end
 function process_intvec(f::Function, ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}; kw...)
-    if length(col)==1 && length(row)==1
-        single=true
+    if length(col) == 1 && length(row) == 1
+        single = true
     else
-        single=false
+        single = false
     end
     for a in collect(row), b in col
         cellref = CellRef(a, b)
@@ -516,10 +516,10 @@ function process_intvec(f::Function, ws::Worksheet, row::Union{Integer,UnitRange
     return -1
 end
 function process_vecint(f::Function, ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}; kw...)
-    if length(col)==1 && length(row)==1
-        single=true
+    if length(col) == 1 && length(row) == 1
+        single = true
     else
-        single=false
+        single = false
     end
     for a in row, b in collect(col)
         cellref = CellRef(a, b)
@@ -532,10 +532,10 @@ function process_vecint(f::Function, ws::Worksheet, row::Vector{Int}, col::Union
     return -1
 end
 function process_vecvec(f::Function, ws::Worksheet, row::Vector{Int}, col::Vector{Int}; kw...)
-    if length(col)==1 && length(row)==1
-        single=true
+    if length(col) == 1 && length(row) == 1
+        single = true
     else
-        single=false
+        single = false
     end
     for a in row, b in col
         cellref = CellRef(a, b)
@@ -587,6 +587,41 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
             newid = -1
         end
         return newid
+    end
+end
+function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange, atts::Vector{String}; kw...)::Int
+    bounds = nc_bounds(ncrng)
+    dim = (get_dimension(ws))
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        OK = dim.start.column_number <= bounds.start.column_number
+        OK &= dim.stop.column_number >= bounds.stop.column_number
+        OK &= dim.start.row_number <= bounds.start.row_number
+        OK &= dim.stop.row_number >= bounds.stop.row_number
+        if OK
+            let newid::Union{Int,Nothing}, first::Bool
+                newid = nothing
+                first = true
+                for r in ncrng.rng
+                    if r isa CellRef
+                        newid, first = process_uniform_core(f, ws, r, atts, newid, first; kw...)
+                    elseif r isa CellRange
+                        for c in r
+                            newid, first = process_uniform_core(f, ws, c, atts, newid, first; kw...)
+                        end
+                    else
+                        throw(XLSXError("Something wrong here!"))
+                    end
+                end
+                if first
+                    newid = -1
+                end
+                return newid
+            end
+        else
+            throw(XLSXError("Non-contiguous range $ncrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
+        end
     end
 end
 function process_uniform_colon(f::Function, ws::Worksheet, ::Colon; kw...)
@@ -728,6 +763,41 @@ function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,
         cell.style = string(newid)
     end
     return newid, first
+end
+function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
+    bounds = nc_bounds(ncrng)
+    dim = (get_dimension(ws))
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        OK = dim.start.column_number <= bounds.start.column_number
+        OK &= dim.stop.column_number >= bounds.stop.column_number
+        OK &= dim.start.row_number <= bounds.start.row_number
+        OK &= dim.stop.row_number >= bounds.stop.row_number
+        if OK
+            let newid::Union{Int,Nothing}, first::Bool
+                newid = nothing
+                first = true
+                for r in ncrng.rng
+                    if r isa CellRef
+                        newid, first = process_uniform_core(ws, r, newid, first)
+                    elseif r isa CellRange
+                        for c in r
+                            newid, first = process_uniform_core(ws, c, newid, first)
+                        end
+                    else
+                        throw(XLSXError("Something wrong here!"))
+                    end
+                end
+                if first
+                    newid = -1
+                end
+                return newid
+            end
+        else
+            throw(XLSXError("Non-contiguous range $ncrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
+        end
+    end
 end
 function process_uniform_intcolon(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
@@ -896,6 +966,42 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
         return newid
     end
 end
+function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
+    bounds = nc_bounds(ncrng)
+    dim = (get_dimension(ws))
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        OK = dim.start.column_number <= bounds.start.column_number
+        OK &= dim.stop.column_number >= bounds.stop.column_number
+        OK &= dim.start.row_number <= bounds.start.row_number
+        OK &= dim.stop.row_number >= bounds.stop.row_number
+        if OK
+            let newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}
+                newid = nothing
+                first = true
+                alignment_node = nothing
+                for r in ncrng.rng
+                    if r isa CellRef
+                        newid, first, alignment_node = process_uniform_core(f, ws, r, newid, first, alignment_node; kw...)
+                    elseif r isa CellRange
+                        for c in r
+                            newid, first, alignment_node = process_uniform_core(f, ws, c, newid, first, alignment_node; kw...)
+                        end
+                    else
+                        throw(XLSXError("Something wrong here!"))
+                    end
+                end
+                if first
+                    newid = -1
+                end
+                return newid
+            end
+        else
+            throw(XLSXError("Non-contiguous range $ncrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
+        end
+    end
+end
 function process_uniform_veccolon(f::Function, ws::Worksheet, row::Vector{Int}, ::Colon; kw...)
     dim = get_dimension(ws)
     if dim === nothing
@@ -1016,7 +1122,7 @@ function get_color(s::String)::String
     end
     c = get_colorant(s)
     if isnothing(c)
-        throw(XLSXError("Invalid color specified: $s. Either give a valid color name (from Colors.jl) or an 8-digit rgb color in the form AARRGGBB"))
+        throw(XLSXError("Invalid color specified: $s. Either give a valid color name (from Colors.jl) or an 8-digit rgb color in the form FFRRGGBB"))
     end
     return c
 end

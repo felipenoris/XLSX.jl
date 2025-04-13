@@ -1625,6 +1625,21 @@ end
     end
 
     @testset "setFont" begin
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:B2,D1:E2"] = ""
+
+        XLSX.setFont(s, "A1:A2"; bold=true, italic=true, size=24, name="Arial")
+        XLSX.setFont(s, "B1:B2"; bold=true, italic=false, size=14, name="Aptos")
+        XLSX.setFont(s, "D1:D2"; bold=false, italic=true, size=34, name="Berlin Sans FB Demi")
+        XLSX.setFont(s, "E1:E2"; bold=false, italic=false, size=4, name="Times New Roman")
+        XLSX.setUniformFont(s, "A1:B2,D1:E2"; color="blue") # `setUniformAttribute()` on a non-contiguous range
+        @test XLSX.getFont(s, "A1").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+        @test XLSX.getFont(s, "B2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+        @test XLSX.getFont(s, "D1").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+        @test XLSX.getFont(s, "E2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+
         xfile = XLSX.open_empty_template()
         wb = XLSX.get_workbook(xfile)
         sheet = xfile["Sheet1"]
@@ -1812,13 +1827,11 @@ end
             diagonal=["style" => "none"]
         )
 
-        # Uniform functions can't take non-contiguous ranges
-        @test_throws XLSX.XLSXError XLSX.setUniformBorder(s, "Mock-up!A1:B4,Mock-up!D4:E6"; left=["style" => "dotted", "color" => "darkseagreen3"],
+         @test XLSX.setUniformBorder(s, "Mock-up!A1:B4,Mock-up!D4:E6"; left=["style" => "dotted", "color" => "darkseagreen3"],
             right=["style" => "medium", "color" => "FF765000"],
             top=["style" => "thick", "color" => "FF230000"],
             bottom=["style" => "medium", "color" => "FF0000FF"],
-            diagonal=["style" => "none"]
-        )
+            diagonal=["style" => "none"]) == 28
 
         XLSX.setBorder(s, "ID"; left=["style" => "dotted", "color" => "grey36"], bottom=["style" => "medium", "color" => "FF0000FF"], right=["style" => "medium", "color" => "FF765000"], top=["style" => "thick", "color" => "FF230000"], diagonal=nothing)
         @test XLSX.getBorder(s, "ID").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF5C5C5C"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
