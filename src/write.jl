@@ -527,17 +527,17 @@ Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!
 Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
 Base.setindex!(ws::Worksheet, v, r, c) = setdata!(ws, r, c, v)
-function Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int})
-    for a in collect(row), b in col
+function Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}})
+    for a in row, b in col
         setdata!(ws, CellRef(a, b), v)
     end
 end
-function Base.setindex!(ws::Worksheet, v, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}})
-    for a in row, b in collect(col)
+function Base.setindex!(ws::Worksheet, v, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}})
+    for a in row, b in col
         setdata!(ws, CellRef(a, b), v)
     end
 end
-function Base.setindex!(ws::Worksheet, v, row::Vector{Int}, col::Vector{Int})
+function Base.setindex!(ws::Worksheet, v, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}})
     for a in row, b in col
         setdata!(ws, CellRef(a, b), v)
     end
@@ -698,7 +698,7 @@ function setdata!(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer
         setdata!(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))), v)
     end
 end
-function setdata!(ws::Worksheet, row::Vector{Int}, ::Colon, v)
+function setdata!(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon, v)
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
@@ -710,7 +710,7 @@ function setdata!(ws::Worksheet, row::Vector{Int}, ::Colon, v)
         end
     end
 end
-function setdata!(ws::Worksheet, ::Colon, col::Vector{Int}, v)
+function setdata!(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}, v)
     dim = get_dimension(ws)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))

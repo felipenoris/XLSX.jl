@@ -116,9 +116,9 @@ See also [`XLSX.readdata`](@ref).
 """
 getdata(ws::Worksheet, single::CellRef) = getdata(ws, getcell(ws, single))
 getdata(ws::Worksheet, row::Integer, col::Integer) = getdata(ws, CellRef(row, col))
-getdata(ws::Worksheet, row::Int, col::Vector{Int}) = [getdata(ws, a, b) for a in [row], b in col]
-getdata(ws::Worksheet, row::Vector{Int}, col::Int) = [getdata(ws, a, b) for a in row, b in [col]]
-getdata(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getdata(ws, a, b) for a in row, b in col]
+getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getdata(ws, a, b) for a in row, b in col]
+getdata(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = [getdata(ws, a, b) for a in row, b in col]
+getdata(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getdata(ws, a, b) for a in row, b in col]
 getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getdata(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 getdata(ws::Worksheet, ::Colon, ::Colon) = getdata(ws)
 function getdata(ws::Worksheet, ::Colon)
@@ -408,9 +408,9 @@ getcell(ws::Worksheet, s::ColumnRange) = getcellrange(ws, s.colrng)
 getcell(ws::Worksheet, s::RowRange) = getcellrange(ws, s.rowrng)
 
 getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
-getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}) = [getcell(ws, a, b) for a in collect(row), b in col]
-getcell(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in collect(col)]
-getcell(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getcell(ws, a, b) for a in row, b in col]
+getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
+getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
+getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
 getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcellrange(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
@@ -520,9 +520,9 @@ getcellrange(ws::Worksheet, s::SheetCellRange) = getcellrange(ws, s.rng)
 getcellrange(ws::Worksheet, s::SheetColumnRange) = getcellrange(ws, s.colrng)
 getcellrange(ws::Worksheet, s::SheetRowRange) = getcellrange(ws, s.rowrng)
 
-getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Vector{Int}) = [getcell(ws, a, b) for a in collect(row), b in col]
-getcellrange(ws::Worksheet, row::Vector{Int}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in collect(col)]
-getcellrange(ws::Worksheet, row::Vector{Int}, col::Vector{Int}) = [getcell(ws, a, b) for a in row, b in col]
+getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
+getcellrange(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
+getcellrange(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
 getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcell(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = getcell(ws, row, :)
 getcellrange(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = getcell(ws, :, col)
