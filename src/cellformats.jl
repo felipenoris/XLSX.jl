@@ -1653,7 +1653,7 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
             if parse(Int, format_elements["count"]) != length(XML.children(format_elements))
                 throw(XLSXError("Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"))
             end
-            current_format = XML.children(format_elements)[parse(Int, numfmtid)+1-PREDEFINED_NUMFMT_COUNT] # Zero based!
+            current_format = [x for x in XML.children(format_elements) if x["numFmtId"]==numfmtid][1]
             if length(XML.attributes(current_format)) != 2
                 throw(XLSXError("Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."))
             end
@@ -1773,7 +1773,7 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     old_applyNumberFormat = cell_format.applyNumberFormat
 
     if isnothing(format)                          # User didn't specify any format so this is a no-op
-        return cell_format.formatId
+        return cell_format.numFmtId
     end
 
     if haskey(builtinFormatNames, uppercasefirst(format)) # User specified a format by name
