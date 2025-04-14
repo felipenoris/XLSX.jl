@@ -227,6 +227,9 @@ etc) to all the other cells in the range.
 
 This can be more efficient when setting the same font for a large number of cells.
 
+Applying `setUniformFont()` without any keyword arguments simply copies the `Font` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `fontId` of the font uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
@@ -247,6 +250,8 @@ julia> setUniformFont(sh, "33"; italic=true, color="FF8888FF", under="single")  
 julia> setUniformFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named range
 
 julia> setUniformFont(sh, 1, [2, 4, 6]; size=48, color="lightskyblue2")                 # vector of column indices
+
+julia> setUniformFont(sh, "B2,A5:D22")                                                  # Copy `Font` from B2 to cells in A5:D22
  
 ```
 """
@@ -793,6 +798,9 @@ and `color`) to all the other cells in the range.
 
 This can be more efficient when setting the same border for a large number of cells.
 
+Applying `setUniformBorder()` without any keyword arguments simply copies the `Border` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `borderId` of the border uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
@@ -812,6 +820,9 @@ Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "c
                                              bottom   = ["style" => "medium", "color" => "FF0000FF"],
                                              diagonal = ["style" => "none"]
                                              )
+                                             
+julia> setUniformBorder(sh, "B2,A5:D22")     # Copy `Border` from B2 to cells in A5:D22
+
  
 ```
 """
@@ -1230,6 +1241,9 @@ and both foreground and background colors) to all the other cells in the range.
 
 This can be more efficient when setting the same fill for a large number of cells.
 
+Applying `setUniformFill()` without any keyword arguments simply copies the `Fill` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `fillId` of the fill uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
@@ -1240,6 +1254,8 @@ For keyword definitions see [`setFill()`](@ref).
 Julia> setUniformFill(sh, "B2:D4"; pattern="gray125", bgColor = "FF000000")
 
 Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "darkseagreen3")
+
+julia> setUniformFill(sh, "B2,A5:D22")               # Copy `Fill` from B2 to cells in A5:D22
  
 ```
 """
@@ -1538,6 +1554,9 @@ cell to all the other cells in the range.
 
 This can be more efficient when setting the same alignment for a large number of cells.
 
+Applying `setUniformAlignment()` without any keyword arguments simply copies the `Alignment` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `styleId` of the reference (top-left) cell, from which the 
 alignment uniformly applied to the cells was taken.
 If all cells in the range are `EmptyCells`, the returned value is -1.
@@ -1551,6 +1570,8 @@ Julia> setUniformAlignment(sh, "B2:D4"; horizontal="center", wrap = true)
 Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="top")
 
 Julia> setUniformAlignment(sh, :, 1:24; horizontal="center", vertical="top")
+
+julia> setUniformAlignment(sh, "B2,A5:D22")                # Copy `Alignment` from B2 to cells in A5:D22
  
 ```
 """
@@ -1816,6 +1837,9 @@ As a result, every cell in the range will have a uniform number format.
 This is functionally equivalent to applying `setFormat()` to each cell in the range 
 but may be very marginally more efficient.
 
+Applying `setUniformFormat()` without any keyword arguments simply copies the `Format` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `numfmtId` of the format uniformly applied to the cells.
 If all cells in the range are `EmptyCells`, the returned value is -1.
 
@@ -1826,6 +1850,8 @@ For keyword definitions see [`setFormat()`](@ref).
 julia> XLSX.setUniformFormat(xf, "Sheet1!A2:L6"; format = "# ??/??")
 
 julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
+
+julia> setUniformFormat(sh, "B2,A5:D22")                   # Copy `Format` from B2 to cells in A5:D22
  
 ```
 """
