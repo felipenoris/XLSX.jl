@@ -292,6 +292,21 @@ function check_minimum_requirements(xf::XLSXFile)
         !in(f, filenames(xf)) && throw(XLSXError("Malformed XLSX File. Couldn't find file $f in the package."))
     end
 
+    # Further check if this is a valid `.xlsx` file.
+    f = "[Content_Types].xml"
+    if internal_xml_file_isread(xf, f)
+        content_types = XML.write(xf.data[f])
+    else
+        content_types = ZipArchives.zip_readentry(xf.io, f, String)
+    end   
+    if occursin("spreadsheetml.sheet", content_types)
+        return nothing
+    elseif occursin("spreadsheetml.template", content_types)
+        throw(XLSXError("XLSX.jl does not support Excel template files (`.xltx` files).\nSave template as an `xlsx` file type first."))
+    else
+        throw(XLSXError("Unknown Excel file type."))
+    end
+
     nothing
 end
 
@@ -646,26 +661,6 @@ function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractStrin
     return c
 end
 
-# `readtable` on a row range only partially works.
-# Each row in the table is truncated when there is an empty column even if there are more columns in the row.
-# It also evaluates the rows on the basis of the table row count, not the sheet row count, giving wrong results.
-# These limitations arise because I am trying to implement this functionality without changing the existing code.
-# It probably needs a dedicated RowRange implementation.
-# It is best not to use this function with row ranges. Use `readdata` or `getdata` instead, both of which work 
-# on row ranges, or index the sheet directly to get the rows you want (e.g. sh["3"] or sh["3:5"]).
-#=
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, rows::RowRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    if rows.start == rows.stop && header==true
-        throw(XLSXError("Only 1 row specified in `RowRange` with `header=true`.\nThe header row is the same as the data row. Specify at least two rows to read header data with `header=true`."))
-    end
-    first_row = isnothing(first_row) ? rows.start : first_row
-    stop_in_row_function = isnothing(stop_in_row_function) ? r -> r.row >= rows.stop-first_row+1 : stop_in_row_function
-    c = openxlsx(source, enable_cache=enable_cache) do xf
-        gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
-    end
-    return c
-end
-=#
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     if is_valid_row_range(range)
         range = RowRange(range)

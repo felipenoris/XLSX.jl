@@ -147,11 +147,11 @@ function getdata(xl::XLSXFile, s::AbstractString)
         return getdata(xl, SheetColumnRange(s))
     elseif is_valid_sheet_row_range(s)
         return getdata(xl, SheetRowRange(s))
-    elseif is_valid_non_contiguous_range(s)
+    elseif is_valid_non_contiguous_sheetcellrange(s)
         return getdata(xl, NonContiguousRange(s))
     end
 
-    throw(XLSXError("`$s` is not a valid definedName or cell/range reference."))
+    throw(XLSXError("`$s` is not a valid sheetname, definedName or cell/range reference."))
 end
 
 function getcell(xl::XLSXFile, ref::SheetCellRef)

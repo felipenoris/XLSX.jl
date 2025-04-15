@@ -61,11 +61,11 @@ end
 function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
     !isnothing(ws.dimension) && return ws.dimension
     (isnothing(ws.cache) || length(ws.cache.cells) < 1) && return nothing
-#    @warn "Dimension for worksheet $(ws.name) not found. Calculating from cells in cache."
+    #    @warn "Dimension for worksheet $(ws.name) not found. Calculating from cells in cache."
     row_extr = extrema(keys(ws.cache.cells))
     row_min = first(row_extr)
     row_max = last(row_extr)
-    col_extr= [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
+    col_extr = [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
     col_min = minimum([x for x in first.(col_extr)])
     col_max = maximum([x for x in last.(col_extr)])
     set_dimension!(ws, CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max)))
@@ -196,71 +196,6 @@ function getdata(ws::Worksheet, rng::RowRange)::Array{Any,2}
     end
 end
 
-#=
-function getdata(ws::Worksheet, rng::ColumnRange) :: Array{Any,2}
-    columns_count = length(rng)
-    columns = Vector{Vector{Any}}(undef, columns_count)
-    for i in 1:columns_count
-        columns[i] = Vector{Any}()
-    end
-
-    left, right = column_bounds(rng)
-
-    for sheetrow in eachrow(ws)
-        for column in left:right
-            cell = getcell(sheetrow, column)
-            c = relative_column_position(cell, rng) # r will be ignored
-            push!(columns[c], getdata(ws, cell))
-        end
-    end
-
-    rows = length(columns[1])
-    for i in 1:columns_count
-        length(columns[i]) != rows && throw(XLSXError("Inconsistent state: Each column should have the same number of rows."))
-    end
-
-    return hcat(columns...)
-end
-
-function getdata(ws::Worksheet, rng::RowRange) :: Array{Any,2}
-    rows_count = length(rng)
-    dim = get_dimension(ws)
-
-    rows = Vector{Vector{Any}}(undef, rows_count)
-    for i in 1:rows_count
-        rows[i] = Vector{Any}()
-    end
-
-    let
-        top, bottom = row_bounds(rng)
-        left = dim.start.column_number
-        right = dim.stop.column_number
-
-        for sheetrow in eachrow(ws)
-            if sheetrow.row > bottom
-                break
-            end
-            if top > sheetrow.row
-                continue
-            else
-                row_index=sheetrow.row-top+1
-                for column in left:right
-                    cell = getcell(sheetrow, column)
-                    push!(rows[row_index], getdata(ws, cell))
-                end
-            end
-        end
-    end
-
-    cols = length(rows[1])
-    for r in rows
-        length(r) != cols && throw(XLSXError("Inconsistent state: Each row should have the same number of columns."))
-    end
-
-    return permutedims(hcat(rows...))
-end
-=#
-
 function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Any}
     do_sheet_names_match(ws, rng)
     results = Vector{Any}()
@@ -321,7 +256,7 @@ function getdata(ws::Worksheet, ref::AbstractString)::Union{Array{Any,2},Any}
     elseif is_valid_non_contiguous_cellrange(ref)
         return getdata(ws, NonContiguousRange(ws, ref))
     elseif is_valid_non_contiguous_sheetcellrange(ref)
-        nc=NonContiguousRange(ref)
+        nc = NonContiguousRange(ref)
         return do_sheet_names_match(ws, nc) && getdata!(ws, nc)
     else
         throw(XLSXError("`$ref` is not a valid cell or range reference."))
@@ -380,7 +315,7 @@ function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     # Access cache directly if it exists and if file `isread` - much faster!
     if is_cache_enabled(ws) && ws.cache !== nothing
-        if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") && get_xlsxfile(ws).files["xl/worksheets/sheet"*string(ws.sheetId)*".xml"] == true
+        if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") && get_xlsxfile(ws).files["xl/worksheets/sheet"*string(ws.sheetId)*".xml"] == true
             if haskey(ws.cache.cells, single.row_number)
                 if haskey(ws.cache.cells[single.row_number], single.column_number)
                     return ws.cache.cells[single.row_number][single.column_number]
@@ -399,10 +334,11 @@ function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     return EmptyCell(single)
 end
-getcell(ws::Worksheet, s::SheetCellRef) = getcell(ws, s.cellref)
-getcell(ws::Worksheet, s::SheetCellRange) = getcellrange(ws, s.rng)
-getcell(ws::Worksheet, s::SheetColumnRange) = getcellrange(ws, s.colrng)
-getcell(ws::Worksheet, s::SheetRowRange) = getcellrange(ws, s.rowrng)
+
+getcell(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getcell(ws, s.cellref)
+getcell(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rng)
+getcell(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.colrng)
+getcell(ws::Worksheet, s::SheetRowRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rowrng)
 getcell(ws::Worksheet, s::CellRange) = getcellrange(ws, s.rng)
 getcell(ws::Worksheet, s::ColumnRange) = getcellrange(ws, s.colrng)
 getcell(ws::Worksheet, s::RowRange) = getcellrange(ws, s.rowrng)
@@ -489,36 +425,13 @@ function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
         cell = getcell(ws, cellref)
         result[r, c] = isempty(cell) ? EmptyCell(cellref) : cell
     end
-    #=
-        top = row_number(rng.start)
-        bottom = row_number(rng.stop)
-        left = column_number(rng.start)
-        right = column_number(rng.stop)
-
-        for sheetrow in eachrow(ws)
-            if top <= sheetrow.row && sheetrow.row <= bottom
-                for column in left:right
-                    cell = getcell(sheetrow, column)
-                    if !isempty(cell)
-                        (r, c) = relative_cell_position(cell, rng)
-                        result[r, c] = cell
-                    end
-                end
-            end
-
-            # don't need to read new rows
-            if sheetrow.row > bottom
-                break
-            end
-        end
-    =#
     return result
 end
 
-getcellrange(ws::Worksheet, s::SheetCellRef) = getcellrange(ws, s.cellref)
-getcellrange(ws::Worksheet, s::SheetCellRange) = getcellrange(ws, s.rng)
-getcellrange(ws::Worksheet, s::SheetColumnRange) = getcellrange(ws, s.colrng)
-getcellrange(ws::Worksheet, s::SheetRowRange) = getcellrange(ws, s.rowrng)
+getcellrange(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getcellrange(ws, s.cellref)
+getcellrange(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rng)
+getcellrange(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.colrng)
+getcellrange(ws::Worksheet, s::SheetRowRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rowrng)
 
 getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
 getcellrange(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
@@ -548,66 +461,6 @@ function getcellrange(ws::Worksheet, rng::RowRange)::Array{AbstractCell,2}
     end
 end
 
-#=
-function getcellrange(ws::Worksheet, rng::ColumnRange) :: Array{AbstractCell,2}
-    columns_count = length(rng)
-    columns = Vector{Vector{AbstractCell}}(undef, columns_count)
-    for i in 1:columns_count
-        columns[i] = Vector{AbstractCell}()
-    end
-
-    let
-        left, right = column_bounds(rng)
-
-        for sheetrow in eachrow(ws)
-            for column in left:right
-                cell = getcell(sheetrow, column)
-                c = relative_column_position(cell, rng) # r will be ignored
-                push!(columns[c], cell)
-            end
-        end
-    end
-
-    rows = length(columns[1])
-    for i in 1:columns_count
-        length(columns[i]) != rows && throw(XLSXError("Inconsistent state: Each column should have the same number of rows."))
-    end
-
-    return hcat(columns...)
-end
-
-function getcellrange(ws::Worksheet, rng::RowRange) :: Array{AbstractCell,2}
-    dim = get_dimension(ws)
-
-    rows = Vector{Vector{AbstractCell}}()
-
-    let
-        top, bottom = row_bounds(rng)
-        left = dim.start.column_number
-        right = dim.stop.column_number
-
-        for (i, sheetrow) in enumerate(eachrow(ws))
-            push!(rows, Vector{AbstractCell}())
-            if top <= sheetrow.row && sheetrow.row <= bottom
-                for column in left:right
-                    cell = getcell(sheetrow, column)
-                    push!(rows[i], cell)
-                end
-            end
-            if sheetrow.row > bottom
-                break
-            end
-        end
-    end
-
-    cols = length(rows[1])
-    for r in rows
-        length(r) != cols && throw(XLSXError("Inconsistent state: Each row should have the same number of columns."))
-    end
-
-    return permutedims(hcat(rows...))
-end
-=#
 function getcellrange(ws::Worksheet, rng::NonContiguousRange)::Vector{AbstractCell}
     results = Vector{AbstractCell}()
     for r in rng.rng

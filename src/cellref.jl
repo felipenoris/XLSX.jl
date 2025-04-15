@@ -258,6 +258,7 @@ For example, for a range "B2:D4", we have:
 
 * "D4" relative position is (3, 3)
 =#
+
 function relative_cell_position(ref::CellRef, rng::CellRange)
     ref ∉ rng && throw(XLSXError("$ref is outside range $rng."))
 

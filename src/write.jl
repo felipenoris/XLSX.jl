@@ -2,12 +2,17 @@
 """
     opentemplate(source::Union{AbstractString, IO}) :: XLSXFile
 
-Read an existing Excel file as a template and return as a writable `XLSXFile` for editing 
+Read an existing Excel (`.xlsx`) file as a template and return as a writable `XLSXFile` for editing 
 and saving to another file with `XLSX.writexlsx`.
+
+Note: XLSX.jl only works with `.xlsx` files and cannot work with Excel `.xltx` template files.
+Reading as a template in this package merely means opening a `.xlsx` file to edit, update and 
+then write as an updated `.xlsx` file (e.g. `using XLSX.writexlsx()`). Doing so retains the 
+formatting and layout of the opened file, but this is not the same as using a `.xltx` file.
 
 # Examples
 ```julia
-julia> xf = opentemplate("myExcelFile")
+julia> xf = opentemplate("myExcelFile.xlsx")
 ```
 
 """
@@ -492,15 +497,6 @@ function strip_illegal_chars(x::String)
     end
     return result
 end
-
-#const ESCAPE_CHARS = ('&' => "&amp;", '<' => "&lt;", '>' => "&gt;", "'" => "&apos;", '"' => "&quot;")
-#function xlsx_escape(x::String)# Adaped from XML.escape()
-#    result = replace(x, r"&(?!amp;|quot;|apos;|gt;|lt;)" => "&amp;") # This is a change from the XML.escape function, which uses r"&(?=\s)"
-#    for (pat, r) in ESCAPE_CHARS[2:end]
-#        result = replace(result, pat => r)
-#    end
-#    return result
-#end
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
