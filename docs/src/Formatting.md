@@ -305,6 +305,7 @@ It is not allowed to create new merged cells that overlap at all with any existi
     ```
 
     The cell remains merged, and this is how Excel will see it. The assigned cell value won't be 
-    visible in Excel, but it can be referenced in a formula, etc. This is prevented in Excel 
-    itself by the UI (unless some clever VBA indirection is used). There is currently no check 
-    to prevent this in `XLSX.jl`. See [#241](https://github.com/felipenoris/XLSX.jl/issues/241)
+    visible in Excel, but it can be referenced in a formula, etc.
+    
+    This is prevented in Excel itself by the UI (unless some clever VBA indirection is used). 
+    There is currently no check to prevent this in `XLSX.jl`. See [#241](https://github.com/felipenoris/XLSX.jl/issues/241)
