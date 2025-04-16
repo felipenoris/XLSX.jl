@@ -8,7 +8,7 @@ refer to the same `style` and therefore have a uniform appearance. A `style` def
 the cell's `alignment` directly (as part of the `style` definition), but it may also 
 refer to further formatting definitions for `font`, `fill`, `border`, `format`. 
 Multiple `style`s may each refer to the same `fill` definition or the same `font` 
-definition, etc and therefore share these formatting characteristics.
+definition, etc, and therefore share these formatting characteristics.
 This hierarchy can be shown like this:
 
                 `Cell`
