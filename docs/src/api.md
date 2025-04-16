@@ -23,6 +23,7 @@ XLSX.row_number
 XLSX.column_number
 XLSX.eachrow
 XLSX.readtable
+XLSX.readdf
 XLSX.gettable
 XLSX.eachtablerow
 XLSX.writetable

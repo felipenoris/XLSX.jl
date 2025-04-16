@@ -418,7 +418,7 @@ function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractSt
     elseif is_valid_cellname(ref_or_rng)
         new_att = f(ws, CellRef(ref_or_rng); kw...)
     else
-        throw(XLSXError("Invalid cell reference or range: $ref_or_rng"))
+        throw(XLSXError("Invalid cell reference: $ref_or_rng"))
     end
     return new_att
 end

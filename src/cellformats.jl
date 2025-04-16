@@ -2033,9 +2033,6 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
         throw(XLSXError("Cannot set column widths: `XLSXFile` is not writable."))
     end
 
-    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
-    update_worksheets_xml!(get_xlsxfile(ws))
-
     left = rng.start.column_number
     right = rng.stop.column_number
     padded_width = isnothing(width) ? -1 : width + 0.7109375 # Excel adds cell padding to a user specified width
@@ -2094,6 +2091,9 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
 
     sheetdoc[i][j] = new_cols # Update the worksheet with the new cols.
 
+    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache. 
+    update_worksheets_xml!(get_xlsxfile(ws))
+
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
@@ -2137,9 +2137,6 @@ function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
     if cellref ∉ d
         throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
     end
-
-    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
-    update_worksheets_xml!(get_xlsxfile(ws))
 
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") # find the <cols> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "cols")
@@ -2263,7 +2260,7 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     if first == true
         return -1
     end
-    return 0 # meaningless return value. Int required to comply with reference decoding structure.
+    return 0
 end
 
 """
@@ -2361,9 +2358,6 @@ function getMergedCells(ws::Worksheet)::Union{Vector{CellRange},Nothing}
     if !get_xlsxfile(ws).use_cache_for_sheet_data
         throw(XLSXError("Cannot get merged cells because cache is not enabled."))
     end
-
-    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
-    update_worksheets_xml!(get_xlsxfile(ws))
 
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") # find the <mergeCells> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
@@ -2587,9 +2581,6 @@ function mergeCells(ws::Worksheet, cr::CellRange)
         throw(XLSXError("Cannot get merged cells because cache is not enabled."))
     end
 
-    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
-    update_worksheets_xml!(get_xlsxfile(ws))
-
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet"*string(ws.sheetId)*".xml") # find the <mergeCells> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
 
@@ -2640,6 +2631,8 @@ function mergeCells(ws::Worksheet, cr::CellRange)
             end
         end
     end
+
+    update_worksheets_xml!(get_xlsxfile(ws))
 
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end

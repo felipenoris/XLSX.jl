@@ -54,7 +54,7 @@ function getsheet(wb::Workbook, sheetname::String) :: Worksheet
             return ws
         end
     end
-    throw(XLSXError("$(get_xlsxfile(wb).source) does not have a Worksheet named $sheetname."))
+    throw(XLSXError("$(get_xlsxfile(wb).source) does not have a Worksheet named `$sheetname`."))
 end
 
 @inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]

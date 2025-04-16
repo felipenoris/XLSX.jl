@@ -234,7 +234,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
             sheet = getsheet(xf, sheet_name)
 
             # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
-            for r in eachrow(sheet)
+            for _ in eachrow(sheet)
                 nothing
             end
             isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
@@ -569,8 +569,8 @@ end
 """
     readtable(
         source,
-        sheet,
-        [columns];
+        [sheet,
+        [columns]];
         [first_row],
         [column_labels],
         [header],
@@ -584,19 +584,18 @@ end
 Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
 Use this function to create a `DataFrame` from package `DataFrames.jl`.
 
+If `sheet` is not given, the first sheet in the `XLSXFile` will be used.
+
 Use `columns` argument to specify which columns to get.
 For example, `"B:D"` will select columns `B`, `C` and `D`.
 If `columns` is not given, the algorithm will find the first sequence
-of consecutive non-empty cells.
-
-Alternatively, use `columns` to specify a row range, like `"2:4"`.
-This will select rows `2`, `3` and `4`.
+of consecutive non-empty cells. A valid `sheet` must be specified 
+when specifying `columns`.
 
 Use `first_row` to indicate the first row from the table.
 `first_row=5` will look for a table starting at sheet row `5`.
 If `first_row` is not given, the algorithm will look for the first
-non-empty row in the spreadsheet (if a column range is specified) 
-or range (if a row range is specified).
+non-empty row in the spreadsheet.
 
 `header` is a `Bool` indicating if the first row is a header.
 If `header=true` and `column_labels` is not specified, the column labels
@@ -609,7 +608,7 @@ Use `column_labels` to specify names for the header of the table.
 Use `normalizenames=true` to normalize column names to valid Julia identifiers.
 
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
-The default value is `infer_eltypes=false`.
+The default value is `infer_eltypes=true`.
 
 `stop_in_empty_row` is a boolean indicating whether an empty row marks the 
 end of the table. If `stop_in_empty_row=false`, the `TableRowIterator` will 
@@ -631,7 +630,7 @@ end
 `keep_empty_rows` determines whether rows where all column values are equal 
 to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
 `keep_empty_rows` never affects the *bounds* of the table; the number of 
-rows read from a sheet is only affected by, `first_row`, `stop_in_empty_row` 
+rows read from a sheet is only affected by `first_row`, `stop_in_empty_row` 
 and `stop_in_row_function` (if specified).
 `keep_empty_rows` is only checked once the first and last row of the table 
 have been determined, to see whether to keep or drop empty rows between the 
@@ -647,27 +646,85 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString, IO}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    c = openxlsx(source, enable_cache=enable_cache) do xf
+        gettable(getsheet(xf, 1); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
+    end
+    return c
+end
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::ColumnRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::ColumnRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source, enable_cache=enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    if is_valid_row_range(range)
-        range = RowRange(range)
-    elseif is_valid_column_range(range)
+function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+    if is_valid_column_range(range)
         range = ColumnRange(range)
     else
-        throw(XLSXError("The columns argument must be a valid column range or row range."))
+        throw(XLSXError("The columns argument must be a valid column range."))
     end
     return readtable(source, sheet, range; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, enable_cache, keep_empty_rows, normalizenames)
+end
+
+"""
+    readdf(
+        source,
+        [sheet,
+        [columns]],
+        sink;
+        [first_row],
+        [column_labels],
+        [header],
+        [infer_eltypes],
+        [stop_in_empty_row],
+        [stop_in_row_function],
+        [keep_empty_rows],
+        [normalizenames]
+    ) -> DataFrame
+
+Read and parse an Excel worksheet, materializing directly using 
+the `sink` function (e.g. `DataFrame`).
+
+Takes the same keyword arguments as [`XLSX.readtable`](@ref) 
+
+# Example
+
+```julia
+julia> using DataFrames, XLSX
+
+julia> df = XLSX.readdf("myfile.xlsx", DataFrame))
+
+julia> df = XLSX.readdf("myfile.xlsx", "mysheet", DataFrame))
+
+julia> df = XLSX.readdf("myfile.xlsx", "mysheet", "A:C", DataFrame))
+```
+
+See also: [`XLSX.gettable`](@ref).
+"""
+function readdf(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString, sink=nothing; kw...)
+    if sink === nothing
+        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, columns, DataFrame)`"))
+    end
+    return readtable(source, sheet, range; kw...) |> sink
+end
+function readdf(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, sink=nothing; kw...)
+    if sink === nothing
+        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
+    end
+    return readtable(source, sheet; kw...) |> sink
+end
+function readdf(source::Union{AbstractString, IO}, sink=nothing; kw...)
+    if sink === nothing
+        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
+    end
+    return readtable(source; kw...) |> sink
 end
