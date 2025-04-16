@@ -156,7 +156,7 @@ All the format setter functions have `setUniformAttribute` versions, too. See [`
 
 It is possible to use each of these functions in turn to ensure every possible attribute is consistently 
 applied to a range of cells. However, if perfect uniformity is required, then `setUniformStyle` is 
-considerably more efficient. It will simply take the `styleID` of the first cell in the range and apply 
+considerably more efficient. It will simply take the `styleId` of the first cell in the range and apply 
 it uniformly to each cell in the range. This ensures that all of font, fill, border, format, and 
 alignment are all completely consistent across the range:
 
@@ -203,7 +203,7 @@ widths in Excel itself.
 ## Working with Merged Cells
 
 Worksheets may contain merged cells. XLSX.jl provides functions to identify the merged cells in a worksheet, 
-to determine if a cell is part of a merged range and to dtermine the value of a merged cell range from any 
+to determine if a cell is part of a merged range and to determine the value of a merged cell range from any 
 cell in that range.
 
 ```julia
@@ -283,6 +283,7 @@ julia> XLSX.getMergedBaseCell(f[1], "J8")
 It is not allowed to create new merged cells that overlap at all with any existing merged cells.
 
 !!! warning
+
     It is possible to write into a merged cell using `XLSX.jl`.
 
     ```julia
