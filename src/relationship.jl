@@ -92,25 +92,9 @@ function add_relationship!(wb::Workbook, target::String, _type::String)::String
     push!(wb.relationships, new_relationship)
 
     # adds to XML tree
+    xroot = get_workbook_relationship_root(xf)
     el = XML.Element("Relationship"; Id=rId, Target=target, Type=_type)
     push!(xroot, el)
 
     return rId
-end
-
-# Renews relationships based on Worksheet data
-update_relationships(xf::XLSXFile) = update_relationships(get_workbook(xf))
-function update_relationships(wb::Workbook)
-    xroot = get_workbook_relationship_root(get_xlsxfile(wb))
-    filter!(x -> !occursin("worksheet", x["Type"]), XML.children(xroot))
-    filter!(x -> !occursin("worksheet", x.Type), wb.relationships)
-    _type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
-    for s in wb.sheets
-        target = "worksheets/sheet" * s.relationship_id[4:end] * ".xml"
-
-        el = XML.Element("Relationship"; Id=s.relationship_id, Type=_type, Target=target)
-        push!(xroot, el)
-        push!(wb.relationships, Relationship(s.relationship_id, _type, target))
-    end
-    return nothing
 end

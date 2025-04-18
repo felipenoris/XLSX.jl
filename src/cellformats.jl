@@ -2525,7 +2525,7 @@ end
     mergeCells(ws::Worksheet, cr::String) -> 0
     mergeCells(xf::XLSXFile,  cr::String) -> 0
 
-    mergemCells(ws::Worksheet, row::Int, col::Int) -> 0
+    mergeCells(ws::Worksheet, row::Int, col::Int) -> 0
 
 Merge the cells in the range given by `cr`. The value of the merged cell 
 will be the value of the first cell in the range (the base cell) prior 

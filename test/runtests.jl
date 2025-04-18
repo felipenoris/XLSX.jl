@@ -1203,12 +1203,57 @@ end
     s2 = XLSX.addsheet!(f, big_sheetname)
 
     XLSX.writexlsx(new_filename, f, overwrite=true)
-
-    #    @test !XLSX.isopen(f)
-
-    f = XLSX.readxlsx(new_filename)
+    f = XLSX.opentemplate(new_filename)
     @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet", big_sheetname]
+
+    @testset "deletesheet!" begin
+
+        XLSX.deletesheet!(f, big_sheetname)
+        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet"]
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+        f = XLSX.readxlsx(new_filename)
+        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet"]
+    
+        f = XLSX.opentemplate(joinpath(data_directory, "general.xlsx"))
+        sc=XLSX.sheetcount(f)
+        XLSX.deletesheet!(f, "empty")
+        @test XLSX.sheetcount(f) == sc-1 # Check it's gone.
+        @test XLSX.hassheet(f, "empty") == false # Check it's gone.
+        @test_throws XLSX.XLSXError XLSX.deletesheet!(f, "empty") # Already deleted.
+        @test_throws XLSX.XLSXError XLSX.deletesheet!(f, "nosuchsheet") # Never there.
+        s2 = XLSX.addsheet!(f, "this_now")
+        @test XLSX.sheetnames(f) == ["general", "table3", "table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "named_ranges", "this_now"]
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+        f = XLSX.opentemplate(new_filename)
+        @test XLSX.sheetnames(f) == ["general", "table3", "table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "named_ranges", "this_now"]
+        XLSX.deletesheet!(f, "named_ranges")
+        XLSX.deletesheet!(f["general"])
+        @test XLSX.sheetnames(f) == ["table3", "table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "this_now"]
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+        dtable = XLSX.readtable(new_filename, "table4", "F:G")
+        data, col_names = dtable.data, dtable.column_labels
+        @test col_names == [:H2, :H3]
+        test_data = Any[Any["C3", missing], Any[missing, "D4"]]
+        check_test_data(data, test_data)
+        @test XLSX.deletesheet!(f, 1) == nothing
+        @test XLSX.sheetnames(f) == ["table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "this_now"]
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+        dtable = XLSX.readtable(new_filename, "table4", "F:G")
+        data, col_names = dtable.data, dtable.column_labels
+        @test col_names == [:H2, :H3]
+        test_data = Any[Any["C3", missing], Any[missing, "D4"]]
+        check_test_data(data, test_data)
+
+        f = XLSX.opentemplate(joinpath(data_directory, "book_1904.xlsx")) # Only one sheet - can't delete
+        @test_throws XLSX.XLSXError XLSX.deletesheet!(f, 1)
+        s=f[1]
+        @test_throws XLSX.XLSXError XLSX.deletesheet!(s)
+        @test_throws XLSX.XLSXError XLSX.deletesheet!(f, "Sheet1")
+
+    end
+
     rm(new_filename)
+
 end
 
 @testset "Edit" begin

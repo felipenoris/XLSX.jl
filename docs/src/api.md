@@ -14,6 +14,7 @@ XLSX.hassheet
 XLSX.Worksheet
 XLSX.rename!
 XLSX.addsheet!
+XLSX.deletesheet!
 XLSX.readdata
 XLSX.getdata
 XLSX.getcell

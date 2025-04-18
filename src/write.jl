@@ -73,7 +73,7 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
 
     update_worksheets_xml!(xf)
     update_workbook_xml!(xf)
-    update_relationships(xf)
+#    update_relationships(xf)
 
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
@@ -1036,43 +1036,18 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     )
     push!(ctype_root, override_node)
 
-    # updates workbook xml
-    #    xroot = xmlroot(xf, "xl/workbook.xml")[end]
-    #    for node in XML.children(xroot)
-    #        if XML.tag(node) == "sheets"
-    #            sheet_element = XML.Element("sheet"; name=name)
-    #            sheet_element["sheetId"] = string(sheetId)
-    #            sheet_element["r:id"] = rId
-    #            push!(node, sheet_element)
-    #            break
-    #        end
-    #    end
     update_workbook_xml!(xf)
 
     return ws
 end
-function renumber_files!(files, rId)
-    holdem=Vector{Pair{String, Any}}()
-    for (f, v) in files
-        if occursin("worksheets/sheet", f) && occursin(r"[0-9]", f)
-            fnum=parse(Int, f[20:findfirst(c -> c=='.', f)-1])
-            if fnum > parse(Int, rId[4:end])
-                push!(holdem, "xl/worksheets/sheet" * string(fnum-1) * ".xml" => v)
-                delete!(files, f)
-            end
-        end
-    end
-    for f in holdem
-        push!(files, f)
-    end
-end
 
 """
-    deletesheet!(wb::Workbook, name::AbstractString)
-    deletesheet!(xf::XLSXFile, name::AbstractString)
-    deletesheet!(xf::XLSXFile, idx::Integer)
+    deletesheet!(ws::Worksheet) -> ::Nothing
+    deletesheet!(wb::Workbook, name::AbstractString) -> ::Nothing
+    deletesheet!(xf::XLSXFile, name::AbstractString) -> ::Nothing
+    deletesheet!(xf::XLSXFile, idx::Integer) -> ::Nothing
 
-Delete the worksheet named `name`. The workbook can be saved back to file using, 
+Delete the given worksheet. The workbook can be saved back to file using, 
 for example, `XLSX.writexlsx("myfile.xlsx", xf)`.
 
 !!! warning "Experimental"
@@ -1083,10 +1058,12 @@ for example, `XLSX.writexlsx("myfile.xlsx", xf)`.
     Please report any issues.
 
 """
+deletesheet!(ws::Worksheet) = deletesheet!(get_workbook(ws), ws.name)
 deletesheet!(xl::XLSXFile, idx::Integer) = deletesheet!(get_workbook(xl), xl[idx].name)
 deletesheet!(xl::XLSXFile, name::AbstractString) = deletesheet!(get_workbook(xl), name)
 function deletesheet!(wb::Workbook, name::AbstractString)
-    !hassheet(wb, name) && throw(XLSXError("Worksheet `$name` not found in workbook."))
+    hassheet(wb, name) || throw(XLSXError("Worksheet `$name` not found in workbook."))
+    sheetcount(wb) > 1 || throw(XLSXError("`$name` is this workbook's only sheet. Cannot delete the only sheet!"))
 
     # Worksheets and relationships
     s = (findfirst(s -> s.name == name, wb.sheets))
@@ -1094,18 +1071,6 @@ function deletesheet!(wb::Workbook, name::AbstractString)
     rId = wb.sheets[s].relationship_id
     r = findfirst(y -> occursin("worksheet", y.Type) && y.Id == rId, wb.relationships)
     deleteat!(wb.sheets, s)
-    for s in wb.sheets[sId:end]
-        s.sheetId -= 1
-        s.relationship_id = "rId" * string(s.sheetId)
-    end
-    deleteat!(wb.relationships, r)
-    update_relationships(wb)
-    for s in wb.sheets
-        println(s.name, " => ", s.relationship_id)
-    end
-    for r in wb.relationships
-        println(r)
-    end
 
     # Defined Names
     found_wbnames = Vector{String}()
@@ -1144,21 +1109,17 @@ function deletesheet!(wb::Workbook, name::AbstractString)
     end
 
     xf = get_xlsxfile(wb)
-    update_workbook_xml!(xf)
 
     # Files
     xml_filename = "xl/worksheets/sheet" * rId[4:end] * ".xml"
     if in(xml_filename, keys(xf.files))
         delete!(xf.files, xml_filename)
-        renumber_files!(xf.files, rId)
     end
     if in(xml_filename, keys(xf.data))
         delete!(xf.data, xml_filename)
-        renumber_files!(xf.data, rId)
     end
     if in(xml_filename, keys(xf.binary_data))
         delete!(xf.binary_data, xml_filename)
-        renumber_files!(xf.binary_data, rId)
     end
 
     # update [Content_Types].xml
