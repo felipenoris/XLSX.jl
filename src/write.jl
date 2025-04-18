@@ -16,9 +16,9 @@ julia> xf = opentemplate("myExcelFile.xlsx")
 ```
 
 """
-opentemplate(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
+opentemplate(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, true)
 
-@inline open_xlsx_template(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, true)
+@inline open_xlsx_template(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, true)
 
 function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
     return path
@@ -36,12 +36,12 @@ julia> xf = newxlsx()
 ```
 
 """
-newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path()) :: XLSXFile = open_empty_template(sheetname; path)
+newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path())::XLSXFile = open_empty_template(sheetname; path)
 
 function open_empty_template(
-            sheetname::AbstractString="";
-            path::AbstractString=_relocatable_data_path()
-        ) :: XLSXFile
+    sheetname::AbstractString="";
+    path::AbstractString=_relocatable_data_path()
+)::XLSXFile
 
     empty_excel_template = joinpath(path, "blank.xlsx")
     !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
@@ -61,18 +61,19 @@ Write an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_sou
 
 If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it exists.
 """
-function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overwrite::Bool=false)
+function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwrite::Bool=false)
 
     !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
-    if !all(values(xf.files)) 
+    if !all(values(xf.files))
         throw(XLSXError("Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"))
     end
     if output_source isa AbstractString && !overwrite
         isfile(output_source) && throw(XLSXError("Output file $output_source already exists."))
     end
 
-   update_worksheets_xml!(xf)
-   update_workbook_xml!(xf)
+    update_worksheets_xml!(xf)
+    update_workbook_xml!(xf)
+    update_relationships(xf)
 
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
@@ -101,7 +102,7 @@ function writexlsx(output_source::Union{AbstractString, IO}, xf::XLSXFile; overw
 end
 
 get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
-get_worksheet_xml_document(ws::Worksheet) = get_xlsxfile(ws).data[ get_worksheet_internal_file(ws) ]
+get_worksheet_xml_document(ws::Worksheet) = get_xlsxfile(ws).data[get_worksheet_internal_file(ws)]
 
 function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
     XML.nodetype(xdoc) != XML.Document && throw(XLSXError("Expected an XML Document node, got $(XML.nodetype(xdoc))."))
@@ -109,22 +110,25 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
     filename = get_worksheet_internal_file(ws)
     !haskey(xf.data, filename) && throw(XLSXError("Internal file not found for $(ws.name)."))
     xf.data[filename] = xdoc
-    
+
 end
 
-function generate_sst_xml_string(sst::SharedStringTable) :: String
+function generate_sst_xml_string(sst::SharedStringTable)::String
     !sst.is_loaded && throw(XLSXError("Can't generate XML string from a Shared String Table that is not loaded."))
     buff = IOBuffer()
 
     # TODO: <sst count="89"
-    print(buff, """
+    print(
+        buff,
+        """
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst uniqueCount="$(length(sst))" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-""")
+"""
+    )
 
     for s in sst.formatted_strings
         print(buff, s)
     end
- 
+
     print(buff, "</sst>")
     return String(take!(buff))
 end
@@ -135,12 +139,12 @@ function add_node_formula!(node, f::Formula)
 end
 
 function add_node_formula!(node, f::FormulaReference)
-    f_node = XML.Element("f"; t = "shared", si = string(f.id))
+    f_node = XML.Element("f"; t="shared", si=string(f.id))
     push!(node, f_node)
 end
 
 function add_node_formula!(node, f::ReferencedFormula)
-    f_node = XML.Element("f", Text(f.formula); t = "shared", si = string(f.id), ref = f.ref)
+    f_node = XML.Element("f", Text(f.formula); t="shared", si=string(f.id), ref=f.ref)
     push!(node, f_node)
 end
 
@@ -166,21 +170,21 @@ function get_node_paths!(xpaths::Vector{xpath}, node::XML.Node, default_ns, path
     for c in XML.children(node)
         if XML.nodetype(c) ∉ [XML.Declaration, XML.Comment, XML.Text]
             node_tag = XML.tag(c)
-             if !occursin(":", node_tag)
+            if !occursin(":", node_tag)
                 node_tag = default_ns * ":" * node_tag
             end
             npath = path * "/" * node_tag
             push!(xpaths, xpath(c, npath))
-            if length(XML.children(c))>0
+            if length(XML.children(c)) > 0
                 get_node_paths!(xpaths, c, default_ns, npath)
             end
         end
-    end 
+    end
     return nothing
 end
 
-# Remove all children with tag givenn by att[2] from a parent XML node with a tag given by att[1].
-function unlink(node::XML.Node, att::Tuple{String, String})
+# Remove all children with tag given by att[2] from a parent XML node with a tag given by att[1].
+function unlink(node::XML.Node, att::Tuple{String,String})
     new_node = XML.Element(first(att))
     a = XML.attributes(node)
     if !isnothing(a) # Copy attributes across to new node
@@ -196,17 +200,17 @@ function unlink(node::XML.Node, att::Tuple{String, String})
     return new_node
 end
 function get_idces(doc, t, b)
-    i=1
-    j=1
+    i = 1
+    j = 1
     while XML.tag(doc[i]) != t
-        i+=1
+        i += 1
         if i > length(XML.children(doc))
             return nothing, nothing
         end
 
     end
     while XML.tag(doc[i][j]) != b
-        j+=1
+        j += 1
         if j > length(XML.children(doc[i]))
             return i, nothing
         end
@@ -229,7 +233,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         # Since we do not at the moment track changes, we need to delete all data and re-write it, but this could entail losses.
         # |- Column formatting is preserved in the <cols> subtree.
         # |- Row formatting would get lost if we simply remove the children of <sheetData> storing the rows
-        unhandled_attributes = Dict{Int, Dict{String,String}}() # from row number to attribute and its value
+        unhandled_attributes = Dict{Int,Dict{String,String}}() # from row number to attribute and its value
 
         # The following attributes will be overwritten by us and need not be preserved
         handled_attributes = Set{String}([
@@ -239,7 +243,7 @@ function update_worksheets_xml!(xl::XLSXFile)
         ])
 
         let
-            child_nodes = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":worksheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":sheetData/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":row", doc)
+            child_nodes = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":sheetData/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":row", doc)
 
             i, j = get_idces(doc, "worksheet", "sheetData")
             parent = doc[i][j]
@@ -251,14 +255,14 @@ function update_worksheets_xml!(xl::XLSXFile)
                     attributes = XML.attributes(c)
                     if !isnothing(attributes)
                         unhandled_attributes_ = filter(attribute -> !in(first(attribute), handled_attributes), attributes)
-                        if length(unhandled_attributes_)>0
+                        if length(unhandled_attributes_) > 0
                             row_nr = parse(Int, c["r"])
                             unhandled_attributes[row_nr] = unhandled_attributes_
                         end
                     end
                 else
                     @warn("Unexpected node under sheetData: $(XML.tag(c))")
-                end            
+                end
             end
 
             doc[i][j] = unlink(parent, ("sheetData", "row"))
@@ -289,7 +293,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             row_nr = row_number(r)
             ordered_column_indexes = sort(collect(keys(r.rowcells)))
 
-            row_node = XML.Element("row"; r = string(row_nr))
+            row_node = XML.Element("row"; r=string(row_nr))
             if spans_str != ""
                 row_node["spans"] = spans_str
             end
@@ -307,7 +311,7 @@ function update_worksheets_xml!(xl::XLSXFile)
             # add cells to row
             for c in ordered_column_indexes
                 cell = getcell(r, c)
-                c_element = XML.Element("c"; r = cell.ref.name)
+                c_element = XML.Element("c"; r=cell.ref.name)
 
                 if cell.datatype != ""
                     c_element["t"] = cell.datatype
@@ -330,7 +334,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 
             push!(sheetData_node, row_node)
         end
-        doc[i][j]=sheetData_node
+        doc[i][j] = sheetData_node
 
         # updates worksheet dimension
         if get_dimension(sheet) !== nothing
@@ -350,74 +354,82 @@ end
 
 function abscell(c::CellRef)
     col, row = split_cellname(c.name)
-    return "\$"*col*"\$"*string(row)
+    return "\$" * col * "\$" * string(row)
 end
 
 mkabs(c::SheetCellRef) = abscell(c.cellref)
 mkabs(c::SheetCellRange) = abscell(c.rng.start) * ":" * abscell(c.rng.stop)
 function make_absolute(dn::DefinedNameValue)
     if dn.value isa NonContiguousRange
-        v=""
+        v = ""
         for (i, r) in enumerate(dn.value.rng)
             cr = r isa CellRange ? SheetCellRange(dn.value.sheet, r) : SheetCellRef(dn.value.sheet, r) # need to separate and handle separately
             if dn.isabs[i]
                 v *= quoteit(cr.sheet) * "!" * mkabs(cr) * ","
-            else                
+            else
                 v *= string(cr) * ","
             end
         end
         return v[1:end-1]
-     else
-        return dn.isabs ? quoteit(dn.value.sheet) * "!" *  mkabs(dn.value) : string(dn.value)
+    else
+        return dn.isabs ? quoteit(dn.value.sheet) * "!" * mkabs(dn.value) : string(dn.value)
     end
 end
 
-function update_workbook_xml!(xl::XLSXFile) # Only the <definedNames> block will need updating. 
+function update_workbook_xml!(xl::XLSXFile) # Need to update <sheets> and <definedNames>. 
     wb = get_workbook(xl)
 
-    if length(wb.workbook_names)==0 && length(wb.workbook_names)==0 # No-op if no defined names present
-        return nothing
-    end
-
-    wbdoc = xmlroot(xl, "xl/workbook.xml") # find the <definedNames> block in the workbook's xml file
-    i, j = get_idces(wbdoc, "workbook", "definedNames")
-
-    if isnothing(j)
-    # there is no <definedNames> block in the workbook's xml file, so we'll need to create one
-    # The <definedNames> block goes after the <sheets> block. Need to move everything down one to make room.    
-        m, n = get_idces(wbdoc, "workbook", "sheets")
-        nchildren = length(XML.children(wbdoc[m]))
-        push!(wbdoc[m], wbdoc[m][end])
-        for c in nchildren-1:-1:n+1
-            wbdoc[m][c+1]=wbdoc[m][c]
-        end
-        definedNames = XML.Element("definedNames")
-        j=n+1
-
-    else
-        definedNames = unlink(wbdoc[i][j], ("definedNames", "definedName")) # Remove old defined names
-    end
-
-    for (k, v) in wb.workbook_names
-        if typeof(v.value) <: DefinedNameRangeTypes
-            v=make_absolute(v)
+    #update defined names
+    if length(wb.workbook_names) > 0 || length(wb.workbook_names) > 0 # skip if no defined names present
+        wbdoc = xmlroot(xl, "xl/workbook.xml") # find the <definedNames> block in the workbook's xml file
+        i, j = get_idces(wbdoc, "workbook", "definedNames")
+        if isnothing(j)
+            # there is no <definedNames> block in the workbook's xml file, so we'll need to create one
+            # The <definedNames> block goes after the <sheets> block. Need to move everything down one to make room.    
+            m, n = get_idces(wbdoc, "workbook", "sheets")
+            nchildren = length(XML.children(wbdoc[m]))
+            push!(wbdoc[m], wbdoc[m][end])
+            for c in nchildren-1:-1:n+1
+                wbdoc[m][c+1] = wbdoc[m][c]
+            end
+            definedNames = XML.Element("definedNames")
+            j = n + 1
         else
-            v= string(v.value)
+            definedNames = unlink(wbdoc[i][j], ("definedNames", "definedName")) # Remove old defined names
         end
-        dn_node = XML.Element("definedName", name=k, XML.Text(v))
-        push!(definedNames, dn_node)
-    end
-    for (k, v) in wb.worksheet_names
-        if typeof(v.value) <: DefinedNameRangeTypes
-            v=make_absolute(v)
-        else
-            v= string(v.value)
+        for (k, v) in wb.workbook_names
+            if typeof(v.value) <: DefinedNameRangeTypes
+                v = make_absolute(v)
+            else
+                v = string(v.value)
+            end
+            dn_node = XML.Element("definedName", name=k, XML.Text(v))
+            push!(definedNames, dn_node)
         end
-        dn_node = XML.Element("definedName", name=last(k), localSheetId=first(k)-1, XML.Text(v))
-        push!(definedNames, dn_node)
+        for (k, v) in wb.worksheet_names
+            if typeof(v.value) <: DefinedNameRangeTypes
+                v = make_absolute(v)
+            else
+                v = string(v.value)
+            end
+            dn_node = XML.Element("definedName", name=last(k), localSheetId=first(k) - 1, XML.Text(v))
+            push!(definedNames, dn_node)
+        end
+        wbdoc[i][j] = definedNames # Add the new definedNames block to the workbook's xml file
     end
 
-    wbdoc[i][j] = definedNames # Add the new definedNames block to the workbook's xml file
+    #update sheets
+    doc = xmlroot(xl, "xl/workbook.xml")
+    i, j = get_idces(doc, "workbook", "sheets")
+    unlink(doc[i][j], ("sheets", "sheet"))
+    sheets_element = XML.Element("sheets")
+    for s in wb.sheets
+        sheet_element = XML.Element("sheet"; name=s.name)
+        sheet_element["sheetId"] = s.sheetId
+        sheet_element["r:id"] = s.relationship_id
+        push!(sheets_element, sheet_element)
+    end
+    doc[i][j] = sheets_element
 
     return nothing
 end
@@ -463,7 +475,7 @@ function setdata!(ws::Worksheet, cell::Cell)
 
     if !haskey(cache.cells, r)
         push!(cache.rows_in_cache, r)
-        cache.cells[r] = Dict{Int, Cell}()
+        cache.cells[r] = Dict{Int,Cell}()
         cache.row_ht[r] = nothing
         cache.dirty = true
     end
@@ -511,14 +523,14 @@ end
 
 xlsx_encode(::Worksheet, val::Missing) = ("", "")
 xlsx_encode(::Worksheet, val::Bool) = ("b", val ? "1" : "0")
-xlsx_encode(::Worksheet, val::Union{Int, Float64}) = ("", string(val))
+xlsx_encode(::Worksheet, val::Union{Int,Float64}) = ("", string(val))
 xlsx_encode(ws::Worksheet, val::Dates.Date) = ("", string(date_to_excel_value(val, isdate1904(get_xlsxfile(ws)))))
 xlsx_encode(ws::Worksheet, val::Dates.DateTime) = ("", string(datetime_to_excel_value(val, isdate1904(get_xlsxfile(ws)))))
 xlsx_encode(::Worksheet, val::Dates.Time) = ("", string(time_to_excel_value(val)))
 
 Base.setindex!(ws::Worksheet, v, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
-Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Integer, UnitRange{<:Integer}}, c::UnitRange{T}) where T<:Integer = setdata!(ws, r, c, v)
-Base.setindex!(ws::Worksheet, v::AbstractVector, r::UnitRange{T}, c::Union{Integer, UnitRange{<:Integer}}) where T<:Integer = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Integer,UnitRange{<:Integer}}, c::UnitRange{T}) where {T<:Integer} = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r::UnitRange{T}, c::Union{Integer,UnitRange{<:Integer}}) where {T<:Integer} = setdata!(ws, r, c, v)
 Base.setindex!(ws::Worksheet, v::AbstractVector, ref; dim::Integer=2) = setdata!(ws, ref, v, dim)
 Base.setindex!(ws::Worksheet, v::AbstractVector, r, c; dim::Integer=2) = setdata!(ws, r, c, v, dim)
 Base.setindex!(ws::Worksheet, v, ref) = setdata!(ws, ref, v)
@@ -582,14 +594,14 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existin
                 c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_NUMBER_numFmtId)]).id)
             end
         elseif val isa Bool # Now rerouted here rather than assigning an EmptyCellDataFormat.
-                            # Change any style to General (0) and retain other formatting.
+            # Change any style to General (0) and retain other formatting.
             c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_BOOL_numFmtId)]).id)
         end
 
         return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
     end
 end
-function setdata!(ws::Worksheet, ref::AbstractString, value) 
+function setdata!(ws::Worksheet, ref::AbstractString, value)
     if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
         if is_defined_name_value_a_reference(v)
@@ -626,7 +638,7 @@ function setdata!(ws::Worksheet, ref::AbstractString, value)
     elseif is_valid_non_contiguous_cellrange(ref)
         return setdata!(ws, NonContiguousRange(ws, ref), value)
     elseif is_valid_non_contiguous_sheetcellrange(ref)
-        nc=NonContiguousRange(ref)
+        nc = NonContiguousRange(ref)
         return do_sheet_names_match(ws, nc) && setdata!(ws, nc, value)
     end
     throw(XLSXError("`$ref` is not a valid cell or range reference."))
@@ -729,13 +741,13 @@ setdata!(ws::Worksheet, row::Integer, col::Integer, data::AbstractVector, dim::I
 
 function setdata!(sheet::Worksheet, ref::CellRef, data::AbstractVector, dim::Integer)
     for (i, val) in enumerate(data)
-        target_cell_ref = target_cell_ref_from_offset(ref, i-1, dim)
+        target_cell_ref = target_cell_ref_from_offset(ref, i - 1, dim)
         setdata!(sheet, target_cell_ref, val)
     end
 end
 
-Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Colon, UnitRange{T}}, c) where {T<:Integer} = setdata!(ws, r, c, v)
-Base.setindex!(ws::Worksheet, v::AbstractVector, r, c::Union{Colon, UnitRange{T}}) where {T<:Integer} = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r::Union{Colon,UnitRange{T}}, c) where {T<:Integer} = setdata!(ws, r, c, v)
+Base.setindex!(ws::Worksheet, v::AbstractVector, r, c::Union{Colon,UnitRange{T}}) where {T<:Integer} = setdata!(ws, r, c, v)
 setdata!(sheet::Worksheet, ::Colon, col::Integer, data::AbstractVector) = setdata!(sheet, 1, col, data, 1)
 setdata!(sheet::Worksheet, row::Integer, ::Colon, data::AbstractVector) = setdata!(sheet, row, 1, data, 2)
 
@@ -755,7 +767,7 @@ function setdata!(sheet::Worksheet, rows::UnitRange{T}, col::Integer, data::Abst
     setdata!(sheet, anchor_cell_ref, data, 1)
 end
 
-function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T, 2}) where {T}
+function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T,2}) where {T}
     if is_valid_cellrange(ref_or_rng)
         setdata!(sheet, CellRange(ref_or_rng), matrix)
     elseif is_valid_cellname(ref_or_rng)
@@ -765,7 +777,7 @@ function setdata!(sheet::Worksheet, ref_or_rng::AbstractString, matrix::Array{T,
     end
 end
 
-function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T}
+function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T,2}) where {T}
     rows, cols = size(matrix)
     anchor_row = row_number(ref)
     anchor_col = column_number(ref)
@@ -775,7 +787,7 @@ function setdata!(sheet::Worksheet, ref::CellRef, matrix::Array{T, 2}) where {T}
     end
 end
 
-function setdata!(sheet::Worksheet, rng::CellRange, matrix::Array{T, 2}) where {T}
+function setdata!(sheet::Worksheet, rng::CellRange, matrix::Array{T,2}) where {T}
     size(rng) != size(matrix) && throw(XLSXError("Target range $rng size ($(size(rng))) must be equal to the input matrix size ($(size(matrix)))"))
     setdata!(sheet, rng.start, matrix)
 end
@@ -784,7 +796,7 @@ end
 # Returns a CellRef at:
 # - (anchor_row + offset, anchol_col) if dim = 1 (operates on rows)
 # - (anchor_row, anchor_col + offset) if dim = 2 (operates on cols)
-function target_cell_ref_from_offset(anchor_row::Integer, anchor_col::Integer, offset::Integer, dim::Integer) :: CellRef
+function target_cell_ref_from_offset(anchor_row::Integer, anchor_col::Integer, offset::Integer, dim::Integer)::CellRef
     if dim == 1
         return CellRef(anchor_row + offset, anchor_col)
     elseif dim == 2
@@ -794,11 +806,11 @@ function target_cell_ref_from_offset(anchor_row::Integer, anchor_col::Integer, o
     end
 end
 
-function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim::Integer) :: CellRef
+function target_cell_ref_from_offset(anchor_cell::CellRef, offset::Integer, dim::Integer)::CellRef
     return target_cell_ref_from_offset(row_number(anchor_cell), column_number(anchor_cell), offset, dim)
 end
 
-const ALLOWED_TYPES = Union{Number, String, Bool, Dates.Date, Dates.Time, Dates.DateTime, Missing, Nothing}
+const ALLOWED_TYPES = Union{Number,String,Bool,Dates.Date,Dates.Time,Dates.DateTime,Missing,Nothing}
 function process_vector(col) # Convert any disallowed types to strings. #239.
     if eltype(col) <: ALLOWED_TYPES
         # Case 1: All elements are of allowed types
@@ -837,12 +849,12 @@ before writing.
 See also: [`XLSX.writetable`](@ref).
 """
 function writetable!(
-            sheet::Worksheet,
-            data,
-            columnnames;
-            anchor_cell::CellRef=CellRef("A1"),
-            write_columnnames::Bool=true,
-        )
+    sheet::Worksheet,
+    data,
+    columnnames;
+    anchor_cell::CellRef=CellRef("A1"),
+    write_columnnames::Bool=true,
+)
 
     # read dimensions
     col_count = length(data)
@@ -850,7 +862,7 @@ function writetable!(
     col_count <= 0 && throw(XLSXError("Can't write table with no columns."))
     col_count > EXCEL_MAX_COLS && throw(XLSXError("`data` contains $col_count columns, but Excel only supports up to $EXCEL_MAX_COLS; must reduce `data` size"))
     row_count = length(data[1])
-    row_count > EXCEL_MAX_ROWS-1 && throw(XLSXError("`data` contains $row_count rows, but Excel only supports up to $(EXCEL_MAX_ROWS-1); must reduce `data` size"))
+    row_count > EXCEL_MAX_ROWS - 1 && throw(XLSXError("`data` contains $row_count rows, but Excel only supports up to $(EXCEL_MAX_ROWS-1); must reduce `data` size"))
     if col_count > 1
         for c in 2:col_count
             length(data[c]) != row_count && throw(XLSXError("Row count mismatch between column 1 ($row_count rows) and column $c ($(length(data[c])) rows)."))
@@ -920,8 +932,6 @@ function rename!(ws::Worksheet, name::AbstractString)
     nothing
 end
 
-addsheet!(xl::XLSXFile, name::AbstractString="") :: Worksheet = addsheet!(get_workbook(xl), name)
-
 """
     addsheet!(workbook, [name]) :: Worksheet
 
@@ -929,7 +939,8 @@ Create a new worksheet named `name`.
 If `name` is not provided, a unique name is created.
 
 """
-function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String = _relocatable_data_path()) :: Worksheet
+addsheet!(xl::XLSXFile, name::AbstractString="")::Worksheet = addsheet!(get_workbook(xl), name)
+function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String=_relocatable_data_path())::Worksheet
     xf = get_xlsxfile(wb)
     !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
 
@@ -941,7 +952,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
         i = 1
         current_sheet_names = sheetnames(wb)
         while true
-            name = "Sheet"*string(i)
+            name = "Sheet" * string(i)
             if !in(name, current_sheet_names)
                 # found a unique name
                 break
@@ -970,7 +981,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     check_valid_sheetname(name)
 
     # generate sheetId
-    current_sheet_ids = [ ws.sheetId for ws in wb.sheets ]
+    current_sheet_ids = [ws.sheetId for ws in wb.sheets]
     sheetId = max(current_sheet_ids...) + 1
 
     xdoc = XML.read(file_sheet_template, XML.Node)
@@ -979,7 +990,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     local xml_filename::String
     i = 1
     while true
-        xml_filename = "xl/worksheets/sheet"*string(i)*".xml"
+        xml_filename = "xl/worksheets/sheet" * string(i) * ".xml"
         if !in(xml_filename, keys(xf.files))
             break
         end
@@ -989,7 +1000,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # adds doc do XLSXFile
     xf.files[xml_filename] = true # is read
     xf.data[xml_filename] = xdoc
-   
+
 
     # adds workbook-level relationship
     # <Relationship Id="rId1" Target="worksheets/sheet1.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/>
@@ -1002,16 +1013,16 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     # and the stream should be closed
     # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
     reader = open_internal_file_stream(xf, "xl/worksheets/sheet1.xml") # could be any file
-    state =  SheetRowStreamIteratorState(reader, nothing, 0, nothing)
+    state = SheetRowStreamIteratorState(reader, nothing, 0, nothing)
     ws.cache = XLSX.WorksheetCache(
-        Dict{Int64, Dict{Int64, XLSX.Cell}}(),
+        Dict{Int64,Dict{Int64,XLSX.Cell}}(),
         Int64[],
-        Dict{Int, Union{Float64, Nothing}}(),
-        Dict{Int64, Int64}(),
+        Dict{Int,Union{Float64,Nothing}}(),
+        Dict{Int64,Int64}(),
         SheetRowStreamIterator(ws),
         state,
         false
-     ) 
+    )
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
@@ -1020,24 +1031,155 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
     XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
     override_node = XML.Element("Override";
-        ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
-        PartName = "/xl/worksheets/sheet"*string(sheetId)*".xml"
+        ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+        PartName="/xl/worksheets/sheet" * string(sheetId) * ".xml"
     )
     push!(ctype_root, override_node)
 
     # updates workbook xml
-    xroot = xmlroot(xf, "xl/workbook.xml")[end]
-    for node in XML.children(xroot)
-        if XML.tag(node) == "sheets"
-            sheet_element = XML.Element("sheet"; name = name)
-            sheet_element["r:id"] = rId
-            sheet_element["sheetId"] = string(sheetId)
-            push!(node, sheet_element)
-            break
+    #    xroot = xmlroot(xf, "xl/workbook.xml")[end]
+    #    for node in XML.children(xroot)
+    #        if XML.tag(node) == "sheets"
+    #            sheet_element = XML.Element("sheet"; name=name)
+    #            sheet_element["sheetId"] = string(sheetId)
+    #            sheet_element["r:id"] = rId
+    #            push!(node, sheet_element)
+    #            break
+    #        end
+    #    end
+    update_workbook_xml!(xf)
+
+    return ws
+end
+function renumber_files!(files, rId)
+    holdem=Vector{Pair{String, Any}}()
+    for (f, v) in files
+        if occursin("worksheets/sheet", f) && occursin(r"[0-9]", f)
+            fnum=parse(Int, f[20:findfirst(c -> c=='.', f)-1])
+            if fnum > parse(Int, rId[4:end])
+                push!(holdem, "xl/worksheets/sheet" * string(fnum-1) * ".xml" => v)
+                delete!(files, f)
+            end
+        end
+    end
+    for f in holdem
+        push!(files, f)
+    end
+end
+
+"""
+    deletesheet!(wb::Workbook, name::AbstractString)
+    deletesheet!(xf::XLSXFile, name::AbstractString)
+    deletesheet!(xf::XLSXFile, idx::Integer)
+
+Delete the worksheet named `name`. The workbook can be saved back to file using, 
+for example, `XLSX.writexlsx("myfile.xlsx", xf)`.
+
+!!! warning "Experimental"
+    `deletesheet!` is an experimental function.
+    It removes the most obvious manifestations of a sheet but
+    there may be archaeological remains with unknown effects!
+
+    Please report any issues.
+
+"""
+deletesheet!(xl::XLSXFile, idx::Integer) = deletesheet!(get_workbook(xl), xl[idx].name)
+deletesheet!(xl::XLSXFile, name::AbstractString) = deletesheet!(get_workbook(xl), name)
+function deletesheet!(wb::Workbook, name::AbstractString)
+    !hassheet(wb, name) && throw(XLSXError("Worksheet `$name` not found in workbook."))
+
+    # Worksheets and relationships
+    s = (findfirst(s -> s.name == name, wb.sheets))
+    sId = wb.sheets[s].sheetId
+    rId = wb.sheets[s].relationship_id
+    r = findfirst(y -> occursin("worksheet", y.Type) && y.Id == rId, wb.relationships)
+    deleteat!(wb.sheets, s)
+    for s in wb.sheets[sId:end]
+        s.sheetId -= 1
+        s.relationship_id = "rId" * string(s.sheetId)
+    end
+    deleteat!(wb.relationships, r)
+    update_relationships(wb)
+    for s in wb.sheets
+        println(s.name, " => ", s.relationship_id)
+    end
+    for r in wb.relationships
+        println(r)
+    end
+
+    # Defined Names
+    found_wbnames = Vector{String}()
+    for (k, v) in wb.workbook_names
+        wbn = v.value
+        if typeof(wbn) <: DefinedNameRangeTypes
+            if wbn.sheet == name
+                push!(found_wbnames, k)
+            end
+        end
+    end
+    found_wsnames = Vector{Tuple{Int64,String}}()
+    for (k, v) in wb.worksheet_names
+        wbn = v.value
+        if first(k) == sId
+            push!(found_wsnames, k)
+        end
+    end
+    for key in found_wbnames
+        delete!(wb.workbook_names, key)
+    end
+    for key in found_wsnames
+        delete!(wb.worksheet_names, key)
+    end
+    renumber_keys = Vector{Pair{Tuple{Int64,String},Tuple{Int64,String}}}()
+    for (k, v) in wb.worksheet_names
+        wbn = v.value
+        first(k) == sId && throw(XLSXError("Something wrong here!"))
+        if first(k) > sId
+            push!(renumber_keys, k => (sId, last(k)))
+        end
+    end
+    for (oldkey, newkey) in renumber_keys
+        wb.worksheet_names[newkey] = wb.worksheet_names[oldkey]
+        delete!(wb.worksheet_names, oldkey)
+    end
+
+    xf = get_xlsxfile(wb)
+    update_workbook_xml!(xf)
+
+    # Files
+    xml_filename = "xl/worksheets/sheet" * rId[4:end] * ".xml"
+    if in(xml_filename, keys(xf.files))
+        delete!(xf.files, xml_filename)
+        renumber_files!(xf.files, rId)
+    end
+    if in(xml_filename, keys(xf.data))
+        delete!(xf.data, xml_filename)
+        renumber_files!(xf.data, rId)
+    end
+    if in(xml_filename, keys(xf.binary_data))
+        delete!(xf.binary_data, xml_filename)
+        renumber_files!(xf.binary_data, rId)
+    end
+
+    # update [Content_Types].xml
+    ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
+    XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
+    cont = XML.children(ctype_root)
+    let idx = 0
+        for (i, c) in enumerate(cont)
+            if haskey(c, "PartName") && c["PartName"] == "/xl/worksheets/sheet" * rId[4:end] * ".xml"
+                idx = i
+                break
+            end
+        end
+        if idx > 0
+            deleteat!(cont, idx)
         end
     end
 
-    return ws
+    update_workbook_xml!(xf)
+
+    return nothing
 end
 
 #
@@ -1063,7 +1205,7 @@ XLSX.writetable("table.xlsx", columns, colnames)
 
 See also: [`XLSX.writetable!`](@ref).
 """
-function writetable(filename::Union{AbstractString, IO}, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String, CellRef}=CellRef("A1"))
+function writetable(filename::Union{AbstractString,IO}, data, columnnames; overwrite::Bool=false, sheetname::AbstractString="", anchor_cell::Union{String,CellRef}=CellRef("A1"))
 
     if filename isa AbstractString && !overwrite
         isfile(filename) && throw(XLSXError("$filename already exists."))
@@ -1104,7 +1246,7 @@ julia> df2 = DataFrames.DataFrame(AA=["aa", "bb"], AB=[10.1, 10.2])
 julia> XLSX.writetable("report.xlsx", "REPORT_A" => df1, "REPORT_B" => df2)
 ```
 """
-function writetable(filename::Union{AbstractString, IO}; overwrite::Bool=false, kw...)
+function writetable(filename::Union{AbstractString,IO}; overwrite::Bool=false, kw...)
 
     if filename isa AbstractString && !overwrite
         isfile(filename) && throw(XLSXError("$filename already exists."))
@@ -1132,7 +1274,7 @@ function writetable(filename::Union{AbstractString, IO}; overwrite::Bool=false, 
     nothing
 end
 
-function writetable(filename::Union{AbstractString, IO}, tables::Vector{Tuple{String, S, Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where U, T<:Union{String, Symbol}}
+function writetable(filename::Union{AbstractString,IO}, tables::Vector{Tuple{String,S,Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where {U},T<:Union{String,Symbol}}
 
     if filename isa AbstractString && !overwrite
         isfile(filename) && throw(XLSXError("$filename already exists."))

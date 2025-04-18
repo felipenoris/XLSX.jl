@@ -1,5 +1,5 @@
 
-function Relationship(e::XML.Node) :: Relationship
+function Relationship(e::XML.Node)::Relationship
     XML.tag(e) != "Relationship" && throw(XLSXError("Unexpected XMLElement: $(XML.tag(e)). Expected: \"Relationship\"."))
     a = XML.attributes(e)
     return Relationship(
@@ -9,7 +9,7 @@ function Relationship(e::XML.Node) :: Relationship
     )
 end
 
-function parse_relationship_target(prefix::String, target::String) :: String
+function parse_relationship_target(prefix::String, target::String)::String
     isempty(prefix) || isempty(target) && throw(XLSXError("Something wrong here!"))
     if target[1] == '/'
         sizeof(target) <= 1 && throw(XLSXError("Incomplete target path $target."))
@@ -19,7 +19,7 @@ function parse_relationship_target(prefix::String, target::String) :: String
     end
 end
 
-function get_relationship_target_by_id(prefix::String, wb::Workbook, Id::String) :: String
+function get_relationship_target_by_id(prefix::String, wb::Workbook, Id::String)::String
     for r in wb.relationships
         if Id == r.Id
             return parse_relationship_target(prefix, r.Target)
@@ -28,7 +28,7 @@ function get_relationship_target_by_id(prefix::String, wb::Workbook, Id::String)
     throw(XLSXError("Relationship Id=$(Id) not found"))
 end
 
-function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::String) :: String
+function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::String)::String
     for r in wb.relationships
         if _type_ == r.Type
             return parse_relationship_target(prefix, r.Target)
@@ -37,7 +37,7 @@ function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::S
     throw(XLSXError("Relationship Type=$(_type_) not found"))
 end
 
-function has_relationship_by_type(wb::Workbook, _type_::String) :: Bool
+function has_relationship_by_type(wb::Workbook, _type_::String)::Bool
     for r in wb.relationships
         if _type_ == r.Type
             return true
@@ -46,29 +46,29 @@ function has_relationship_by_type(wb::Workbook, _type_::String) :: Bool
     false
 end
 
-function get_package_relationship_root(xf::XLSXFile) :: XML.Node
+function get_package_relationship_root(xf::XLSXFile)::XML.Node
     xroot = xmlroot(xf, "_rels/.rels")[end]
     XML.tag(xroot) != "Relationships" && throw(XLSXError("Malformed XLSX file $(xf.source). _rels/.rels root node name should be `Relationships`. Found $(XML.tag(xroot))."))
-    if (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∉ get_namespaces(xroot) 
+    if ("" => "http://schemas.openxmlformats.org/package/2006/relationships") ∉ get_namespaces(xroot)
         throw(XLSXError("Unexpected namespace at workbook relationship file: `$(get_namespaces(xroot))`."))
     end
     return xroot
 end
 
-function get_workbook_relationship_root(xf::XLSXFile) :: XML.Node
+function get_workbook_relationship_root(xf::XLSXFile)::XML.Node
     xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")[end]
     XML.tag(xroot) != "Relationships" && throw(XLSXError("Malformed XLSX file $(xf.source). xl/_rels/workbook.xml.rels root node name should be `Relationships`. Found $(XML.tag(xroot))."))
-    if (""=>"http://schemas.openxmlformats.org/package/2006/relationships") ∉ get_namespaces(xroot)
+    if ("" => "http://schemas.openxmlformats.org/package/2006/relationships") ∉ get_namespaces(xroot)
         throw(XLSXError("Unexpected namespace at workbook relationship file: `$(get_namespaces(xroot))`."))
     end
     return xroot
 end
 
 # Adds new relationship. Returns new generated rId.
-function add_relationship!(wb::Workbook, target::String, _type::String) :: String
+function add_relationship!(wb::Workbook, target::String, _type::String)::String
     xf = get_xlsxfile(wb)
     !is_writable(xf) && throws(XLSXError("XLSXFile instance is not writable."))
-    local rId :: String
+    local rId::String
 
     let
         got_unique_id = false
@@ -92,9 +92,25 @@ function add_relationship!(wb::Workbook, target::String, _type::String) :: Strin
     push!(wb.relationships, new_relationship)
 
     # adds to XML tree
-    xroot = get_workbook_relationship_root(xf)
-    el = XML.Element("Relationship"; Id = rId, Target = target, Type = _type)
+    el = XML.Element("Relationship"; Id=rId, Target=target, Type=_type)
     push!(xroot, el)
 
     return rId
+end
+
+# Renews relationships based on Worksheet data
+update_relationships(xf::XLSXFile) = update_relationships(get_workbook(xf))
+function update_relationships(wb::Workbook)
+    xroot = get_workbook_relationship_root(get_xlsxfile(wb))
+    filter!(x -> !occursin("worksheet", x["Type"]), XML.children(xroot))
+    filter!(x -> !occursin("worksheet", x.Type), wb.relationships)
+    _type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
+    for s in wb.sheets
+        target = "worksheets/sheet" * s.relationship_id[4:end] * ".xml"
+
+        el = XML.Element("Relationship"; Id=s.relationship_id, Type=_type, Target=target)
+        push!(xroot, el)
+        push!(wb.relationships, Relationship(s.relationship_id, _type, target))
+    end
+    return nothing
 end
