@@ -24,7 +24,7 @@ end
 * `WorksheetCache` has a `SheetRowStreamIterator` and caches all values read from the stream.
 * `TableRowIterator` is a smart iterator that looks for tabular data, but uses a SheetRowIterator under the hood.
 
-The implementation of `SheetRowIterator` will be chosen automatically by `XLSX.eachrow` method,
+The implementation of `SheetRowIterator` will be chosen automatically by `eachrow` method,
 based on the `enable_cache` option used in `XLSX.openxlsx` method.
 
 =#
@@ -298,7 +298,7 @@ Example: Query all cells from columns 1 to 4.
 ```julia
 left = 1  # 1st column
 right = 4 # 4th column
-for sheetrow in XLSX.eachrow(sheet)
+for sheetrow in eachrow(sheet)
     for column in left:right
         cell = XLSX.getcell(sheetrow, column)
 

@@ -1,6 +1,9 @@
 
 # API Reference
 
+```@index
+```
+
 ```@docs
 XLSX.XLSXFile
 XLSX.readxlsx

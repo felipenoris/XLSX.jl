@@ -100,7 +100,7 @@ where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 
 ```julia
 julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do xf
-          for r in XLSX.eachrow(xf["mysheet"])
+          for r in eachrow(xf["mysheet"])
               # read something from row `r`
           end
        end
@@ -541,9 +541,11 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
  1  "first"
  2  "second"
  3  "third"
+```
 
 Non-contiguous ranges return vectors.
 
+```
 julia> XLSX.readdata("customXml.xlsx", "Mock-up", "Location") # `Location` is a `definedName` for a non-contiguous range
 4-element Vector{Any}:
  "Here"

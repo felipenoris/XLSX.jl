@@ -496,8 +496,8 @@ function check_table_data_dimension(data::Vector)
     nothing
 end
 
-#function gettable(itr::TableRowIterator; infer_eltypes::Bool=false, normalizenames::Bool=false) :: DataTable
-function gettable(itr::TableRowIterator; infer_eltypes::Bool=false) :: DataTable
+#function gettable(itr::TableRowIterator; infer_eltypes::Bool=true, normalizenames::Bool=false) :: DataTable
+function gettable(itr::TableRowIterator; infer_eltypes::Bool=true) :: DataTable
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)
     data = Vector{Any}(undef, columns_count)
@@ -578,7 +578,7 @@ Use `column_labels` as a vector of symbols to specify names for the header of th
 Use `normalizenames=true` to normalize column names to valid Julia identifiers.
 
 Use `infer_eltypes=true` to get `data` as a `Vector{Any}` of typed vectors.
-The default value is `infer_eltypes=false`.
+The default value is `infer_eltypes=true`.
 
 `stop_in_empty_row` is a boolean indicating whether an empty row marks the end of the table.
 If `stop_in_empty_row=false`, the `TableRowIterator` will continue to fetch rows until there's no more rows in the Worksheet.
@@ -611,12 +611,12 @@ julia> df = XLSX.openxlsx("myfile.xlsx") do xf
         
 See also: [`XLSX.readtable`](@ref).
 """
-function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     itr = eachtablerow(sheet, cols; first_row, column_labels, header, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     return gettable(itr; infer_eltypes)
 end
 
-function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=false, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function gettable(sheet::Worksheet; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     itr = eachtablerow(sheet; first_row, column_labels, header, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     return gettable(itr; infer_eltypes)
 end

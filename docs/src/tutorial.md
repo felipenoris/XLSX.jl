@@ -207,7 +207,7 @@ where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 ```julia
 julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do f
            sheet = f["mysheet"]
-           for r in XLSX.eachrow(sheet)
+           for r in eachrow(sheet)
               # r is a `SheetRow`, values are read using column references
               rn = XLSX.row_number(r) # `SheetRow` row number
               v1 = r[1]    # will read value at column 1

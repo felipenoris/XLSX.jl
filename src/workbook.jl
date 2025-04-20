@@ -303,8 +303,8 @@ When adding defined name referring to a cell or range to a workbook, `value` mus
 name (e.g. `Sheet1!A1:B2`). 
 
 If the new `definedName` is a cell reference or range, by default, it will be an absolute 
-reference (e.g. \$A\$1:\$C\$6). If `absolute=false` is specified, the new `definedName will be 
-a relative reference(e.g. A1:C6). Any `absolute` argument specified is ignored if the 
+reference (e.g. `\$A\$1:\$C\$6`). If `absolute=false` is specified, the new `definedName` will be 
+a relative reference (e.g. `A1:C6`). Any `absolute` argument specified is ignored if the 
 `definedName` is not a cell reference or range.
 
 In the context of `XLSX.jl` there is no difference between an absolute reference and a relative 

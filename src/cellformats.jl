@@ -10,7 +10,6 @@
 
     setFont(sh::Worksheet, row, col; kw...) -> ::Int
 
-
 Set the font used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
 Alternatively, specify the row and column using any combination of 
@@ -30,12 +29,12 @@ value will be retained. These are the only attributes supported currently.
 
 No validation of the font names specified is performed. Available fonts will depend
 on what your system has installed. If you specify, for example, `name = "badFont"`,
-that value will be written to the XLSXfile.
+that value will be written to the XLSXFile.
 
 As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
 new font definitions.
 
-The `color` attribute can only be defined as rgb values.
+The `color` attribute can be defined using 8-digit rgb values.
 - The first two digits represent transparency (α). Excel ignores transparency.
 - The next two digits give the red component.
 - The next two digits give the green component.
@@ -43,7 +42,7 @@ The `color` attribute can only be defined as rgb values.
 So, FF000000 means a fully opaque black color.
 
 Alternatively, you can use the name of any named color from Colors.jl
-(https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
+([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
@@ -517,8 +516,8 @@ keywords or with `outside` but it can be used together with `diagonal`.
 
 A further keyword, `outside`, can be used to set the outside border around a 
 range. Any internal borders will remain unchanged. An outside border cannot be 
-set for any non-contiguous/non-rectangular range and `outside` cannot be 
-indexed with vectors and cannot be used in conjunction with any other keywords.
+set for any non-contiguous/non-rectangular range, cannot be indexed with 
+vectors and cannot be used in conjunction with any other keywords.
 
 The two attributes that can be set for each keyword are `style` and `color`.
 Additionally, for diagonal borders, a third keyword, `direction` can be used.
@@ -539,11 +538,11 @@ Allowed values for `style` are:
 - `mediumDashDotDot`
 - `slantDashDot`
 
-The `color` attribute can set by specifying an 8-digit hexadecimal value 
+The `color` attribute can be set by specifying an 8-digit hexadecimal value 
 in the format "AARRGGBB". The transparency ("AA") is ignored by Excel but 
 is required.
 Alternatively, you can use the name of any named color from Colors.jl
-(https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
+([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
 Valid values for the `direction` keyword (for diagonal borders) are:
 - `up`   : diagonal border runs bottom-left to top-right
@@ -1096,7 +1095,7 @@ Here is a list of the available `pattern` values (thanks to Copilot!):
 The two colors may be set by specifying an 8-digit hexadecimal value for the `fgColor`
 and/or `bgColor` keywords. 
 Alternatively, you can use the name of any named color from Colors.jl
-(https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
+([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
 Setting only one or two of the attributes leaves the other attribute(s) unchanged 
 for that cell's fill.
@@ -1483,7 +1482,7 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     !isnothing(vertical) && vertical ∉ ["top", "center", "bottom", "justify", "distributed"] && throw(XLSXError("Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."))
     !isnothing(wrapText) && wrapText ∉ [true, false] && throw(XLSXError("Invalid wrap option: $wrapText. Must be one of: `true`, `false`."))
     !isnothing(shrink) && shrink ∉ [true, false] && throw(XLSXError("Invalid shrink option: $shrink. Must be one of: `true`, `false`."))
-    !isnothing(indent) && indent > 0 && throw(XLSXError("Invalid indent value specified: $indent. Must be a postive integer."))
+    !isnothing(indent) && indent < 0 && throw(XLSXError("Invalid indent value specified: $indent. Must be a postive integer."))
     !isnothing(rotation) && rotation ∉ -90:90 && throw(XLSXError("Invalid rotation value specified: $rotation. Must be an integer between -90 and 90."))
 
     if isnothing(horizontal) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "horizontal")
