@@ -30,6 +30,7 @@ include("cell.jl")
 include("styles.jl")
 include("cellformats.jl")
 include("cellformat-helpers.jl")
+include("conditional-formats.jl")
 include("write.jl")
 
 end # module XLSX

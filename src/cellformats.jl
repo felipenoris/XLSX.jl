@@ -2607,11 +2607,12 @@ function mergeCells(ws::Worksheet, cr::CellRange)
             throw(XLSXError("Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."))
         end
         for child in c
-            for cell in cr
-                if cell in CellRange(child["ref"])
+#            for cell in cr
+#                if cell in CellRange(child["ref"])
+                if intersects(cr, CellRange(child["ref"]))
                     throw(XLSXError("Merged range (`$cr`) cannot overlap with existing merged range (`"*child["ref"]*"`)."))
                 end
-            end
+#            end
         end
     end
 
