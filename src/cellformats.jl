@@ -463,6 +463,7 @@ julia> setFont(xf, "bigred"; size=48, color="FF00FF00")                         
  
 ```
 """
+function setFont end
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
 setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
 setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
@@ -600,6 +601,7 @@ julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                  
  
 ```
 """
+function setUniformFont end
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
 setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFont, xl, sheetcell; kw...)
 setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFont, ws, ref_or_rng; kw...)
@@ -646,6 +648,7 @@ julia> getFont(xf, "Sheet1!A1")
  
 ```
 """
+function getFont end
 getFont(ws::Worksheet, cr::String) = process_get_cellname(getFont, ws, cr)
 getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont} = process_get_sheetcell(getFont, xl, sheetcell)
 getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_cellref(getFont, ws, cellref)
@@ -666,7 +669,7 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
-                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
+                # @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
@@ -743,6 +746,7 @@ julia> getBorder(xf, "Sheet1!A1")
  
 ```
 """
+function getBorder end
 getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorder} = process_get_sheetcell(getBorder, xl, sheetcell)
 getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorder} = process_get_cellref(getBorder, ws, cellref)
 getBorder(ws::Worksheet, cr::String) = process_get_cellname(getBorder, ws, cr)
@@ -870,6 +874,7 @@ Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "F
  
 ```
 """
+function setBorder end
 setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
 setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setBorder, ws, colrng; kw...)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
@@ -1003,6 +1008,7 @@ Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "c
  
 ```
 """
+function setUniformBorder end
 setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
 setUniformBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformBorder, xl, sheetcell; kw...)
 setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformBorder, ws, ref_or_rng; kw...)
@@ -1036,6 +1042,7 @@ Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", color = "FF000FF0
  
 ```
 """
+function setOutsideBorder end
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
@@ -1097,7 +1104,7 @@ in the `patternFill` element are:
 - `bgColor`     : Specifies the background color of the pattern.
 
 The child elements `fgColor` and `bgColor` can each have one or two attributes 
-of their own. These color attributes are pushed in to the `DellFill.fill` Dict 
+of their own. These color attributes are pushed in to the `CellFill.fill` Dict 
 of attributes with either `fg` or `bg` prepended to their names to support later 
 reconstruction of the xml element.
 
@@ -1149,6 +1156,7 @@ julia> getFill(xf, "Sheet1!A1")
  
 ```
 """
+function getFill end
 getFill(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFill} = process_get_sheetcell(getFill, xl, sheetcell)
 getFill(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFill} = process_get_cellref(getFill, ws, cellref)
 getFill(ws::Worksheet, cr::String) = process_get_cellname(getFill, ws, cr)
@@ -1245,6 +1253,7 @@ Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
  
 ```
 """
+function setFill end
 setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
 setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFill, ws, colrng; kw...)
 setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
@@ -1355,6 +1364,7 @@ Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
  
 ```
 """
+function setUniformFill end
 setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFill, ws, colrng; kw...)
 setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFill, xl, sheetcell; kw...)
 setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
@@ -1412,6 +1422,7 @@ julia> getAlignment(xf, "Sheet1!A1")
  
 ```
 """
+function getAlignment end
 getAlignment(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellAlignment} = process_get_sheetcell(getAlignment, xl, sheetcell)
 getAlignment(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellAlignment} = process_get_cellref(getAlignment, ws, cellref)
 getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws, cr)
@@ -1485,6 +1496,7 @@ julia> setAlignment(sh, "L6"; horizontal="center", rotation="90", shrink=true, i
  
 ```
 """
+function setAlignment end
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
 setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
 setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
@@ -1604,6 +1616,7 @@ Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="t
  
 ```
 """
+function setUniformAlignment end
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
 setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformAlignment, xl, sheetcell; kw...)
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
@@ -1639,6 +1652,7 @@ julia> getFormat(xf, "Sheet1!A1")
  
 ```
 """
+function getFormat end
 getFormat(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getFormat, xl, sheetcell)
 getFormat(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFormat} = process_get_cellref(getFormat, ws, cellref)
 getFormat(ws::Worksheet, cr::String) = process_get_cellname(getFormat, ws, cr)
@@ -1700,7 +1714,8 @@ Alternatively, `format` can be used to specify any custom format directly.
 Only weak checks are made of custom formats specified - they are otherwise added 
 to the XLSXfile verbatim.
 
-Formats may need characters that must to be escaped when specified.
+Formats may need characters that must be escaped when specified (see third 
+example, below).
 
 # Examples:
 ```julia
@@ -1714,6 +1729,7 @@ julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£*
  
 ```
 """
+function setFormat end
 setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
 setFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFormat, ws, colrng; kw...)
 setFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFormat, ws, ref_or_rng; kw...)
@@ -1812,6 +1828,7 @@ julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
  
 ```
 """
+function setUniformFormat end
 setUniformFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFormat, ws, colrng; kw...)
 setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFormat, xl, sheetcell; kw...)
 setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
@@ -1849,6 +1866,7 @@ julia> XLSX.setUniformStyle(sh, "F1:F5")
  
 ```
 """
+function setUniformStyle end
 setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
 setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
 setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
@@ -1919,6 +1937,7 @@ julia> XLSX.setColumnWidth(sh, "I"; width = 24.37)
  
 ```
 """
+function setColumnWidth end
 setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setColumnWidth, ws, colrng; kw...)
 setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
@@ -2009,6 +2028,7 @@ julia> XLSX.getColumnWidth(sh, "F1")
  
 ```
 """
+function getColumnWidth end
 getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,Float64} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
 getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth, ws, cr)
 function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
@@ -2066,9 +2086,13 @@ function does not attempt to replicate it, but simply adds 0.21 internal units
 to the value specified. The value set is unlikely to match the value seen 
 interactivley in the resultant spreadsheet, but it will be close.
 
+Row height cannot be set for empty rows, which will quietly be skipped.
+A row must have at least one cell containing a value before its height can be set.
+
 You can set a row height to 0.
 
-The function returns a value of 0.
+The function returns a value of 0 unless all rows are empty, in which case 
+it returns a value of -1.
 
 # Examples:
 ```julia
@@ -2077,9 +2101,10 @@ julia> XLSX.setRowHeight(xf, "Sheet1!A2"; height = 50)
 julia> XLSX.setRowHeight(sh, "F1:F5"; heighth = 0)
 
 julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
-```
 
+```
 """
+function setRowHeight end
 setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
 setRowHeight(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setRowHeight, ws, ref_or_rng; kw...)
 setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setRowHeight, xl, sheetcell; kw...)
@@ -2096,14 +2121,19 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     if isnothing(height) # No-op
         return 0
     end
+    first = true
     for r in eachrow(ws)
         if r.row in top:bottom
             if haskey(ws.cache.row_ht, r.row)
                 ws.cache.row_ht[r.row] = padded_height
+                first = false
             end
         end
     end
 
+    if first == true 
+        return -1 # All rows were empty
+    end
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
@@ -2119,6 +2149,8 @@ The function will use the row number and ignore the column.
 The function returns the value of the row height or nothing if the row 
 does not have an explicitly defined height.
 
+If the row is not found (an empty row), returns -1.
+
 # Examples:
 ```julia
 julia> XLSX.getRowHeight(xf, "Sheet1!A2")
@@ -2127,6 +2159,7 @@ julia> XLSX.getRowHeight(sh, "F1")
  
 ```
 """
+function getRowHeight end
 getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,Real} = process_get_sheetcell(getRowHeight, xl, sheetcell)
 getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws, cr)
 function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
