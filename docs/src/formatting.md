@@ -76,6 +76,9 @@ underline and make the font italic. However, the color, font name and size will
 all remain unchanged from before. This new combination of attributes is unique, 
 so a new `fontId` has been created.
 
+Font colors (and colors in any of the other formatting functions) can be set using a 
+hex RGB value or by name using any of the colors provided by [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
+
 The other set attribute functions behave in similar ways. See [`XLSX.setBorder`](@ref), 
 [`XLSX.setFill`](@ref), [`XLSX.setFormat`](@ref) and [`XLSX.setAlignment`](@ref).
 
@@ -212,10 +215,13 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     In Excel, conditional formats are dynamic. If the cell values change, the formats are updated based 
     on application of the condition to the new values.
 
-    The examples of conditional formatting given here are static. They apply formatting based on the 
+    The examples of conditional formatting given here are mainly static. They apply formatting based on the 
     current cell values, but the formats are then static regardless of updates to cell values. They
     can be updated by re-running the conditional formatting functions described but otherwise remain 
-    unchanged. 
+    unchanged.
+
+    Some dynamic conditional formatting is possible, using Excel native functions, but the range of 
+    functions is currently more limited than Excel itself can provide.
 
 ### Static conditional formats
 
@@ -261,7 +267,68 @@ blankmissing(sheet, XLSX.CellRange("B3:L6"))
 
 ### Dynamic conditional formats
 
-Not implemented yet!
+XLSX.jl provides a function to create native Excel conditional formats that will be saved as part of 
+an `XLSXFile` and which will update dynamically if the values in the cell range to which the formatting 
+is applied are updated.
+
+`XLSX.addConditionalFormat(sheet, CellRange, "formatting_type"; kwargs...)`
+
+Each of the available `formatting_type`s is described in the following sections.
+
+#### Color Scale
+
+It is possible to apply a `colorScale` formatting type to a range of cells.
+In Excel there are twelve built-in color scales available, but it is possible to create 
+custom color scales, too.
+
+![image|320x500](./images/colorScales.png)
+
+In XLSX.jl, the twelve built-in scales are named by their start/mid/end colors as follows 
+(layout follows image)
+
+|                  |                  |                 |                 |
+|:----------------:|:----------------:|:---------------:|:---------------:|
+|  greenyellowred  |  redyellowgreen  |  greenwhitered  |  redwhitegreen  |
+|   bluewhitered   |   redwhiteblue   |    whitered     |    redwhite     |
+|    greenwhite    |    whitegreen    |   greenyellow   |   yellowgreen   |
+
+The default colorscale is `greenyellowred`. To use a different built-in color scale, 
+specify the name using the keyword `colorScale`, thus:
+
+```julia
+julia> XLSX.addConditionalFormat(f["Sheet1"], "A1:F12", "colorScale") # Defaults to the `greenyellowred` built-in scale.
+0
+
+julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:C18", "colorScale"; colorScale="whitered")
+0
+
+julia> XLSX.addConditionalFormat(f["Sheet1"], "D13:F18", "colorScale"; colorScale="bluewhitered")
+0
+```
+
+A custom color scale may be defined by the colors at each end of the scale and (optionally) by some 
+mid-point color, too. Colors can be specified using hex RGB values or by name using any of the colors
+in [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
+
+The end points (and optional mid-point) can be defined using an absolute number (`num`), a `percent`, 
+a `percentile` or as a `min` or `max`. For the first three options, a value must also be given.
+Thus, you can apply a custom 3-color scale using, for example:
+
+```julia
+julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:F18", "colorScale";
+            min_type="num", 
+            min_val="2",
+            min_col="tomato",
+            mid_type="num",
+            mid_val="4", 
+            mid_col="lawngreen",
+            max_type="num",
+            max_val="6",
+            max_col="cadetblue"
+        )
+0
+```
+![image|320x500](./images/custom-colorscale.png)
 
 ## Working with Merged Cells
 
@@ -368,11 +435,15 @@ It is not allowed to create new merged cells that overlap at all with any existi
 
     ```
 
-    The cell remains merged, and this is how Excel will see it. The assigned cell value won't be 
-    visible in Excel, but it can be referenced in a formula, etc.
+    The cell remains merged, and this is how Excel will display it. The assigned cell value 
+    won't be visible in Excel, but it can be referenced in a formula as shown here, where 
+    cell L8 references cell J8 in its formula ("=J8"):
+
+    ![image|320x500](./images/Written-to-merged-cell.png)
     
-    This is prevented in Excel itself by the UI (unless some clever VBA indirection is used). 
-    There is currently no check to prevent this in `XLSX.jl`. See [#241](https://github.com/felipenoris/XLSX.jl/issues/241)
+    Assigning values to cells in a merged range like this is prevented in Excel itself by the UI 
+    although it is possible using VBA. There is currently no check to prevent this in `XLSX.jl`.
+    See [#241](https://github.com/felipenoris/XLSX.jl/issues/241)
 
 ## Examples
 

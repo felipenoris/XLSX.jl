@@ -223,34 +223,34 @@ Base.issubset(subrng::CellRange, rng::CellRange) :: Bool = in(subrng.start, rng)
 function intersects(rng1::CellRange, rng2::CellRange) :: Bool
     if row_number(rng1.start) <= row_number(rng2.stop) && row_number(rng1.start) >= row_number(rng2.start) && 
         column_number(rng1.stop) <= column_number(rng2.stop) && column_number(rng1.stop) >= column_number(rng2.start)
-        println("offset 1")
+#        println("offset 1")
         return true
     end
     if row_number(rng2.start) <= row_number(rng1.stop) && row_number(rng2.start) >= row_number(rng1.start) && 
         column_number(rng2.stop) <= column_number(rng1.stop) && column_number(rng2.stop) >= column_number(rng1.start)
-        println("offset 2")
+#        println("offset 2")
         return true
     end
     if row_number(rng1.start)>=row_number(rng2.start) && column_number(rng1.start)<=column_number(rng2.start) && 
         row_number(rng1.stop)<=row_number(rng2.stop) && column_number(rng1.stop)>=column_number(rng2.stop)
-        println("cruciform 1")
+#        println("cruciform 1")
         return true
     end
     if row_number(rng2.start)>=row_number(rng1.start) && column_number(rng2.start)<=column_number(rng1.start) && 
         row_number(rng2.stop)<=row_number(rng1.stop) && column_number(rng2.stop)>=column_number(rng1.stop)
-        println("cruciform 2")
+#        println("cruciform 2")
         return true
     end
     if in(rng1.start, rng2) || in(rng1.stop, rng2)
-        println("inside corner 1")
+#        println("inside corner 1")
         return true
     end
     if in(rng2.start, rng1) || in(rng2.stop, rng1)
-        println("inside corner 2")
+#        println("inside corner 2")
         return true
     end
     if issubset(rng1, rng2) || issubset(rng2, rng1)
-        println("subset")
+#        println("subset")
         return true
     end
     return false

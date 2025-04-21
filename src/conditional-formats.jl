@@ -1,5 +1,5 @@
 const colorscales = Dict(    # Defines the 12 standard, built-in Excel color scales for conditional formatting.
-    "redyellowgreen" => XML.h.cfRule(type="colorScale", priority="1",
+    "greenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="percentile", val="50"),
@@ -9,7 +9,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FF63BE7B")
         )
     ),
-    "greenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
+    "redyellowgreengreenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="percentile", val="50"),
@@ -17,16 +17,6 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FF63BE7B"),
             XML.h.color(rgb="FFFFEB84"),
             XML.h.color(rgb="FFF8696B")
-        )
-    ),
-    "redwhitegreen" => XML.h.cfRule(type="colorScale", priority="1",
-        XML.h.colorScale(
-            XML.h.cfvo(type="min"),
-            XML.h.cfvo(type="percentile", val="50"),
-            XML.h.cfvo(type="max"),
-            XML.h.color(rgb="FFF8696B"),
-            XML.h.color(rgb="FFFCFCFF"),
-            XML.h.color(rgb="FF63BE7B")
         )
     ),
     "greenwhitered" => XML.h.cfRule(type="colorScale", priority="1",
@@ -34,12 +24,22 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="percentile", val="50"),
             XML.h.cfvo(type="max"),
+            XML.h.color(rgb="FFF8696B"),
+            XML.h.color(rgb="FFFCFCFF"),
+            XML.h.color(rgb="FF63BE7B")
+        )
+    ),
+    "redwhitegreen" => XML.h.cfRule(type="colorScale", priority="1",
+        XML.h.colorScale(
+            XML.h.cfvo(type="min"),
+            XML.h.cfvo(type="percentile", val="50"),
+            XML.h.cfvo(type="max"),
             XML.h.color(rgb="FF63BE7B"),
             XML.h.color(rgb="FFFCFCFF"),
             XML.h.color(rgb="FFF8696B")
         )
     ),
-    "redwhiteblue" => XML.h.cfRule(type="colorScale", priority="1",
+    "bluewhitered" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="percentile", val="50"),
@@ -49,7 +49,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FF5A8AC6")
         )
     ),
-    "bluewhitered" => XML.h.cfRule(type="colorScale", priority="1",
+    "redwhiteblue" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="percentile", val="50"),
@@ -59,7 +59,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FFF8696B")
         )
     ),
-    "redwhite" => XML.h.cfRule(type="colorScale", priority="1",
+    "whitered" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="max"),
@@ -67,7 +67,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FFFCFCFF")
         )
     ),
-    "whitered" => XML.h.cfRule(type="colorScale", priority="1",
+    "redwhite" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="max"),
@@ -75,7 +75,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FFF8696B")
         )
     ),
-    "whitegreen" => XML.h.cfRule(type="colorScale", priority="1",
+    "greenwhite" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="max"),
@@ -83,7 +83,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FF63BE7B")
         )
     ),
-    "greenwhite" => XML.h.cfRule(type="colorScale", priority="1",
+    "whitegreen" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="max"),
@@ -91,7 +91,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FFFCFCFF")
         )
     ),
-    "yellowgreen" => XML.h.cfRule(type="colorScale", priority="1",
+    "greenyellow" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="max"),
@@ -99,7 +99,7 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
             XML.h.color(rgb="FF63BE7B")
         )
     ),
-    "greenyellow" => XML.h.cfRule(type="colorScale", priority="1",
+    "yellowgreen" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="max"),
@@ -163,20 +163,48 @@ Valid values for `colorScale` are:
 These are the 12 built-in color scales in Excel.
 
 """
-function addConditionalFormat!(ws::Worksheet, rng::CellRange;
-        colorScale::Union{Nothing,AbstractString}=nothing,
-        dataBar::Union{Nothing,AbstractString}=nothing,
-        iconSet::Union{Nothing,AbstractString}=nothing,
-        formula::Union{Nothing,AbstractString}=nothing,
-    )::Nothing
-
-    if !isnothing(colorScale) && !isnothing(dataBar) && !isnothing(iconSet) && !isnothing(formula)
-        throw(XLSXError("Only one of colorScale, dataBar, iconSet, or formula can be specified."))
+function addConditionalFormat(ws::Worksheet, ref_or_rng::AbstractString, type::AbstractString; kw...)
+    if type=="colorScale"
+        process_ranges(addCfColorScale, ws, ref_or_rng; kw...)::Int
+    elseif type=="dataBar"
+        throw(XLSXError("Data bars are not yet implemented."))
+    elseif type=="iconSet"
+        throw(XLSXError("Icon sets are not yet implemented."))
+    elseif type=="formula"
+        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
     end
+end
+addCfColorScale(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && addCfColorScale(ws, ref.cellref; kw...)
+addCfColorScale(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && addCfColorScale(ws, rng.rng; kw...)
+addCfColorScale(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && addCfColorScale(ws, rng.colrng; kw...)
+addCfColorScale(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && addCfColorScale(ws, rng.rowrng; kw...)
+addCfColorScale(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(addCfColorScale, ws, rng; kw...)
+addCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_colranges(addCfColorScale, ws, rng; kw...)
+addCfColorScale(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(addCfColorScale, xl, sheetcell)
+addCfColorScale(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(addCfColorScale, ws, ref_or_rng)
+addCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = process_colon(addCfColorScale, ws, row, nothing)
+addCfColorScale(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = process_colon(addCfColorScale, ws, nothing, col)
+addCfColorScale(ws::Worksheet, ::Colon, ::Colon) = process_colon(addCfColorScale, ws, nothing, nothing)
+addCfColorScale(ws::Worksheet, ::Colon) = process_colon(addCfColorScale, ws, nothing, nothing)
+addCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = addCfColorScale(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+function addCfColorScale(ws::Worksheet, rng::CellRange;
+        colorScale::Union{Nothing,String}=nothing,
+        min_type::Union{Nothing,String}="min",
+        min_val::Union{Nothing,String}=nothing,
+        min_col::Union{Nothing,String}="FFF8696B",
+        mid_type::Union{Nothing,String}="percentile",
+        mid_val::Union{Nothing,String}="50",
+        mid_col::Union{Nothing,String}="FFFFEB84",
+        max_type::Union{Nothing,String}="max",
+        max_val::Union{Nothing,String}=nothing,
+        max_col::Union{Nothing,String}="FF63BE7B",
+    )::Int
 
-    if isnothing(colorScale) && isnothing(dataBar) && isnothing(iconSet) && isnothing(formula)
-        throw(XLSXError("At least one of colorScale, dataBar, iconSet, or formula must be specified."))
-    end
+#    if isnothing(colorScale) && isnothing(dataBar) && isnothing(iconSet) && isnothing(formula)
+#        throw(XLSXError("At least one of colorScale, dataBar, iconSet, or formula must be specified."))
+#    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -187,7 +215,20 @@ function addConditionalFormat!(ws::Worksheet, rng::CellRange;
         end
     end
 
-    if !isnothing(colorScale)
+    new_cf = XML.Element("conditionalFormatting"; sqref=rng)
+    if isnothing(colorScale)
+        push!(new_cf, XML.h.cfRule(type="colorScale", priority="1",
+                XML.h.colorScale(
+                    isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
+                    isnothing(mid_type) ? nothing : XML.h.cfvo(type=mid_type, val=mid_val),
+                    isnothing(max_val) ? XML.h.cfvo(type=max_type) : XML.h.cfvo(type=max_type, val=max_val),
+                    XML.h.color(rgb=get_color(min_col)),
+                    isnothing(mid_type) ? nothing : XML.h.color(rgb=get_color(mid_col)),
+                    XML.h.color(rgb=get_color(max_col))
+                )
+            )
+        )
+    else
         if !haskey(colorscales, colorScale)
             throw(XLSXError("Invalid color scale: $colorScale. Valid options are: $(keys(colorscales))."))
         end
@@ -213,5 +254,5 @@ function addConditionalFormat!(ws::Worksheet, rng::CellRange;
 
     update_worksheets_xml!(get_xlsxfile(ws))
 
-    return nothing
+    return 0
 end
