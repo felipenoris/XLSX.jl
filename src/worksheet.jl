@@ -37,7 +37,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
     while reader !== nothing # go next node
         (sheet_row, state) = reader
         if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
-            @assert XML.depth(sheet_row) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."
+            @assert XML.depth(sheet_row) == 2 "Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."
             ref_str = XML.attributes(sheet_row)["ref"]
             if is_valid_cellname(ref_str)
                 result = CellRange("$(ref_str):$(ref_str)")
@@ -239,7 +239,7 @@ function getcell(ws::Worksheet, single::CellRef) :: AbstractCell
     # Access cache directly if it exists and if file `isread` - much faster!
     if is_cache_enabled(ws) && ws.cache !== nothing
         if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet$(ws.sheetId).xml") && get_xlsxfile(ws).files["xl/worksheets/sheet$(ws.sheetId).xml"] == true
-            if single.row_number ∈ ws.cache.rows_in_cache
+            if haskey(ws.cache.cells, single.row_number)
                 if haskey(ws.cache.cells[single.row_number], single.column_number)
                     return ws.cache.cells[single.row_number][single.column_number]
                 end
