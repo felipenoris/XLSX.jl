@@ -37,7 +37,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name) :: Union{
     while reader !== nothing # go next node
         (sheet_row, state) = reader
         if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
-            @assert XML.depth(sheet_row) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."
+            @assert XML.depth(sheet_row) == 2 "Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."
             ref_str = XML.attributes(sheet_row)["ref"]
             if is_valid_cellname(ref_str)
                 result = CellRange("$(ref_str):$(ref_str)")
