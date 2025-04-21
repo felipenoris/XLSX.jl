@@ -727,7 +727,8 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
-##                @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
+                #@assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
+
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
@@ -2213,18 +2214,17 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
     first = true
     for r in eachrow(ws)
         if r.row in top:bottom
-            
-                if haskey(ws.cache.row_ht, r.row)
-                    ws.cache.row_ht[r.row] = padded_height
-                    first = false
-                end
-            
+            if haskey(ws.cache.row_ht, r.row)
+                ws.cache.row_ht[r.row] = padded_height
+                first = false
+            end
         end
     end
 
-    if first == true
-        return -1
+    if first == true 
+        return -1 # All rows were empty
     end
+
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
@@ -2262,11 +2262,9 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     for r in eachrow(ws)
         if r.row == cellref.row_number
-            
-                if haskey(ws.cache.row_ht, r.row)
-                    return ws.cache.row_ht[r.row]
-                end
-            
+            if haskey(ws.cache.row_ht, r.row)
+                return ws.cache.row_ht[r.row]
+            end
         end
     end
 
