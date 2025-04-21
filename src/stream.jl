@@ -93,7 +93,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                     if nrows == 0
                         return nothing
                     end
-                    @assert XML.depth(lznode) == 1 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."
+                    @assert XML.depth(lznode) == 2 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."
                     break
                 end
 
