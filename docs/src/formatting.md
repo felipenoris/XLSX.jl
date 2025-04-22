@@ -320,10 +320,10 @@ julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:F18", "colorScale";
             min_val="2",
             min_col="tomato",
             mid_type="num",
-            mid_val="4", 
+            mid_val="6", 
             mid_col="lawngreen",
             max_type="num",
-            max_val="6",
+            max_val="10",
             max_col="cadetblue"
         )
 0

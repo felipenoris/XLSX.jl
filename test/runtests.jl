@@ -203,6 +203,10 @@ end
     @test !XLSX.is_valid_non_contiguous_range("Sheet1!B3")
     @test !XLSX.is_valid_non_contiguous_range("Sheet1!B3:C6")
 
+    @test in(XLSX.SheetCellRef("Sheet1!A1"), XLSX.NonContiguousRange("Sheet1!A1,Sheet1!B2"))==true
+    @test in(XLSX.SheetCellRef("Sheet1!B2"), XLSX.NonContiguousRange("Sheet1!A1,Sheet1!B2"))==true
+    @test in(XLSX.SheetCellRef("Sheet1!A2"), XLSX.NonContiguousRange("Sheet1!A1,Sheet1!B2"))==false
+
     cn = XLSX.CellRef("A1")
     @test string(cn) == "A1"
     @test XLSX.column_name(cn) == "A"
@@ -489,6 +493,16 @@ end
     @test f["single"] == "NAME"
     @test f["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
     @test f["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+
+    XLSX.setFont(f["lookup"], "NonContig"; name="Arial", size=12, color="FF0000FF", bold=true, italic=true, under="single", strike=true)
+    @test XLSX.getFont(f["lookup"], "C3").font == Dict("i" => nothing,"b" => nothing,"u" => nothing,"strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+    @test XLSX.getFont(f["lookup"], "C4").font == Dict("i" => nothing,"b" => nothing,"u" => nothing,"strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+    @test XLSX.getFont(f["lookup"], "C5").font == Dict("i" => nothing,"b" => nothing,"u" => nothing,"strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+    @test XLSX.getFont(f["lookup"], "D3").font == Dict("i" => nothing,"b" => nothing,"u" => nothing,"strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+    @test XLSX.getFont(f["lookup"], "D4").font == Dict("i" => nothing,"b" => nothing,"u" => nothing,"strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+    @test XLSX.getFont(f["lookup"], "D5").font == Dict("i" => nothing,"b" => nothing,"u" => nothing,"strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+    XLSX.setFont(f, "single"; name="Arial", size=12, color="FF0000FF", bold=true, italic=true, under="double", strike=true)
+    @test XLSX.getFont(f["lookup"], "C2").font == Dict("i" => nothing,"b" => nothing,"u" => Dict("val" => "double"), "strike" => nothing,"sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
 
     XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
 
@@ -1094,6 +1108,33 @@ end
         check_test_data(data, test_data)
     end
 
+    @testset "Read DataFrame" begin
+
+        df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), "table4", "F:G", DataFrames.DataFrame)
+        @test names(df) == ["H2", "H3"]
+        @test size(df) == (2, 2)
+        @test df[1, :H2] == "C3"
+        @test df[2, :H3] == "D4"
+        @test ismissing(df[1, 2])
+        @test ismissing(df[2, 1])
+
+        df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), "table4", DataFrames.DataFrame)
+        @test names(df) == ["H1", "H2", "H3"]
+        @test size(df) == (3, 3)
+        @test df[1, :H2] == "C3"
+        @test df[2, :H3] == "D4"
+        @test ismissing(df[1, :H1])
+        @test ismissing(df[2, :H2])
+
+        df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), DataFrames.DataFrame)
+        @test names(df) == ["text", "regular text"]
+        @test size(df) == (9, 2)
+        @test df[1, "text"] == "integer"
+        @test df[2, "regular text"] == 102.2
+        @test df[3, 2] == Dates.Date(1983,04,16)
+        @test df[5, 2] == Dates.DateTime(2018,04,16,19,19,51)
+    end
+
     @testset "normalizenames" begin # Issue #260
 
         data = Vector{Any}()
@@ -1685,6 +1726,34 @@ end
         @test XLSX.getFont(s, "D1").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
         @test XLSX.getFont(s, "E2").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
 
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+
+        XLSX.setFont(s, "Sheet1!A1:A2"; bold=true, italic=true, size=24, name="Arial", color="blue")
+        @test XLSX.getFont(s, "A1").font == Dict("b" => nothing, "i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
+        XLSX.setFont(s, "Sheet1!Y:Z"; bold=true, italic=false, size=14, name="Aptos", color="blue")
+        @test XLSX.getFont(s, "Y20").font == Dict("b" => nothing, "sz" => Dict("val" => "14"), "name" => Dict("val" => "Aptos"), "color" => Dict("rgb" => "FF0000FF"))
+        XLSX.setFont(s, "Sheet1!2:3"; bold=false, italic=true, size=34, name="Berlin Sans FB Demi", color="blue")
+        @test XLSX.getFont(s, "M3").font == Dict("i" => nothing, "sz" => Dict("val" => "34"), "name" => Dict("val" => "Berlin Sans FB Demi"), "color" => Dict("rgb" => "FF0000FF"))
+        XLSX.setFont(f, "Sheet1!A1:A2"; bold=false, italic=false, size=14, name="Aptos", color="green")
+        @test XLSX.getFont(s, "A1").font == Dict("sz" => Dict("val" => "14"), "name" => Dict("val" => "Aptos"), "color" => Dict("rgb" => "FF008000"))
+        XLSX.setFont(f, "Sheet1!Y:Z"; bold=false, italic=true, size=24, name="Arial", color="green")
+        @test XLSX.getFont(s, "Y20").font == Dict("i" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF008000"))
+        XLSX.setFont(f, "Sheet1!2:3"; bold=true, italic=false, size=24, name="Times New Roman", color="green")
+        @test XLSX.getFont(s, "M3").font == Dict("b" => nothing, "sz" => Dict("val" => "24"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF008000"))
+        XLSX.setFont(s, "E1,E2,G2:G4"; bold=false, italic=false, size=4, name="Times New Roman", color="blue")
+        @test XLSX.getFont(s, "G3").font == Dict("sz" => Dict("val" => "4"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF0000FF"))
+        XLSX.setFont(s, :, 15:16; bold=true, italic=false, size=38, name="Wingdings", color="red")
+        @test XLSX.getFont(s, "P10").font == Dict("b" => nothing,"sz" => Dict("val" => "38"), "name" => Dict("val" => "Wingdings"), "color" => Dict("rgb" => "FFFF0000"))
+        XLSX.setFont(s, 15:16, :; bold=false, italic=true, size=8, name="Wingdings", color="red")
+        @test XLSX.getFont(f, "Sheet1!T16").font == Dict("i" => nothing,"sz" => Dict("val" => "8"), "name" => Dict("val" => "Wingdings"), "color" => Dict("rgb" => "FFFF0000"))
+        XLSX.setFont(s, [20,22,24], :; bold=false, italic=true, size=48, name="Aptos", color="red")
+        @test XLSX.getFont(f, "Sheet1!H22").font == Dict("i" => nothing,"sz" => Dict("val" => "48"), "name" => Dict("val" => "Aptos"), "color" => Dict("rgb" => "FFFF0000"))
+        XLSX.setUniformFont(s, [15,16,20,22,24], :; bold=false, italic=true, size=28, name="Aptos", color="red")
+        @test XLSX.getFont(f, "Sheet1!H15").font == Dict("i" => nothing,"sz" => Dict("val" => "28"), "name" => Dict("val" => "Aptos"), "color" => Dict("rgb" => "FFFF0000"))
+        @test XLSX.getFont(f, "Sheet1!H22").font == Dict("i" => nothing,"sz" => Dict("val" => "28"), "name" => Dict("val" => "Aptos"), "color" => Dict("rgb" => "FFFF0000"))
+        
         xfile = XLSX.open_empty_template()
         wb = XLSX.get_workbook(xfile)
         sheet = xfile["Sheet1"]
@@ -2031,6 +2100,47 @@ end
 
         isfile("output.xlsx") && rm("output.xlsx")
 
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+
+        XLSX.setAlignment(s, "A1"; horizontal="right", vertical="justify", wrapText=true)
+        XLSX.setUniformAlignment(f, "Sheet1!A1,Sheet1!C3,Sheet1!E5:E6")
+        @test XLSX.getAlignment(s, "A1").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "C3").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "E5").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "E6").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+
+        XLSX.setAlignment(s, "A1"; horizontal="right", vertical="justify", wrapText=true)
+        XLSX.setUniformAlignment(s, 1, 1:2:25)
+        @test XLSX.getAlignment(s, 1, 1).alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, 1, 9).alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, 1, 19).alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, 1, 25).alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, 1, 8) === nothing
+        @test XLSX.getAlignment(s, 1, 16) === nothing
+        @test XLSX.getAlignment(s, 1, 22) === nothing
+        @test XLSX.getAlignment(s, 1, 24) === nothing
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+
+        XLSX.setAlignment(s, "A2"; horizontal="right", vertical="justify", wrapText=true)
+        XLSX.setUniformAlignment(s, 2:2:26, :)
+        @test XLSX.getAlignment(s, "A2").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "C4").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "K6").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "Y24").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "A3") === nothing
+        @test XLSX.getAlignment(s, "C5") === nothing
+        @test XLSX.getAlignment(s, "K7") === nothing
+        @test XLSX.getAlignment(s, "Y25") === nothing
+
     end
 
     @testset "setFormat" begin
@@ -2099,6 +2209,42 @@ end
         end
 
         isfile("test.xlsx") && rm("test.xlsx")
+
+    end
+
+    @testset "UniformStyle" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+
+        XLSX.setFont(s, "A1:F5"; size=18, name="Arial")
+        cell_style=parse(Int, XLSX.getcell(s, "A1").style)
+        @test XLSX.setUniformStyle(s, "A1:F5")==cell_style
+        @test parse(Int, XLSX.getcell(s, "F5").style)==cell_style
+
+        XLSX.setFont(s, "A6:F10"; size=10, name="Aptos")
+        cell_style=parse(Int, XLSX.getcell(s, "E6").style)
+        @test XLSX.setUniformStyle(s, [6, 7, 8, 9, 10], 5)==cell_style
+        @test parse(Int, XLSX.getcell(s, "E8").style)==cell_style
+
+        XLSX.setFont(s, "A11:F15"; size=10, name="Times New Roman")
+        cell_style=parse(Int, XLSX.getcell(s, "E6").style)
+        @test XLSX.setUniformStyle(s, [6, 7, 8, 9, 10], :)==cell_style
+        @test parse(Int, XLSX.getcell(s, "Z8").style)==cell_style
+
+        XLSX.setFont(s, "A16"; size=80, name="Ariel")
+        cell_style=parse(Int, XLSX.getcell(s, "A16").style)
+        @test XLSX.setUniformStyle(s, "A16,A15,D20,F25")==cell_style
+        @test parse(Int, XLSX.getcell(s, "A15").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "D20").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "F25").style)==cell_style
+
+        XLSX.setFont(s, "A1"; size=8, name="Aptos")
+        cell_style=parse(Int, XLSX.getcell(s, "A1").style)
+        @test XLSX.setUniformStyle(s, :)==cell_style
+        @test parse(Int, XLSX.getcell(s, "A1").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "M13").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "Z26").style)==cell_style
 
     end
 

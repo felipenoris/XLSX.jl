@@ -213,7 +213,7 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
         if is_defined_name_value_a_constant(v)
             throw(XLSXError("Can only assign attributes to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v."))
         elseif is_defined_name_value_a_reference(v)
-            newid = process_ranges(f, xl, string(v); kw...)
+            newid = process_sheetcell(f, xl, string(v); kw...)
         else
             throw(XLSXError("Unexpected defined name value: $v."))
         end
@@ -670,7 +670,7 @@ function process_colon(ws::Worksheet, row, col)
         throw(XLSXError("No worksheet dimension found"))
     end
     if isnothing(row) && isnothing(col)
-        return setUniformStyle(ws, dim; kw...)
+        return setUniformStyle(ws, dim)
     elseif isnothing(col)
         rng = CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
     elseif isnothing(row)
@@ -679,7 +679,7 @@ function process_colon(ws::Worksheet, row, col)
         throw(XLSXError("Something wrong here!"))
     end
 
-    return setUniformStyle(ws, rng; kw...)
+    return setUniformStyle(ws, rng)
 end
 function process_uniform_veccolon(ws::Worksheet, row, col)
     dim = get_dimension(ws)

@@ -476,11 +476,11 @@ function Base.in(ref::SheetCellRef, ncrng::NonContiguousRange) :: Bool
     end
     for r in ncrng.rng
         if r isa CellRef
-            if ref == r
+            if ref.cellref == r
                 return true
             end
         else
-            if ref in r
+            if ref.cellref in r
                 return true
             end
         end

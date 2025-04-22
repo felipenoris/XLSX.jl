@@ -143,7 +143,7 @@ end
 
 Add a new conditional format to a worksheet.
 
-Keyword argumenst `colorScale`, `dataBar`, `iconSet`, and `formula` are mutually exclusive.
+Keyword arguments `colorScale`, `dataBar`, `iconSet`, and `formula` are mutually exclusive.
 
 Valid values for `colorScale` are:
 

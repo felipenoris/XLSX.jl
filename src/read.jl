@@ -703,11 +703,11 @@ Takes the same keyword arguments as [`XLSX.readtable`](@ref)
 ```julia
 julia> using DataFrames, XLSX
 
-julia> df = XLSX.readdf("myfile.xlsx", DataFrame))
+julia> df = XLSX.readdf("myfile.xlsx", DataFrame)
 
-julia> df = XLSX.readdf("myfile.xlsx", "mysheet", DataFrame))
+julia> df = XLSX.readdf("myfile.xlsx", "mysheet", DataFrame)
 
-julia> df = XLSX.readdf("myfile.xlsx", "mysheet", "A:C", DataFrame))
+julia> df = XLSX.readdf("myfile.xlsx", "mysheet", "A:C", DataFrame)
 ```
 
 See also: [`XLSX.gettable`](@ref).
