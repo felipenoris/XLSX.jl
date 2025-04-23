@@ -402,13 +402,108 @@ end
     s["A1:A3"] = "Hello world"
     s[2, 1:3] = 42
     s[[1,3], 2:3] = true
-    @test XLSX.getdata(s, 1:3, 1:3) == Any["Hello world" true true; 42  42  42; "Hello world" true true]
+    @test s[1:3, [1, 2, 3]] == Any["Hello world" true true; 42  42  42; "Hello world" true true]
     s[2, :] = 44
-    @test XLSX.getdata(s, 1:3, 1:3) == Any["Hello world" true true; 44  44  44; "Hello world" true true]
+    @test s[[1, 2, 3], 1:3] == Any["Hello world" true true; 44  44  44; "Hello world" true true]
+    @test s["Sheet1!A1:C3"] == Any["Hello world" true true; 44  44  44; "Hello world" true true]
+    @test s["Sheet1!A:C"] == Any["Hello world" true true; 44  44  44; "Hello world" true true]
+    @test s["Sheet1!1:3"] == Any["Hello world" true true; 44  44  44; "Hello world" true true]
     s[:, :] = 0
-    @test XLSX.getdata(s, 1:3, 1:3) == Any[0 0 0; 0 0 0; 0 0 0]
+    @test s[:, :] == Any[0 0 0; 0 0 0; 0 0 0]
     s[:] = 1
-    @test XLSX.getdata(s, 1:3, 1:3) == Any[1 1 1; 1 1 1; 1 1 1]
+    @test s[:, 1:3] == Any[1 1 1; 1 1 1; 1 1 1]
+    @test s[1:3, :] == Any[1 1 1; 1 1 1; 1 1 1]
+    @test s[1:2:3, :] == Any[1 1 1; 1 1 1]
+    @test s[1:2:3, 1] == Any[1, 1]
+    s["A1,B2,C3"] = "non-contiguous"
+    @test s["Sheet1!A1,Sheet1!B2,Sheet1!C3"] == Any["non-contiguous", "non-contiguous", "non-contiguous"]
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    s[[1,2,3], :] = "Hello world"
+    s[:, [1,2,3,4]] = 42
+    s[:, 1:3] = true
+    @test s["Sheet1!1:3"] == Any[true true true 42; true true true 42; true true true 42]
+    s["Sheet1!A1"] = "Goodbye world"
+    @test s["Sheet1!A1"] == "Goodbye world"
+    s["Sheet1!A1:A3"] = "Goodbye cruel world"
+    @test s["Sheet1!A1:A3"] == ["Goodbye cruel world"; "Goodbye cruel world"; "Goodbye cruel world";;]
+    s["Sheet1!1:2"] = "Bright Lights"
+    @test s["A1,B2,C3"] == ["Bright Lights", "Bright Lights", true]
+    s["Sheet1!C:D"] = "Beat my Retreat"
+    @test s["B1,C2,D3"] == ["Bright Lights", "Beat my Retreat", "Beat my Retreat"]
+    s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] = "Night Comes In"
+    @test s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] == ["Night Comes In", "Night Comes In", "Night Comes In"]
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    s[[1,2,3], :] = "Hello world"
+    s[:, [1,2,3,4]] = 42
+    s[:, 1:3] = true
+    @test f["Sheet1!1:3"] == Any[true true true 42; true true true 42; true true true 42]
+    s["Sheet1!A1"] = "Goodbye world"
+    @test f["Sheet1!A1"] == "Goodbye world"
+    s["Sheet1!A1:A3"] = "Goodbye cruel world"
+    @test s["Sheet1!A1:A3"] == ["Goodbye cruel world"; "Goodbye cruel world"; "Goodbye cruel world";;]
+    s["Sheet1!1:2"] = "Bright Lights"
+    @test s["A1,B2,C3"] == ["Bright Lights", "Bright Lights", true]
+    s["Sheet1!C:D"] = "Beat my Retreat"
+    @test s["B1,C2,D3"] == ["Bright Lights", "Beat my Retreat", "Beat my Retreat"]
+    s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] = "Night Comes In"
+    @test s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] == ["Night Comes In", "Night Comes In", "Night Comes In"]
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:5
+        for j in 1:5
+            s[i,j] = i+j
+        end
+    end
+    @test s[1:5, 1:5] == [2 3 4 5 6; 3 4 5 6 7; 4 5 6 7 8; 5 6 7 8 9; 6 7 8 9 10]
+    s[1:3, 1:2:5] = 99
+    @test s[1:5, 1:5] == [99 3 99 5 99; 99 4 99 6 99; 99 5 99 7 99; 5 6 7 8 9; 6 7 8 9 10]
+    s[1:2:5, 4:5] = -99
+    @test s[1:5, 1:5] == [99 3 99 -99 -99; 99 4 99 6 99; 99 5 99 -99 -99; 5 6 7 8 9; 6 7 8 -99 -99]
+    s[[2,4], [3,5]] = 0
+    @test s[1:5, 1:5] == [99 3 99 -99 -99; 99 4 0 6 0; 99 5 99 -99 -99; 5 6 0 8 0; 6 7 8 -99 -99]
+    @test s[[2,4], [3,5]] == [0 0; 0 0]
+
+end
+
+@testset "getcell" begin
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:3
+        for j in 1:3
+            s[i,j] = i+j
+        end
+    end
+    @test XLSX.getcell(s, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
+    @test XLSX.getcell(s, "Sheet1!A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
+    @test XLSX.getcell(f, "Sheet1!A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
+    @test XLSX.getcell(s, XLSX.SheetCellRef("Sheet1!A1")) == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
+    @test XLSX.getcell(f, XLSX.SheetCellRef("Sheet1!A1")) == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
+    @test XLSX.getcell(s, "B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(f, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, XLSX.SheetCellRange("Sheet1!B1:B3")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, "B1,B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "")] 
+    @test XLSX.getcell(s, "Sheet1!B1,Sheet1!B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "")] 
+    @test XLSX.getcell(f, "Sheet1!B1,Sheet1!B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "")] 
+    @test XLSX.getcell(s, "B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, XLSX.SheetColumnRange("Sheet1!B:B")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(f, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, XLSX.SheetRowRange("Sheet1!2:2")) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, "2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, :, 2) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;] 
+    @test XLSX.getcell(s, 2, :) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, 2, 1:2:3) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, 2, [1,3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, [2], 1) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "")] 
+    @test XLSX.getcell(s, [2], [1,3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
 end
 
 @testset "Time and DateTime" begin
@@ -516,6 +611,25 @@ end
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "RANGE_B4C5") == Any["range B4:C5" "range B4:C5"; "range B4:C5" "range B4:C5"]
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    s["A1:B3"] = "Hello world"
+    XLSX.addDefinedName(f, "Life_the_Universe_and_Everything", 42)
+    XLSX.addDefinedName(f[1], "FirstName", "Hello World")
+    XLSX.addDefinedName(f, "MyCell","Sheet1!A1")
+    XLSX.addDefinedName(f[1], "YourCells", "Sheet1!A2:B3")
+    @test_throws XLSX.XLSXError s["FirstName"] = 32
+    s["MyCell"] = true
+    @test s["MyCell"] == true
+    s["YourCells"] = false
+    @test s["YourCells"] == Any[false false; false false;]
+
+    XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+    f = XLSX.readxlsx("mytest.xlsx")
+    @test s["MyCell"] == true
+    @test s["YourCells"] == Any[false false; false false;]
+    isfile("mytest.xlsx") && rm("mytest.xlsx")
 
 end
 
@@ -2346,6 +2460,7 @@ end
         @test_throws XLSX.XLSXError XLSX.setFont(s, 1, 1:1; color="grey42")
         @test_throws XLSX.XLSXError XLSX.setFont(s, 1, :; color="grey42")
         @test_throws XLSX.XLSXError XLSX.setFont(s, :; color="grey42")
+        @test_throws XLSX.XLSXError XLSX.setFont(s, :, :; color="grey42")
 
         # Skip empty cells silently in ranges 
         @test XLSX.setFont(s, 2:3, 1:3; color="grey42") == -1
@@ -2379,6 +2494,7 @@ end
         @test_throws XLSX.XLSXError XLSX.setBorder(s, 1, 1:1; allsides=["color" => "grey42", "style" => "thick"])
         @test_throws XLSX.XLSXError XLSX.setBorder(s, :, 1; allsides=["color" => "grey42", "style" => "thick"])
         @test_throws XLSX.XLSXError XLSX.setBorder(s, :; allsides=["color" => "grey42", "style" => "thick"])
+        @test_throws XLSX.XLSXError XLSX.setBorder(s, :, :; allsides=["color" => "grey42", "style" => "thick"])
         @test XLSX.setBorder(s, [2,3], 1:3; allsides=["color" => "grey42", "style" => "thick"]) == -1
         @test_throws XLSX.XLSXError XLSX.getBorder(s, 2, 1)
         @test_throws XLSX.XLSXError XLSX.getBorder(s, 3, 2)
@@ -2403,6 +2519,7 @@ end
         @test_throws XLSX.XLSXError XLSX.setFill(s, [1], 1; pattern="lightVertical", fgColor="Red", bgColor="blue")
         @test_throws XLSX.XLSXError XLSX.setFill(s, 1, 1:1; pattern="lightVertical", fgColor="Red", bgColor="blue")
         @test_throws XLSX.XLSXError XLSX.setFill(s, 1, :; pattern="lightVertical", fgColor="Red", bgColor="blue")
+        @test_throws XLSX.XLSXError XLSX.setFill(s, :, :; pattern="lightVertical", fgColor="Red", bgColor="blue")
         @test_throws XLSX.XLSXError XLSX.setFill(s, :; pattern="lightVertical", fgColor="Red", bgColor="blue")
         @test XLSX.setFill(s, [2,3], 1:3; pattern="lightVertical", fgColor="Red", bgColor="blue") == -1
         @test_throws XLSX.XLSXError XLSX.getFill(s, 2, 1)
@@ -2428,6 +2545,7 @@ end
         @test_throws XLSX.XLSXError XLSX.setAlignment(s, [1], 1; horizontal="right", vertical="justify", wrapText=true)
         @test_throws XLSX.XLSXError XLSX.setAlignment(s, 1, 1:1; horizontal="right", vertical="justify", wrapText=true)
         @test_throws XLSX.XLSXError XLSX.setAlignment(s, 1, :; horizontal="right", vertical="justify", wrapText=true)
+        @test_throws XLSX.XLSXError XLSX.setAlignment(s, :, :; horizontal="right", vertical="justify", wrapText=true)
         @test_throws XLSX.XLSXError XLSX.setAlignment(s, :; horizontal="right", vertical="justify", wrapText=true)
         @test XLSX.setAlignment(s, [2,3], 1:3; horizontal="right", vertical="justify", wrapText=true) == -1
         @test_throws XLSX.XLSXError XLSX.getAlignment(s, 2, 1)
@@ -2453,6 +2571,7 @@ end
         @test_throws XLSX.XLSXError XLSX.setFormat(s, [1], 1; format="Percentage")
         @test_throws XLSX.XLSXError XLSX.setFormat(s, 1, 1:1; format="Percentage")
         @test_throws XLSX.XLSXError XLSX.setFormat(s, 1, :; format="Percentage")
+        @test_throws XLSX.XLSXError XLSX.setFormat(s, :, :; format="Percentage")
         @test_throws XLSX.XLSXError XLSX.setFormat(s, :; format="Percentage")
         @test XLSX.setFormat(s, [2,3], 1:3; format="Percentage") == -1
         @test_throws XLSX.XLSXError XLSX.getFormat(s, 2, 1)

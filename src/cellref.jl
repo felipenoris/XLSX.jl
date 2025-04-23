@@ -460,7 +460,7 @@ Base.show(io::IO, cr::SheetColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetColumnRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.colrng == cr2.colrng
 Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
 
-Base.string(cr::SheetRowRange) = string(quoteit(cr.sheet), "!", cr.colrng)
+Base.string(cr::SheetRowRange) = string(quoteit(cr.sheet), "!", cr.rowrng)
 Base.show(io::IO, cr::SheetRowRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetRowRange, cr2::SheetRowRange) = cr1.sheet == cr2.sheet && cr2.rowrng == cr2.rowrng
 Base.hash(cr::SheetRowRange) = hash(cr.sheet) + hash(cr.colrng)

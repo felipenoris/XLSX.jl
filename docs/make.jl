@@ -14,8 +14,7 @@ makedocs(
     checkdocs=:none,
 )
 
-#=deploydocs(
+deploydocs(
     repo = "github.com/felipenoris/XLSX.jl.git",
     target = "build",
 )
-=#

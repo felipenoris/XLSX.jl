@@ -145,6 +145,24 @@ function getdata(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}
         getdata(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
     end
 end
+function getdata(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon)
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        col=dim.start.column_number:dim.stop.column_number
+    end
+        return getdata(ws, row, col)
+end
+function getdata(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}})
+    dim = get_dimension(ws)
+    if dim === nothing
+        throw(XLSXError("No worksheet dimension found"))
+    else
+        row=dim.start.row_number:dim.stop.row_number
+    end
+        return getdata(ws, row, col)
+end
 
 function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
     result = Array{Any,2}(undef, size(rng))
@@ -217,7 +235,7 @@ getdata(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getda
 getdata(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getdata(ws, s.colrng)
 getdata(ws::Worksheet, s::SheetRowRange) = do_sheet_names_match(ws, s) && getdata(ws, s.rowrng)
 
-function getdata(ws::Worksheet, ref::AbstractString)::Union{Array{Any,2},Any}
+function getdata(ws::Worksheet, ref::AbstractString)
     if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
         if is_defined_name_value_a_constant(v)
@@ -257,7 +275,7 @@ function getdata(ws::Worksheet, ref::AbstractString)::Union{Array{Any,2},Any}
         return getdata(ws, NonContiguousRange(ws, ref))
     elseif is_valid_non_contiguous_sheetcellrange(ref)
         nc = NonContiguousRange(ref)
-        return do_sheet_names_match(ws, nc) && getdata!(ws, nc)
+        return do_sheet_names_match(ws, nc) && getdata(ws, nc)
     else
         throw(XLSXError("`$ref` is not a valid cell or range reference."))
     end
@@ -271,6 +289,9 @@ function getdata(ws::Worksheet)
     end
 end
 
+#Base.getindex(f::Function, ws::Worksheet, r) = f(ws, r)
+#Base.getindex(f::Function, ws::Worksheet, r, c) = f(ws, r, c)
+#Base.getindex(f::Function, ws::Worksheet, ::Colon) = f::Function, (ws)
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, r, c) = getdata(ws, r, c)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
@@ -344,9 +365,9 @@ getcell(ws::Worksheet, s::ColumnRange) = getcellrange(ws, s.colrng)
 getcell(ws::Worksheet, s::RowRange) = getcellrange(ws, s.rowrng)
 
 getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
-getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
-getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
-getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = [getcell(ws, a, b) for a in row, b in col]
+getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = getcellrange(ws, row,  col)
+getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcellrange(ws, row, col)
+getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = getcellrange(ws, row, col)
 getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcellrange(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)

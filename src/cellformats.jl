@@ -497,13 +497,13 @@ Alternatively, specify the row and column using any combination of
 Integer, UnitRange, Vector{Integer} or `:`.
 
 Borders are independently defined for the keywords:
-- `left::Vector{Pair{String,String} = nothing`
-- `right::Vector{Pair{String,String} = nothing`
-- `top::Vector{Pair{String,String} = nothing`
-- `bottom::Vector{Pair{String,String} = nothing`
-- `diagonal::Vector{Pair{String,String} = nothing`
-- `[allsides::Vector{Pair{String,String} = nothing]`
-- `[outside::Vector{Pair{String,String} = nothing]`
+- `left::Vector{Pair{String,String}} = nothing`
+- `right::Vector{Pair{String,String}} = nothing`
+- `top::Vector{Pair{String,String}} = nothing`
+- `bottom::Vector{Pair{String,String}} = nothing`
+- `diagonal::Vector{Pair{String,String}} = nothing`
+- `[allsides::Vector{Pair{String,String}} = nothing]`
+- `[outside::Vector{Pair{String,String}} = nothing]`
 
 These represent each of the sides of a cell . The keyword `diagonal` defines 
 diagonal lines running across the cell. These lines must share the same style 
