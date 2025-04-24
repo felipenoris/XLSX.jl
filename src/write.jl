@@ -38,7 +38,6 @@ julia> xf = newxlsx()
 ```
 
 """
-
 newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path()) :: XLSXFile = open_empty_template(sheetname; path)
 
 
