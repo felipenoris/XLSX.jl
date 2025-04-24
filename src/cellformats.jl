@@ -350,6 +350,7 @@ function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
+
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
@@ -2257,10 +2258,12 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
         end
     end
 
+
     if first == true
         return -1
     end
     return 0
+
 end
 
 """
@@ -2307,7 +2310,6 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
     for r in eachrow(ws)
         if r.row == cellref.row_number
-
             if haskey(ws.cache.row_ht, r.row)
                 return ws.cache.row_ht[r.row]
             end

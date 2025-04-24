@@ -48,10 +48,12 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
 # Opens a file for streaming.
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
+
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
     if !(xf.source isa IO || isfile(xf.source))
         throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."))
     end
+
     XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
 end
 
@@ -90,7 +92,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                     if nrows == 0
                         return nothing
                     end
+
                     XML.depth(lznode) != 2 && throw(XLSXError("Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."))
+
                     break
                 end
 

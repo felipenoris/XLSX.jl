@@ -2,6 +2,7 @@
 """
     opentemplate(source::Union{AbstractString, IO}) :: XLSXFile
 
+
 Read an existing Excel (`.xlsx`) file as a template and return as a writable `XLSXFile` for editing 
 and saving to another file with `XLSX.writexlsx`.
 
@@ -13,6 +14,7 @@ formatting and layout of the opened file, but this is not the same as using a `.
 # Examples
 ```julia
 julia> xf = opentemplate("myExcelFile.xlsx")
+
 ```
 
 """
@@ -36,7 +38,9 @@ julia> xf = newxlsx()
 ```
 
 """
+
 newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path()) :: XLSXFile = open_empty_template(sheetname; path)
+
 
 function open_empty_template(
             sheetname::AbstractString="";
@@ -44,7 +48,9 @@ function open_empty_template(
         ) :: XLSXFile
 
     empty_excel_template = joinpath(path, "blank.xlsx")
+
     !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
+
     xf = open_xlsx_template(empty_excel_template)
 
     if sheetname != ""
@@ -493,6 +499,7 @@ const ILLEGAL_CHARS = [
 function strip_illegal_chars(x::String)
     result = x
     for (pat, r) in ILLEGAL_CHARS
+
         result = replace(result, pat => r)
     end
     return result
