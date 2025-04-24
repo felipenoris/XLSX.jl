@@ -903,6 +903,8 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
         throw(XLSXError("Cannot set borders because cache is not enabled."))
     end
 
+    length(rng) <= 1 && throw(XLSXError("Cannot set outside border for a single cell."))
+
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["outside"] = Dict{String,String}(p for p in outside)
 

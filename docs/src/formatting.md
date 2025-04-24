@@ -292,7 +292,7 @@ In XLSX.jl, the twelve built-in scales are named by their start/mid/end colors a
 |   bluewhitered   |   redwhiteblue   |    whitered     |    redwhite     |
 |    greenwhite    |    whitegreen    |   greenyellow   |   yellowgreen   |
 
-The default colorscale is `greenyellowred`. To use a different built-in color scale, 
+The default colorscale is `greenyellow`. To use a different built-in color scale, 
 specify the name using the keyword `colorScale`, thus:
 
 ```julia
@@ -315,7 +315,7 @@ a `percentile` or as a `min` or `max`. For the first three options, a value must
 Thus, you can apply a custom 3-color scale using, for example:
 
 ```julia
-julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:F18", "colorScale";
+julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:F18", :colorScale;
             min_type="num", 
             min_val="2",
             min_col="tomato",

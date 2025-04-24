@@ -1390,7 +1390,7 @@ end
         @test col_names == [:H2, :H3]
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
-        @test XLSX.deletesheet!(f, 1) == nothing
+        @test XLSX.deletesheet!(f, 1) === nothing
         @test XLSX.sheetnames(f) == ["table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "this_now"]
         XLSX.writexlsx(new_filename, f, overwrite=true)
         dtable = XLSX.readtable(new_filename, "table4", "F:G")
@@ -1968,11 +1968,60 @@ end
         @test XLSX.getFont(xfile, "Sheet1!B4").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Times New Roman"), "color" => Dict("rgb" => "FF040404"))
 
         isfile("output.xlsx") && rm("output.xlsx")
+
+        f=XLSX.newxlsx()
+        sheet=f[1]
+        sheet["A1:E5"] = ""
+        XLSX.setFont(sheet, :, [1, 2, 3, 4, 5]; size=18, name="Arial", color="FF040404")
+        XLSX.setFont(sheet, 1:3, [1, 3]; size=12, name="Aptos", color="FF040408")
+        XLSX.setFont(sheet, [4, 5], [2, 4]; size=6, name="Courier New", color="FF040400")
+        @test XLSX.getFont(sheet, "A4").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040404"))
+        @test XLSX.getFont(sheet, "A3").font == Dict("sz" => Dict("val" => "12"), "name" => Dict("val" => "Aptos"), "color" => Dict("rgb" => "FF040408"))
+        @test XLSX.getFont(f, "Sheet1!D5").font == Dict("sz" => Dict("val" => "6"), "name" => Dict("val" => "Courier New"), "color" => Dict("rgb" => "FF040400"))
+
+        f=XLSX.newxlsx()
+        sheet=f[1]
+        sheet["A1:E5"] = ""
+        XLSX.setUniformFont(sheet, "Sheet1!A1:E1"; size=18, name="Arial", color="FF040404")
+        @test XLSX.getFont(sheet, "D1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040404"))
+        XLSX.setUniformFont(sheet, "Sheet1!2:3"; size=18, name="Arial", color="FF040408")
+        @test XLSX.getFont(sheet, "A3").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040408"))
+        XLSX.setUniformFont(sheet, "Sheet1!D:E"; size=18, name="Arial", color="FF040400")
+        @test XLSX.getFont(sheet, "E5").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040400"))
+        XLSX.setUniformFont(sheet, "A1:E1"; size=18, name="Arial", color="FF040304")
+        @test XLSX.getFont(sheet, "D1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040304"))
+        XLSX.setUniformFont(sheet, "2:3"; size=18, name="Arial", color="FF040308")
+        @test XLSX.getFont(sheet, "A3").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040308"))
+        XLSX.setUniformFont(sheet, "D:E"; size=18, name="Arial", color="FF040300")
+        @test XLSX.getFont(sheet, "E5").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040300"))
+
+        f=XLSX.newxlsx()
+        sheet=f[1]
+        sheet["A1:E5"] = ""
+        XLSX.setUniformFont(sheet, :, 1; size=18, name="Arial", color="FF040404")
+        @test XLSX.getFont(sheet, "A3").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040404"))
+        XLSX.setUniformFont(sheet, :, [2,3]; size=18, name="Arial", color="FF040400")
+        @test XLSX.getFont(sheet, "C4").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040400"))
+        XLSX.setUniformFont(sheet, [1, 3, 4], 5; size=18, name="Arial", color="FF040300")
+        @test XLSX.getFont(sheet, "E1").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF040300"))
+        XLSX.setUniformFont(sheet, 5, [3, 4]; size=18, name="Arial", color="FF030300")
+        @test XLSX.getFont(sheet, "D5").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF030300"))
+        XLSX.setUniformFont(sheet, [2,3,4], [3, 4]; size=18, name="Arial", color="FF030308")
+        @test XLSX.getFont(sheet, "C3").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF030308"))
+        XLSX.setUniformFont(sheet, 4:5, 4; size=18, name="Arial", color="FF030408")
+        @test XLSX.getFont(sheet, "D4").font == Dict("sz" => Dict("val" => "18"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF030408"))
+        XLSX.setUniformFont(sheet, :; size=8, name="Arial", color="FF030408")
+        @test XLSX.getFont(sheet, "D4").font == Dict("sz" => Dict("val" => "8"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF030408"))
+        XLSX.setUniformFont(sheet, :, :; size=28, name="Arial", color="FF030408")
+        @test XLSX.getFont(sheet, "D4").font == Dict("sz" => Dict("val" => "28"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF030408"))
+
     end
 
     @testset "setBorder" begin
         f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
         s = f["Sheet1"]
+
+        @test XLSX.getDefaultBorders(s).border == Dict("left" => nothing, "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
 
         @test isnothing(XLSX.getBorder(s, "A1"))
 
@@ -2027,6 +2076,36 @@ end
         @test XLSX.getBorder(s, "C2").border == Dict("left" => nothing, "bottom" => nothing, "right" => nothing, "top" => Dict("rgb" => "FF104E8B", "style" => "thick"), "diagonal" => nothing)
         @test XLSX.getBorder(s, "C3") === nothing
         @test XLSX.getBorder(s, "C4") === nothing
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setBorder(s, "Sheet1!A1"; allsides=["color" => "FFFF00FF", "style" => "thick"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("rgb" => "FFFF00FF", "style" => "thick"), "bottom" => Dict("rgb" => "FFFF00FF", "style" => "thick"), "right" => Dict("rgb" => "FFFF00FF", "style" => "thick"), "top" => Dict("rgb" => "FFFF00FF", "style" => "thick"), "diagonal" => nothing)
+        XLSX.setBorder(s, "Sheet1!A1:E1"; allsides=["color" => "FFFF0000", "style" => "thick"])
+        @test XLSX.getBorder(s, "B1").border == Dict("left" => Dict("rgb" => "FFFF0000", "style" => "thick"), "bottom" => Dict("rgb" => "FFFF0000", "style" => "thick"), "right" => Dict("rgb" => "FFFF0000", "style" => "thick"), "top" => Dict("rgb" => "FFFF0000", "style" => "thick"), "diagonal" => nothing)
+        XLSX.setBorder(s, "Sheet1!A:E"; left = ["color" => "FFFF0001", "style" => "thick"])
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FFFF0001", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        XLSX.setBorder(s, "Sheet1!3:4"; left = ["color" => "FFFF0002", "style" => "thick"])
+        @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FFFF0002", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        XLSX.setBorder(s, "B2,B4"; left = ["color" => "FFFF0004", "style" => "thick"])
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("rgb" => "FFFF0004", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FFFF0004", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("rgb" => "FFFF0002", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setBorder(s, 1, :; left = ["color" => "FFFF0001", "style" => "thick"])
+        @test XLSX.getBorder(s, "B1").border == Dict("left" => Dict("rgb" => "FFFF0001", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        XLSX.setBorder(s, [2, 3], :; left = ["color" => "FFFF0002", "style" => "thick"])
+        @test XLSX.getBorder(s, "D3").border == Dict("left" => Dict("rgb" => "FFFF0002", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        XLSX.setBorder(s, :, [2, 3]; left = ["color" => "FFFF0003", "style" => "thick"])
+        @test XLSX.getBorder(s, "C4").border == Dict("left" => Dict("rgb" => "FFFF0003", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        XLSX.setBorder(s, 4, [2, 3]; left = ["color" => "FFFF0004", "style" => "thick"])
+        @test XLSX.getBorder(s, "B4").border == Dict("left" => Dict("rgb" => "FFFF0004", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
+        XLSX.setBorder(s, 3:2:5, [2, 3]; left = ["color" => "FFFF0005", "style" => "thick"])
+        @test XLSX.getBorder(s, "C5").border == Dict("left" => Dict("rgb" => "FFFF0005", "style" => "thick"), "bottom" => nothing, "right" => nothing, "top" => nothing, "diagonal" => nothing)
 
         f = XLSX.open_xlsx_template(joinpath(data_directory, "Borders.xlsx"))
         s = f["Sheet1"]
@@ -2109,6 +2188,152 @@ end
             bottom=["style" => "medium", "color" => "FF0000FF"],
             diagonal=["style" => "none"]
         )
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setUniformBorder(s, "Sheet1!A:B";
+            left=["style" => "dotted", "color" => "darkseagreen3"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9B"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, "Sheet1!2:4";
+            left=["style" => "dotted", "color" => "FF9BCD9C"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "C2").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9C"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, "A:B";
+            left=["style" => "dotted", "color" => "FF9BCD9E"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "B3").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9E"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, "2:4";
+            left=["style" => "dotted", "color" => "FF9BCD9D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "C3").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD9D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, 5, :;
+            left=["style" => "dotted", "color" => "FF9BCD8D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "F5").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD8D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, :, 5;
+            left=["style" => "dotted", "color" => "FF9BBD8D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "E2").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BBD8D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, :, :;
+            left=["style" => "dotted", "color" => "FF9BCD7D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "F5").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD7D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, :;
+            left=["style" => "dotted", "color" => "FF9BCD6D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "D3").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCD6D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, [2, 3], :;
+            left=["style" => "dotted", "color" => "FF9BCE6D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "B2").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCE6D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, :, [2, 3];
+            left=["style" => "dotted", "color" => "FF9BCB6D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "C6").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF9BCB6D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, 1, [2, 3];
+            left=["style" => "dotted", "color" => "FF8BCB6D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "C1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF8BCB6D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, [1, 2], [4, 5, 6];
+            left=["style" => "dotted", "color" => "FF6BCB6D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "E2").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF6BCB6D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+        XLSX.setUniformBorder(s, 4, 4;
+            left=["style" => "dotted", "color" => "FF7BCB6D"],
+            right=["style" => "medium", "color" => "FF765000"],
+            top=["style" => "thick", "color" => "FF230000"],
+            bottom=["style" => "medium", "color" => "FF0000FF"],
+            diagonal=["style" => "none"]
+        )
+        @test XLSX.getBorder(s, "D4").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF7BCB6D"), "bottom" => Dict("style" => "medium", "rgb" => "FF0000FF"), "right" => Dict("style" => "medium", "rgb" => "FF765000"), "top" => Dict("style" => "thick", "rgb" => "FF230000"), "diagonal" => nothing)
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setOutsideBorder(s, "Sheet1!A1:A2"; outside = ["style" => "dotted", "color" => "FF003FF0"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "bottom" => nothing, "right" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "top" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "A2").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "bottom" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "right" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, "Sheet1!C:E"; outside = ["style" => "dotted", "color" => "FF000FF0"])
+        @test XLSX.getBorder(s, "C1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "bottom" => nothing, "right" => nothing, "top" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "E6").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "right" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, "Sheet1!3:5"; outside = ["style" => "dotted", "color" => "FF000FFF"])
+        @test XLSX.getBorder(s, "A3").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF000FFF"), "bottom" => nothing, "right" => nothing, "top" => Dict("style" => "dotted", "rgb" => "FF000FFF"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "F5").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FF000FFF"), "right" => Dict("style" => "dotted", "rgb" => "FF000FFF"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, "C:E"; outside = ["style" => "dotted", "color" => "FFFF0FF0"])
+        @test XLSX.getBorder(s, "C1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FFFF0FF0"), "bottom" => nothing, "right" => nothing, "top" => Dict("style" => "dotted", "rgb" => "FFFF0FF0"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "E6").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FFFF0FF0"), "right" => Dict("style" => "dotted", "rgb" => "FFFF0FF0"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, "3:5"; outside = ["style" => "dotted", "color" => "FFF50FFF"])
+        @test XLSX.getBorder(s, "A3").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FFF50FFF"), "bottom" => nothing, "right" => nothing, "top" => Dict("style" => "dotted", "rgb" => "FFF50FFF"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "F5").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FFF50FFF"), "right" => Dict("style" => "dotted", "rgb" => "FFF50FFF"), "top" => nothing, "diagonal" => nothing)
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setOutsideBorder(s, 1, :; outside = ["style" => "dotted", "color" => "FF002FF0"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF002FF0"), "bottom" => Dict("style" => "dotted", "rgb" => "FF002FF0"), "right" => nothing, "top" => Dict("style" => "dotted", "rgb" => "FF002FF0"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "F1").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FF002FF0"), "right" => Dict("style" => "dotted", "rgb" => "FF002FF0"), "top" => Dict("style" => "dotted", "rgb" => "FF002FF0"), "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, :, 1; outside = ["style" => "dotted", "color" => "FF003FF0"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("rgb" => "FF003FF0", "style" => "dotted"), "bottom" => Dict("rgb" => "FF002FF0", "style" => "dotted"), "right" => Dict("rgb" => "FF003FF0", "style" => "dotted"), "top" => Dict("rgb" => "FF003FF0", "style" => "dotted"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "A6").border == Dict("left" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "bottom" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "right" => Dict("style" => "dotted", "rgb" => "FF003FF0"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, :, :; outside = ["style" => "dotted", "color" => "FF000FF0"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("rgb" => "FF000FF0", "style" => "dotted"), "bottom" => Dict("rgb" => "FF002FF0", "style" => "dotted"), "right" => Dict("rgb" => "FF003FF0", "style" => "dotted"), "top" => Dict("rgb" => "FF000FF0", "style" => "dotted"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "F6").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "right" => Dict("style" => "dotted", "rgb" => "FF000FF0"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, :; outside = ["style" => "dotted", "color" => "FF000FFF"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("rgb" => "FF000FFF", "style" => "dotted"), "bottom" => Dict("rgb" => "FF002FF0", "style" => "dotted"), "right" => Dict("rgb" => "FF003FF0", "style" => "dotted"), "top" => Dict("rgb" => "FF000FFF", "style" => "dotted"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "F6").border == Dict("left" => nothing, "bottom" => Dict("style" => "dotted", "rgb" => "FF000FFF"), "right" => Dict("style" => "dotted", "rgb" => "FF000FFF"), "top" => nothing, "diagonal" => nothing)
+        XLSX.setOutsideBorder(s, 1:2, 1; outside = ["style" => "dotted", "color" => "FFFFFFF0"])
+        @test XLSX.getBorder(s, "A1").border == Dict("left" => Dict("rgb" => "FFFFFFF0", "style" => "dotted"), "bottom" => Dict("rgb" => "FF002FF0", "style" => "dotted"), "right" => Dict("rgb" => "FFFFFFF0", "style" => "dotted"), "top" => Dict("rgb" => "FFFFFFF0", "style" => "dotted"), "diagonal" => nothing)
+        @test XLSX.getBorder(s, "A2").border == Dict("left" => Dict("rgb" => "FFFFFFF0", "style" => "dotted"), "bottom" => Dict("rgb" => "FFFFFFF0", "style" => "dotted"), "right" => Dict("rgb" => "FFFFFFF0", "style" => "dotted"), "top" => nothing, "diagonal" => nothing)
 
     end
 
@@ -2656,6 +2881,72 @@ end
         @test XLSX.getFill(s, "D20").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
         @test XLSX.getBorder(s, "J45").border ==Dict("left" => Dict("indexed" => "64", "style" => "thin"), "bottom" => Dict("indexed" => "64", "style" => "thin"), "right" => Dict("indexed" => "64", "style" => "thin"), "top" => Dict("indexed" => "64", "style" => "thin"), "diagonal" => nothing)
     end
+end
+
+@testset "Conditional Formats" begin
+
+    @testset "colorScale" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+        @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :colorScale) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A2", :colorScale) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A1", :colorScale) # One cell cellrange not allowed
+        XLSX.setConditionalFormat(s, "1:1", :colorScale)
+        XLSX.setConditionalFormat(s, 2, :, :colorScale; colorScale = "redwhiteblue")
+        XLSX.setConditionalFormat(s, 3, 1:5, :colorScale;
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="50",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        )
+        XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :colorScale;
+            min_type="min",
+            min_col="tomato",
+            max_type="max",
+            max_col="gold4"
+        )
+        XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :colorScale;
+            min_type="min",
+            min_col="yellow",
+            max_type="max",
+            max_col="darkgreen"
+        )
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => ["colorScale"],XLSX.CellRange("A4:E4") => ["colorScale"],XLSX.CellRange("A3:E3") => ["colorScale"],XLSX.CellRange("A2:E2") => ["colorScale"],XLSX.CellRange("A1:E1") => ["colorScale"]]
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :colorScale) # Overlaps with existing conditionalFormat range
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(f, "Sheet1!1:2", :colorScale) # Overlaps with existing conditionalFormat range
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :colorScale) # Overlaps with existing conditionalFormat range
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :, :colorScale) # Overlaps with existing conditionalFormat range
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+        XLSX.setConditionalFormat(s, "A1:A5", :colorScale)
+        XLSX.setConditionalFormat(s, :, 2, :colorScale; colorScale = "redwhiteblue")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :colorScale; colorScale = "greenwhitered")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :colorScale;
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="50",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        )
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:E4") => ["colorScale"],XLSX.CellRange("E1:E5") => ["colorScale"],XLSX.CellRange("B1:B5") => ["colorScale"],XLSX.CellRange("A1:A5") => ["colorScale"]]
+
+    end
+
+
 end
 
 @testset "merged cells" begin

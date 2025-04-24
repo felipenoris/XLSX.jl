@@ -120,7 +120,7 @@ type of the conditional format applies.
 
 """
 function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{String}}}
-        sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find all the <conditionalFormatting> blocks in the worksheet's xml file
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find all the <conditionalFormatting> blocks in the worksheet's xml file
     allcfnodes = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":conditionalFormatting", sheetdoc)
     allcfs = Vector{Pair{CellRange,Vector{String}}}()
     for (i, cf) in enumerate(allcfnodes)
@@ -139,11 +139,14 @@ function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{Stri
 end
 
 """
-    addConditionalFormat!(ws::Worksheet, rng::CellRange; kw...) -> nothing
+    addConditionalFormat!(ws::Worksheet, rng::CellRange, type::Symbol; kw...) -> nothing
 
 Add a new conditional format to a worksheet.
 
-Keyword arguments `colorScale`, `dataBar`, `iconSet`, and `formula` are mutually exclusive.
+Valid optins for `type` are `:colorScale`, `:dataBar`, `:iconSet`, or `:formula` and these 
+determine which type of conditional formatting is being defined.
+
+Keyword options differ according to the `type` specified
 
 Valid values for `colorScale` are:
 
@@ -163,50 +166,121 @@ Valid values for `colorScale` are:
 These are the 12 built-in color scales in Excel.
 
 """
-function addConditionalFormat(ws::Worksheet, ref_or_rng::AbstractString, type::AbstractString; kw...)
-    if type=="colorScale"
-        process_ranges(addCfColorScale, ws, ref_or_rng; kw...)::Int
-    elseif type=="dataBar"
-        throw(XLSXError("Data bars are not yet implemented."))
-    elseif type=="iconSet"
-        throw(XLSXError("Icon sets are not yet implemented."))
-    elseif type=="formula"
-        throw(XLSXError("Formulas are not yet implemented."))
+function setConditionalFormat(xf::XLSXFile, ref_or_rng, type::Symbol; kw...)
+    if type == :colorScale
+        process_sheetcell(setCfColorScale, xf, ref_or_rng; kw...)
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
     else
         throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
     end
 end
-addCfColorScale(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && addCfColorScale(ws, ref.cellref; kw...)
-addCfColorScale(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && addCfColorScale(ws, rng.rng; kw...)
-addCfColorScale(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && addCfColorScale(ws, rng.colrng; kw...)
-addCfColorScale(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && addCfColorScale(ws, rng.rowrng; kw...)
-addCfColorScale(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(addCfColorScale, ws, rng; kw...)
-addCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_colranges(addCfColorScale, ws, rng; kw...)
-addCfColorScale(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(addCfColorScale, xl, sheetcell)
-addCfColorScale(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(addCfColorScale, ws, ref_or_rng)
-addCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = process_colon(addCfColorScale, ws, row, nothing)
-addCfColorScale(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = process_colon(addCfColorScale, ws, nothing, col)
-addCfColorScale(ws::Worksheet, ::Colon, ::Colon) = process_colon(addCfColorScale, ws, nothing, nothing)
-addCfColorScale(ws::Worksheet, ::Colon) = process_colon(addCfColorScale, ws, nothing, nothing)
-addCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = addCfColorScale(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
-function addCfColorScale(ws::Worksheet, rng::CellRange;
-        colorScale::Union{Nothing,String}=nothing,
-        min_type::Union{Nothing,String}="min",
-        min_val::Union{Nothing,String}=nothing,
-        min_col::Union{Nothing,String}="FFF8696B",
-        mid_type::Union{Nothing,String}="percentile",
-        mid_val::Union{Nothing,String}="50",
-        mid_col::Union{Nothing,String}="FFFFEB84",
-        max_type::Union{Nothing,String}="max",
-        max_val::Union{Nothing,String}=nothing,
-        max_col::Union{Nothing,String}="FF63BE7B",
-    )::Int
+function setConditionalFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon, type::Symbol; kw...)
+    if type == :colorScale
+        process_colon(setCfColorScale, ws, row, nothing; kw...)
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+    end
+end
+function setConditionalFormat(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}, type::Symbol; kw...)
+    if type == :colorScale
+        process_colon(setCfColorScale, ws, nothing, col; kw...)
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+    end
+end
+function setConditionalFormat(ws::Worksheet, ::Colon, ::Colon, type::Symbol; kw...)
+    if type == :colorScale
+        process_colon(setCfColorScale, ws, nothing, nothing; kw...)
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+    end
+end
+function setConditionalFormat(ws::Worksheet, ::Colon, type::Symbol; kw...)
+    if type == :colorScale
+        process_colon(setCfColorScale, ws, nothing, nothing; kw...)
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
 
-#    if isnothing(colorScale) && isnothing(dataBar) && isnothing(iconSet) && isnothing(formula)
-#        throw(XLSXError("At least one of colorScale, dataBar, iconSet, or formula must be specified."))
-#    end
+    end
+end
+function setConditionalFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, type::Symbol; kw...)
+    if type == :colorScale
+        setCfColorScale(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+    end
+end
+function setConditionalFormat(ws::Worksheet, ref_or_rng::AbstractString, type::Symbol; kw...)
+    if type == :colorScale
+        process_ranges(setCfColorScale, ws, ref_or_rng; kw...)::Int
+#    elseif type == :dataBar
+#        throw(XLSXError("Data bars are not yet implemented."))
+#    elseif type == :iconSet
+#        throw(XLSXError("Icon sets are not yet implemented."))
+#    elseif type == :formula
+#        throw(XLSXError("Formulas are not yet implemented."))
+    else
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+    end
+end
+setCfColorScale(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setCfColorScale(ws, ref.cellref; kw...)
+setCfColorScale(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rng; kw...)
+setCfColorScale(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.colrng; kw...)
+setCfColorScale(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rowrng; kw...)
+setCfColorScale(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfColorScale, ws, rng; kw...)
+setCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfColorScale, ws, rng; kw...)
+setCfColorScale(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfColorScale, xl, sheetcell; kw...)
+setCfColorScale(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfColorScale, ws, ref_or_rng; kw...)
+function setCfColorScale(ws::Worksheet, rng::CellRange;
+    colorScale::Union{Nothing,String}=nothing,
+    min_type::Union{Nothing,String}="min",
+    min_val::Union{Nothing,String}=nothing,
+    min_col::Union{Nothing,String}="FFF8696B",
+    mid_type::Union{Nothing,String}=nothing,
+    mid_val::Union{Nothing,String}=nothing,
+    mid_col::Union{Nothing,String}=nothing,
+    max_type::Union{Nothing,String}="max",
+    max_val::Union{Nothing,String}=nothing,
+    max_col::Union{Nothing,String}="FFFFEB84",
+)::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -218,15 +292,15 @@ function addCfColorScale(ws::Worksheet, rng::CellRange;
     new_cf = XML.Element("conditionalFormatting"; sqref=rng)
     if isnothing(colorScale)
         push!(new_cf, XML.h.cfRule(type="colorScale", priority="1",
-                XML.h.colorScale(
-                    isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
-                    isnothing(mid_type) ? nothing : XML.h.cfvo(type=mid_type, val=mid_val),
-                    isnothing(max_val) ? XML.h.cfvo(type=max_type) : XML.h.cfvo(type=max_type, val=max_val),
-                    XML.h.color(rgb=get_color(min_col)),
-                    isnothing(mid_type) ? nothing : XML.h.color(rgb=get_color(mid_col)),
-                    XML.h.color(rgb=get_color(max_col))
-                )
+            XML.h.colorScale(
+                isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
+                isnothing(mid_type) ? nothing : XML.h.cfvo(type=mid_type, val=mid_val),
+                isnothing(max_val) ? XML.h.cfvo(type=max_type) : XML.h.cfvo(type=max_type, val=max_val),
+                XML.h.color(rgb=get_color(min_col)),
+                isnothing(mid_type) ? nothing : XML.h.color(rgb=get_color(mid_col)),
+                XML.h.color(rgb=get_color(max_col))
             )
+        )
         )
     else
         if !haskey(colorscales, colorScale)
