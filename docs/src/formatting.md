@@ -151,8 +151,8 @@ julia> XLSX.setUniformBorder(s, "A1:CV100"; allsides = ["color" => "green"], dia
 2 # This is the `borderId` that has now been uniformly applied to every cell.
 ```
 
-This updates the border color in cell A1 to be green and adds red diagonal lines across the cell. 
-It then applies all the `font` attributes of cell A1 uniformly to all the other cells in the range, 
+This updates the border color in cell `A1` to be green and adds red diagonal lines across the cell. 
+It then applies all the `font` attributes of cell `A1` uniformly to all the other cells in the range, 
 overriding their previous attributes.
 
 All the format setter functions have `setUniformAttribute` versions, too. See [`XLSX.setUniformBorder`](@ref), 
@@ -169,6 +169,7 @@ alignment are all completely consistent across the range:
 julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be uniformly tha same as cell A1.
 7    # this is the `styleId` that has now been applied to all cells in the range
 ```
+
 
 ## Copying formatting attributes
 

@@ -140,7 +140,7 @@ end
 
 Add a new conditional format to a worksheet.
 
-!!! warning "In Develpment
+!!! warning "In Develpment..."
 
     This function is still in development and may not work as expected.
     It is not yet implemented for all types of conditional formats.
@@ -150,22 +150,37 @@ determine which type of conditional formatting is being defined.
 
 Keyword options differ according to the `type` specified
 
-Valid values for `colorScale` are:
+# type = :colorScale
 
-- `:redyellowgreen`: Red, Yellow, Green color scale.
-- `:greenyellowred`: Green, Yellow, Red color scale.
-- `:redwhitegreen` : Red, White, Green color scale.
-- `:greenwhitered` : Green, White, Red color scale.
-- `:redwhiteblue`  : Red, White, Blue color scale.
-- `:bluewhitered`  : Blue, White, Red color scale.
-- `:redwhite`      : Red, White color scale.
-- `:whitered`      : White, Red color scale.
-- `:whitegreen`    : White, Green color scale.
-- `:greenwhite`    : Green, White color scale.
-- `:yellowgreen`   : Yellow, Green color scale.
-- `:greenyellow`   : Green, Yellow color scale.
+Define a 2-color or 3-color color scale conditional format.
 
-These are the 12 built-in color scales in Excel.
+Use the keyword `colorscale` to choose one of the 12 built-in Excel colorscales:
+
+- `"redyellowgreen"`: Red, Yellow, Green color scale.
+- `"greenyellowred"`: Green, Yellow, Red color scale.
+- `"redwhitegreen"` : Red, White, Green color scale.
+- `"greenwhitered"` : Green, White, Red color scale.
+- `"redwhiteblue"`  : Red, White, Blue color scale.
+- `"bluewhitered"`  : Blue, White, Red color scale.
+- `"redwhite"`      : Red, White color scale.
+- `"whitered"`      : White, Red color scale.
+- `"whitegreen"`    : White, Green color scale.
+- `"greenwhite"`    : Green, White color scale.
+- `"yellowgreen"`   : Yellow, Green color scale.
+- `"greenyellow"`   : Green, Yellow color scale. (default)
+
+Alternatively, you can define a custom color scale by omitting the `colorscale` keyword and 
+instead using the following keywords:
+
+- `min_type`:  Valid values are: `min`, `percentile`, `percent`, `num`, and `formula`.
+- `min_val` : The value of the minimum. Omit if `min_type="min"`.
+- `min_col` : The color of the minimum value.
+- `mid_type`: Valid values are: `percentile`, `percent`, `num`, and `formula`. Omit for a 2-color scale.
+- `mid_val`: The value of the middle value. Omit for a 2-color scale.
+- `mid_col`: The color of the middle value. Omit for a 2-color scale.
+- `max_type`: The type of the maximum value. Valid values are: `max`, `percentile`, `num`, and `formula`.
+- `max_val`: The value of the maximum value. Omit if `max_type="max"`.
+- `max_col`: The color of the maximum value.
 
 """
 function setConditionalFormat(xf::XLSXFile, ref_or_rng, type::Symbol; kw...)
@@ -293,6 +308,11 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
 
     new_cf = XML.Element("conditionalFormatting"; sqref=rng)
     if isnothing(colorScale)
+
+        min_type in ["min", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num, formula."))
+        isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
+        max_type in ["max", "percentile", "num", "formula"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: max, percentile, num, formula."))
+
         push!(new_cf, XML.h.cfRule(type="colorScale", priority="1",
             XML.h.colorScale(
                 isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
