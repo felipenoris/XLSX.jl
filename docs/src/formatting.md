@@ -82,7 +82,7 @@ hex RGB value or by name using any of the colors provided by [Colors.jl](https:/
 The other set attribute functions behave in similar ways. See [`XLSX.setBorder`](@ref), 
 [`XLSX.setFill`](@ref), [`XLSX.setFormat`](@ref) and [`XLSX.setAlignment`](@ref).
 
-## Indexing multiple cells at once
+## Formatting multiple cells at once
 
 Each of the setter functions can be applied to multiple cells at once using cell-ranges, 
 row- or column-ranges or non-contiguous ranges. Additionally, indexing can use integer
@@ -208,7 +208,7 @@ widths in Excel itself.
 
 In Excel, a conditional format is a format that is applied if the content of a cell meets some criterion 
 but not otherwise. Such conditional formatting is generally straightforward to apply using the 
-`setAttribute()` functions described here.
+`setAttribute()` functions or the `setConditionalFormat()` function described here.
 
 !!! note
 
@@ -220,8 +220,8 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     can be updated by re-running the conditional formatting functions described but otherwise remain 
     unchanged.
 
-    Some dynamic conditional formatting is possible, using Excel native functions, but the range of 
-    functions is currently more limited than Excel itself can provide.
+    Some dynamic conditional formatting is possible in `XLSX.jl`, using Excel native functions, but the range of 
+    functions is currently more limited than Excel itself can provide (work in progress).
 
 ### Static conditional formats
 
@@ -271,9 +271,9 @@ XLSX.jl provides a function to create native Excel conditional formats that will
 an `XLSXFile` and which will update dynamically if the values in the cell range to which the formatting 
 is applied are updated.
 
-`XLSX.addConditionalFormat(sheet, CellRange, "formatting_type"; kwargs...)`
+`XLSX.setConditionalFormat(sheet, CellRange, :formatting_type; kwargs...)`
 
-Each of the available `formatting_type`s is described in the following sections.
+Each of the available `:formatting_type`s is described in the following sections.
 
 #### Color Scale
 
@@ -296,13 +296,13 @@ The default colorscale is `greenyellow`. To use a different built-in color scale
 specify the name using the keyword `colorScale`, thus:
 
 ```julia
-julia> XLSX.addConditionalFormat(f["Sheet1"], "A1:F12", "colorScale") # Defaults to the `greenyellowred` built-in scale.
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellowred` built-in scale.
 0
 
-julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:C18", "colorScale"; colorScale="whitered")
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorScale="whitered")
 0
 
-julia> XLSX.addConditionalFormat(f["Sheet1"], "D13:F18", "colorScale"; colorScale="bluewhitered")
+julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorScale="bluewhitered")
 0
 ```
 
@@ -315,7 +315,7 @@ a `percentile` or as a `min` or `max`. For the first three options, a value must
 Thus, you can apply a custom 3-color scale using, for example:
 
 ```julia
-julia> XLSX.addConditionalFormat(f["Sheet1"], "A13:F18", :colorScale;
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F18", :colorScale;
             min_type="num", 
             min_val="2",
             min_col="tomato",

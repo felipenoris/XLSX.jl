@@ -360,7 +360,7 @@ getcell(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getcell
 getcell(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rng)
 getcell(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.colrng)
 getcell(ws::Worksheet, s::SheetRowRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rowrng)
-getcell(ws::Worksheet, s::CellRange) = getcellrange(ws, s.rng)
+getcell(ws::Worksheet, s::CellRange) = getcellrange(ws, s)
 getcell(ws::Worksheet, s::ColumnRange) = getcellrange(ws, s.colrng)
 getcell(ws::Worksheet, s::RowRange) = getcellrange(ws, s.rowrng)
 
@@ -449,7 +449,7 @@ function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
     return result
 end
 
-getcellrange(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getcellrange(ws, s.cellref)
+#getcellrange(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getcellrange(ws, s.cellref)
 getcellrange(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rng)
 getcellrange(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.colrng)
 getcellrange(ws::Worksheet, s::SheetRowRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rowrng)

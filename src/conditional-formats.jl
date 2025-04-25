@@ -128,9 +128,6 @@ function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{Stri
         for child in XML.children(cf)
             if XML.tag(child) == "cfRule"
                 push!(cf_types, child["type"])
-                #                if any(XML.tag(c) == "extLst" for c in XML.children(child))
-                #                    println("  extras: ", true)
-                #                end
             end
         end
         push!(allcfs, CellRange(cf["sqref"]) => cf_types)
@@ -139,29 +136,34 @@ function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{Stri
 end
 
 """
-    addConditionalFormat!(ws::Worksheet, rng::CellRange, type::Symbol; kw...) -> nothing
+    addConditionalFormat!(ws::Worksheet, rng::CellRange, type::Symbol; kw...)
 
 Add a new conditional format to a worksheet.
 
-Valid optins for `type` are `:colorScale`, `:dataBar`, `:iconSet`, or `:formula` and these 
+!!! warning "In Develpment
+
+    This function is still in development and may not work as expected.
+    It is not yet implemented for all types of conditional formats.
+
+Valid options for `type` are `:colorScale` (others in develpment) and these 
 determine which type of conditional formatting is being defined.
 
 Keyword options differ according to the `type` specified
 
 Valid values for `colorScale` are:
 
-- `"redyellowgreen"`: Red, Yellow, Green color scale.
-- `"greenyellowred"`: Green, Yellow, Red color scale.
-- `"redwhitegreen"` : Red, White, Green color scale.
-- `"greenwhitered"` : Green, White, Red color scale.
-- `"redwhiteblue"`  : Red, White, Blue color scale.
-- `"bluewhitered"`  : Blue, White, Red color scale.
-- `"redwhite"`      : Red, White color scale.
-- `"whitered"`      : White, Red color scale.
-- `"whitegreen"`    : White, Green color scale.
-- `"greenwhite"`    : Green, White color scale.
-- `"yellowgreen"`   : Yellow, Green color scale.
-- `"greenyellow"`   : Green, Yellow color scale.
+- `:redyellowgreen`: Red, Yellow, Green color scale.
+- `:greenyellowred`: Green, Yellow, Red color scale.
+- `:redwhitegreen` : Red, White, Green color scale.
+- `:greenwhitered` : Green, White, Red color scale.
+- `:redwhiteblue`  : Red, White, Blue color scale.
+- `:bluewhitered`  : Blue, White, Red color scale.
+- `:redwhite`      : Red, White color scale.
+- `:whitered`      : White, Red color scale.
+- `:whitegreen`    : White, Green color scale.
+- `:greenwhite`    : Green, White color scale.
+- `:yellowgreen`   : Yellow, Green color scale.
+- `:greenyellow`   : Green, Yellow color scale.
 
 These are the 12 built-in color scales in Excel.
 

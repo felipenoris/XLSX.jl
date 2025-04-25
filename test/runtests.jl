@@ -140,6 +140,13 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         catch e
             @test occursin("is not a valid XLSX file", "$e")
         end
+        @test_throws XLSX.XLSXError XLSX.readxlsx(joinpath(data_directory, "Template File.xltx"))
+        try
+            XLSX.readxlsx(joinpath(data_directory, "Template File.xltx"))
+            @test false # didn't throw exception
+        catch e
+            @test occursin("does not support Excel template files", "$e")
+        end
     end
 end
 
@@ -377,6 +384,11 @@ end
     @test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
     XLSX.getcellrange(sheet1, "B2:C3")
     XLSX.getcellrange(f, "Sheet1!B2:C3")
+    XLSX.getcellrange(sheet1, 2,  2)
+    XLSX.getcellrange(sheet1, 2, :)
+    XLSX.getcellrange(sheet1, :, 3)
+    XLSX.getcellrange(sheet1, 3, :)
+    XLSX.getcellrange(sheet1, "B2:C3")
     @test_throws XLSX.XLSXError XLSX.getcellrange(f, "B2:C3")
 
     # a cell can be put in a dict
@@ -394,6 +406,8 @@ end
     @test sheet2_data == sheet2["A1:C3"]
     @test sheet2_data == sheet2[:]
     @test sheet2[:] == XLSX.getdata(sheet2)
+    @test sheet2[:] == XLSX.getdata(sheet2, :)
+    @test XLSX.getdata(sheet2, :, [1, 2]) == sheet2["A1:B3"]
 end
 
 @testset "setindex" begin
@@ -503,7 +517,17 @@ end
     @test XLSX.getcell(s, 2, 1:2:3) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
     @test XLSX.getcell(s, 2, [1,3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
     @test XLSX.getcell(s, [2], 1) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "")] 
-    @test XLSX.getcell(s, [2], [1,3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")] 
+    @test XLSX.getcell(s, [2], [1,3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
+
+    XLSX.addDefinedName(f, "MyName1", "Sheet1!A1")
+    XLSX.addDefinedName(s, "MyName2", "Sheet1!A2:A3")
+    s["MyName1"] = 12.9
+    @test s["MyName1"] == 12.9
+    s["MyName2"] = 42
+    @test s["MyName2"] == [42; 42;;]
+    @test XLSX.getcell(s, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "")
+    @test XLSX.getcell(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
+
 end
 
 @testset "Time and DateTime" begin
@@ -2342,6 +2366,8 @@ end
         f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
         s = f["Mock-up"]
 
+        @test XLSX.getDefaultFill(s).fill == Dict("patternFill" => Dict("patternType" => "none"))
+
         @test XLSX.getFill(s, "D17").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-9.9978637043366805E-2", "fgtheme" => "2"))
         @test XLSX.getFill(f, "Mock-up!D18").fill == Dict("patternFill" => Dict("bgindexed" => "64", "patternType" => "solid", "fgtint" => "-0.499984740745262", "fgtheme" => "2"))
 
@@ -2407,9 +2433,111 @@ end
 
         isfile("output.xlsx") && rm("output.xlsx")
 
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setFill(s, "Sheet1!A1"; pattern="darkTrellis", fgColor="FF222222", bgColor="FFDDDDDD")
+        @test XLSX.getFill(s, "A1").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDDD", "patternType" => "darkTrellis", "fgrgb" => "FF222222"))
+        XLSX.setFill(s, "Sheet1!A2:F2"; pattern="darkTrellis", fgColor="FF222224", bgColor="FFDDDDD4")
+        @test XLSX.getFill(s, "A2").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF222224"))
+        XLSX.setFill(s, "Sheet1!C:D"; pattern="darkTrellis", fgColor="FF222228", bgColor="FFDDDDD8")
+        @test XLSX.getFill(s, "D4").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD8", "patternType" => "darkTrellis", "fgrgb" => "FF222228"))
+        XLSX.setFill(s, "Sheet1!5:6"; pattern="darkTrellis", fgColor="FF222220", bgColor="FFDDDDD0")
+        @test XLSX.getFill(s, "F5").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF222220"))
+        XLSX.setFill(s, "Sheet1!E4:E6,Sheet1!A4"; pattern="darkTrellis", fgColor="FF422220", bgColor="FF4DDDD0")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        @test XLSX.getFill(s, "E5").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        @test XLSX.getFill(s, "E6").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        @test XLSX.getFill(s, "A4").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        XLSX.setFill(s, :, 2; pattern="darkTrellis", fgColor="FF622220", bgColor="FF6DDDD0")
+        @test XLSX.getFill(s, "B4").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF622220"))
+        XLSX.setFill(s, [2, 6], :; pattern="darkTrellis", fgColor="FF622222", bgColor="FF6DDDD2")
+        @test XLSX.getFill(s, "C2").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD2", "patternType" => "darkTrellis", "fgrgb" => "FF622222"))
+        @test XLSX.getFill(s, "F6").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD2", "patternType" => "darkTrellis", "fgrgb" => "FF622222"))
+        XLSX.setFill(s, :, [2, 5]; pattern="darkTrellis", fgColor="FF622224", bgColor="FF6DDDD4")
+        @test XLSX.getFill(s, "B2").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF622224"))
+        @test XLSX.getFill(s, "E3").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF622224"))
+        XLSX.setFill(s, 2, [3, 6]; pattern="darkTrellis", fgColor="FF622226", bgColor="FF6DDDD6")
+        @test XLSX.getFill(s, "C2").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD6", "patternType" => "darkTrellis", "fgrgb" => "FF622226"))
+        XLSX.setFill(s, 2:2:6, [4, 5]; pattern="darkTrellis", fgColor="FF622228", bgColor="FF6DDDD8")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD8", "patternType" => "darkTrellis", "fgrgb" => "FF622228"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1:6, 1:6] = ""
+        XLSX.setUniformFill(s, "Sheet1!A2:F2"; pattern="darkTrellis", fgColor="FF222224", bgColor="FFDDDDD4")
+        @test XLSX.getFill(s, "A2").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF222224"))
+        XLSX.setUniformFill(s, "Sheet1!C:D"; pattern="darkTrellis", fgColor="FF222228", bgColor="FFDDDDD8")
+        @test XLSX.getFill(s, "D4").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD8", "patternType" => "darkTrellis", "fgrgb" => "FF222228"))
+        XLSX.setUniformFill(s, "Sheet1!5:6"; pattern="darkTrellis", fgColor="FF222220", bgColor="FFDDDDD0")
+        @test XLSX.getFill(s, "F5").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF222220"))
+        XLSX.setUniformFill(s, "A2:F2"; pattern="darkTrellis", fgColor="FF222224", bgColor="FFDDDDD4")
+        @test XLSX.getFill(s, "A2").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF222224"))
+        XLSX.setUniformFill(s, "C:D"; pattern="darkTrellis", fgColor="FF222228", bgColor="FFDDDDD8")
+        @test XLSX.getFill(s, "D4").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD8", "patternType" => "darkTrellis", "fgrgb" => "FF222228"))
+        XLSX.setUniformFill(s, "5:6"; pattern="darkTrellis", fgColor="FF222220", bgColor="FFDDDDD0")
+        @test XLSX.getFill(s, "F5").fill == Dict("patternFill" => Dict("bgrgb" => "FFDDDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF222220"))
+        XLSX.setUniformFill(s, "E4:E6,A4"; pattern="darkTrellis", fgColor="FF422220", bgColor="FF4DDDD0")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        @test XLSX.getFill(s, "E5").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        @test XLSX.getFill(s, "E6").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        @test XLSX.getFill(s, "A4").fill == Dict("patternFill" => Dict("bgrgb" => "FF4DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF422220"))
+        XLSX.setUniformFill(s, :, 2; pattern="darkTrellis", fgColor="FF622220", bgColor="FF6DDDD0")
+        @test XLSX.getFill(s, "B4").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD0", "patternType" => "darkTrellis", "fgrgb" => "FF622220"))
+        XLSX.setUniformFill(s, [2, 6], :; pattern="darkTrellis", fgColor="FF622222", bgColor="FF6DDDD2")
+        @test XLSX.getFill(s, "C2").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD2", "patternType" => "darkTrellis", "fgrgb" => "FF622222"))
+        @test XLSX.getFill(s, "F6").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD2", "patternType" => "darkTrellis", "fgrgb" => "FF622222"))
+        XLSX.setUniformFill(s, :, [2, 5]; pattern="darkTrellis", fgColor="FF622224", bgColor="FF6DDDD4")
+        @test XLSX.getFill(s, "B2").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF622224"))
+        @test XLSX.getFill(s, "E3").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD4", "patternType" => "darkTrellis", "fgrgb" => "FF622224"))
+        XLSX.setUniformFill(s, 2, [3, 6]; pattern="darkTrellis", fgColor="FF622226", bgColor="FF6DDDD6")
+        @test XLSX.getFill(s, "C2").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD6", "patternType" => "darkTrellis", "fgrgb" => "FF622226"))
+        XLSX.setUniformFill(s, [2, 3], 5:6; pattern="darkTrellis", fgColor="FF642226", bgColor="FF64DDD6")
+        @test XLSX.getFill(s, "F2").fill == Dict("patternFill" => Dict("bgrgb" => "FF64DDD6", "patternType" => "darkTrellis", "fgrgb" => "FF642226"))
+        XLSX.setUniformFill(s, 2:2:6, [4, 5]; pattern="darkTrellis", fgColor="FF622228", bgColor="FF6DDDD8")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF6DDDD8", "patternType" => "darkTrellis", "fgrgb" => "FF622228"))
+        XLSX.setUniformFill(s, :, :; pattern="darkTrellis", fgColor="FF822228", bgColor="FF8DDDD8")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF8DDDD8", "patternType" => "darkTrellis", "fgrgb" => "FF822228"))
+        XLSX.setUniformFill(s, :; pattern="darkTrellis", fgColor="FF822288", bgColor="FF8DDD88")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF8DDD88", "patternType" => "darkTrellis", "fgrgb" => "FF822288"))
+        XLSX.setUniformFill(s, :; pattern="darkTrellis", fgColor="FF822288", bgColor="FF8DDD88")
+        @test XLSX.getFill(s, "E4").fill == Dict("patternFill" => Dict("bgrgb" => "FF8DDD88", "patternType" => "darkTrellis", "fgrgb" => "FF822288"))
+        XLSX.setUniformFill(s, 1, 1:2; pattern="darkTrellis", fgColor="FF822268", bgColor="FF8DDD68")
+        @test XLSX.getFill(s, "B1").fill == Dict("patternFill" => Dict("bgrgb" => "FF8DDD68", "patternType" => "darkTrellis", "fgrgb" => "FF822268"))
+
     end
 
     @testset "setAlignment" begin
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setAlignment(s, "Sheet1!A1"; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "A1").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setAlignment(s, "Sheet1!A2:C4"; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "B3").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setAlignment(s, "Sheet1!D:E"; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "D26").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setAlignment(s, "Sheet1!25:26"; horizontal="left", vertical="top", wrapText=false)
+        @test XLSX.getAlignment(s, "D26").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "0"))
+        XLSX.setAlignment(s, "G8,H10,J15:M18"; horizontal="left", vertical="bottom", wrapText=true)
+        @test XLSX.getAlignment(s, "G8").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "bottom", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "H10").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "bottom", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "L16").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "bottom", "wrapText" => "1"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setAlignment(s, :, 1:3; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "B25").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setAlignment(s, 8:2:16, :; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "C12").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setAlignment(s, :, [8, 10, 12, 14, 16]; horizontal="right", vertical="top", wrapText=true)
+        @test XLSX.getAlignment(s, "L22").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "top", "wrapText" => "1"))
+        XLSX.setAlignment(s, 18, 20:3:26; horizontal="left", vertical="top", wrapText=true)
+        @test XLSX.getAlignment(s, "W18").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "1"))
+        XLSX.setAlignment(s, 18:2:22, 20:3:26; horizontal="left", vertical="bottom", wrapText=true)
+        @test XLSX.getAlignment(s, "Z20").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "bottom", "wrapText" => "1"))
 
         f = XLSX.open_xlsx_template(joinpath(data_directory, "customXml.xlsx"))
         s = f["Mock-up"]
@@ -2442,7 +2570,42 @@ end
         f=XLSX.newxlsx()
         s=f[1]
         s["A1:Z26"] = ""
+        XLSX.setUniformAlignment(s, "Sheet1!E5:E6"; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "E5").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, "Sheet1!A:A"; horizontal="right", vertical="top", wrapText=true)
+        @test XLSX.getAlignment(s, "A23").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "top", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, "Sheet1!15:24"; horizontal="left", vertical="top", wrapText=true)
+        @test XLSX.getAlignment(s, "Q15").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "A23").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, "A:A"; horizontal="right", vertical="bottom", wrapText=true)
+        @test XLSX.getAlignment(s, "A15").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "bottom", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, "10:12"; horizontal="right", vertical="bottom", wrapText=true)
+        @test XLSX.getAlignment(s, "Q11").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "bottom", "wrapText" => "1"))
 
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setUniformAlignment(s, 2,:; horizontal="right", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "E2").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, :, 4:5; horizontal="right", vertical="top", wrapText=true)
+        @test XLSX.getAlignment(s, "D23").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "top", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, :, :; horizontal="left", vertical="top", wrapText=true)
+        @test XLSX.getAlignment(s, "Q15").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "1"))
+        @test XLSX.getAlignment(s, "A23").alignment == Dict("alignment" => Dict("horizontal" => "left", "vertical" => "top", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, :; horizontal="right", vertical="bottom", wrapText=true)
+        @test XLSX.getAlignment(s, "A15").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "bottom", "wrapText" => "1"))
+        XLSX.setUniformAlignment(s, :, [8, 12, 14]; horizontal="right", vertical="bottom", wrapText=false)
+        @test XLSX.getAlignment(s, "L12").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "bottom", "wrapText" => "0"))
+        XLSX.setUniformAlignment(s, 8:12:20, 3; horizontal="right", vertical="top", wrapText=false)
+        @test XLSX.getAlignment(s, "C20").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "top", "wrapText" => "0"))
+        XLSX.setUniformAlignment(s, 8:12:20, [3, 4]; horizontal="justify", vertical="justify", wrapText=false)
+        @test XLSX.getAlignment(s, "D8").alignment == Dict("alignment" => Dict("horizontal" => "justify", "vertical" => "justify", "wrapText" => "0"))
+        XLSX.setUniformAlignment(s, 8:20, 8; horizontal="justify", vertical="justify", wrapText=true)
+        @test XLSX.getAlignment(s, "H15").alignment == Dict("alignment" => Dict("horizontal" => "justify", "vertical" => "justify", "wrapText" => "1"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
         XLSX.setAlignment(s, "A1"; horizontal="right", vertical="justify", wrapText=true)
         XLSX.setUniformAlignment(f, "Sheet1!A1,Sheet1!C3,Sheet1!E5:E6")
         @test XLSX.getAlignment(s, "A1").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
@@ -2453,7 +2616,6 @@ end
         f=XLSX.newxlsx()
         s=f[1]
         s["A1:Z26"] = ""
-
         XLSX.setAlignment(s, "A1"; horizontal="right", vertical="justify", wrapText=true)
         XLSX.setUniformAlignment(s, 1, 1:2:25)
         @test XLSX.getAlignment(s, 1, 1).alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
@@ -2468,7 +2630,6 @@ end
         f=XLSX.newxlsx()
         s=f[1]
         s["A1:Z26"] = ""
-
         XLSX.setAlignment(s, "A2"; horizontal="right", vertical="justify", wrapText=true)
         XLSX.setUniformAlignment(s, 2:2:26, :)
         @test XLSX.getAlignment(s, "A2").alignment == Dict("alignment" => Dict("horizontal" => "right", "vertical" => "justify", "wrapText" => "1"))
@@ -2549,6 +2710,74 @@ end
 
         isfile("test.xlsx") && rm("test.xlsx")
 
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setFormat(s, "Sheet1!E5"; format="Currency")
+        @test XLSX.getFormat(f, "Sheet1!E5").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, "Sheet1!W5:X8"; format="Currency")
+        @test XLSX.getFormat(f, "Sheet1!X7").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, "Sheet1!F:G"; format="Currency")
+        @test XLSX.getFormat(s, "F3").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, "Sheet1!4:8"; format="Currency")
+        @test XLSX.getFormat(s, "Q7").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, "N4,M8:M15,Z25:Z26"; format="#,##0.000")
+        @test XLSX.getFormat(s, "Z26").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setFormat(s, :, 2:4; format="Currency")
+        @test XLSX.getFormat(f, "Sheet1!B23").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, 4:3:10, :; format="Currency")
+        @test XLSX.getFormat(s, "Q7").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, :, [8, 23, 4]; format="Currency")
+        @test XLSX.getFormat(s, "H1").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setFormat(s, 25:26, 20:26; format="#,##0.000")
+        @test XLSX.getFormat(s, "Z26").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        XLSX.setFormat(s, 25:26, 15; format="#,##0.0000")
+        @test XLSX.getFormat(s, "O26").format == Dict("numFmt" => Dict("formatCode" => "#,##0.0000"))
+        XLSX.setFormat(s, 23:2:27, [15,16]; format="#,##0.0")
+        @test XLSX.getFormat(s, "P25").format == Dict("numFmt" => Dict("formatCode" => "#,##0.0"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setUniformFormat(s, "Sheet1!W5:X8"; format="Currency")
+        @test XLSX.getFormat(f, "Sheet1!X7").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, "Sheet1!F:G"; format="Currency")
+        @test XLSX.getFormat(s, "F3").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, "Sheet1!4:8"; format="Currency")
+        @test XLSX.getFormat(s, "Q7").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, "N4,M8:M15,Z25:Z26"; format="#,##0.000")
+        @test XLSX.getFormat(s, "Z26").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setUniformFormat(s, :, 2:4; format="Currency")
+        @test XLSX.getFormat(f, "Sheet1!B23").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, 4:3:10, :; format="Currency")
+        @test XLSX.getFormat(s, "Q7").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, :, [8, 23, 4]; format="Currency")
+        @test XLSX.getFormat(s, "H1").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, 25:26, 20:26; format="#,##0.000")
+        @test XLSX.getFormat(s, "Z26").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        XLSX.setUniformFormat(s, 25:26, 15; format="#,##0.0000")
+        @test XLSX.getFormat(s, "O26").format == Dict("numFmt" => Dict("formatCode" => "#,##0.0000"))
+        XLSX.setUniformFormat(s, 23:2:27, [15,16]; format="#,##0.0")
+        @test XLSX.getFormat(s, "P25").format == Dict("numFmt" => Dict("formatCode" => "#,##0.0"))
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setUniformFormat(s, :, :; format="Currency")
+        @test XLSX.getFormat(f, "Sheet1!B23").format == Dict("numFmt" => Dict("numFmtId" => "7", "formatCode" => "\$#,##0.00_);(\$#,##0.00)"))
+        XLSX.setUniformFormat(s, 4:10, :; format="#,##0.000")
+        @test XLSX.getFormat(s, "Q7").format == Dict("numFmt" => Dict("formatCode" => "#,##0.000"))
+        XLSX.setUniformFormat(s, [8, 23, 4], 8; format="#,##0.0")
+        @test XLSX.getFormat(s, "H8").format == Dict("numFmt" => Dict("formatCode" => "#,##0.0"))
+
     end
 
     @testset "UniformStyle" begin
@@ -2573,7 +2802,7 @@ end
 
         XLSX.setFont(s, "A16"; size=80, name="Ariel")
         cell_style=parse(Int, XLSX.getcell(s, "A16").style)
-        @test XLSX.setUniformStyle(s, "A16,A15,D20,F25")==cell_style
+        @test XLSX.setUniformStyle(s, "A16,A15,D20:E25,F25")==cell_style
         @test parse(Int, XLSX.getcell(s, "A15").style)==cell_style
         @test parse(Int, XLSX.getcell(s, "D20").style)==cell_style
         @test parse(Int, XLSX.getcell(s, "F25").style)==cell_style
@@ -2584,6 +2813,59 @@ end
         @test parse(Int, XLSX.getcell(s, "A1").style)==cell_style
         @test parse(Int, XLSX.getcell(s, "M13").style)==cell_style
         @test parse(Int, XLSX.getcell(s, "Z26").style)==cell_style
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setFont(s, "A1"; size=8, name="Aptos")
+        cell_style=parse(Int, XLSX.getcell(s, "A1").style)
+        @test XLSX.setUniformStyle(s, "Sheet1!A1:A26")==cell_style
+        @test parse(Int, XLSX.getcell(s, "A2").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "A13").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "A26").style)==cell_style
+        @test XLSX.setUniformStyle(s, "Sheet1!1:2")==cell_style
+        @test parse(Int, XLSX.getcell(s, "B1").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "M2").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "Z1").style)==cell_style
+        @test XLSX.setUniformStyle(s, "Sheet1!B:C")==cell_style
+        @test parse(Int, XLSX.getcell(s, "C3").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "B13").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "C26").style)==cell_style
+
+        XLSX.setFont(s, "A1"; size=8, name="Arial")
+        cell_style=parse(Int, XLSX.getcell(s, "A1").style)
+        @test XLSX.setUniformStyle(s, "A1:A26")==cell_style
+        @test parse(Int, XLSX.getcell(s, "A2").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "A13").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "A26").style)==cell_style
+        @test XLSX.setUniformStyle(s, "1:2")==cell_style
+        @test parse(Int, XLSX.getcell(s, "B1").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "M2").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "Z1").style)==cell_style
+        @test XLSX.setUniformStyle(s, "B:C")==cell_style
+        @test parse(Int, XLSX.getcell(s, "C3").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "B13").style)==cell_style
+        @test parse(Int, XLSX.getcell(s, "C26").style)==cell_style
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setFont(s, "A1"; size=8, name="Aptos")
+        cell_style=parse(Int, XLSX.getcell(s, "A1").style)
+        @test XLSX.setUniformStyle(s, 1, :)==cell_style
+        @test parse(Int, XLSX.getcell(s, "B1").style)==cell_style
+        @test XLSX.setUniformStyle(s, :, 2)==cell_style
+        @test parse(Int, XLSX.getcell(s, "B13").style)==cell_style
+        @test XLSX.setUniformStyle(s, :, 5:2:15)==cell_style
+        @test parse(Int, XLSX.getcell(s, "E25").style)==cell_style
+        @test XLSX.setUniformStyle(s, 5:10, [15, 16, 17])==cell_style
+        @test parse(Int, XLSX.getcell(s, "P10").style)==cell_style
+        @test XLSX.setUniformStyle(s, 5:10, 17:19)==cell_style
+        @test parse(Int, XLSX.getcell(s, "S10").style)==cell_style
+        @test XLSX.setUniformStyle(s, [10, 12, 26], [19, 24, 26])==cell_style
+        @test parse(Int, XLSX.getcell(s, "Z26").style)==cell_style
+        @test XLSX.setUniformStyle(s, :, :)==cell_style
+        @test parse(Int, XLSX.getcell(s, "Y4").style)==cell_style
 
     end
 
@@ -2640,6 +2922,86 @@ end
         @test XLSX.getColumnWidth(s, "D18") ≈ 60.7109375
         @test XLSX.getRowHeight(f, "Mock-up!J20") ≈ 50.2109375
         @test XLSX.getColumnWidth(f, "Mock-up!J20") ≈ 60.7109375
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setColumnWidth(s, "Sheet1!A1"; width=60)
+        @test XLSX.getColumnWidth(s, "A1") ≈ 60.7109375
+        XLSX.setColumnWidth(s, "Sheet1!A1:Z1"; width=60)
+        @test XLSX.getColumnWidth(s, "R1") ≈ 60.7109375
+        XLSX.setColumnWidth(s, "Sheet1!A:B"; width=60)
+        @test XLSX.getColumnWidth(s, "B26") ≈ 60.7109375
+        XLSX.setColumnWidth(s, "Sheet1!2:3"; width=60)
+        @test XLSX.getColumnWidth(s, "R26") ≈ 60.7109375
+        XLSX.setColumnWidth(s, "A:B"; width=30.5)
+        @test XLSX.getColumnWidth(s, "B26") ≈ 31.2109375
+        XLSX.setColumnWidth(s, "2:3"; width=30.5)
+        @test XLSX.getColumnWidth(s, "R3") ≈ 31.2109375
+        XLSX.setColumnWidth(s, "Sheet1!C5:C7,Sheet1!F5:F7,Sheet1!H7"; width=10.1)
+        @test XLSX.getColumnWidth(s, "F26") ≈ 10.8109375
+        XLSX.setColumnWidth(s, 5, :; width=10.0)
+        @test XLSX.getColumnWidth(s, "Q5") ≈ 10.7109375
+        XLSX.setColumnWidth(s, 5:7; width=10.2)
+        @test XLSX.getColumnWidth(s, "G22") ≈ 10.9109375
+        XLSX.setColumnWidth(s, :, 5:7; width=10.3)
+        @test XLSX.getColumnWidth(s, "G22") ≈ 11.0109375
+        XLSX.setColumnWidth(s, :, :; width=10.4)
+        @test XLSX.getColumnWidth(s, "G22") ≈ 11.1109375
+        XLSX.setColumnWidth(s, :; width=10.5)
+        @test XLSX.getColumnWidth(s, "G22") ≈ 11.2109375
+        XLSX.setColumnWidth(s, 2:3:11, :; width=10.6)
+        @test XLSX.getColumnWidth(s, "Z26") ≈ 11.3109375
+        XLSX.setColumnWidth(s, 2:3:11; width=10.7)
+        @test XLSX.getColumnWidth(s, "E26") ≈ 11.4109375
+        XLSX.setColumnWidth(s, :, [2, 3, 11]; width=10.8)
+        @test XLSX.getColumnWidth(s, "K15") ≈ 11.5109375
+        XLSX.setColumnWidth(s, 3:6, [2, 3, 11]; width=10.9)
+        @test XLSX.getColumnWidth(s, "K15") ≈ 11.6109375
+        XLSX.setColumnWidth(s, 3:3:6, [2, 3, 11]; width=11.0)
+        @test XLSX.getColumnWidth(s, "K15") ≈ 11.7109375
+        XLSX.setColumnWidth(s, 11, 7:13; width=11.1)
+        @test XLSX.getColumnWidth(s, "K15") ≈ 11.8109375
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:Z26"] = ""
+        XLSX.setRowHeight(s, "Sheet1!A1"; height=10.1)
+        @test XLSX.getRowHeight(s, "A1") ≈ 10.3109375
+        XLSX.setRowHeight(s, "Sheet1!A1:A26"; height=10.2)
+        @test XLSX.getRowHeight(s, "R20") ≈ 10.4109375
+        XLSX.setRowHeight(s, "Sheet1!A:B"; height=10.3)
+        @test XLSX.getRowHeight(s, "B26") ≈ 10.5109375
+        XLSX.setRowHeight(s, "Sheet1!2:3"; height=10.4)
+        @test XLSX.getRowHeight(s, "R3") ≈ 10.6109375
+        XLSX.setRowHeight(s, "A:B"; height=10.5)
+        @test XLSX.getRowHeight(s, "B26") ≈ 10.7109375
+        XLSX.setRowHeight(s, "2:3"; height=10.6)
+        @test XLSX.getRowHeight(s, "R3") ≈ 10.8109375
+        XLSX.setRowHeight(s, "Sheet1!C5:C7,Sheet1!F5:F7,Sheet1!H7"; height=10.7)
+        @test XLSX.getRowHeight(s, "F6") ≈ 10.9109375
+        XLSX.setRowHeight(s, 5, :; height=10.8)
+        @test XLSX.getRowHeight(s, "Q5") ≈ 11.0109375
+        XLSX.setRowHeight(s, 5:7; height=10.9)
+        @test XLSX.getRowHeight(s, "P6") ≈ 11.1109375
+        XLSX.setRowHeight(s, :, 5:7; height=11.0)
+        @test XLSX.getRowHeight(s, "G22") ≈ 11.2109375
+        XLSX.setRowHeight(s, :, :; height=11.1)
+        @test XLSX.getRowHeight(s, "G22") ≈ 11.3109375
+        XLSX.setRowHeight(s, :; height=11.2)
+        @test XLSX.getRowHeight(s, "G22") ≈ 11.4109375
+        XLSX.setRowHeight(s, 2:3:11, :; height=11.3)
+        @test XLSX.getRowHeight(s, "J8") ≈ 11.5109375
+        XLSX.setRowHeight(s, 2:3:11; height=11.4)
+        @test XLSX.getRowHeight(s, "J8") ≈ 11.6109375
+        XLSX.setRowHeight(s, :, [2, 3, 11]; height=11.5)
+        @test XLSX.getRowHeight(s, "K15") ≈ 11.7109375
+        XLSX.setRowHeight(s, 3:6, [2, 3, 11]; height=11.6)
+        @test XLSX.getRowHeight(s, "K5") ≈ 11.8109375
+        XLSX.setRowHeight(s, 3:3:6, [2, 3, 11]; height=11.7)
+        @test XLSX.getRowHeight(s, "K6") ≈ 11.9109375
+        XLSX.setRowHeight(s, 11, 7:13; height=11.8)
+        @test XLSX.getRowHeight(s, "K11") ≈ 12.0109375
 
     end
 
@@ -2973,6 +3335,7 @@ end
         @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell=XLSX.CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
         @test XLSX.getMergedBaseCell(s, "H53") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
         @test XLSX.getMergedBaseCell(s, "G52") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
+        @test XLSX.getMergedBaseCell(s, 53, 8) == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
         @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
         @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
         @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
@@ -2982,57 +3345,100 @@ end
         s = f["Document History"]
         @test !XLSX.isMergedCell(f, "Document History!B2")
         @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
+    end
 
-        f=XLSX.opentemplate(joinpath(data_directory, "testmerge.xlsx"))
-        @test XLSX.mergeCells(f, "Sheet1!A1:B2") == 0
+    f=XLSX.opentemplate(joinpath(data_directory, "testmerge.xlsx"))
+    @test XLSX.mergeCells(f, "Sheet1!A1:B2") == 0
+    @test f[1]["A1"] == "Tables"
+    @test ismissing(f[1]["B2"])
+    @test f[1]["C3"] == 4
+    @test XLSX.mergeCells(f[1], 4:6, 4:6) == 0
+    @test f[1][4, 4] == 9
+    @test ismissing(f[1][5, 5])
+    @test f[1][7, 7] == 36
+    @test XLSX.mergeCells(f[1], "J") == 0
+    @test f[1]["J1"] == 9
+    @test ismissing(f[1]["J2"])
+    @test ismissing(f[1]["J12"])
+    @test XLSX.isMergedCell(f[1], "J8")
+    mc = XLSX.getMergedCells(f["Sheet1"])
+    @test XLSX.isMergedCell(f[1], "J9"; mergedCells=mc)
+    @test XLSX.getMergedBaseCell(f[1], "J12") == (baseCell=XLSX.CellRef("J1"), baseValue=9)
+
+    @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], "Sheet1!M13:M13")       # Single cell
+    @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 1, :)                   # Overlapping
+    @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 10, :)                  # Overlapping
+    @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "M1:P15")        # Outside dimension
+    @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "Sheet2!L1:M2")  # Sheets don't match
+
+    XLSX.writexlsx("outfile.xlsx", f, overwrite=true)
+
+    XLSX.openxlsx("outfile.xlsx"; mode="rw") do f
+        mc = sort(XLSX.getMergedCells(f["Sheet1"]))
+        @test length(mc) == 3
+        @test mc == sort(XLSX.CellRange[XLSX.CellRange("A1:B2"), XLSX.CellRange("D4:F6"), XLSX.CellRange("J1:J13")])
+        @test XLSX.isMergedCell(f[1], "B2")
+        @test XLSX.isMergedCell(f[1], 6, 6; mergedCells=mc)
+        @test XLSX.getMergedBaseCell(f[1], "F6") == (baseCell=XLSX.CellRef("D4"), baseValue=9)
         @test f[1]["A1"] == "Tables"
         @test ismissing(f[1]["B2"])
         @test f[1]["C3"] == 4
-        @test XLSX.mergeCells(f[1], 4:6, 4:6) == 0
         @test f[1][4, 4] == 9
         @test ismissing(f[1][5, 5])
         @test f[1][7, 7] == 36
-        @test XLSX.mergeCells(f[1], "J") == 0
         @test f[1]["J1"] == 9
         @test ismissing(f[1]["J2"])
         @test ismissing(f[1]["J12"])
         @test XLSX.isMergedCell(f[1], "J8")
-        mc = XLSX.getMergedCells(f["Sheet1"])
-        @test XLSX.isMergedCell(f[1], "J9"; mergedCells=mc)
+        @test XLSX.isMergedCell(f[1], "J9"; mergedCells=XLSX.getMergedCells(f["Sheet1"]))
         @test XLSX.getMergedBaseCell(f[1], "J12") == (baseCell=XLSX.CellRef("J1"), baseValue=9)
+    end    
+    isfile("outfile.xlsx") && rm("outfile.xlsx")
 
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], "Sheet1!M13:M13")       # Single cell
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 1, :)                   # Overlapping
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f[1], 10, :)                  # Overlapping
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "M1:P15")        # Outside dimension
-        @test_throws XLSX.XLSXError XLSX.mergeCells(f["Sheet1"], "Sheet2!L1:M2")  # Sheets don't match
-
-        XLSX.writexlsx("outfile.xlsx", f, overwrite=true)
-
-        XLSX.openxlsx("outfile.xlsx"; mode="rw") do f
-            mc = sort(XLSX.getMergedCells(f["Sheet1"]))
-            @test length(mc) == 3
-            @test mc == sort(XLSX.CellRange[XLSX.CellRange("A1:B2"), XLSX.CellRange("D4:F6"), XLSX.CellRange("J1:J13")])
-            @test XLSX.isMergedCell(f[1], "B2")
-            @test XLSX.isMergedCell(f[1], 6, 6; mergedCells=mc)
-            @test XLSX.getMergedBaseCell(f[1], "F6") == (baseCell=XLSX.CellRef("D4"), baseValue=9)
-            @test f[1]["A1"] == "Tables"
-            @test ismissing(f[1]["B2"])
-            @test f[1]["C3"] == 4
-            @test f[1][4, 4] == 9
-            @test ismissing(f[1][5, 5])
-            @test f[1][7, 7] == 36
-            @test f[1]["J1"] == 9
-            @test ismissing(f[1]["J2"])
-            @test ismissing(f[1]["J12"])
-            @test XLSX.isMergedCell(f[1], "J8")
-            @test XLSX.isMergedCell(f[1], "J9"; mergedCells=XLSX.getMergedCells(f["Sheet1"]))
-            @test XLSX.getMergedBaseCell(f[1], "J12") == (baseCell=XLSX.CellRef("J1"), baseValue=9)
-        end    
-        isfile("outfile.xlsx") && rm("outfile.xlsx")
-        
-
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:3, j in 1:3
+        s[i,j] = i+j
     end
+    XLSX.mergeCells(s, "Sheet1!A:B")
+    @test XLSX.getMergedBaseCell(f, "Sheet1!B2") == (baseCell=XLSX.CellRef("A1"), baseValue=2)
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:4, j in 1:4
+        s[i,j] = i+j
+    end
+    XLSX.mergeCells(s, "Sheet1!2:3")
+    @test XLSX.getMergedBaseCell(f, "Sheet1!C3") == (baseCell=XLSX.CellRef("A2"), baseValue=3)
+    XLSX.mergeCells(s, "Sheet1!4:4")
+    @test XLSX.getMergedBaseCell(f, "Sheet1!C4") == (baseCell=XLSX.CellRef("A4"), baseValue=5)
+ 
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:3, j in 1:3
+        s[i,j] = i+j
+    end
+    XLSX.mergeCells(s, :, 2:3)
+    @test XLSX.getMergedBaseCell(f, "Sheet1!C3") == (baseCell=XLSX.CellRef("B1"), baseValue=3)
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:3, j in 1:3
+        s[i,j] = i+j
+    end
+    XLSX.mergeCells(s, :, :)
+    @test XLSX.getMergedBaseCell(f, "Sheet1!B2") == (baseCell=XLSX.CellRef("A1"), baseValue=2)
+
+    f=XLSX.newxlsx()
+    s=f[1]
+    for i in 1:3, j in 1:3
+        s[i,j] = i+j
+    end
+    XLSX.mergeCells(s, :)
+    @test XLSX.getMergedBaseCell(f, "Sheet1!B2") == (baseCell=XLSX.CellRef("A1"), baseValue=2)
+
+
+
 end
 
 @testset "filemodes" begin
