@@ -84,6 +84,8 @@ The other set attribute functions behave in similar ways. See [`XLSX.setBorder`]
 
 ## Formatting multiple cells at once
 
+### Applying `setAttribute` to multiple cells
+
 Each of the setter functions can be applied to multiple cells at once using cell-ranges, 
 row- or column-ranges or non-contiguous ranges. Additionally, indexing can use integer
 indices for rows and columns, vectors of index values, unit- or step-ranges. This makes 
@@ -136,27 +138,26 @@ with existing on a cell by cell basis. If you set the font name on a range of ce
 all had different font colors, the color differences will persist even as the font name is applied 
 to the range consistently.
 
-## Setting uniform attributes
+### Setting uniform attributes
 
-Sometime it is useful to be able to apply a fully consistent set of format attributes to a range of 
+Sometimes it is useful to be able to apply a fully consistent set of format attributes to a range of 
 cells, over-riding any pre-existing differences. This is the purpose of the `setUniformAttribute` 
 family of functions. These functions update the attributes of the first cell in the range and then 
 apply the relevant attribute Id to the rest of the cells in the range. Thus:
 
 ```julia
-julia> XLSX.setBorder(s, "A1:CV100"; allsides = ["style" => "thin", "color" => "black"]) # set every cell individually
--1
-
 julia> XLSX.setUniformBorder(s, "A1:CV100"; allsides = ["color" => "green"], diagonal = ["direction"=>"both", "color"=>"red"])
 2 # This is the `borderId` that has now been uniformly applied to every cell.
 ```
 
-This updates the border color in cell `A1` to be green and adds red diagonal lines across the cell. 
-It then applies all the `font` attributes of cell `A1` uniformly to all the other cells in the range, 
+This sets the border color in cell `A1` to be green and adds red diagonal lines across the cell. 
+It then applies all the `Border` attributes of cell `A1` uniformly to all the other cells in the range, 
 overriding their previous attributes.
 
 All the format setter functions have `setUniformAttribute` versions, too. See [`XLSX.setUniformBorder`](@ref), 
 [`XLSX.setUniformFill`](@ref), [`XLSX.setUniformFormat`](@ref) and [`XLSX.setUniformAlignment`](@ref).
+
+### Setting uniform styles
 
 It is possible to use each of these functions in turn to ensure every possible attribute is consistently 
 applied to a range of cells. However, if perfect uniformity is required, then `setUniformStyle` is 
@@ -170,6 +171,115 @@ julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be
 7    # this is the `styleId` that has now been applied to all cells in the range
 ```
 
+### Illustrating the different approaches
+
+To illustrate the differences between applying `setAttribute`, `setUniformAttribute` and `setUinformStyle`,
+consider the following worksheet, whice has very hetrogeneous formatting across the three cells:
+
+![image|320x500](./images/multicell.png)
+
+We can apply `setBorder()` to add a top border to each cell:
+
+```
+julia> XLSX.setBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
+-1
+```
+to merge the top border with the other attributes, to get
+
+![image|320x500](./images/multicell2.png)
+
+Alternatively, we can apply `setUniformBorder()`, which will update the borders of cell `B2` 
+and then apply all the border formatting to the other cells, overwriting the previous settings:
+
+```
+julia> XLSX.setUniformBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
+4
+```
+
+This makes the border formatting entirely consistent across the cells but leaves the other formatting 
+attributes as they were.
+
+![image|320x500](./images/multicell3.png)
+
+Finally, we can set `B2` to have the formatting we want, and then apply a uniform style to all three cells.
+
+```
+julia> XLSX.setBorder(s, "B2"; top=["style"=>"thick", "color"=>"red"])
+4
+
+julia> XLSX.setUniformStyle(s, "B2,D2,F2")
+19
+```
+Which results in all formatting attributes being entirely consistent across the cells.
+
+![image|320x500](./images/multicell4.png)
+
+### Performance differences between methods
+
+To illustrtate the relative performance of these three methods, applied to a million cells:
+```
+using XLSX
+function setup()
+    f = XLSX.newxlsx()
+    s = f[1]
+    s[1:1000, 1:1000] = pi
+    return f
+end
+do_format(f) = XLSX.setFormat(f[1], 1:1000, 1:1000; format="0.0000")
+do_uniform_format(f) = XLSX.setUniformFormat(f[1], 1:1000, 1:1000; format="0.0000")
+function do_format_styles(f)
+    XLSX.setFormat(f[1], "A1"; format="0.0000")
+    XLSX.setUniformStyle(f[1], 1:1000, 1:1000)
+end
+function timeit()
+    f = setup()
+    do_format(f)
+    do_uniform_format(f)
+    do_format_styles(f)
+    f = setup()
+    print("Using `setFormat`        : ")
+    @time do_format(f)
+    f = setup()
+    print("Using `setUniformFormat` : ")
+    @time do_uniform_format(f)
+    f = setup()
+    print("Using `setUniformStyles` : ")
+    @time do_format_styles(f)
+    return f
+end
+f=timeit()
+```
+
+which yields the following timings:
+
+```
+Using `setFormat`        :  39.925697 seconds (1.04 G allocations: 71.940 GiB, 19.13% gc time)
+Using `setUniformFormat` :  27.875646 seconds (711.00 M allocations: 48.195 GiB, 18.46% gc time)
+Using `setUniformStyles` :   0.589316 seconds (14.00 M allocations: 416.628 MiB, 16.98% gc time)
+```
+
+The same test, using the more involved `setBorder` function
+
+```
+do_format(f) = XLSX.setBorder(f[1], 1:1000, 1:1000;
+        left     = ["style" => "dotted", "color" => "FF000FF0"],
+        right    = ["style" => "medium", "color" => "firebrick2"],
+        top      = ["style" => "thick",  "color" => "FF230000"],
+        bottom   = ["style" => "medium", "color" => "goldenrod3"],
+        diagonal = ["style" => "dotted", "color" => "FF00D4D4", "direction" => "both"]
+    )
+```
+
+gives
+
+```
+Using `setBorder`        :  96.824494 seconds (2.82 G allocations: 194.342 GiB, 18.82% gc time)
+Using `setUniformBorder` :  32.182135 seconds (787.00 M allocations: 62.081 GiB, 20.85% gc time)
+Using `setUniformStyles` :   0.606058 seconds (14.00 M allocations: 416.660 MiB, 16.19% gc time)
+```
+If maintaining heterogeneous formatting attributes is not important, it is much more efficient to 
+apply `setUinformAttribute` functions rather than `setAttribute` functions, especially on large 
+cell ranges, and more efficient still to use `setUniformStyle`.
 
 ## Copying formatting attributes
 
@@ -316,7 +426,7 @@ a `percentile` or as a `min` or `max`. For the first three options, a value must
 Thus, you can apply a custom 3-color scale using, for example:
 
 ```julia
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F18", :colorScale;
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
             min_type="num", 
             min_val="2",
             min_col="tomato",
@@ -415,30 +525,81 @@ It is not allowed to create new merged cells that overlap at all with any existi
 
 !!! warning
 
-    It is possible to write into a merged cell using `XLSX.jl`.
+    It is possible to write into a merged cell using `XLSX.jl`. This is illustrated below:
 
     ```julia
 
-    julia> XLSX.isMergedCell(f[1], "J8")
-    true
+    julia> using XLSX
 
-    julia> f[1]["J8"] = "This cell is merged"
-    "This cell is merged"
+    julia> f=XLSX.newxlsx()
+    XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+                sheetname size          range        
+    -------------------------------------------------
+                Sheet1 1x1           A1:A1        
 
-    julia> XLSX.isMergedCell(f[1], "J8")
-    true
 
-    julia> XLSX.getMergedBaseCell(f[1], "J8")
-    (baseCell = F5, baseValue = 3.141592653589793)
+    julia> s=f[1]
+    1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
 
-    julia> f[1]["J8"]
-    "This cell is merged"                                                                           
+    julia> s["A1:A3"]=5
+    5
+    ```
+
+    This produces the simple sheet shown.
+
+    ![image|320x500](./images/simple-unmerged.png)
+
+    Merging the three cells `A1:A3` sets the cells `A2` and `A3` to missing just as Excel does.
+
+    ```
+    julia> s["A1"]
+    5
+
+    julia> s["A2"]
+    5
+
+    julia> s["A3"]
+    5
+
+    julia> XLSX.mergeCells(s, "A1:A3")
+    0
+
+    julia> s["A1"]
+    5
+
+    julia> s["A2"]
+    missing
+
+    julia> s["A3"]
+    missing
+    ```
+
+    ![image|320x500](./images/after-merge.png)
+
+    However, even after the merge, it is possible to explicitly write into the merged cells. 
+    These written values will not be visible in Excel but can still be accessed by reference.
+
+    ```
+    julia> s["A2"]="text here now"
+    "text here now"
+
+    julia> s["A1"]
+    5
+
+    julia> s["A2"]
+    "text here now"
+
+    julia> s["A3"]
+    missing
+
+    julia> XLSX.getMergedBaseCell(s, "A2")
+    (baseCell = A1, baseValue = 5)
 
     ```
 
-    The cell remains merged, and this is how Excel will display it. The assigned cell value 
+    The cell `A2` remains merged, and this is how Excel displays it. The assigned cell value 
     won't be visible in Excel, but it can be referenced in a formula as shown here, where 
-    cell L8 references cell J8 in its formula ("=J8"):
+    cell `B2` references cell `A2` in its formula ("=A2"):
 
     ![image|320x500](./images/Written-to-merged-cell.png)
     
