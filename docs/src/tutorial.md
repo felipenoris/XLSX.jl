@@ -102,18 +102,31 @@ that implements [`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
-There's also a helper method [`XLSX.readtable`](@ref) to read from file directly, as shown in the following example.
+There are also two helper methods [`XLSX.readtable`](@ref) and [`XLSX.readdf`](@ref) to read from file 
+directly, as shown in the following examples.
 
 ```julia
 julia> using DataFrames, XLSX
 
-julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
-3×2 DataFrames.DataFrame
-│ Row │ HeaderA │ HeaderB  │
-├─────┼─────────┼──────────┤
-│ 1   │ 1       │ "first"  │
-│ 2   │ 2       │ "second" │
-│ 3   │ 3       │ "third"  │
+julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")) # Returns a `Tables.jl` table that `DataFrame` can accept
+3×2 DataFrame
+ Row │ HeaderA  HeaderB 
+     │ Int64    String  
+─────┼──────────────────
+   1 │       1  first
+   2 │       2  second
+   3 │       3  third
+
+julia> df = XLSX.readdf("myfile.xlsx", "mysheet", DataFrame) # Returns a `DataFrame` directly.
+3×2 DataFrame
+ Row │ HeaderA  HeaderB 
+     │ Int64    String  
+─────┼──────────────────
+   1 │       1  first
+   2 │       2  second
+   3 │       3  third
+
+
 ```
 
 ## Reading Cells as a Julia Matrix
@@ -194,7 +207,7 @@ where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 ```julia
 julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do f
            sheet = f["mysheet"]
-           for r in XLSX.eachrow(sheet)
+           for r in eachrow(sheet)
               # r is a `SheetRow`, values are read using column references
               rn = XLSX.row_number(r) # `SheetRow` row number
               v1 = r[1]    # will read value at column 1
@@ -258,7 +271,7 @@ end
 ### Edit Existing Files
 
 Opening a file in `read-write` mode with `XLSX.openxlsx` will open an existing Excel file for editing.
-This will preserve existing data in the original file.
+This will preserve existing data and formatting in the original file.
 
 ```julia
 XLSX.openxlsx("my_new_file.xlsx", mode="rw") do xf

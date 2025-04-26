@@ -1,6 +1,6 @@
 
 function CellRef(n::AbstractString)
-    @assert is_valid_cellname(n) "$n is not a valid CellRef."
+    !is_valid_cellname(n) && throw(XLSXError("$n is not a valid CellRef."))
     column_name, row_number = split_cellname(n)
     return CellRef(n, row_number, decode_column_number(column_name))
 end
@@ -15,7 +15,7 @@ end
 function decode_column_number(column_name::AbstractString) :: Int
     local result::Int = 0
 
-    @assert isascii(column_name) "$column_name is not a valid column name."
+    !isascii(column_name) && throw(XLSXError("$column_name is not a valid column name."))
     num_characters = length(column_name) # this is safe, since `column_name` is encoded as ASCII
 
     iteration = 1
@@ -30,7 +30,9 @@ end
 
 # Converts column number to a column name. See also XLSX.decode_column_number.
 function encode_column_number(column_number::Int) :: String
-    @assert column_number > 0 && column_number <= EXCEL_MAX_COLS "Column number should be in the range from 1 to $EXCEL_MAX_COLS."
+    if column_number <= 0 && column_number > EXCEL_MAX_COLS
+        throw(XLSXError("Column number should be in the range from 1 to $EXCEL_MAX_COLS."))
+    end
 
     third_letter_sequence = div(column_number - 26 - 1, 26*26)
     column_number = column_number - third_letter_sequence*(26*26)
@@ -58,8 +60,10 @@ Base.string(c::CellRef) = c.name
 Base.show(io::IO, c::CellRef) = print(io, string(c))
 Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
+Base.isless(c1::CellRef, c2::CellRef) = Base.isless(string(c1), string(c2))
 
 const RGX_COLUMN_NAME = r"^[A-Z]?[A-Z]?[A-Z]$"
+const RGX_ROW_NAME = r"^[1-9][0-9]*$"
 const RGX_CELLNAME = r"^[A-Z]+[0-9]+$"
 const RGX_CELLRANGE = r"^[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 
@@ -75,27 +79,42 @@ function is_valid_column_name(n::AbstractString) :: Bool
 
     return true
 end
+function is_valid_row_name(n::AbstractString) :: Bool
+    if !occursin(RGX_ROW_NAME, n)
+        return false
+    end
+
+    row_number = parse(Int, n)
+    if row_number < 1 || row_number > EXCEL_MAX_ROWS
+        return false
+    end
+
+    return true
+end
 
 const RGX_CELLNAME_LEFT = r"^[A-Z]+"
 const RGX_CELLNAME_RIGHT = r"[0-9]+$"
 
 # Splits a string representing a cell name to its column name and row number.
 @inline function split_cellname(n::AbstractString)
-    @assert isascii(n) "$n is not a valid cell name."
+    !isascii(n) && throw(XLSXError("$n is not a valid cell name."))
     for (i, c) in enumerate(n)
         if isdigit(c) # this block is safe since n is encoded as ASCII
             column_name = SubString(n, 1, i-1)
             row = parse(Int, SubString(n, i, length(n)))
-
             return column_name, row
         end
     end
 
-    error("Couldn't split (column_name, row) for cellname $n.")
+    throw(XLSXError("Couldn't split (column_name, row) for cellname $n."))
 end
 
 # Checks whether `n` is a valid name for a cell.
 function is_valid_cellname(n::AbstractString) :: Bool
+
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
 
     if !occursin(RGX_CELLNAME, n)
         return false
@@ -131,11 +150,14 @@ julia> XLSX.split_cellrange("AB12:CD24")
 =#
 @inline function split_cellrange(n::AbstractString)
     s = split(n, ":")
-    @assert length(s) == 2 "$n is not a valid cell range."
+    length(s) != 2 && throw(XLSXError("$n is not a valid cell range."))
     return s[1], s[2]
 end
 
 function is_valid_cellrange(n::AbstractString) :: Bool
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
 
     if !occursin(RGX_CELLRANGE, n)
         return false
@@ -159,17 +181,18 @@ macro ref_str(ref)
 end
 
 function CellRange(r::AbstractString)
-    @assert occursin(RGX_CELLRANGE, r) "Invalid cell range: $r."
+    !occursin(RGX_CELLRANGE, r) && throw(XLSXError("Invalid cell range: $r."))
     start_name, stop_name = split_cellrange(r)
     return CellRange(CellRef(start_name), CellRef(stop_name))
 end
 
 CellRange(start_row::Integer, start_column::Integer, stop_row::Integer, stop_column::Integer) = CellRange(CellRef(start_row, start_column), CellRef(stop_row, stop_column))
 
-Base.string(cr::CellRange) = "$(string(cr.start)):$(string(cr.stop))"
+Base.string(cr::CellRange) = string(cr.start)*":"*string(cr.stop)
 Base.show(io::IO, cr::CellRange) = print(io, string(cr))
 Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::CellRange) = hash(cr.start) + hash(cr.stop)
+Base.isless(cr1::CellRange, cr2::CellRange) = Base.isless(string(cr1), string(cr2)) # needed for tests
 
 macro range_str(cellrange)
     CellRange(cellrange)
@@ -196,6 +219,43 @@ end
 
 # Checks whether `subrng` is a cell range contained in `rng`.
 Base.issubset(subrng::CellRange, rng::CellRange) :: Bool = in(subrng.start, rng) && in(subrng.stop, rng)
+ 
+function intersects(rng1::CellRange, rng2::CellRange) :: Bool
+    if row_number(rng1.start) <= row_number(rng2.stop) && row_number(rng1.start) >= row_number(rng2.start) && 
+        column_number(rng1.stop) <= column_number(rng2.stop) && column_number(rng1.stop) >= column_number(rng2.start)
+#        println("offset 1")
+        return true
+    end
+    if row_number(rng2.start) <= row_number(rng1.stop) && row_number(rng2.start) >= row_number(rng1.start) && 
+        column_number(rng2.stop) <= column_number(rng1.stop) && column_number(rng2.stop) >= column_number(rng1.start)
+#        println("offset 2")
+        return true
+    end
+    if row_number(rng1.start)>=row_number(rng2.start) && column_number(rng1.start)<=column_number(rng2.start) && 
+        row_number(rng1.stop)<=row_number(rng2.stop) && column_number(rng1.stop)>=column_number(rng2.stop)
+#        println("cruciform 1")
+        return true
+    end
+    if row_number(rng2.start)>=row_number(rng1.start) && column_number(rng2.start)<=column_number(rng1.start) && 
+        row_number(rng2.stop)<=row_number(rng1.stop) && column_number(rng2.stop)>=column_number(rng1.stop)
+#        println("cruciform 2")
+        return true
+    end
+    if in(rng1.start, rng2) || in(rng1.stop, rng2)
+#        println("inside corner 1")
+        return true
+    end
+    if in(rng2.start, rng1) || in(rng2.stop, rng1)
+#        println("inside corner 2")
+        return true
+    end
+    if issubset(rng1, rng2) || issubset(rng2, rng1)
+#        println("subset")
+        return true
+    end
+    return false
+end
+
 
 function Base.size(rng::CellRange)
     top = row_number(rng.start)
@@ -235,8 +295,9 @@ For example, for a range "B2:D4", we have:
 
 * "D4" relative position is (3, 3)
 =#
+
 function relative_cell_position(ref::CellRef, rng::CellRange)
-    @assert ref ∈ rng "$ref is outside range $rng."
+    ref ∉ rng && throw(XLSXError("$ref is outside range $rng."))
 
     top = row_number(rng.start)
     left = column_number(rng.start)
@@ -247,17 +308,23 @@ function relative_cell_position(ref::CellRef, rng::CellRange)
 end
 
 #
-# ColumnRange
+# ColumnRange and RowRange
 #
 
-Base.string(cr::ColumnRange) = "$(encode_column_number(cr.start)):$(encode_column_number(cr.stop))"
+Base.string(cr::ColumnRange) = encode_column_number(cr.start)*":"*encode_column_number(cr.stop)
 Base.show(io::IO, cr::ColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::ColumnRange, cr2::ColumnRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
 Base.hash(cr::ColumnRange) = hash(cr.start) + hash(cr.stop)
 Base.in(column_number::Integer, rng::ColumnRange) = rng.start <= column_number && column_number <= rng.stop
 
+Base.string(cr::RowRange) = string(cr.start)*":"*string(cr.stop)
+Base.show(io::IO, cr::RowRange) = print(io, string(cr))
+Base.:(==)(cr1::RowRange, cr2::RowRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
+Base.hash(cr::RowRange) = hash(cr.start) + hash(cr.stop)
+Base.in(row_number::Integer, rng::RowRange) = rng.start <= row_number && row_number <= rng.stop
+
 function relative_column_position(column_number::Integer, rng::ColumnRange)
-    @assert column_number ∈ rng "Column $column_number is outside range $rng."
+    column_number ∉ rng && throw(XLSXError("Column $column_number is outside range $rng."))
     return column_number - rng.start + 1
 end
 
@@ -267,9 +334,14 @@ const RGX_COLUMN_RANGE = r"^[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
 const RGX_COLUMN_RANGE_START = r"^[A-Z]+"
 const RGX_COLUMN_RANGE_STOP = r"[A-Z]+$"
 const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
+const RGX_ROW_RANGE = r"^[1-9][0-9]*:[1-9][0-9]*$"
+const RGX_ROW_RANGE_START = r"^[1-9][0-9]*"
+const RGX_ROW_RANGE_STOP = r"[1-9][0-9]*$"
+const RGX_SINGLE_ROW = r"^[1-9][0-9]*$"
 
 # Returns tuple (column_name_start, column_name_stop).
-@inline function split_column_range(n::AbstractString)
+# Also works for row ranges (row_name_start, row_name_stop)!
+@inline function split_sheet_range(n::AbstractString)
     if !occursin(":", n)
         return n, n
     else
@@ -279,35 +351,56 @@ const RGX_SINGLE_COLUMN = r"^[A-Z]+$"
 end
 
 function is_valid_column_range(r::AbstractString) :: Bool
-
     if occursin(RGX_SINGLE_COLUMN, r)
         return true
     end
-
     if !occursin(RGX_COLUMN_RANGE, r)
         return false
     end
-
-    start_name, stop_name = split_column_range(r)
-
+    start_name, stop_name = split_sheet_range(r)
     if !is_valid_column_name(start_name) || !is_valid_column_name(stop_name)
         return false
     end
-
+    return true
+end
+function is_valid_row_range(r::AbstractString) :: Bool
+    if occursin(RGX_SINGLE_ROW, r)
+        row_number = parse(Int, r)
+        if row_number <= 0 && row_number > EXCEL_MAX_ROWS
+            throw(XLSXError("Row number should be in the range from 1 to $EXCEL_MAX_ROWS."))
+        end
+        return true
+    end
+    if !occursin(RGX_ROW_RANGE, r)
+        return false
+    end
+    start_name, stop_name = split_sheet_range(r) # Function works for row ranges too.
+    if !is_valid_row_name(start_name) || !is_valid_row_name(stop_name)
+        return false
+    end
     return true
 end
 
+function RowRange(r::AbstractString)
+    !is_valid_row_range(r) && throw(XLSXError("Invalid row range: $r."))
+    start_name, stop_name = split_sheet_range(r) 
+    return RowRange(parse(Int, start_name), parse(Int, stop_name))
+end
 function ColumnRange(r::AbstractString)
-    @assert is_valid_column_range(r) "Invalid column range: $r."
-    start_name, stop_name = split_column_range(r)
+    !is_valid_column_range(r) && throw(XLSXError("Invalid column range: $r."))
+    start_name, stop_name = split_sheet_range(r)
     return ColumnRange(decode_column_number(start_name), decode_column_number(stop_name))
 end
 
 convert(::Type{ColumnRange}, str::AbstractString) = ColumnRange(str)
 convert(::Type{ColumnRange}, column_range::ColumnRange) = column_range
+convert(::Type{RowRange}, str::AbstractString) = RowRange(str)
+convert(::Type{RowRange}, row_range::RowRange) = row_range
 
 column_bounds(r::ColumnRange) = (r.start, r.stop)
 Base.length(r::ColumnRange) = r.stop - r.start + 1
+row_bounds(r::RowRange) = (r.start, r.stop)
+Base.length(r::RowRange) = r.stop - r.start + 1
 
 # ColumnRange iterator: element is a String with the column name, the state is the column number.
 function Base.iterate(itr::ColumnRange, state::Int=itr.start)
@@ -316,6 +409,15 @@ function Base.iterate(itr::ColumnRange, state::Int=itr.start)
     end
 
     return encode_column_number(state), state + 1
+end
+
+# RowRange iterator: element is a String with the row name (e.g. "1"). The state is the row number.
+function Base.iterate(itr::RowRange, state::Int=itr.start)
+    if state > itr.stop
+        return nothing
+    end
+
+    return string(state), state + 1
 end
 
 # CellRange iterator: element is a CellRef, the state is a CellPosition.
@@ -340,33 +442,100 @@ function Base.length(rng::CellRange)
 end
 
 #
-# SheetCellRef, SheetCellRange, SheetColumnRange
+# SheetCellRef, SheetCellRange, SheetColumnRange, SheetRowRange, NonContiguousRange
 #
 
-Base.string(cr::SheetCellRef) = string(cr.sheet, "!", cr.cellref)
+Base.string(cr::SheetCellRef) = string(quoteit(cr.sheet), "!", cr.cellref)
 Base.show(io::IO, cr::SheetCellRef) = print(io, string(cr))
 Base.:(==)(cr1::SheetCellRef, cr2::SheetCellRef) = cr1.sheet == cr2.sheet && cr2.cellref == cr2.cellref
 Base.hash(cr::SheetCellRef) = hash(cr.sheet) + hash(cr.cellref)
 
-Base.string(cr::SheetCellRange) = string(cr.sheet, "!", cr.rng)
+Base.string(cr::SheetCellRange) = string(quoteit(cr.sheet), "!", cr.rng)
 Base.show(io::IO, cr::SheetCellRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetCellRange, cr2::SheetCellRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
 Base.hash(cr::SheetCellRange) = hash(cr.sheet) + hash(cr.rng)
 
-Base.string(cr::SheetColumnRange) = string(cr.sheet, "!", cr.colrng)
+Base.string(cr::SheetColumnRange) = string(quoteit(cr.sheet), "!", cr.colrng)
 Base.show(io::IO, cr::SheetColumnRange) = print(io, string(cr))
 Base.:(==)(cr1::SheetColumnRange, cr2::SheetColumnRange) = cr1.sheet == cr2.sheet && cr2.colrng == cr2.colrng
 Base.hash(cr::SheetColumnRange) = hash(cr.sheet) + hash(cr.colrng)
 
+Base.string(cr::SheetRowRange) = string(quoteit(cr.sheet), "!", cr.rowrng)
+Base.show(io::IO, cr::SheetRowRange) = print(io, string(cr))
+Base.:(==)(cr1::SheetRowRange, cr2::SheetRowRange) = cr1.sheet == cr2.sheet && cr2.rowrng == cr2.rowrng
+Base.hash(cr::SheetRowRange) = hash(cr.sheet) + hash(cr.colrng)
+
+Base.string(cr::NonContiguousRange) = join([string(quoteit(cr.sheet), "!", x) for x in cr.rng],",")
+Base.show(io::IO, cr::NonContiguousRange) = print(io, string(cr))
+Base.:(==)(cr1::NonContiguousRange, cr2::NonContiguousRange) = cr1.sheet == cr2.sheet && cr2.rng == cr2.rng
+Base.hash(cr::NonContiguousRange) = hash(cr.sheet) + hash(cr.rng)
+
+function Base.in(ref::SheetCellRef, ncrng::NonContiguousRange) :: Bool
+    if ref.sheet != ncrng.sheet
+        return false
+    end
+    for r in ncrng.rng
+        if r isa CellRef
+            if ref.cellref == r
+                return true
+            end
+        else
+            if ref.cellref in r
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function nc_bounds(r::NonContiguousRange)::CellRange # Smallest rectangualar `CellRange` that contains all the elements in `r`.
+    top = EXCEL_MAX_ROWS
+    bottom = 0
+    left = EXCEL_MAX_COLS
+    right = 0
+    for rng in r.rng
+        if isa(rng, CellRef)
+            top = min(top, row_number(rng))
+            bottom = max(bottom, row_number(rng))
+            left = min(left, column_number(rng))
+            right = max(right, column_number(rng))
+        else
+            top = min(top, row_number(rng.start))
+            bottom = max(bottom, row_number(rng.stop))
+            left = min(left, column_number(rng.start))
+            right = max(right, column_number(rng.stop))
+        end
+    end
+    return CellRange(CellRef(top, left), CellRef(bottom, right))
+end
+function Base.length(r::NonContiguousRange)::Int # Number of cells in `r`.
+    s = 0
+    for rng in r.rng
+        if rng isa CellRef
+            s += 1
+        else
+            s += length(rng)
+        end
+    end
+    return s
+end
+
 const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE = r"^.+![A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE = r"^.+![A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+const RGX_SHEET_ROW_RANGE = r"^.+![1-9][0-9]*:[1-9][0-9]*$"
 
 const RGX_SHEET_CELLNAME_RIGHT = r"[A-Z]+[0-9]+$"
 const RGX_SHEET_CELLRANGE_RIGHT = r"[A-Z]+[0-9]+:[A-Z]+[0-9]+$"
 const RGX_SHEET_COLUMN_RANGE_RIGHT = r"[A-Z]?[A-Z]?[A-Z]:[A-Z]?[A-Z]?[A-Z]$"
+const RGX_SHEET_ROW_RANGE_RIGHT = r"[1-9][0-9]*:[1-9][0-9]*$"
 
 function is_valid_sheet_cellname(n::AbstractString) :: Bool
+
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
+
     if !occursin(RGX_SHEET_CELLNAME, n)
         return false
     end
@@ -380,6 +549,11 @@ function is_valid_sheet_cellname(n::AbstractString) :: Bool
 end
 
 function is_valid_sheet_cellrange(n::AbstractString) :: Bool
+
+    if is_valid_non_contiguous_range(n) # Non-contiguous ranges are comma separated `CellRef-like` or `CellRange-like` strings
+        return false
+    end
+
     if !occursin(RGX_SHEET_CELLRANGE, n)
         return false
     end
@@ -404,13 +578,25 @@ function is_valid_sheet_column_range(n::AbstractString) :: Bool
 
     return true
 end
+function is_valid_sheet_row_range(n::AbstractString) :: Bool
+    if !occursin(RGX_SHEET_ROW_RANGE, n)
+        return false
+    end
+
+    row_range = match(RGX_SHEET_ROW_RANGE_RIGHT, n).match
+    if !is_valid_row_range(row_range)
+        return false
+    end
+
+    return true
+end
 
 const RGX_SHEET_PREFIX = r"^.+!"
 const RGX_CELLNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+$"
-const RGX_SHEET_CELNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
+const RGX_SHEET_CELLNAME_RIGHT_FIXED = r"\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
 function parse_sheetname_from_sheetcell_name(n::AbstractString) :: SubString
-    @assert occursin(RGX_SHEET_PREFIX, n) "$n is not a SheetCell reference."
+    !occursin(RGX_SHEET_PREFIX, n) && throw(XLSXError("$n is not a SheetCell reference."))
     sheetname = match(RGX_SHEET_PREFIX, n).match
     sheetname = SubString(sheetname, firstindex(sheetname), prevind(sheetname, lastindex(sheetname)))
     return sheetname
@@ -423,7 +609,7 @@ function SheetCellRef(n::AbstractString)
         fixed_cellname = match(RGX_CELLNAME_RIGHT_FIXED, n).match
         cellref = CellRef(replace(fixed_cellname, "\$" => ""))
     else
-        @assert is_valid_sheet_cellname(n) "$n is not a valid SheetCellRef."
+        !is_valid_sheet_cellname(n) && throw(XLSXError("$n is not a valid SheetCellRef."))
         cellref = CellRef(match(RGX_SHEET_CELLNAME_RIGHT, n).match)
     end
     sheetname = parse_sheetname_from_sheetcell_name(n)
@@ -434,10 +620,10 @@ function SheetCellRange(n::AbstractString)
     local cellrange::CellRange
 
     if is_valid_fixed_sheet_cellrange(n)
-        fixed_cellrange = match(RGX_SHEET_CELNAME_RIGHT_FIXED, n).match
+        fixed_cellrange = match(RGX_SHEET_CELLNAME_RIGHT_FIXED, n).match
         cellrange = CellRange(replace(fixed_cellrange, "\$" => ""))
     else
-        @assert is_valid_sheet_cellrange(n) "$n is not a valid SheetCellRange."
+        !is_valid_sheet_cellrange(n) && throw(XLSXError("$n is not a valid SheetCellRange."))
         cellrange = CellRange(match(RGX_SHEET_CELLRANGE_RIGHT, n).match)
     end
 
@@ -446,17 +632,111 @@ function SheetCellRange(n::AbstractString)
 end
 
 function SheetColumnRange(n::AbstractString)
-    @assert is_valid_sheet_column_range(n) "$n is not a valid SheetColumnRange."
+    !is_valid_sheet_column_range(n) && throw(XLSXError("$n is not a valid SheetColumnRange."))
     column_range = match(RGX_SHEET_COLUMN_RANGE_RIGHT, n).match
     sheetname = parse_sheetname_from_sheetcell_name(n)
     return SheetColumnRange(sheetname, ColumnRange(column_range))
 end
+function SheetRowRange(n::AbstractString)
+    !is_valid_sheet_row_range(n) && throw(XLSXError("$n is not a valid SheetRowRange."))
+    row_range = match(RGX_SHEET_ROW_RANGE_RIGHT, n).match
+    sheetname = parse_sheetname_from_sheetcell_name(n)
+    return SheetRowRange(sheetname, RowRange(row_range))
+end
 
 # Named ranges
+const RGX_FIXED_CELLNAME = r"^\$[A-Z]+\$[0-9]+$"
+const RGX_FIXED_CELLRANGE = r"^\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 const RGX_FIXED_SHEET_CELLNAME = r"^.+!\$[A-Z]+\$[0-9]+$"
 const RGX_FIXED_SHEET_CELLRANGE = r"^.+!\$[A-Z]+\$[0-9]+:\$[A-Z]+\$[0-9]+$"
 
+is_valid_fixed_cellname(s::AbstractString) = occursin(RGX_FIXED_CELLNAME, s)
+is_valid_fixed_cellrange(s::AbstractString) = occursin(RGX_FIXED_CELLRANGE, s)
 is_valid_fixed_sheet_cellname(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLNAME, s)
 is_valid_fixed_sheet_cellrange(s::AbstractString) = occursin(RGX_FIXED_SHEET_CELLRANGE, s)
 
-is_non_contiguous_range(v) = occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+is_valid_non_contiguous_range(v::AbstractString) :: Bool = is_valid_non_contiguous_cellrange(v) || is_valid_non_contiguous_sheetcellrange(v)
+
+function is_valid_non_contiguous_sheetcellrange(v::AbstractString) :: Bool
+
+    if !occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+        return false
+    end
+
+    ranges = split(v, ",")
+    for r in ranges
+        if !is_valid_sheet_cellname(r) && !is_valid_sheet_cellrange(r) && !is_valid_fixed_sheet_cellname(r) && !is_valid_fixed_sheet_cellrange(r)
+            return false
+        end
+    end
+
+    firstsheet = parse_sheetname_from_sheetcell_name(ranges[begin])
+
+    if any(parse_sheetname_from_sheetcell_name(r) != firstsheet for r in ranges) # All `SheetCellRef`s and `SheetCellRange`s should have the same sheet name
+        return false
+    end
+
+    return true
+end
+
+function is_valid_non_contiguous_cellrange(v::AbstractString) :: Bool
+
+    if !occursin(",", string(v)) # Non-contiguous ranges are comma separated `SheetCellRef-like` or `SheetCellRange-like` strings
+
+        return false
+    end
+
+    ranges = split(v, ",")
+
+    for r in ranges
+        if !is_valid_cellname(r) && !is_valid_cellrange(r) &&!is_valid_fixed_cellname(r) && !is_valid_fixed_cellrange(r)
+            return false
+        end
+    end
+
+    return true
+end
+
+NonContiguousRange(s::Worksheet, v::AbstractString)::NonContiguousRange = nCR(s.name, string.(split(v, ",")))
+function NonContiguousRange(v::AbstractString)::NonContiguousRange
+
+    !is_valid_non_contiguous_range(v) && throw(XLSXError("$v is not a valid non-contiguous range."))
+    
+    ranges = string.(split(v, ","))
+    firstsheet = parse_sheetname_from_sheetcell_name(ranges[1])
+    if !all(parse_sheetname_from_sheetcell_name(r) == firstsheet for r in ranges)
+        throw(XLSXError("All `CellRef`s and `CellRange`s should have the same sheet name."))
+    end
+
+    return nCR(unquoteit(firstsheet), ranges)
+end
+
+function nCR(s::AbstractString, ranges::Vector{String}) :: NonContiguousRange
+    noncontig = Vector{Union{CellRef, CellRange}}()
+    
+    for n in ranges
+        if is_valid_fixed_sheet_cellname(n)
+            fixed_cellname = match(RGX_CELLNAME_RIGHT_FIXED, n).match
+            push!(noncontig, CellRef(replace(fixed_cellname, "\$" => "")))
+        elseif is_valid_sheet_cellname(n)
+            push!(noncontig, CellRef(match(RGX_SHEET_CELLNAME_RIGHT, n).match))
+        elseif is_valid_fixed_sheet_cellrange(n)
+            fixed_cellrange = match(RGX_SHEET_CELLNAME_RIGHT_FIXED, n).match
+            push!(noncontig, CellRange(replace(fixed_cellrange, "\$" => "")))
+        elseif is_valid_sheet_cellrange(n)
+            push!(noncontig, CellRange(match(RGX_SHEET_CELLRANGE_RIGHT, n).match))
+        elseif is_valid_fixed_cellname(n)
+            push!(noncontig, CellRef(replace(n, "\$" => "")))
+        elseif is_valid_fixed_cellrange(n)
+            push!(noncontig, CellRange(replace(n, "\$" => "")))
+        elseif is_valid_cellname(n)
+            push!(noncontig, CellRef(n))
+        elseif is_valid_cellrange(n)
+            push!(noncontig, CellRange(n))
+        else
+            throw(XLSXError("Invalid non-contiguous range: $n."))
+        end
+    end
+
+    return NonContiguousRange(s, noncontig)
+end

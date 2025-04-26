@@ -10,7 +10,7 @@ SharedStringTable() = SharedStringTable(Vector{String}(), Vector{String}(), Dict
 # Returns `nothing` if it's not in the shared string table.
 # Returns the index of the string in the shared string table. The index is 0-based.
 function get_shared_string_index(sst::SharedStringTable, str_formatted::AbstractString) :: Union{Nothing, Int}
-    @assert sst.is_loaded "Can't query shared string table because it's not loaded into memory."
+    !sst.is_loaded && throw(XLSXError("Can't query shared string table because it's not loaded into memory."))
 
     #using a Dict is much more efficient than the findfirst approach especially on large datasets
     if haskey(sst.index, str_formatted)
@@ -31,15 +31,17 @@ function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractStr
         push!(sst.formatted_strings, str_formatted)
         sst.index[str_formatted] = length(sst.formatted_strings)
         new_index = length(sst.formatted_strings) - 1 # 0-based
-        @assert new_index == get_shared_string_index(sst, str_formatted) "Inconsistent state after adding a string to the Shared String Table."
+        if new_index != get_shared_string_index(sst, str_formatted)
+            throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
+        end
         return new_index
     end
 end
 
 # Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
-    @assert is_writable(get_xlsxfile(wb)) "XLSXFile instance is not writable."
-    @assert !(isempty(str_unformatted) || isempty(str_formatted)) "Can't add empty string to Shared String Table."
+    !is_writable(get_xlsxfile(wb)) && throw(XLSXError("XLSXFile instance is not writable."))
+    (isempty(str_unformatted) || isempty(str_formatted)) && throw(XLSXError("Can't add empty string to Shared String Table."))
     sst = get_sst(wb)
 
     if !sst.is_loaded
@@ -53,7 +55,7 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
 
         # add Content Type <Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml" PartName="/xl/sharedStrings.xml"/>
         ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
-        @assert XML.tag(ctype_root) == "Types"
+        XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
         override_node = XML.Element("Override";
             ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml",
             PartName = "/xl/sharedStrings.xml"
@@ -78,11 +80,13 @@ function sst_load!(workbook::Workbook)
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
             sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))[end]
-            @assert XML.tag(sst_root) == "sst"
+            XML.tag(sst_root) != "sst" && throw(XLSXError("Something wrong here!"))
 
             for el in XML.children(sst_root)
                 XML.nodetype(el) == XML.Text && continue
-                @assert XML.tag(el) == "si" "Unsupported node $(XML.tag(el)) in sst table."
+                if XML.tag(el) != "si"
+                    throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
+                end
                 push!(sst.unformatted_strings, unformatted_text(el))
                 push!(sst.formatted_strings, XML.write(el))
 
@@ -93,7 +97,7 @@ function sst_load!(workbook::Workbook)
             return
         end
 
-        error("Shared Strings Table not found for this workbook.")
+        throw(XLSXError("Shared Strings Table not found for this workbook."))
     end
 end
 

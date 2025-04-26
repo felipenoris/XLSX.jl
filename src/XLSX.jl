@@ -7,6 +7,8 @@ import Printf.@printf
 import ZipArchives
 import XML
 import Tables
+import Unicode
+import Colors
 import Base.convert
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -27,6 +29,8 @@ include("worksheet.jl")
 include("cell.jl")
 include("styles.jl")
 include("cellformats.jl")
+include("cellformat-helpers.jl")
+include("conditional-formats.jl")
 include("write.jl")
 
 end # module XLSX

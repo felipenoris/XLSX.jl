@@ -20,11 +20,11 @@ end
 # About Iterators
 
 * `SheetRowIterator` is an abstract iterator that has `SheetRow` as its elements. `SheetRowStreamIterator` and `WorksheetCache` implements `SheetRowIterator` interface.
-* `SheetRowStreamIterator` is a dumb iterator for row elements in sheetData XML tag of a worksheet.
+* `SheetRowStreamIterator` is a dumb iterator for row elements in sheetData XML tag of a worksheet. Empty rows are not represented in the XML file so cannot be seen by the iterator.
 * `WorksheetCache` has a `SheetRowStreamIterator` and caches all values read from the stream.
 * `TableRowIterator` is a smart iterator that looks for tabular data, but uses a SheetRowIterator under the hood.
 
-The implementation of `SheetRowIterator` will be chosen automatically by `XLSX.eachrow` method,
+The implementation of `SheetRowIterator` will be chosen automatically by `eachrow` method,
 based on the `enable_cache` option used in `XLSX.openxlsx` method.
 
 =#
@@ -48,8 +48,12 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
 # Opens a file for streaming.
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
-    @assert internal_xml_file_exists(xf, filename) "Couldn't find $filename in $(xf.source)."
-    @assert xf.source isa IO || isfile(xf.source) "Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."
+
+    !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
+    if !(xf.source isa IO || isfile(xf.source))
+        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."))
+    end
+
     XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
 end
 
@@ -73,8 +77,8 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             reader = open_internal_file_stream(get_xlsxfile(ws), target_file)
 
-            @assert length(reader) > 0 "Couldn't open reader for Worksheet $(ws.name)."
-            @assert XML.tag(reader[end]) == "worksheet" "Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."
+            length(reader) <= 0 && throw(XLSXError("Couldn't open reader for Worksheet $(ws.name)."))
+            XML.tag(reader[end]) != "worksheet" && throw(XLSXError("Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."))
             ws_elements = XML.children(reader[end])
             idx = findfirst(y -> y=="sheetData", [XML.tag(x) for x in ws_elements])
             next_element= idx===nothing ? "" : (ws_elements[idx+1])
@@ -88,7 +92,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                     if nrows == 0
                         return nothing
                     end
-                    @assert XML.depth(lznode) == 2 "Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."
+
+                    XML.depth(lznode) != 2 && throw(XLSXError("Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."))
+
                     break
                 end
 
@@ -117,7 +123,7 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     end
 
     # given that the first iteration case is done in the code above, we shouldn't get it again in here
-    @assert state !== nothing "Error processing Worksheet $(ws.name): shouldn't get first iteration case again."
+    state === nothing && throw(XLSXError("Error processing Worksheet $(ws.name): shouldn't get first iteration case again."))
 
     reader = state.itr
     lzstate = state.itr_state
@@ -141,7 +147,9 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
             cell_no += 1
             cell = Cell(lznode)
-            @assert row_number(cell) == current_row "Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"
+            if row_number(cell) != current_row
+                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
+            end
             rowcells[column_number(cell)] = cell
             if cell_no == nc # when all cells found
 
@@ -251,7 +259,7 @@ function find_row(itr::SheetRowIterator, row::Int) :: SheetRow
             return r
         end
     end
-    error("Row $row not found.")
+    throw(XLSXError("Row $row not found."))
 end
 
 
@@ -276,10 +284,11 @@ function getcell(r::SheetRow, column_index::Int) :: AbstractCell
 end
 
 function getcell(r::SheetRow, column_name::AbstractString)
-    @assert is_valid_column_name(column_name) "$column_name is not a valid column name."
+    !is_valid_column_name(column_name) && throw(XLSXError("$column_name is not a valid column name."))
     return getcell(r, decode_column_number(column_name))
 end
 
+getdata(r::SheetRow, column::Union{Vector{T}, UnitRange{T}}) where {T<:Integer} = [getdata(get_worksheet(r), getcell(r, x)) for x in column]
 getdata(r::SheetRow, column) = getdata(get_worksheet(r), getcell(r, column))
 Base.getindex(r::SheetRow, x) = getdata(r, x)
 
@@ -293,7 +302,7 @@ Example: Query all cells from columns 1 to 4.
 ```julia
 left = 1  # 1st column
 right = 4 # 4th column
-for sheetrow in XLSX.eachrow(sheet)
+for sheetrow in eachrow(sheet)
     for column in left:right
         cell = XLSX.getcell(sheetrow, column)
 
@@ -301,8 +310,14 @@ for sheetrow in XLSX.eachrow(sheet)
     end
 end
 ```
+
+Note: The `eachrow` row iterator will not return any row that 
+consists entirely of `EmptyCell`s. These are simply not seen 
+by the iterator. The `length(eachrow(sheet))` function therefore 
+defines the number of rows that are not entirely empty and will, 
+in any case, only succeed if the worksheet cache is in use.
 """
-function eachrow(ws::Worksheet) :: SheetRowIterator
+function Base.eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
         if ws.cache === nothing
             ws.cache = WorksheetCache(ws)
@@ -316,3 +331,5 @@ end
 function Base.isempty(sr::SheetRow)
     return isempty(sr.rowcells)
 end
+
+Base.length(r::XLSX.WorksheetCache)=length(r.cells)

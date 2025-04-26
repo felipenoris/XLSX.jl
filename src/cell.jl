@@ -38,7 +38,9 @@ function Cell(c::XML.LazyNode)
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
-    @assert XML.tag(c) == "c" "`Cell` Expects a `c` (cell) XML node."
+    if XML.tag(c) != "c"
+        throw(XLSXError("`Cell` Expects a `c` (cell) XML node."))
+    end
 
     a = XML.attributes(c) # Dict of cell attributes
 
@@ -75,7 +77,7 @@ function Cell(c::XML.LazyNode)
                     elseif length(c) == 1
                         v= XML.value(c[1])
                     else
-                        error("Too amny children in `t` node. Expected >=1, found: $(length(c))")
+                        throw(XLSXError("Too amny children in `t` node. Expected >=1, found: $(length(c))"))
                     end
                 end
             end
@@ -85,7 +87,7 @@ function Cell(c::XML.LazyNode)
 
                 # we should have only one v element
                 if found_v
-                    error("Unsupported: cell $(ref) has more than 1 `v` elements.")
+                    throw(XLSXError("Unsupported: cell $(ref) has more than 1 `v` elements."))
                 else
                     found_v = true
                 end
@@ -96,7 +98,7 @@ function Cell(c::XML.LazyNode)
 
                 # we should have only one f element
                 if found_f
-                    error("Unsupported: cell $(ref) has more than 1 `f` elements.")
+                    throw(XLSXError("Unsupported: cell $(ref) has more than 1 `f` elements."))
                 else
                     found_f = true
                 end
@@ -111,7 +113,7 @@ end
 function parse_formula_from_element(c_child_element) :: AbstractFormula
 
     if XML.tag(c_child_element) != "f"
-        error("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`")
+        throw(XLSXError("Expected nodename `f`. Found: `$(XML.tag(c_child_element))`"))
     end
 
     if XML.is_simple(c_child_element)
@@ -131,7 +133,7 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
 
         if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
 
-            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+            haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
 
             return ReferencedFormula(
                 formula_string,
@@ -141,7 +143,7 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
 
         elseif haskey(a, "t") && a["t"] == "shared"
 
-            haskey(a, "si") || error("Expected shared formula to have an index. `si` attribute is missing: $c_child_element")
+            haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
 
             return FormulaReference(
                 parse(Int, a["si"]),
@@ -238,7 +240,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         elseif cell.value == "1"
             return true
         else
-            error("Unknown boolean value: $(cell.value).")
+            throw(XLSXError("Unknown boolean value: $(cell.value)."))
         end
     elseif cell.datatype == "str"
         # plain string
@@ -249,17 +251,21 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         end
     end
 
-    error("Couldn't parse data for $cell.")
+    throw(XLSXError("Couldn't parse data for $cell."))
 end
 
 function _celldata_datetime(v::AbstractString, _is_date_1904::Bool) :: Union{Dates.DateTime, Dates.Date, Dates.Time}
 
     # does not allow empty string
-    @assert !isempty(v) "Cannot convert an empty string into a datetime value."
+    if isempty(v) 
+        throw(XLSXError("Cannot convert an empty string into a datetime value."))
+    end
 
     if occursin(".", v) || v == "0"
         time_value = parse(Float64, v)
-        @assert time_value >= 0
+        if time_value < 0
+            throw(XLSXError("Cannot have a datetime value < 0. Got $time_value"))
+        end
 
         if time_value <= 1
             # Time
@@ -279,8 +285,11 @@ end
 # To represent Time, Excel uses the decimal part
 # of a floating point number. `1` equals one day.
 function excel_value_to_time(x::Float64) :: Dates.Time
-    @assert x >= 0 && x <= 1
-    return Dates.Time(Dates.Nanosecond(round(Int, x * 86400) * 1E9 ))
+    if x >= 0 && x <= 1
+        return Dates.Time(Dates.Nanosecond(round(Int, x * 86400) * 1E9 ))
+    else
+        throw(XLSXError("A value must be between 0 and 1 to be converted to time. Got $x"))
+    end
 end
 
 time_to_excel_value(x::Dates.Time) :: Float64 = Dates.value(x) / ( 86400 * 1E9 )
@@ -307,7 +316,9 @@ end
 # The integer part represents the Date.
 # See also XLSX.isdate1904.
 function excel_value_to_datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
-    @assert x >= 0
+    if x < 0
+        throw(XLSXError("Cannot have a datetime value < 0. Got $XML"))
+    end
 
     local dt::Dates.Date
     local hr::Dates.Time

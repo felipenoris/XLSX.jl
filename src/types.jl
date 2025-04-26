@@ -175,7 +175,13 @@ As a convenience, `@range_str` macro is provided.
 cr = XLSX.range"A1:C4"
 ```
 =#
-struct CellRange
+
+abstract type AbstractCellRange end
+abstract type ContiguousCellRange <: AbstractCellRange end
+abstract type AbstractSheetCellRange <: AbstractCellRange end
+abstract type ContiguousSheetCellRange <: AbstractSheetCellRange end
+
+struct CellRange <: ContiguousCellRange
     start::CellRef
     stop::CellRef
 
@@ -186,18 +192,33 @@ struct CellRange
         left = column_number(a)
         right = column_number(b)
 
-        @assert left <= right && top <= bottom "Invalid CellRange. Start cell should be at the top left corner of the range."
+        if left > right || top > bottom
+            throw(XLSXError("Invalid CellRange. Start cell should be at the top left corner of the range."))
+        end
 
         return new(a, b)
     end
 end
 
-struct ColumnRange
+struct ColumnRange <: ContiguousCellRange
     start::Int # column number
     stop::Int  # column number
 
     function ColumnRange(a::Int, b::Int)
-        @assert a <= b "Invalid ColumnRange. Start column must be located before end column."
+        if a > b 
+            throw(XLSXError("Invalid ColumnRange. Start column must be located before end column."))
+        end
+        return new(a, b)
+    end
+end
+struct RowRange <: ContiguousCellRange
+    start::Int # row number
+    stop::Int  # row number
+
+    function RowRange(a::Int, b::Int)
+        if a > b
+            throw(XLSXError("Invalid RowRange. Start row must be located before end row."))
+        end
         return new(a, b)
     end
 end
@@ -207,14 +228,23 @@ struct SheetCellRef
     cellref::CellRef
 end
 
-struct SheetCellRange
+struct SheetCellRange <: ContiguousSheetCellRange
    sheet::String
    rng::CellRange
 end
 
-struct SheetColumnRange
+struct NonContiguousRange <: AbstractSheetCellRange
+    sheet::String
+    rng::Vector{Union{CellRef, CellRange}}
+end
+
+struct SheetColumnRange <: ContiguousSheetCellRange
     sheet::String
     colrng::ColumnRange
+end
+struct SheetRowRange <: ContiguousSheetCellRange
+    sheet::String
+    rowrng::RowRange
 end
 
 abstract type MSOfficePackage end
@@ -309,9 +339,18 @@ mutable struct SharedStringTable
     is_loaded::Bool # for lazy-loading of sst XML file (implies that this struct must be mutable)
 end
 
-const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, Int, Float64, String, Missing}
+const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, Int, Float64, String, Missing}
+const DefinedNameRangeTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange}
+
+struct DefinedNameValue
+    value::DefinedNameValueTypes
+    isabs::Union{Bool, Vector{Bool}}
+end
 
 # Workbook is the result of parsing file `xl/workbook.xml`.
+# The `xl/workbook.xml` wi9ll need to be updated using the Workbook_names and 
+# worksheet_names from here when a workbook is saved in case any new defined 
+# names have been created.
 mutable struct Workbook
     package::MSOfficePackage # parent XLSXFile
     sheets::Vector{Worksheet} # workbook -> sheets -> <sheet name="Sheet1" r:id="rId1" sheetId="1"/>. sheetId determines the index of the WorkSheet in this vector.
@@ -320,15 +359,16 @@ mutable struct Workbook
     sst::SharedStringTable # shared string table
     buffer_styles_is_float::Dict{Int, Bool}      # cell style -> true if is float
     buffer_styles_is_datetime::Dict{Int, Bool}   # cell style -> true if is datetime
-    workbook_names::Dict{String, DefinedNameValueTypes} # definedName
-    worksheet_names::Dict{Tuple{Int, String}, DefinedNameValueTypes} # definedName. (sheetId, name) -> value.
+    workbook_names::Dict{String, DefinedNameValue} # definedName
+    worksheet_names::Dict{Tuple{Int, String}, DefinedNameValue} # definedName. (sheetId, name) -> value.
     styles_xroot::Union{XML.Node, Nothing}
 end
 
 """
 `XLSXFile` represents a reference to an Excel file.
 
-It is created by using [`XLSX.readxlsx`](@ref) or [`XLSX.openxlsx`](@ref).
+It is created by using [`XLSX.readxlsx`](@ref) or [`XLSX.openxlsx`](@ref) 
+or [`XLSX.opentemplate`](@ref) or [`XLSX.newxlsx`](@ref).
 
 From a `XLSXFile` you can navigate to a `XLSX.Worksheet` reference
 as shown in the example below.
@@ -379,7 +419,9 @@ struct Index # based on DataFrames.jl
     function Index(column_range::Union{ColumnRange, AbstractString}, column_labels)
         column_labels_as_syms = [ Symbol(i) for i in column_labels ]
         column_range = convert(ColumnRange, column_range)
-        @assert length(unique(column_labels_as_syms)) == length(column_labels_as_syms) "Column labels must be unique."
+        if length(unique(column_labels_as_syms)) != length(column_labels_as_syms)
+            throw(XLSXError("Column labels must be unique."))
+        end
 
         lookup = Dict{Symbol, Int}()
         for (i, n) in enumerate(column_labels_as_syms)
@@ -425,11 +467,15 @@ struct DataTable
             column_labels::Vector{Symbol},
         )
 
-        @assert length(data) == length(column_labels) "data has $(length(data)) columns but $(length(column_labels)) column labels."
+        if length(data) != length(column_labels)
+            throw(XLSXError("Data has $(length(data)) columns but $(length(column_labels)) column labels."))
+        end
 
         column_label_index = Dict{Symbol, Int}()
         for (i, sym) in enumerate(column_labels)
-            @assert !haskey(column_label_index, sym) "DataTable has repeated label for column `$sym`"
+            if haskey(column_label_index, sym)
+                throw(XLSXError("DataTable has repeated label for column `$sym`"))
+            end
             column_label_index[sym] = i
         end
 
@@ -445,3 +491,8 @@ struct xpath
         new(node, path)
     end
 end
+
+struct XLSXError <: Exception
+    msg::String
+end
+Base.showerror(io::IO, e::XLSXError) = print(io, "XLSXError: ",e.msg)
