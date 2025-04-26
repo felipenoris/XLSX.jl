@@ -18,7 +18,7 @@ function _table_to_arrays(x)
             colnames = collect(Symbol, Tables.columnnames(x))
             return columns, colnames
     else
-        error("$(typeof(x)) does not implement Tables.jl interface.")
+        throw(XLSXError("$(typeof(x)) does not implement Tables.jl interface."))
     end
 end
 
@@ -59,7 +59,7 @@ Tables.getcolumn(dt::DataTable, i::Int) = dt.data[i]
 
 function Tables.getcolumn(dt::DataTable, column_label::Symbol)
     if !haskey(dt.column_label_index, column_label)
-        error("Column `$column_label` not found.")
+        throw(XLSXError("Column `$column_label` not found."))
     end
 
     column_index = dt.column_label_index[column_label]

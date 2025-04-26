@@ -7,9 +7,10 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Tutorial" => "tutorial.md",
+        "Formatting Guide" => "formatting.md",
         "API Reference" => "api.md",
         "Migration Guides" => "migration.md",
-    ],
+     ],
     checkdocs=:none,
 )
 
