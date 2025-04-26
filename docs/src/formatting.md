@@ -407,7 +407,7 @@ The default colorscale is `greenyellow`. To use a different built-in color scale
 specify the name using the keyword `colorScale`, thus:
 
 ```julia
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellowred` built-in scale.
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellow` built-in scale.
 0
 
 julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorScale="whitered")
@@ -423,6 +423,7 @@ in [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 The end points (and optional mid-point) can be defined using an absolute number (`num`), a `percent`, 
 a `percentile` or as a `min` or `max`. For the first three options, a value must also be given.
+The value may be taken from a cell by setting `min_val`, `mid_val` or `max_val` to a cell reference.
 Thus, you can apply a custom 3-color scale using, for example:
 
 ```julia

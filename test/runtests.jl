@@ -3253,8 +3253,8 @@ end
         for i in 1:5, j in 1:5
             s[i,j] = i+j
         end
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :colorScale) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :colorScale) # Vectors may be non-contiguous
-        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A2", :colorScale) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
         @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A1", :colorScale) # One cell cellrange not allowed
         XLSX.setConditionalFormat(s, "1:1", :colorScale)
@@ -3305,6 +3305,22 @@ end
             max_col="blue"
         )
         @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:E4") => ["colorScale"],XLSX.CellRange("E1:E5") => ["colorScale"],XLSX.CellRange("B1:B5") => ["colorScale"],XLSX.CellRange("A1:A5") => ["colorScale"]]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+
+        XLSX.setConditionalFormat(s, :, 1:4, :colorScale;
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="E4",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        )
 
     end
 
