@@ -149,7 +149,10 @@ function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{Stri
 end
 
 """
-    addConditionalFormat!(ws::Worksheet, rng::CellRange, type::Symbol; kw...)
+    setConditionalFormat(ws::Worksheet, cr::String, type::Symbol; kw...) -> ::Int}
+    setConditionalFormat(xf::XLSXFile,  cr::String, type::Symbol; kw...) -> ::Int
+
+    setConditionalFormat(ws::Worksheet, row, col,   type::Symbol; kw...) -> ::Int}
 
 Add a new conditional format to a worksheet.
 
@@ -207,10 +210,10 @@ color from Colors.jl ([here](https://juliagraphics.github.io/Colors.jl/stable/na
 julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellow` built-in scale.
 0
 
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorScale="whitered")
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorscale="whitered")
 0
 
-julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorScale="bluewhitered")
+julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorscale="bluewhitered")
 0
 
 julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
@@ -269,7 +272,7 @@ setCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(s
 setCfColorScale(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfColorScale, xl, sheetcell; kw...)
 setCfColorScale(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfColorScale, ws, ref_or_rng; kw...)
 function setCfColorScale(ws::Worksheet, rng::CellRange;
-    colorScale::Union{Nothing,String}=nothing,
+    colorscale::Union{Nothing,String}=nothing,
     min_type::Union{Nothing,String}="min",
     min_val::Union{Nothing,String}=nothing,
     min_col::Union{Nothing,String}="FFF8696B",
@@ -292,7 +295,7 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
     end
 
     new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    if isnothing(colorScale)
+    if isnothing(colorscale)
 
         min_type in ["min", "percentile", "percent", "num"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num."))
         isnothing(min_val) || is_valid_cellname(min_val) || !isnothing(tryparse(Float64,min_val)) || throw(XLSXError("Invalid mid_type: $min_val. Valid options are a CellRef (e.g. `A1`) or a number."))
@@ -318,11 +321,11 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
         ))
 
     else
-        if !haskey(colorscales, colorScale)
+        if !haskey(colorscales, colorscale)
             throw(XLSXError("Invalid color scale: $colorScale. Valid options are: $(keys(colorscales))."))
         end
         new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-        push!(new_cf, colorscales[colorScale])
+        push!(new_cf, colorscales[colorscale])
     end
 
     # Insert the new conditional formatting into the worksheet XML

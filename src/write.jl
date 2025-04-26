@@ -1050,13 +1050,6 @@ end
 Delete the given worksheet. The workbook can be saved back to file using, 
 for example, `XLSX.writexlsx("myfile.xlsx", xf)`.
 
-!!! warning "Experimental"
-    `deletesheet!` is an experimental function.
-    It removes the most obvious manifestations of a sheet but
-    there may be archaeological remains with unknown effects!
-
-    Please report any issues.
-
 """
 deletesheet!(ws::Worksheet) = deletesheet!(get_workbook(ws), ws.name)
 deletesheet!(xl::XLSXFile, idx::Integer) = deletesheet!(get_workbook(xl), xl[idx].name)

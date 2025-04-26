@@ -3258,7 +3258,7 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
         @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A1", :colorScale) # One cell cellrange not allowed
         XLSX.setConditionalFormat(s, "1:1", :colorScale)
-        XLSX.setConditionalFormat(s, 2, :, :colorScale; colorScale = "redwhiteblue")
+        XLSX.setConditionalFormat(s, 2, :, :colorScale; colorscale = "redwhiteblue")
         XLSX.setConditionalFormat(s, 3, 1:5, :colorScale;
             min_type="min",
             min_col="green",
@@ -3293,8 +3293,8 @@ end
             s[i,j] = i+j
         end
         XLSX.setConditionalFormat(s, "A1:A5", :colorScale)
-        XLSX.setConditionalFormat(s, :, 2, :colorScale; colorScale = "redwhiteblue")
-        XLSX.setConditionalFormat(s, "Sheet1!E:E", :colorScale; colorScale = "greenwhitered")
+        XLSX.setConditionalFormat(s, :, 2, :colorScale; colorscale = "redwhiteblue")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :colorScale; colorscale = "greenwhitered")
         XLSX.setConditionalFormat(s, 1:5, 3:4, :colorScale;
             min_type="min",
             min_col="green",
@@ -3323,7 +3323,6 @@ end
         )
 
     end
-
 
 end
 
