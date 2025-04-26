@@ -45,7 +45,6 @@ function open_empty_template(
 
     empty_excel_template = joinpath(path, "blank.xlsx")
     !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
-=
     xf = open_xlsx_template(empty_excel_template)
 
     if sheetname != ""
