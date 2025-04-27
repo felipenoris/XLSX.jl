@@ -1423,7 +1423,7 @@ end
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
 
-        f = XLSX.opentemplate(joinpath(data_directory, "book_1904.xlsx")) # Only one sheet - can't delete
+        f = XLSX.opentemplate(joinpath(data_directory, "Book_1904.xlsx")) # Only one sheet - can't delete
         @test_throws XLSX.XLSXError XLSX.deletesheet!(f, 1)
         s=f[1]
         @test_throws XLSX.XLSXError XLSX.deletesheet!(s)
