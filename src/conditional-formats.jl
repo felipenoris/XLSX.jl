@@ -1,4 +1,28 @@
-const colorscales = Dict(    # Defines the 12 standard, built-in Excel color scales for conditional formatting.
+const highlights::Dict{String,Dict{String,Dict{String, String}}} = Dict(
+    "redfilltext" => Dict(
+        "font" => Dict("color"=>"FF9C0006"),
+        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFC7CE")
+    ),
+    "yellowfilltext" => Dict(
+        "font" => Dict("color"=>"FFA51E00"),
+        "fill" => Dict("pattern" => "solid", "bgColor"=>"FF9C5700")
+    ),
+    "greenfilltext" => Dict(
+        "font" => Dict("color"=>"FF006100"),
+        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFC6EFCE")
+    ),
+    "redfill" => Dict(
+        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFC7CE")
+    ),
+    "redtext" => Dict(
+        "font" => Dict("color"=>"FF9C0006"),
+    ),
+    "redborder" => Dict(
+        "border" => Dict("color"=>"FF9C0006", "style"=>"thin"),
+    )
+) # for type = :Cell
+
+const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, built-in Excel color scales for conditional formatting.
     "greenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
@@ -108,6 +132,56 @@ const colorscales = Dict(    # Defines the 12 standard, built-in Excel color sca
         )
     )
 )
+
+function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
+    # Check if the workbook already has a dxfs element. If not, add one.
+    xroot = styles_xmlroot(wb)
+    i, j = get_idces(xroot, "styleSheet", "dxfs")
+    
+    if isnothing(j) # No existing conditional formats so need to add a block. Push everything lower down one.
+        k, l = get_idces(xroot, "styleSheet", "cellStyles")
+        l += 1 # The dxfs block comes after the cellXfs block.
+        len = length(xroot[k])
+        i != k && throw(XLSXError("Some problem here!"))
+        push!(xroot[k], xroot[k][end]) # duplicate last element then move everything else down one
+        if l < len
+            for pos = len-1:-1:l
+                xroot[k][pos+1] = xroot[k][pos]
+            end
+        end
+        xroot[k][l] = XML.Element("dxsf", count="0")
+        j = l
+        println(XML.write(xroot[i][j]))
+    else
+        existing_dxf_elements_count = length(XML.children(xroot[i][j]))
+
+        if parse(Int, xroot[i][j]["count"]) != existing_dxf_elements_count
+            throw(XLSXError("Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
+        end
+    end
+    # Check new_dx doesn't duplicate any existing dxf. If yes, use that rather than create new.
+    # Need to work around XML.jl issue # 33
+    for (k, node) in enumerate(XML.children(xroot[i][j]))
+        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_dx))[1] # XML.jl defines `Base.:(==)`
+            return DxFormat(k - 1) # CellDataFormat is zero-indexed
+        end
+    end
+    existingdx=XML.children(xroot[i][j])
+    dxfs = unlink(xroot[i][j], ("dxfs", "dxf")) # Create the new <dxfs> Node
+    if length(existingdx) > 0
+        for c in existingdx
+            push!(dxfs, c) # Copy each existing <dxf> into the new <dxfs> Node
+        end
+    end
+    push!(dxfs, new_dx)
+ 
+    xroot[i][j] = dxfs # Update the worksheet with the new cols.
+
+    xroot[i][j]["count"] = string(existing_dxf_elements_count + 1)
+
+    return DxFormat(existing_dxf_elements_count) # turns out this is the new index (because it's zero-based)
+
+end
 
 function convertref(c)
     if !isnothing(c)
@@ -231,32 +305,78 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 
 ```
 
+# type = :cell
+
+Defines a conditional format based on the value of a cell.
+
+Valid keywords are:
+- `operator` : Defines the comparison to make.
+- `formula1` : defines the first value to compare against. This can be a cell reference (e.g. `A1`) or a number.
+- `formula2` : defines the second value to compare against. This can be a cell reference (e.g. `A1`) or a number.
+- `dxStyle`  : Used to select one of the built-in Excel formats to apply
+- `format`   : defines the numFmt to apply if opting for a custom format.
+- `font`     : defines the font to apply if opting for a custom format.
+- `border`   : defines the border to apply if opting for a custom format.
+- `fill`     : defines the fill to apply if opting for a custom format.
+
+The keyword `operator` defines the comparison to use in the conditiopnal formatting. 
+If the condition is met, the format is applied. Valid options are:
+- `greaterThan`
+- `lessThan`
+- `between`
+- `notBetween`
+- `equal`
+- `notEqual`
+- `greaterEqual`
+- `lessEqual`
+
+The comparison is made against the value in `formula1` and, if `operator` is either 
+`between` or `notBetween`, `formula2` sets the other bound on the condition. If not specified, 
+`formula1` will be the arithmetic average of the (non-missing) cell values in the range if 
+values are numeric. If the cell values are non-numeric, an error is thrown.
+
+Formatting to be applied if the condition is met can be defined in two ways. Use the keyword
+`dxStyle` to select one of the built-in Excel formats. Valid options are:
+- `redfilltext`
+- `yellowfilltext`
+- `greenfilltext`
+- `redfill`
+- `redtext`
+- `redborder`.
+
+Alternatively, you can define a custom format by using the keywords `format`, `font`,
+`border`, and `fill`.
+
+If both `dxStyle` and custom formatting keywords are specified, `dxStyle` will be used 
+and the custom formatting will be ignored.
+if neither `dxStyle` nor custom formatting keywords are specified, the default 
+is `dxStyle=redfilltext`.
 
 """
 function setConditionalFormat(f, r, type::Symbol; kw...)
     if type == :colorScale
         setCfColorScale(f, r; kw...)
-#    elseif type == :dataBar
-#        throw(XLSXError("Data bars are not yet implemented."))
+    elseif type == :cell
+        setCfCell(f, r; kw...)
 #    elseif type == :iconSet
 #        throw(XLSXError("Icon sets are not yet implemented."))
 #    elseif type == :Cell
 #        throw(XLSXError("Cell conditional formats are not yet implemented."))
 else
-        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: :colorScale, :cell"))
     end
 end
 function setConditionalFormat(f, r, c, type::Symbol; kw...)
     if type == :colorScale
         setCfColorScale(f, r, c; kw...)
-#    elseif type == :dataBar
-#        throw(XLSXError("Data bars are not yet implemented."))
+    elseif type == :cell
+        setCfCell(f, r, c; kw...)
 #    elseif type == :iconSet
 #        throw(XLSXError("Icon sets are not yet implemented."))
 #    elseif type == :Cell
 #        throw(XLSXError("Cell conditional formats are not yet implemented."))
     else
-        throw(XLSXError("Invalid conditional format type: $type. Valid options are: colorScale, dataBar, iconSet, formula."))
+        throw(XLSXError("Invalid conditional format type: $type. Valid options are: :colorScale, :cell."))
     end
 end
 setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfColorScale, ws, row, nothing; kw...)
@@ -328,6 +448,139 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
         push!(new_cf, colorscales[colorscale])
     end
 
+    # Insert the new conditional formatting into the worksheet XML
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
+    k, l = get_idces(sheetdoc, "worksheet", "sheetData")
+    len = length(sheetdoc[k])
+    if l != len
+        push!(sheetdoc[k], sheetdoc[k][end])
+        if l + 1 < len
+            for pos = len-1:-1:l+1
+                sheetdoc[k][pos+1] = sheetdoc[k][pos]
+            end
+        end
+        sheetdoc[k][l+1] = new_cf
+    else
+        push!(sheetdoc[k], new_cf)
+    end
+
+    update_worksheets_xml!(get_xlsxfile(ws))
+
+    return 0
+end
+setCfCell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfCell, ws, row, nothing; kw...)
+setCfCell(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfCell, ws, nothing, col; kw...)
+setCfCell(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfCell, ws, nothing, nothing; kw...)
+setCfCell(ws::Worksheet, ::Colon; kw...) = process_colon(setCfCell, ws, nothing, nothing; kw...)
+setCfCell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfCell(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfCell(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfCell(ws, rng.rng; kw...)
+setCfCell(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfCell(ws, rng.colrng; kw...)
+setCfCell(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfCell(ws, rng.rowrng; kw...)
+setCfCell(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfCell, ws, rng; kw...)
+setCfCell(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfCell, ws, rng; kw...)
+setCfCell(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfCell, xl, sheetcell; kw...)
+setCfCell(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfCell, ws, ref_or_rng; kw...)
+function setCfCell(ws::Worksheet, rng::CellRange;
+    operator::Union{Nothing,String}="greaterThan",
+    formula1::Union{Nothing,String}=nothing,
+    formula2::Union{Nothing,String}=nothing,
+    dxStyle::Union{Nothing,String}="redfilltext",
+    format::Union{Dict{String,Dict{String, String}},Nothing}=nothing,
+    font::Union{Dict{String,Dict{String, String}},Nothing}=nothing,
+    border::Union{Dict{String,Dict{String, String}},Nothing}=nothing,
+    fill::Union{Dict{String,Dict{String, String}},Nothing}=nothing
+)::Int
+
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
+
+    old_cf = getConditionalFormats(ws)
+    for cf in old_cf
+        if cf.first != rng && intersects(cf.first, rng)
+            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
+        end
+    end
+
+#    new_cf = XML.Element("conditionalFormatting"; sqref=rng)
+    if haskey(highlights, dxStyle)
+        dx = highlights[dxStyle]
+        new_dx = XML.Element("dxf")
+        for (k, v) in dx
+            if k in ["format", "fill", "font", "border"]
+                if k=="fill"
+                    if !isnothing(v)
+                        filldx=XML.Element("fill")
+                        patterndx=XML.Element("patternFill")
+                        for (y, z) in v
+                            if y in ["fgColor", "bgColor"]
+                                push!(patterndx, XML.Element(y, rgb=get_color(z)))
+                            elseif y == "pattern"
+                                push!(patterndx, XML.Element(y, val = z))
+                            end
+                        end
+                        push!(filldx, patterndx)
+                    end
+                    push!(new_dx, filldx)
+                elseif k=="font"
+                    if !isnothing(v)
+                        fontdx=XML.Element("font")
+                        for (y, z) in v
+                           if y=="color"
+                                push!(fontdx, XML.Element(y, rgb=get_color(z)))
+                            elseif y == "bold"
+                                z=="true" && push!(fontdx, XML.Element("b", val = "0"))
+                            elseif y == "italic"
+                                z=="true" && push!(fontdx, XML.Element("i"))
+                            elseif y == "under"
+                                z != "none" && push!(fontdx, XML.Element("u"; val="v"))
+                            elseif y == "strike"
+                                strike=="true" && push!(fontdx, XML.Element(y; val="0"))
+                            end
+                        end
+                    end
+                    push!(new_dx, fontdx)
+                end
+            elseif k=="border"
+                if !isnothing(v)
+                    borderdx=XML.Element("border")
+                    cdx = haskey(v, "color") ? XML.Element("color", rgb=get_color(v["color"])) : nothing
+                    sdx = haskey(v, "style") ? v["style"] : nothing
+                    leftdx = XML.Element("left")
+                    rightdx = XML.Element("right")
+                    topdx = XML.Element("top")
+                    bottomdx = XML.Element("bottom")
+                    if isnothing(sdx)
+                        leftdx["style"]=sdx
+                        rightdx["style"]=sdx
+                        topdx["style"]=sdx
+                        bottomdx["style"]=sdx
+                    end
+                    if !isnothing(cdx)
+                        push!(leftdx, cdx)
+                        push!(rightdx, cdx)
+                        push!(topdx, cdx)
+                        push!(bottomdx, cdx)
+                    end
+                end
+                push!(new_dx, borderdx)
+            end
+            
+        end
+    end
+    dxid = Add_Cf_Dx(get_workbook(ws), new_dx)
+    if isnothing(formula1)
+        formula1 = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
+    end
+    new_cf = XML.Element("conditionalFormatting"; sqref=rng)
+    cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id), priority="1", operator=operator)
+    if !isnothing(formula1)
+        push!(cfx, XML.Element("formula", XML.Text(formula1)))
+    end
+    if !isnothing(formula2)
+        push!(cfx, XML.Element("formula", XML.Text(formula2)))
+    end
+    push!(new_cf, cfx)
+    
     # Insert the new conditional formatting into the worksheet XML
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
     k, l = get_idces(sheetdoc, "worksheet", "sheetData")

@@ -147,6 +147,11 @@ struct CellDataFormat <: AbstractCellDataFormat
     id::UInt
 end
 
+# Keeps track of conditional formatting information.
+struct DxFormat <: AbstractCellDataFormat
+    id::UInt
+end
+
 """
     CellValueType
 
