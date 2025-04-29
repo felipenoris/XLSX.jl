@@ -18,7 +18,7 @@ const highlights::Dict{String,Dict{String,Dict{String, String}}} = Dict(
         "font" => Dict("color"=>"FF9C0006"),
     ),
     "redborder" => Dict(
-        "border" => Dict("color"=>"FF9C0006", "style"=>"thin"),
+        "border" => Dict("color"=>"FF9C0006", "style"=>"thin")
     )
 ) # for type = :Cell
 
@@ -206,9 +206,13 @@ type of the conditional format applies.
 
 
 """
-function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{String}}}
+function allCfs(ws::Worksheet)
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find all the <conditionalFormatting> blocks in the worksheet's xml file
-    allcfnodes = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":conditionalFormatting", sheetdoc)
+    return find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":conditionalFormatting", sheetdoc)
+end
+
+function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{String}}}
+    allcfnodes = allCfs(ws::Worksheet)
     allcfs = Vector{Pair{CellRange,Vector{String}}}()
     for (i, cf) in enumerate(allcfnodes)
         cf_types = Vector{String}()
@@ -484,11 +488,11 @@ function setCfCell(ws::Worksheet, rng::CellRange;
     operator::Union{Nothing,String}="greaterThan",
     formula1::Union{Nothing,String}=nothing,
     formula2::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}="redfilltext",
-    format::Union{Dict{String,Dict{String, String}},Nothing}=nothing,
-    font::Union{Dict{String,Dict{String, String}},Nothing}=nothing,
-    border::Union{Dict{String,Dict{String, String}},Nothing}=nothing,
-    fill::Union{Dict{String,Dict{String, String}},Nothing}=nothing
+    dxStyle::Union{Nothing,String}=nothing,
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
@@ -500,46 +504,63 @@ function setCfCell(ws::Worksheet, rng::CellRange;
             throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
         end
     end
-
-#    new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    if haskey(highlights, dxStyle)
-        dx = highlights[dxStyle]
-        new_dx = XML.Element("dxf")
-        for (k, v) in dx
-            if k in ["format", "fill", "font", "border"]
-                if k=="fill"
-                    if !isnothing(v)
-                        filldx=XML.Element("fill")
-                        patterndx=XML.Element("patternFill")
-                        for (y, z) in v
-                            if y in ["fgColor", "bgColor"]
-                                push!(patterndx, XML.Element(y, rgb=get_color(z)))
-                            elseif y == "pattern"
-                                push!(patterndx, XML.Element(y, val = z))
-                            end
-                        end
-                        push!(filldx, patterndx)
+    if isnothing(dxStyle)
+        if all(isnothing.([border, fill, font, format]))
+            dx=highlights["redfilltext"]
+        else
+            dx = Dict{String,Dict{String, String}}()
+            for att in ["font" => font, "fill" => fill, "border" => border, "format" => format]
+                if !isnothing(last(att))
+                    dxx = Dict{String, String}()
+                    for i in last(att)
+                        push!(dxx, first(i) => last(i))
                     end
-                    push!(new_dx, filldx)
-                elseif k=="font"
-                    if !isnothing(v)
-                        fontdx=XML.Element("font")
-                        for (y, z) in v
-                           if y=="color"
-                                push!(fontdx, XML.Element(y, rgb=get_color(z)))
-                            elseif y == "bold"
-                                z=="true" && push!(fontdx, XML.Element("b", val = "0"))
-                            elseif y == "italic"
-                                z=="true" && push!(fontdx, XML.Element("i"))
-                            elseif y == "under"
-                                z != "none" && push!(fontdx, XML.Element("u"; val="v"))
-                            elseif y == "strike"
-                                strike=="true" && push!(fontdx, XML.Element(y; val="0"))
-                            end
-                        end
-                    end
-                    push!(new_dx, fontdx)
+                    push!(dx, first(att) => dxx)
                 end
+            end
+        end
+    elseif haskey(highlights, dxStyle)
+        dx = highlights[dxStyle]
+    else
+        throw(XLSXError("Invalid dxStyle: $dxStyle. Valid options are: $(keys(highlights))."))
+    end
+    new_dx = XML.Element("dxf")
+    for k in ["font", "fill", "format", "border"] # Order is important to Excel.
+        if haskey(dx, k)
+            v = dx[k]
+            if k=="fill"
+                if !isnothing(v)
+                    filldx=XML.Element("fill")
+                    patterndx=XML.Element("patternFill")
+                    for (y, z) in v
+                        if y in ["fgColor", "bgColor"]
+                            push!(patterndx, XML.Element(y, rgb=get_color(z)))
+                        elseif y == "pattern" && z != "none"
+                            patterndx["patternType"] = z
+                        end
+                    end
+                    push!(filldx, patterndx)
+                end
+                push!(new_dx, filldx)
+            elseif k=="font"
+                if !isnothing(v)
+                    fontdx=XML.Element("font")
+                    for (y, z) in v
+                        if y=="color"
+                            push!(fontdx, XML.Element(y, rgb=get_color(z)))
+                        elseif y == "bold"
+                            z=="true" && push!(fontdx, XML.Element("b", val="0"))
+                        elseif y == "italic"
+                            z=="true" && push!(fontdx, XML.Element("i", val="0"))
+                        elseif y == "under"
+                            z != "none" && push!(fontdx, XML.Element("u"; val="v"))
+                        elseif y == "strike"
+                            strike=="true" && push!(fontdx, XML.Element(y; val="0"))
+                        end
+                    end
+                end
+                push!(new_dx, fontdx)
+            
             elseif k=="border"
                 if !isnothing(v)
                     borderdx=XML.Element("border")
@@ -549,7 +570,7 @@ function setCfCell(ws::Worksheet, rng::CellRange;
                     rightdx = XML.Element("right")
                     topdx = XML.Element("top")
                     bottomdx = XML.Element("bottom")
-                    if isnothing(sdx)
+                    if !isnothing(sdx)
                         leftdx["style"]=sdx
                         rightdx["style"]=sdx
                         topdx["style"]=sdx
@@ -562,16 +583,20 @@ function setCfCell(ws::Worksheet, rng::CellRange;
                         push!(bottomdx, cdx)
                     end
                 end
+                push!(borderdx, leftdx)
+                push!(borderdx, rightdx)
+                push!(borderdx, topdx)
+                push!(borderdx, bottomdx)
                 push!(new_dx, borderdx)
             end
-            
         end
+        
     end
+
     dxid = Add_Cf_Dx(get_workbook(ws), new_dx)
     if isnothing(formula1)
         formula1 = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
     end
-    new_cf = XML.Element("conditionalFormatting"; sqref=rng)
     cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id), priority="1", operator=operator)
     if !isnothing(formula1)
         push!(cfx, XML.Element("formula", XML.Text(formula1)))
@@ -579,7 +604,21 @@ function setCfCell(ws::Worksheet, rng::CellRange;
     if !isnothing(formula2)
         push!(cfx, XML.Element("formula", XML.Text(formula2)))
     end
+
+    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
+    if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
+        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
+    elseif length(allcfs) == 1                              # Existing conditional formatting block found for this range so add new rule to that.
+        children=XML.children(allcfs[1])
+        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in children])+1)
+        new_cf = allcfs[1]
+    else
+        throw(XLSXError("Multiple conditional formatting blocks found for range `$rng`. This should not happen."))
+    end
+
+
     push!(new_cf, cfx)
+    println("Conditional formatting: ", XML.write(new_cf))
     
     # Insert the new conditional formatting into the worksheet XML
     sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
