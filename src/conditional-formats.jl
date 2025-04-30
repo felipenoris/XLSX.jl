@@ -132,6 +132,22 @@ const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, b
         )
     )
 )
+function add_cf_to_XML(ws, new_cf) # Add a new conditional formatting to the worksheet XML.
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
+    k, l = get_idces(sheetdoc, "worksheet", "sheetData")
+    len = length(sheetdoc[k])
+    if l != len
+        push!(sheetdoc[k], sheetdoc[k][end])
+        if l + 1 < len
+            for pos = len-1:-1:l+1
+                sheetdoc[k][pos+1] = sheetdoc[k][pos]
+            end
+        end
+        sheetdoc[k][l+1] = new_cf
+    else
+        push!(sheetdoc[k], new_cf)
+    end
+end
 
 function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
     # Check if the workbook already has a dxfs element. If not, add one.
@@ -283,7 +299,8 @@ when writing to an XLSXFile.
 Colors can be specified using an 8-digit hex string (e.g. `FF0000FF` for blue) or any named 
 color from Colors.jl ([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
-# Example
+# Examples
+
 ```julia
 julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellow` built-in scale.
 0
@@ -315,8 +332,8 @@ Defines a conditional format based on the value of a cell.
 
 Valid keywords are:
 - `operator` : Defines the comparison to make.
-- `formula1` : defines the first value to compare against. This can be a cell reference (e.g. `A1`) or a number.
-- `formula2` : defines the second value to compare against. This can be a cell reference (e.g. `A1`) or a number.
+- `value1`   : defines the first value to compare against. This can be a cell reference (e.g. `A1`) or a number.
+- `value2`   : defines the second value to compare against. This can be a cell reference (e.g. `A1`) or a number.
 - `dxStyle`  : Used to select one of the built-in Excel formats to apply
 - `format`   : defines the numFmt to apply if opting for a custom format.
 - `font`     : defines the font to apply if opting for a custom format.
@@ -325,36 +342,87 @@ Valid keywords are:
 
 The keyword `operator` defines the comparison to use in the conditiopnal formatting. 
 If the condition is met, the format is applied. Valid options are:
-- `greaterThan`
-- `lessThan`
-- `between`
-- `notBetween`
-- `equal`
-- `notEqual`
-- `greaterEqual`
-- `lessEqual`
+- `greaterThan`  (>)
+- `greaterEqual` (>=)
+- `lessThan`     (<)
+- `lessEqual`    (<=)
+- `between`      (requires `value2`)
+- `notBetween`   (requires `value2`)
+- `equal`        (==)
+- `notEqual`     (!=)
 
-The comparison is made against the value in `formula1` and, if `operator` is either 
-`between` or `notBetween`, `formula2` sets the other bound on the condition. If not specified, 
-`formula1` will be the arithmetic average of the (non-missing) cell values in the range if 
+The comparison is made against the value in `value1` and, if `operator` is either 
+`between` or `notBetween`, `value2` sets the other bound on the condition. If not specified, 
+`value1` will be the arithmetic average of the (non-missing) cell values in the range if 
 values are numeric. If the cell values are non-numeric, an error is thrown.
 
 Formatting to be applied if the condition is met can be defined in two ways. Use the keyword
 `dxStyle` to select one of the built-in Excel formats. Valid options are:
-- `redfilltext`
-- `yellowfilltext`
-- `greenfilltext`
-- `redfill`
-- `redtext`
-- `redborder`.
+- `redfilltext`     (light red fill, dark red text) (default)
+- `yellowfilltext`  (light yellow fill, dark yellow text)
+- `greenfilltext`   (light green fill, dark green text)
+- `redfill`         (light red fill)
+- `redtext`         (dark red text)
+- `redborder`       (dark red cell borders)
 
 Alternatively, you can define a custom format by using the keywords `format`, `font`,
-`border`, and `fill`.
+`border`, and `fill` which each take a vector of pairs of strings. The first string 
+is the name of the attribute to set and the second is the value to set it to.  
+Valid attributes for each keyword are:
+- `format` : `format``
+- `font`   : `color`, `bold`, `italic`, `under`, `strike`
+- `fill`   : `pattern`, `bgColor`, `fgColor`
+- `border` : `style`, `color`
+
+Refer to [`setFormat()`](@ref), [`setFont)`](@ref), [`setFill`](@ref) and [`setBorder@ref) for
+more details on the valid attributes and values.
+
+!!! Note
+
+    Excel limits the formatting attributes that can be set in a conditional format.
+    It is not possible to set the size or name of a font and nor is it possible to set 
+    any of the cell alignment attributes. Diagonal borders cannot be set either.
+
+    Although it is not a limitation of Excel, this function sets all the border attributes 
+    for each side of a cell to be the same.
 
 If both `dxStyle` and custom formatting keywords are specified, `dxStyle` will be used 
 and the custom formatting will be ignored.
-if neither `dxStyle` nor custom formatting keywords are specified, the default 
-is `dxStyle=redfilltext`.
+If neither `dxStyle` nor custom formatting keywords are specified, the default 
+is `dxStyle="redfilltext"`.
+
+# Examples
+
+```julia
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cell) # Defaults to `operator="greaterThan"`, `dxStyle`="redfilltext"` and `value1` set to the arithmetic agverage of cell values in `rng`.
+
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cell;
+            operator="between",
+            value1="2",
+            value2="3",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            format = ["format"=>"0.00%"],
+            font = ["color"=>"blue", "bold"=>"true"]
+        )
+
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cell; 
+            operator="greaterThan",
+            value1="4",
+            fill = ["pattern" => "none", "bgColor"=>"green"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"red", "italic"=>"true"]
+        )
+
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cell;
+            operator="lessThan",
+            value1="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )
+
+```
 
 """
 function setConditionalFormat(f, r, type::Symbol; kw...)
@@ -452,26 +520,13 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
         push!(new_cf, colorscales[colorscale])
     end
 
-    # Insert the new conditional formatting into the worksheet XML
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
-    k, l = get_idces(sheetdoc, "worksheet", "sheetData")
-    len = length(sheetdoc[k])
-    if l != len
-        push!(sheetdoc[k], sheetdoc[k][end])
-        if l + 1 < len
-            for pos = len-1:-1:l+1
-                sheetdoc[k][pos+1] = sheetdoc[k][pos]
-            end
-        end
-        sheetdoc[k][l+1] = new_cf
-    else
-        push!(sheetdoc[k], new_cf)
-    end
+    add_cf_to_XML(ws, new_cf)    # Insert the new conditional formatting into the worksheet XML
 
     update_worksheets_xml!(get_xlsxfile(ws))
 
     return 0
 end
+
 setCfCell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfCell, ws, row, nothing; kw...)
 setCfCell(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfCell, ws, nothing, col; kw...)
 setCfCell(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfCell, ws, nothing, nothing; kw...)
@@ -486,8 +541,8 @@ setCfCell(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetce
 setCfCell(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfCell, ws, ref_or_rng; kw...)
 function setCfCell(ws::Worksheet, rng::CellRange;
     operator::Union{Nothing,String}="greaterThan",
-    formula1::Union{Nothing,String}=nothing,
-    formula2::Union{Nothing,String}=nothing,
+    value1::Union{Nothing,String}=nothing,
+    value2::Union{Nothing,String}=nothing,
     dxStyle::Union{Nothing,String}=nothing,
     format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
     font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
@@ -504,6 +559,7 @@ function setCfCell(ws::Worksheet, rng::CellRange;
             throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
         end
     end
+    wb=get_workbook(ws)
     if isnothing(dxStyle)
         if all(isnothing.([border, fill, font, format]))
             dx=highlights["redfilltext"]
@@ -525,7 +581,7 @@ function setCfCell(ws::Worksheet, rng::CellRange;
         throw(XLSXError("Invalid dxStyle: $dxStyle. Valid options are: $(keys(highlights))."))
     end
     new_dx = XML.Element("dxf")
-    for k in ["font", "fill", "format", "border"] # Order is important to Excel.
+    for k in ["font", "format", "fill", "border"] # Order is important to Excel.
         if haskey(dx, k)
             v = dx[k]
             if k=="fill"
@@ -560,7 +616,6 @@ function setCfCell(ws::Worksheet, rng::CellRange;
                     end
                 end
                 push!(new_dx, fontdx)
-            
             elseif k=="border"
                 if !isnothing(v)
                     borderdx=XML.Element("border")
@@ -588,53 +643,46 @@ function setCfCell(ws::Worksheet, rng::CellRange;
                 push!(borderdx, topdx)
                 push!(borderdx, bottomdx)
                 push!(new_dx, borderdx)
+            elseif k=="format"
+                if !isnothing(v)
+                    if haskey(v, "format")
+                        fmtCode = v["format"]
+                        new_formatId = get_new_formatId(wb, fmtCode)
+                        new_fmtCode = styles_numFmt_formatCode(wb, new_formatId)
+                        fmtdx=XML.Element("numFmt"; numFmtId=string(new_formatId), formatCode=new_fmtCode)
+                        push!(new_dx, fmtdx)
+                    end
+                end
             end
         end
         
     end
 
     dxid = Add_Cf_Dx(get_workbook(ws), new_dx)
-    if isnothing(formula1)
-        formula1 = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
+    if isnothing(value1)
+        value1 = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
     end
     cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id), priority="1", operator=operator)
-    if !isnothing(formula1)
-        push!(cfx, XML.Element("formula", XML.Text(formula1)))
+    if !isnothing(value1)
+        push!(cfx, XML.Element("formula", XML.Text(value1)))
     end
-    if !isnothing(formula2)
-        push!(cfx, XML.Element("formula", XML.Text(formula2)))
+    if !isnothing(value2)
+        push!(cfx, XML.Element("formula", XML.Text(value2)))
     end
 
     allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
     if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
         new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    elseif length(allcfs) == 1                              # Existing conditional formatting block found for this range so add new rule to that.
+    else                             # Existing conditional formatting block found for this range so add new rule to that.
         children=XML.children(allcfs[1])
         cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in children])+1)
         new_cf = allcfs[1]
-    else
-        throw(XLSXError("Multiple conditional formatting blocks found for range `$rng`. This should not happen."))
     end
 
 
     push!(new_cf, cfx)
-    println("Conditional formatting: ", XML.write(new_cf))
-    
-    # Insert the new conditional formatting into the worksheet XML
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
-    k, l = get_idces(sheetdoc, "worksheet", "sheetData")
-    len = length(sheetdoc[k])
-    if l != len
-        push!(sheetdoc[k], sheetdoc[k][end])
-        if l + 1 < len
-            for pos = len-1:-1:l+1
-                sheetdoc[k][pos+1] = sheetdoc[k][pos]
-            end
-        end
-        sheetdoc[k][l+1] = new_cf
-    else
-        push!(sheetdoc[k], new_cf)
-    end
+
+    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
 
     update_worksheets_xml!(get_xlsxfile(ws))
 

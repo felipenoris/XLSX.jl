@@ -151,7 +151,35 @@ function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{Strin
     end
     return new_node
 end
+function get_new_formatId(wb::Workbook, format::String)::Int
+    if haskey(builtinFormatNames, uppercasefirst(format)) # User specified a format by name
+        return builtinFormatNames[format]
+    else                                      # user specified a format code
+        code = lowercase(format)
+        code = remove_formatting(code)
+        if !occursin(floatformats, code) && !any(map(x -> occursin(x, code), DATETIME_CODES))
+            throw(XLSXError("Specified format is not a valid numFmt: $format"))
+        end
 
+        xroot = styles_xmlroot(wb)
+        i, j = get_idces(xroot, "styleSheet", "numFmts")
+        if isnothing(j) # There are no existing custom formats
+            return styles_add_numFmt(wb, format)
+        else
+            existing_elements_count = length(XML.children(xroot[i][j]))
+            if parse(Int, xroot[i][j]["count"]) != existing_elements_count
+                throw(XLSXError("Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
+            end
+
+            format_node = XML.Element("numFmt";
+                numFmtId=string(existing_elements_count + PREDEFINED_NUMFMT_COUNT),
+                formatCode=XML.escape(format)
+            )
+
+            return styles_add_cell_attribute(wb, format_node, "numFmts") + PREDEFINED_NUMFMT_COUNT
+        end
+    end
+end
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)

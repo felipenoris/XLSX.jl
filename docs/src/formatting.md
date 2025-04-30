@@ -388,7 +388,7 @@ Each of the available `:formatting_type`s is described in the following sections
 
 #### Color Scale
 
-It is possible to apply a `colorScale` formatting type to a range of cells.
+It is possible to apply a `:colorScale` formatting type to a range of cells.
 In Excel there are twelve built-in color scales available, but it is possible to create 
 custom color scales, too.
 
@@ -404,16 +404,16 @@ In XLSX.jl, the twelve built-in scales are named by their start/mid/end colors a
 |    greenwhite    |    whitegreen    |   greenyellow   |   yellowgreen   |
 
 The default colorscale is `greenyellow`. To use a different built-in color scale, 
-specify the name using the keyword `colorScale`, thus:
+specify the name using the keyword `colorscale`, thus:
 
 ```julia
 julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellow` built-in scale.
 0
 
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorScale="whitered")
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorscale="whitered")
 0
 
-julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorScale="bluewhitered")
+julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorscale="bluewhitered")
 0
 ```
 
@@ -441,6 +441,16 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 0
 ```
 ![image|320x500](./images/custom-colorscale.png)
+
+### Cell Value
+
+It is possible to apply a conditional format to a range of cells that applies when a cell's 
+value meets a specified condition using the `:cell` type.
+
+![image|320x500](./images/cell.png)
+
+In Excel there are twelve built-in color scales available, but it is possible to create 
+custom color scales, too.
 
 ## Working with Merged Cells
 

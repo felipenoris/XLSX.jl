@@ -131,6 +131,9 @@ const FontAttribute = Union{String, Pair{String, Pair{String, String}}}
 
 # Queries numFmt formatCode field by numFmtId.
 function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
+    if haskey(builtinFormats, numFmtId)
+        return builtinFormats[numFmtId]
+    end
     xroot = styles_xmlroot(wb)
     nodes_found = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmts/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmt", xroot)
     elements_found = filter(x->XML.attributes(x)["numFmtId"] == numFmtId, nodes_found)

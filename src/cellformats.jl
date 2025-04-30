@@ -1777,33 +1777,7 @@ function setFormat(sh::Worksheet, cellref::CellRef;
         return cell_format.numFmtId
     end
 
-    if haskey(builtinFormatNames, uppercasefirst(format)) # User specified a format by name
-        new_formatid = builtinFormatNames[format]
-    else                                      # user specified a format code
-        code = lowercase(format)
-        code = remove_formatting(code)
-        if !occursin(floatformats, code) && !any(map(x -> occursin(x, code), DATETIME_CODES))
-            throw(XLSXError("Specified format is not a valid numFmt: $format"))
-        end
-
-        xroot = styles_xmlroot(wb)
-        i, j = get_idces(xroot, "styleSheet", "numFmts")
-        if isnothing(j) # There are no existing custom formats
-            new_formatid = styles_add_numFmt(wb, format)
-        else
-            existing_elements_count = length(XML.children(xroot[i][j]))
-            if parse(Int, xroot[i][j]["count"]) != existing_elements_count
-                throw(XLSXError("Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
-            end
-
-            format_node = XML.Element("numFmt";
-                numFmtId=string(existing_elements_count + PREDEFINED_NUMFMT_COUNT),
-                formatCode=XML.escape(format)
-            )
-
-            new_formatid = styles_add_cell_attribute(wb, format_node, "numFmts") + PREDEFINED_NUMFMT_COUNT
-        end
-    end
+    new_formatid = get_new_formatId(wb, format)
 
     if new_formatid == 0
         atts = ["numFmtId"]
