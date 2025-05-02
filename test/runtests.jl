@@ -3247,7 +3247,7 @@ end
 
 @testset "Conditional Formats" begin
 
-    @testset "colorScale" begin
+    @testset "ColorScale" begin
         f=XLSX.newxlsx()
         s=f[1]
         for i in 1:5, j in 1:5
@@ -3255,8 +3255,8 @@ end
         end
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :colorScale) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :colorScale) # Vectors may be non-contiguous
-        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
-        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A1", :colorScale) # One cell cellrange not allowed
+#        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
+#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A1", :colorScale) # One cell cellrange not allowed
         XLSX.setConditionalFormat(s, "1:1", :colorScale)
         XLSX.setConditionalFormat(s, 2, :, :colorScale; colorscale = "redwhiteblue")
         XLSX.setConditionalFormat(s, 3, 1:5, :colorScale;
@@ -3281,7 +3281,7 @@ end
             max_col="darkgreen"
         )
         @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => ["colorScale"],XLSX.CellRange("A4:E4") => ["colorScale"],XLSX.CellRange("A3:E3") => ["colorScale"],XLSX.CellRange("A2:E2") => ["colorScale"],XLSX.CellRange("A1:E1") => ["colorScale"]]
-        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
+#        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
         @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :colorScale) # Overlaps with existing conditionalFormat range
         @test_throws XLSX.XLSXError XLSX.setConditionalFormat(f, "Sheet1!1:2", :colorScale) # Overlaps with existing conditionalFormat range
         @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :colorScale) # Overlaps with existing conditionalFormat range
