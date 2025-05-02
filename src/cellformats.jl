@@ -539,7 +539,7 @@ Allowed values for `style` are:
 - `slantDashDot`
 
 The `color` attribute can be set by specifying an 8-digit hexadecimal value 
-in the format "AARRGGBB". The transparency ("AA") is ignored by Excel but 
+in the format "FFRRGGBB". The transparency ("FF") is ignored by Excel but 
 is required.
 Alternatively, you can use the name of any named color from Colors.jl
 ([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).

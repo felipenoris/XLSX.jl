@@ -370,10 +370,9 @@ end
 
     setConditionalFormat(ws::Worksheet, rows, cols,   type::Symbol; kw...) -> ::Int
 
-Add a new conditional format to a worksheet. `cr` specifies CellRange, RowRange or 
-ColumnRange to apply the conditional format to or, if an `XLSXFile` is specified, 
-a SheetCellRange, SheetRowRange or SheetColumnRange. Alternatively, rows and columns 
-can be specified separately.
+Add a new conditional format to a cell range, row range or column range in a 
+worksheet or `XLSXFile`.  Alternatively, ranges can be specified by giving rows 
+and columns can be specified separately.
 
 !!! warning "In Develpment..."
 
@@ -397,8 +396,8 @@ Valid options for `type` are (others in develpment):
 - `:uniqueValues`
 - `:duplicateValues`
 
-The `type` keyword determines which type of conditional formatting is being defined.
-Keyword options differ according to the `type` specified as set out below.
+The `type` argument determines which type of conditional formatting is being defined.
+Keyword options differ according to the `type` specified, as set out below.
 
 !!! note "Ovrlaying conditional formats"
     
@@ -499,7 +498,9 @@ Valid keywords are:
 All keywords are defined using Strings (e.g. `value = "2"` or `value = "A2"`).
 
 The keyword `operator` defines the comparison to use in the conditional formatting. 
-If the condition is met, the format is applied. Valid options are:
+If the condition is met, the format is applied.
+Valid options are:
+
 - `greaterThan`     (cell >  `value`)
 - `greaterEqual`    (cell >= `value`)
 - `lessThan`        (cell <  `value`)
@@ -509,14 +510,14 @@ If the condition is met, the format is applied. Valid options are:
 - `between`         (cell between `value` and `value2`)
 - `notBetween`      (cell not between `value` and `value2`)
 
-The comparison is made against `value` and, if `operator` is either `between` 
-or `notBetween`, `value2` sets the other bound on the condition.
 If not specified (when required), `value` will be the arithmetic average of the 
 (non-missing) cell values in the range if values are numeric. If the cell values 
 are non-numeric, an error is thrown.
 
 Formatting to be applied if the condition is met can be defined in two ways. Use the keyword
-`dxStyle` to select one of the built-in Excel formats. Valid options are:
+`dxStyle` to select one of the built-in Excel formats. 
+Valid options are:
+
 - `redfilltext`     (light red fill, dark red text) (default)
 - `yellowfilltext`  (light yellow fill, dark yellow text)
 - `greenfilltext`   (light green fill, dark green text)
@@ -528,6 +529,7 @@ Alternatively, you can define a custom format by using the keywords `format`, `f
 `border`, and `fill` which each take a vector of pairs of strings. The first string 
 is the name of the attribute to set and the second is the value to set it to.  
 Valid attributes for each keyword are:
+
 - `format` : `format``
 - `font`   : `color`, `bold`, `italic`, `under`, `strike`
 - `fill`   : `pattern`, `bgColor`, `fgColor`
@@ -536,7 +538,7 @@ Valid attributes for each keyword are:
 Refer to [`setFormat()`](@ref), [`setFont()`](@ref), [`setFill()`](@ref) and [`setBorder()](@ref) for
 more details on the valid attributes and values.
 
-!!! Note
+!!! note
 
     Excel limits the formatting attributes that can be set in a conditional format.
     It is not possible to set the size or name of a font and nor is it possible to set 
@@ -588,7 +590,8 @@ julia> XLSX.setConditionalFormat(s, "B1:B5", :cell;
 This conditional format can be used to highlight cells in the top (bottom) n within the 
 range or in the top (bottom) n% (ie in the top 5 or in the top 5% of values in the range). 
 
-The available keywords are: 
+The available keywords are:
+
 - `operator`   : Defines the comparison to make.
 - `value`     : Gives the for comparison or a cell reference (e.g. `"A1"`).
 - `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
@@ -599,6 +602,7 @@ The available keywords are:
 - `fill`       : defines the fill to apply if opting for a custom format.
 
 Valid values for the `operator` keyword are the following:
+
 - `topN`            (cell is in the top n (= `value`) values of the range)
 - `bottomN`         (cell is in the bottom n (= `value`) values of the range)
 - `topN%`           (cell is in the top n% (= `value`) values of the range)
@@ -616,7 +620,8 @@ The remaining keywords are defined as above for the `:cellIs` conditional format
 This conditional format can be used to compare cell values in the range with the 
 average value for the range. 
 
-The available keywords are: 
+The available keywords are:
+
 - `operator`   : Defines the comparison to make.
 - `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply.
@@ -739,7 +744,7 @@ function setConditionalFormat(f, r, type::Symbol; kw...)
         setCfCellIs(f, r; kw...)
     elseif type == :top10
         setCfTop10(f, r; kw...)
-    elseif type == :top10
+    elseif type == :aboveAverage
         setCfAboveAverage(f, r; kw...)
     elseif type == :timePeriod
         setCfTimePeriod(f, r; kw...)
@@ -763,7 +768,7 @@ function setConditionalFormat(f, r, c, type::Symbol; kw...)
         setCfCellIs(f, r, c; kw...)
     elseif type == :top10
         setCfTop10(f, r, c; kw...)
-    elseif type == :top10
+    elseif type == :aboveAverage
         setCfAboveAverage(f, r; kw...)
     elseif type == :timePeriod
         setCfTimePeriod(f, r, c; kw...)
@@ -805,7 +810,6 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -856,7 +860,6 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
             if !haskey(colorscales, colorscale)
                 throw(XLSXError("Invalid color scale: $colorScale. Valid options are: $(keys(colorscales))."))
             end
-#            new_cf = XML.Element("conditionalFormatting"; sqref=rng)
             new_dx=colorscales[colorscale]
             new_dx["priority"] = new_pr
             push!(new_cf, new_dx)
@@ -895,7 +898,6 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -928,7 +930,6 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
         new_cf = XML.Element("conditionalFormatting"; sqref=rng)
     else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-#        children=XML.children(allcfs[1])
         cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
         new_cf = allcfs[1]
     end
@@ -966,7 +967,6 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -1045,7 +1045,6 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -1120,7 +1119,6 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -1256,7 +1254,6 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
     if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
         new_cf = XML.Element("conditionalFormatting"; sqref=rng)
     else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-#        children=XML.children(allcfs[1])
         cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
         new_cf = allcfs[1]
     end
@@ -1293,7 +1290,6 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
     old_cf = getConditionalFormats(ws)
     for cf in old_cf
@@ -1334,7 +1330,6 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
     if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
         new_cf = XML.Element("conditionalFormatting"; sqref=rng)
     else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-#        children=XML.children(allcfs[1])
         cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
         new_cf = allcfs[1]
     end
@@ -1347,23 +1342,3 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
 
     return 0
 end
-
-"""
-
-<cfRule type="notContainsErrors" priority="13">
-<formula>NOT(ISERROR(D1))</formula>
-</cfRule>
-<cfRule type="containsBlanks" priority="14">
-<formula>LEN(TRIM(D1))=0</formula>
-</cfRule>
-<cfRule type="duplicateValues" priority="15"/>
-<cfRule type="containsErrors" priority="12">
-<formula>ISERROR(D1)</formula>
-</cfRule>
-<cfRule type="containsBlanks" priority="11">
-<formula>LEN(TRIM(D1))=0</formula>
-</cfRule>
-<cfRule type="uniqueValues" dxfId="0" priority="1"/>
-
-
-"""

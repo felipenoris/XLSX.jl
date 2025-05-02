@@ -174,7 +174,7 @@ julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be
 ### Illustrating the different approaches
 
 To illustrate the differences between applying `setAttribute`, `setUniformAttribute` and `setUinformStyle`,
-consider the following worksheet, whice has very hetrogeneous formatting across the three cells:
+consider the following worksheet, which has very hetrogeneous formatting across the three cells:
 
 ![image|320x500](./images/multicell.png)
 
@@ -289,7 +289,7 @@ whether you are also updating the source cell's format or not.
 ```julia
 
 julia> XLSX.setBorder(s, "BB50"; allsides = ["style" => "medium", "color" => "yellow"])
-3 # Cell BB50 has the border format I want!
+3 # Cell BB50 now has the border format I want!
 
 julia> XLSX.setUniformBorder(s, "BB50,A1:CV100") # Make cell BB50 the first (reference) cell in a non-contiguous range.
 3
@@ -442,15 +442,14 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 ```
 ![image|320x500](./images/custom-colorscale.png)
 
-### Cell Value
+#### Cell Value
 
 It is possible to apply a conditional format to a range of cells that applies when a cell's 
 value meets a specified condition using the `:cell` type.
 
-![image|320x500](./images/cell.png)
+![image|320x500](./images/cell1.png)         ![image|320x500](./images/cell2.png)
 
-In Excel there are twelve built-in color scales available, but it is possible to create 
-custom color scales, too.
+All the functions of `Highlight Cell Rules` and `Top/Bottom Rules` are provided.
 
 ## Working with Merged Cells
 
