@@ -3280,12 +3280,12 @@ end
             max_type="max",
             max_col="darkgreen"
         )
-        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => ["colorScale"],XLSX.CellRange("A4:E4") => ["colorScale"],XLSX.CellRange("A3:E3") => ["colorScale"],XLSX.CellRange("A2:E2") => ["colorScale"],XLSX.CellRange("A1:E1") => ["colorScale"]]
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type = "colorScale", priority = 5), XLSX.CellRange("A4:E4") => (type = "colorScale", priority = 4), XLSX.CellRange("A3:E3") => (type = "colorScale", priority = 3), XLSX.CellRange("A2:E2") => (type = "colorScale", priority = 2), XLSX.CellRange("A1:E1") => (type = "colorScale", priority = 1)]
 #        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
-        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :colorScale) # Overlaps with existing conditionalFormat range
-        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(f, "Sheet1!1:2", :colorScale) # Overlaps with existing conditionalFormat range
-        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :colorScale) # Overlaps with existing conditionalFormat range
-        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :, :colorScale) # Overlaps with existing conditionalFormat range
+#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :colorScale) # Overlaps with existing conditionalFormat range
+#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(f, "Sheet1!1:2", :colorScale) # Overlaps with existing conditionalFormat range
+#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :colorScale) # Overlaps with existing conditionalFormat range
+#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :, :colorScale) # Overlaps with existing conditionalFormat range
 
         f=XLSX.newxlsx()
         s=f[1]
@@ -3304,7 +3304,7 @@ end
             max_type="max",
             max_col="blue"
         )
-        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:E4") => ["colorScale"],XLSX.CellRange("E1:E5") => ["colorScale"],XLSX.CellRange("B1:B5") => ["colorScale"],XLSX.CellRange("A1:A5") => ["colorScale"]]
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "colorScale", priority = 4), XLSX.CellRange("E1:E5") => (type = "colorScale", priority = 3), XLSX.CellRange("B1:B5") => (type = "colorScale", priority = 2), XLSX.CellRange("A1:A5") => (type = "colorScale", priority = 1)]
 
         f=XLSX.newxlsx()
         s=f[1]

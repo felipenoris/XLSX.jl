@@ -180,7 +180,7 @@ function get_new_dx(wb::Workbook, dx::Dict{String,Dict{String, String}})::XML.No
                     filldx=XML.Element("fill")
                     patterndx=XML.Element("patternFill")
                     for (y, z) in v
-                        y in ["pattern", "bgColor", "fgColor"] && throw(XLSXError("Invalid fill attribute: $k. Valid options are: `pattern`, `bgColor`, `fgColor`."))
+                        y in ["pattern", "bgColor", "fgColor"] || throw(XLSXError("Invalid fill attribute: $k. Valid options are: `pattern`, `bgColor`, `fgColor`."))
                         if y in ["fgColor", "bgColor"]
                             push!(patterndx, XML.Element(y, rgb=get_color(z)))
                         elseif y == "pattern" && z != "none"
@@ -194,7 +194,7 @@ function get_new_dx(wb::Workbook, dx::Dict{String,Dict{String, String}})::XML.No
                 if !isnothing(v)
                     fontdx=XML.Element("font")
                     for (y, z) in v
-                        y in ["color", "bold", "italic", "under", "strike"] && throw(XLSXError("Invalid font attribute: $k. Valid options are: `color`, `bold`, `italic`, `under`, `strike`.")) 
+                        y in ["color", "bold", "italic", "under", "strike"] || throw(XLSXError("Invalid font attribute: $y. Valid options are: `color`, `bold`, `italic`, `under`, `strike`.")) 
                         if y=="color"
                             push!(fontdx, XML.Element(y, rgb=get_color(z)))
                         elseif y == "bold"
@@ -211,7 +211,7 @@ function get_new_dx(wb::Workbook, dx::Dict{String,Dict{String, String}})::XML.No
                 push!(new_dx, fontdx)
             elseif k=="border"
                 if !isnothing(v)
-                    all[y in ["color", "style"] for y in values(v)] && throw(XLSXError("Invalid border attribute: $k. Valid options are: `color`, `style`."))
+                    all([y in ["color", "style"] for y in keys(v)]) || throw(XLSXError("Invalid border attribute. Valid options are: `color`, `style`."))
                     borderdx=XML.Element("border")
                     cdx = haskey(v, "color") ? XML.Element("color", rgb=get_color(v["color"])) : nothing
                     sdx = haskey(v, "style") ? v["style"] : nothing
@@ -269,6 +269,21 @@ function add_cf_to_XML(ws, new_cf) # Add a new conditional formatting to the wor
     else
         push!(sheetdoc[k], new_cf)
     end
+end
+
+function update_worksheet_cfx!(allcfs, cfx, ws, rng)
+    matchcfs = filter(x->x["sqref"]==string(rng), allcfs)   # Match range with existing conditional formatting blocks.
+    l = length(matchcfs)
+    if l == 0                                               # No existing conditional formatting blocks for this range so create a new one.
+        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
+        push!(new_cf, cfx)
+        add_cf_to_XML(ws, new_cf)                           # Add the new conditional formatting block to the worksheet XML.
+    elseif l==1                                             # Existing conditional formatting block found for this range so add new rule to that block.
+        push!(matchcfs[1], cfx)
+    else
+        throw(XLSXError("Too many conditional formatting blocks for range `$rng`. Must be one or none, found `$l`."))
+    end
+    update_worksheets_xml!(get_xlsxfile(ws))
 end
 
 function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
@@ -332,6 +347,11 @@ function convertref(c)
     return c
 end
 
+function allCfs(ws::Worksheet)
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find all the <conditionalFormatting> blocks in the worksheet's xml file
+    return find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":conditionalFormatting", sheetdoc)
+end
+
 
 """
 Get the conditional formats for a worksheet.
@@ -339,27 +359,19 @@ Get the conditional formats for a worksheet.
 # Arguments
 - `ws::Worksheet`: The worksheet to get the conditional formats for.
 
-Return a vector of pairs: CellRange => Vector{String}, where String is the 
-type of the conditional format applies.
+Return a vector of pairs: CellRange => NamedTuple{type::String, priority::Int}}.
 
 
 """
-function allCfs(ws::Worksheet)
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find all the <conditionalFormatting> blocks in the worksheet's xml file
-    return find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":conditionalFormatting", sheetdoc)
-end
-
-function getConditionalFormats(ws::Worksheet)::Vector{Pair{CellRange,Vector{String}}}
-    allcfnodes = allCfs(ws::Worksheet)
-    allcfs = Vector{Pair{CellRange,Vector{String}}}()
-    for (i, cf) in enumerate(allcfnodes)
-        cf_types = Vector{String}()
+getConditionalFormats(ws::Worksheet) = getConditionalFormats(allCfs(ws))
+function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple}}
+    allcfs = Vector{Pair{CellRange,NamedTuple}}()
+    for cf in allcfnodes
         for child in XML.children(cf)
             if XML.tag(child) == "cfRule"
-                push!(cf_types, child["type"])
+                push!(allcfs, CellRange(cf["sqref"]) => (; type=child["type"], priority=parse(Int, child["priority"])))
             end
         end
-        push!(allcfs, CellRange(cf["sqref"]) => cf_types)
     end
     return allcfs
 end
@@ -811,41 +823,27 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    !isnothing(min_val) && isnothing(tryparse(Float64, min_val)) && throw(XLSXError("Invalid `min_val`: $min_val. Must be a number."))
-    !isnothing(mid_val) && isnothing(tryparse(Float64, mid_val)) && throw(XLSXError("Invalid `mid_val`: $mid_val. Must be a number."))
-    !isnothing(max_val) && isnothing(tryparse(Float64, max_val)) && throw(XLSXError("Invalid `max_val`: $max_val. Must be a number."))
+    let new_pr, new_cf
 
-    let new_pr=1, new_cf
-        allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-        if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
-            new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-            new_pr = 1
-        else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-            new_cf = allcfs[1]
-            new_pr = string(maximum([parse(Int, c["priority"]) for c in XML.children(new_cf)])+1)
-        end
+        new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
 
         if isnothing(colorscale)
 
             min_type in ["min", "percentile", "percent", "num"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num."))
-            isnothing(min_val) || is_valid_cellname(min_val) || !isnothing(tryparse(Float64,min_val)) || throw(XLSXError("Invalid mid_type: $min_val. Valid options are a CellRef (e.g. `A1`) or a number."))
+            isnothing(min_val) || is_valid_cellname(min_val) || !is_valid_sheet_cellname(min_val) || !isnothing(tryparse(Float64,min_val)) || throw(XLSXError("Invalid mid_type: $min_val. Valid options are a CellRef (e.g. `A1`) or a number."))
             isnothing(mid_type) || mid_type in ["percentile", "percent", "num"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num."))
-            isnothing(mid_val) || is_valid_cellname(mid_val) || !isnothing(tryparse(Float64,mid_val)) || throw(XLSXError("Invalid mid_type: $mid_val. Valid options are a CellRef (e.g. `A1`) or a number."))
+            isnothing(mid_val) || is_valid_cellname(mid_val) || !is_valid_sheet_cellname(mid_val) || !isnothing(tryparse(Float64,mid_val)) || throw(XLSXError("Invalid mid_type: $mid_val. Valid options are a CellRef (e.g. `A1`) or a number."))
             max_type in ["max", "percentile", "percent", "num"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: max, percentile, percent, num."))
-            isnothing(max_val) || is_valid_cellname(max_val) || !isnothing(tryparse(Float64,max_val)) || throw(XLSXError("Invalid mid_type: $max_val. Valid options are a CellRef (e.g. `A1`) or a number."))
+            isnothing(max_val) || is_valid_cellname(max_val) || !is_valid_sheet_cellname(max_val) || !isnothing(tryparse(Float64,max_val)) || throw(XLSXError("Invalid mid_type: $max_val. Valid options are a CellRef (e.g. `A1`) or a number."))
 
             min_val = convertref(min_val)
             mid_val = convertref(mid_val)
             max_val = convertref(max_val)
 
-            push!(new_cf, XML.h.cfRule(type="colorScale", priority=new_pr,
+            cfx = XML.h.cfRule(type="colorScale", priority=new_pr,
                 XML.h.colorScale(
                     isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
                     isnothing(mid_type) ? nothing : XML.h.cfvo(type=mid_type, val=mid_val),
@@ -854,21 +852,19 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
                     isnothing(mid_type) ? nothing : XML.h.color(rgb=get_color(mid_col)),
                     XML.h.color(rgb=get_color(max_col))
                 )
-            ))
+            )
 
         else
             if !haskey(colorscales, colorscale)
                 throw(XLSXError("Invalid color scale: $colorScale. Valid options are: $(keys(colorscales))."))
             end
-            new_dx=colorscales[colorscale]
-            new_dx["priority"] = new_pr
-            push!(new_cf, new_dx)
+            cfx=colorscales[colorscale]
+            cfx["priority"] = new_pr
         end
 
-        add_cf_to_XML(ws, new_cf)    # Insert the new conditional formatting into the worksheet XML
-    end
+        update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
-    update_worksheets_xml!(get_xlsxfile(ws))
+    end
 
     return 0
 end
@@ -899,15 +895,11 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    !isnothing(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
-    !isnothing(value2) && isnothing(tryparse(Float64, value2)) && throw(XLSXError("Invalid `value2`: $value2. Must be a number."))
+    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
+    !isnothing(value2) && !is_valid_cellname(value2) && !is_valid_sheet_cellname(value2) && isnothing(tryparse(Float64, value2)) && throw(XLSXError("Invalid `value2`: $value2. Must be a number or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -917,28 +909,18 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     if isnothing(value)
         value = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
     end
-    cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id), priority="1", operator=operator)
+    cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id), operator=operator)
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+
     push!(cfx, XML.Element("formula", XML.Text(value)))
     if !isnothing(value2) && operator ∈ needsValue2
         push!(cfx, XML.Element("formula", XML.Text(value2)))
     end
 
-    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-    if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
-        new_cf = allcfs[1]
-    end
-
-    push!(new_cf, cfx)
-
-    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
-
-    update_worksheets_xml!(get_xlsxfile(ws))
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
     return 0
 end
@@ -968,12 +950,10 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+
+    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -1000,23 +980,10 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     push!(cfx, XML.Element("formula", XML.Text(formula)))
-    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-    l = length(allcfs)
-    if l == 0                                               # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    elseif l==1                                             # Existing conditional formatting block found for this range so add new rule to that block.
-        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
-        new_cf = allcfs[1]
-    else
-        throw(XLSXError("Too many conditional formatting blocks for range `$rng`. Must be one or none, found `$l`."))
-    end
 
-    push!(new_cf, cfx)
-
-    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
-
-    update_worksheets_xml!(get_xlsxfile(ws))
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
     return 0
 end
@@ -1046,14 +1013,10 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
+    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -1075,23 +1038,9 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
 
-    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-    l = length(allcfs)
-    if l == 0                                               # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    elseif l==1                                             # Existing conditional formatting block found for this range so add new rule to that block.
-        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
-        new_cf = allcfs[1]
-    else
-        throw(XLSXError("Too many conditional formatting blocks for range `$rng`. Must be one or none, found `$l`."))
-    end
-
-    push!(new_cf, cfx)
-
-    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
-
-    update_worksheets_xml!(get_xlsxfile(ws))
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
     return 0
 end
@@ -1120,12 +1069,8 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
     isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
 
@@ -1161,23 +1106,9 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
 
-    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-    l = length(allcfs)
-    if l == 0                                               # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    elseif l==1                                             # Existing conditional formatting block found for this range so add new rule to that block.
-        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
-        new_cf = allcfs[1]
-    else
-        throw(XLSXError("Too many conditional formatting blocks for range `$rng`. Must be one or none, found `$l`."))
-    end
-
-    push!(new_cf, cfx)
-
-    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
-
-    update_worksheets_xml!(get_xlsxfile(ws))
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
     return 0
 end
@@ -1205,14 +1136,9 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
 )::Int
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-#    length(rng) <=1 && throw(XLSXError("Range `$rng` must have more than one cell."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+allcfs = allCfs(ws)                    # get all conditional format blocks
+old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
     if operator == "yesterday"
         formula = "FLOOR(__CR__,1)=TODAY()-1"
@@ -1244,25 +1170,15 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
-    cfx = XML.Element("cfRule"; type="timePeriod", dxfId=Int(dxid.id), priority="1", operator=operator)
+    cfx = XML.Element("cfRule"; type="timePeriod", dxfId=Int(dxid.id), operator=operator)
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+
     push!(cfx, XML.Element("formula", XML.Text(formula)))
 
-    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-    if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
-        new_cf = allcfs[1]
-    end
-
-    push!(new_cf, cfx)
-
-    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
-
-    update_worksheets_xml!(get_xlsxfile(ws))
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
     return 0
 end
@@ -1291,12 +1207,8 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    old_cf = getConditionalFormats(ws)
-    for cf in old_cf
-        if cf.first != rng && intersects(cf.first, rng)
-            throw(XLSXError("Range `$rng` intersects with existing conditional format range `$(cf.first)` but is not the same. Must be the same as the existing range or entirely separate."))
-        end
-    end
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
     if operator == "containsBlanks"
         formula = "LEN(TRIM(__CR__))=0"
@@ -1320,25 +1232,14 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
-    cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1")
+    cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id))
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     formula !="" && push!(cfx, XML.Element("formula", XML.Text(formula)))
 
-    allcfs = filter(x->x["sqref"]==string(rng), allCfs(ws)) # Match range with existing conditional formatting blocks.
-    if length(allcfs) == 0                                  # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-    else                                                    # Existing conditional formatting block found for this range so add new rule to that block.
-        cfx["priority"] = string(maximum([parse(Int, c["priority"]) for c in XML.children(allcfs[1])])+1)
-        new_cf = allcfs[1]
-    end
-
-    push!(new_cf, cfx)
-
-    add_cf_to_XML(ws, new_cf) # Add the new conditional formatting to the worksheet XML.
-
-    update_worksheets_xml!(get_xlsxfile(ws))
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
     return 0
 end
