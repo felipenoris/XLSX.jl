@@ -184,7 +184,7 @@ We can apply `setBorder()` to add a top border to each cell:
 julia> XLSX.setBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
 -1
 ```
-to merge the top border with the other attributes, to get
+This merges the new top border definition with the other, existing attributes, to get
 
 ![image|320x500](./images/multicell2.png)
 
@@ -444,12 +444,171 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 
 #### Cell Value
 
-It is possible to apply a conditional format to a range of cells that applies when a cell's 
-value meets a specified condition using the `:cell` type.
+It is possible to format each cell in a range when the cell's value meets a specified condition using one 
+of a number of built-in cell format options or using custom formatting. All the functions of 
+`Highlight Cell Rules` and `Top/Bottom Rules` are provided.
 
-![image|320x500](./images/cell1.png)         ![image|320x500](./images/cell2.png)
+![image|320x500](./images/cell1.png) ![image|100x500](./images/blank.png) ![image|320x500](./images/cell2.png)
 
-All the functions of `Highlight Cell Rules` and `Top/Bottom Rules` are provided.
+The six built-in formats in Excel are offered for each of these formatting options as illustrated here for the 
+`greaterThan` comparison.
+
+![image|320x500](./images/cellvalue-formats.png)
+
+The six built-in formatting options are available by name in XLSX.jl as follows
+* `redfilltext`
+* `yellowfilltext`
+* `greenfilltext`
+* `redfill` 
+* `redtext`
+* `redborder`
+
+Thus, for example, we can create a simple `XLSXFile` from scratch and then apply some 
+conditional formats to its cells, as follows:
+
+```julia
+julia> columns = [ [1, 2, 3, 4], ["Hey", "You", "Out", "There"], [10.2, 20.3, 30.4, 40.5] ]
+3-element Vector{Vector}:
+ [1, 2, 3, 4]
+ ["Hey", "You", "Out", "There"]
+ [10.2, 20.3, 30.4, 40.5]
+
+julia> colnames = [ "integers", "strings", "floats" ]
+3-element Vector{String}:
+ "integers"
+ "strings"
+ "floats"
+
+julia> f=XLSX.newxlsx()
+XLSXFile(""C:\...\blank.xlsx"") containing 1 Worksheet
+            sheetname size          range        
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
+
+julia> XLSX.writetable!(s, columns, colnames)
+
+julia> s[1:5, 1:3]
+5×3 Matrix{Any}:
+  "integers"  "strings"    "floats"
+ 1            "Hey"      10.2
+ 2            "You"      20.3
+ 3            "Out"      30.4
+ 4            "There"    40.5
+
+julia> XLSX.setConditionalFormat(s, "A2:A5", :cellIs;
+                    operator="greaterThan",
+                    value="2",
+                    dxStyle="redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "B2:B5", :containsText;
+                    value="u",
+                    dxStyle="greenfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "C2:C5", :top10;
+                    operator ="topN%",
+                    value="10"
+                    dxStyle="redborder")
+0
+
+```
+
+![image|320x500](./images/simple-cellvalue-example.png)
+
+Alternatively, it is possible to specify custom format options to match the options offered in Excel 
+under the `Custom Format...` option:
+
+![image|320x500](./images/custom-formats.png)
+
+For example, starting with the same simple `XLSXFile` as above, we can apply the following custom formats:
+
+```julia
+julia> XLSX.setConditionalFormat(s, "A2:A5", :cellIs;
+                   operator="greaterThan",
+                   value="2",
+                   font=["color" => "coral", "bold"=>"true"],
+                   fill=["pattern"=>"solid", "bgColor"=>"cornsilk"],
+                   border=["style"=>"dashed", "color"=>"orangered4"],
+                   format=["format"=>"0.000"])
+0
+
+julia> XLSX.setConditionalFormat(s, "B2:B5", :containsText;
+                    value="u",
+                    font=["color" => "steelblue4", "italic"=>"true"],
+                    fill=["pattern"=>"darkTrellis", "fgColor"=>"lawngreen", "bgColor"=>"cornsilk"],
+                    border=["style"=>"double", "color"=>"magenta3"])
+0
+
+julia> XLSX.setConditionalFormat(s, "C2:C5", :top10;
+                    operator ="topN%",
+                    value="10",
+                    font=["color" => "magenta3", "strike"=>"true"],
+                    fill=["pattern"=>"lightVertical", "fgColor"=>"lawngreen", "bgColor"=>"cornsilk"],
+                    border=["style"=>"double", "color"=>"cyan"])
+0
+
+julia> XLSX.getConditionalFormats(s)
+3-element Vector{Pair{XLSX.CellRange, NamedTuple}}:
+ C2:C5 => (type = "top10", priority = 3)
+ B2:B5 => (type = "containsText", priority = 2)
+ A2:A5 => (type = "cellIs", priority = 1)
+
+```
+
+![image|320x500](./images/custom-cellvalue-example.png)
+
+It is possible to overlay multiple conditional formats over each other in a cell range 
+or even in different, overlapping cell ranges. Starting with a table of integers, we can 
+apply three different conditional formats sequentially. Excel applies these in priority 
+order.
+
+```julia
+
+julia> s[1:5, 1:3]
+5×3 Matrix{Any}:
+   "first"    "middle"    "last"
+  1         15           9
+ 12          6          10
+  3         17          11
+ 14          8           2
+
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A2:C5", :colorScale; colorscale="greenyellowred")
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:C5", :top10;
+                    operator ="topN",
+                    value="3",
+                    font=["color"=>"magenta3", "strike"=>"true"],
+                    fill=["pattern"=>"lightVertical", "fgColor"=>"lawngreen", "bgColor"=>"cornsilk"],
+                    border=["style"=>"double", "color"=>"cyan"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A5", :cellIs;
+                   operator="lessThan",
+                   value="2",
+                   font=["color"=>"coral", "bold"=>"true"],
+                   fill=["pattern"=>"solid", "bgColor"=>"cornsilk"],
+                   border=["style"=>"dashed", "color"=>"orangered4"])
+0
+
+julia> XLSX.getConditionalFormats(s)
+3-element Vector{Pair{XLSX.CellRange, NamedTuple}}:
+ A2:A5 => (type = "cellIs", priority = 3)
+ A2:C5 => (type = "colorScale", priority = 1)
+ A2:C5 => (type = "top10", priority = 2)
+
+```
+to give this result:
+
+![image|320x500](./images/multiple-cellvalue-example.png)
+
+The `formatting_type` needed for these different functions varies, as do the keyword options.
+Refer to [XLSX.setConditionalFormat()](@ref) for full details.
 
 ## Working with Merged Cells
 

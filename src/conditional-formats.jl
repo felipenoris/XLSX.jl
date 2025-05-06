@@ -5,8 +5,8 @@ const highlights::Dict{String,Dict{String,Dict{String, String}}} = Dict(
         "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFC7CE")
     ),
     "yellowfilltext" => Dict(
-        "font" => Dict("color"=>"FFA51E00"),
-        "fill" => Dict("pattern" => "solid", "bgColor"=>"FF9C5700")
+        "font" => Dict("color"=>"FF9C5700"),
+        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFEB9C")
     ),
     "greenfilltext" => Dict(
         "font" => Dict("color"=>"FF006100"),
@@ -34,7 +34,7 @@ const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, b
             XML.h.color(rgb="FF63BE7B")
         )
     ),
-    "redyellowgreengreenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
+    "redyellowgreen" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
             XML.h.cfvo(type="min"),
             XML.h.cfvo(type="percentile", val="50"),
@@ -147,7 +147,7 @@ const timeperiods::Dict{String,String} = Dict(
     "nextMonth" => "AND(MONTH(__CR__)=MONTH(EDATE(TODAY(),0+1)),YEAR(__CR__)=YEAR(EDATE(TODAY(),0+1)))"
 )
 
-function get_dx(dxStyle::Union{Nothing, String}, border::Union{Nothing, Vector{Pair{String, String}}}, fill::Union{Nothing, Vector{Pair{String, String}}}, font::Union{Nothing, Vector{Pair{String, String}}}, format::Union{Nothing, Vector{Pair{String, String}}})::Dict{String,Dict{String, String}}
+function get_dx(dxStyle::Union{Nothing, String}, format::Union{Nothing, Vector{Pair{String, String}}}, font::Union{Nothing, Vector{Pair{String, String}}}, border::Union{Nothing, Vector{Pair{String, String}}}, fill::Union{Nothing, Vector{Pair{String, String}}})::Dict{String,Dict{String, String}}
     if isnothing(dxStyle)
         if all(isnothing.([border, fill, font, format]))
             dx=highlights["redfilltext"]
@@ -204,7 +204,7 @@ function get_new_dx(wb::Workbook, dx::Dict{String,Dict{String, String}})::XML.No
                         elseif y == "under"
                             z != "none" && push!(fontdx, XML.Element("u"; val="v"))
                         elseif y == "strike"
-                            strike=="true" && push!(fontdx, XML.Element(y; val="0"))
+                            z=="true" && push!(fontdx, XML.Element(y))
                         end
                     end
                 end
@@ -498,7 +498,7 @@ Defines a conditional format based on the value of each cell in a range.
 
 Valid keywords are:
 - `operator`   : Defines the comparison to make.
-- `value`     : defines the first value to compare against. This can be a cell reference (e.g. `"A1"`) or a number.
+- `value`      : defines the first value to compare against. This can be a cell reference (e.g. `"A1"`) or a number.
 - `value2`     : defines the second value to compare against. This can be a cell reference (e.g. `"A1"`) or a number.
 - `stopIfTrue` : Stops evaluating the conditional formats for this cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply
@@ -567,9 +567,9 @@ is `dxStyle="redfilltext"`.
 # Examples
 
 ```julia
-julia> XLSX.setConditionalFormat(s, "B1:B5", :cell) # Defaults to `operator="greaterThan"`, `dxStyle`="redfilltext"` and `value` set to the arithmetic agverage of cell values in `rng`.
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cellIs) # Defaults to `operator="greaterThan"`, `dxStyle="redfilltext"` and `value` set to the arithmetic agverage of cell values in `rng`.
 
-julia> XLSX.setConditionalFormat(s, "B1:B5", :cell;
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cellIs;
             operator="between",
             value="2",
             value2="3",
@@ -578,7 +578,7 @@ julia> XLSX.setConditionalFormat(s, "B1:B5", :cell;
             font = ["color"=>"blue", "bold"=>"true"]
         )
 
-julia> XLSX.setConditionalFormat(s, "B1:B5", :cell; 
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cellIs; 
             operator="greaterThan",
             value="4",
             fill = ["pattern" => "none", "bgColor"=>"green"],
@@ -953,7 +953,7 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
+#    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -1024,13 +1024,13 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
     dxid = Add_Cf_Dx(wb, new_dx)
  
     if operator == "topN"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", rank=value)
+        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", rank=value)
     elseif operator == "topN%"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", percent="1", rank=value)
+        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", percent="1", rank=value)
     elseif operator == "bottomN"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", bottom="1", rank=value)
+        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", bottom="1", rank=value)
     elseif operator == "bottomN%"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", percent="1", bottom="1", rank=value)
+        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", percent="1", bottom="1", rank=value)
     else
         throw(XLSXError("Invalid operator: $operator. Valid options are: `topN`, `topN%`, `bottomN`, `bottomN%`."))
     end
@@ -1072,7 +1072,7 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
+#    isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -1137,8 +1137,8 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-allcfs = allCfs(ws)                    # get all conditional format blocks
-old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
     if operator == "yesterday"
         formula = "FLOOR(__CR__,1)=TODAY()-1"
