@@ -762,7 +762,7 @@ function setConditionalFormat(f, r, type::Symbol; kw...)
         setCfTimePeriod(f, r; kw...)
     elseif type ∈ [:containsText, :notContainsText, :beginsWith, :endsWith]
         setCfContainsText(f, r; operator=String(type), kw...)
-    elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, duplicateValues, uniqueValues]
+    elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, :duplicateValues, :uniqueValues]
         setCfContainsBlankErrorUniqDup(f, r; operator=String(type), kw...)
 #    elseif type == :iconSet
 #        throw(XLSXError("Icon sets are not yet implemented."))
@@ -909,11 +909,13 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     if isnothing(value)
         value = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
     end
-    cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id), operator=operator)
+    cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id))
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["operator"] = operator
+
 
     push!(cfx, XML.Element("formula", XML.Text(value)))
     if !isnothing(value2) && operator ∈ needsValue2
@@ -976,11 +978,13 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     end
     formula = replace(formula, "__txt__" => value, "__CR__" => string(first(rng)))
 
-    cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", operator=operator, text=value)
+    cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id))
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["operator"]=operator
+    cfx["text"]=value
     push!(cfx, XML.Element("formula", XML.Text(formula)))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
@@ -1023,22 +1027,32 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
     new_dx= get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
  
+    percent = ""
+    bottom = ""
+    cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id))
     if operator == "topN"
-        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", rank=value)
     elseif operator == "topN%"
-        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", percent="1", rank=value)
+        percent="1"
     elseif operator == "bottomN"
-        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", bottom="1", rank=value)
+        bottom="1"
     elseif operator == "bottomN%"
-        cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id), priority="1", percent="1", bottom="1", rank=value)
+        percent="1"
+        bottom="1"
     else
         throw(XLSXError("Invalid operator: $operator. Valid options are: `topN`, `topN%`, `bottomN`, `bottomN%`."))
     end
 
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    if percent != ""
+        cfx["percent"] = percent
+    end
+    if bottom != ""
+        cfx["bottom"] = bottom
+    end
+    cfx["rank"] = value
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
@@ -1103,10 +1117,10 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
         throw(XLSXError("Invalid operator: $operator. Valid options are: `aboveAverage`, `aboveEqAverage`, `plus1sStdDev`, `plus2StdDev`, `plus3StdDev`, `belowAverage`, `belowEqAverage`, `minus1StdDev`, `minus2StdDev`, `minus3StdDev`."))
     end
 
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
@@ -1170,12 +1184,13 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
-    cfx = XML.Element("cfRule"; type="timePeriod", dxfId=Int(dxid.id), operator=operator)
+    cfx = XML.Element("cfRule"; type="timePeriod", dxfId=Int(dxid.id))
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
-
+    cfx["operator"] = operator
+   
     push!(cfx, XML.Element("formula", XML.Text(formula)))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
@@ -1233,10 +1248,10 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
     dxid = Add_Cf_Dx(wb, new_dx)
 
     cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id))
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     formula !="" && push!(cfx, XML.Element("formula", XML.Text(formula)))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
