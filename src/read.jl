@@ -545,7 +545,7 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
 
 Non-contiguous ranges return vectors.
 
-```
+```julia
 julia> XLSX.readdata("customXml.xlsx", "Mock-up", "Location") # `Location` is a `definedName` for a non-contiguous range
 4-element Vector{Any}:
  "Here"
@@ -622,7 +622,7 @@ The default behavior is `stop_in_empty_row=true`.
 
 Example for `stop_in_row_function`:
 
-```
+```julia
 function stop_function(r)
     v = r[:col_label]
     return !ismissing(v) && v == "unwanted value"

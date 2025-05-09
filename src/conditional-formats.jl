@@ -542,12 +542,12 @@ Alternatively, you can define a custom format by using the keywords `format`, `f
 is the name of the attribute to set and the second is the value to set it to.  
 Valid attributes for each keyword are:
 
-- `format` : `format``
+- `format` : `format`
 - `font`   : `color`, `bold`, `italic`, `under`, `strike`
 - `fill`   : `pattern`, `bgColor`, `fgColor`
 - `border` : `style`, `color`
 
-Refer to [`setFormat()`](@ref), [`setFont()`](@ref), [`setFill()`](@ref) and [`setBorder()](@ref) for
+Refer to [`setFormat()`](@ref), [`setFont()`](@ref), [`setFill()`](@ref) and [`setBorder()`](@ref) for
 more details on the valid attributes and values.
 
 !!! note

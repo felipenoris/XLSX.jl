@@ -330,8 +330,9 @@ julia> cell = XLSX.getcell(sheet, "A1")
 
 julia> cell = XLSX.getcell(sheet, 1:3, [2,4,6])
 
-Other examples are as [`getdata()`](@ref).
 ```
+
+Other examples are as [`getdata()`](@ref).
 
 """
 function getcell(ws::Worksheet, single::CellRef)::AbstractCell

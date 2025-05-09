@@ -32,7 +32,7 @@ saving to a file with `XLSX.writexlsx`.
 
 # Examples
 ```julia
-julia> xf = newxlsx()
+julia> xf = XLSX.newxlsx()
 ```
 
 """
