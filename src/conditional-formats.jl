@@ -6,7 +6,7 @@ const highlights::Dict{String,Dict{String,Dict{String, String}}} = Dict(
     ),
     "yellowfilltext" => Dict(
         "font" => Dict("color"=>"FF9C5700"),
-        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFEB9C")
+        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFEB9C")
     ),
     "greenfilltext" => Dict(
         "font" => Dict("color"=>"FF006100"),
@@ -312,13 +312,8 @@ function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
             throw(XLSXError("Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
         end
     end
-    # Check new_dx doesn't duplicate any existing dxf. If yes, use that rather than create new.
-    # Need to work around XML.jl issue # 33
-    for (k, node) in enumerate(XML.children(xroot[i][j]))
-        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_dx))[1] # XML.jl defines `Base.:(==)`
-            return DxFormat(k - 1) # CellDataFormat is zero-indexed
-        end
-    end
+    
+#   Don't reuse duplicates here. Always create new!
     existingdx=XML.children(xroot[i][j])
     dxfs = unlink(xroot[i][j], ("dxfs", "dxf")) # Create the new <dxfs> Node
     if length(existingdx) > 0
@@ -384,14 +379,9 @@ end
 
 Add a new conditional format to a cell range, row range or column range in a 
 worksheet or `XLSXFile`.  Alternatively, ranges can be specified by giving rows 
-and columns can be specified separately.
+and columns separately.
 
-!!! warning "In Develpment..."
-
-    This function is still in development and may not work as expected.
-    It is not yet implemented for all types of conditional formats.
-
-Valid options for `type` are (others in develpment):
+Valid options for `type` are:
 - `:colorScale`
 - `:cellIs`
 - `:top10`
@@ -411,39 +401,24 @@ Valid options for `type` are (others in develpment):
 The `type` argument determines which type of conditional formatting is being defined.
 Keyword options differ according to the `type` specified, as set out below.
 
-!!! note "Ovrlaying conditional formats"
-    
-    Conditional formats are applied to a cell range and it is possible to apply multiple 
-    conditional formats to the same range or to overlapping ranges. Each format is applied 
-    in turn to each cell in priority order which, here, is the order in which they are 
-    created. Different format options may complement or override each other and the 
-    finished appearance will be the resuilt of all formats overlaying each other.
-
-    It is possible to terminate the sequential application of conditional formats to a 
-    cell if the condition related to any format is met. This is achieved by setting the 
-    keyword option `stopIfTrue=true` in the relevant conditional format.
-
-    While the `stopIfTrue` keyword is available for most conditional formats, it is not 
-    available for `:colorScale` conditional formats.
-
 # type = :colorScale
 
-Define a 2-color or 3-color color scale conditional format.
+Define a 2-color or 3-color colorscale conditional format.
 
 Use the keyword `colorscale` to choose one of the 12 built-in Excel colorscales:
 
-- `"redyellowgreen"`: Red, Yellow, Green color scale.
-- `"greenyellowred"`: Green, Yellow, Red color scale.
-- `"redwhitegreen"` : Red, White, Green color scale.
-- `"greenwhitered"` : Green, White, Red color scale.
-- `"redwhiteblue"`  : Red, White, Blue color scale.
-- `"bluewhitered"`  : Blue, White, Red color scale.
-- `"redwhite"`      : Red, White color scale.
-- `"whitered"`      : White, Red color scale.
-- `"whitegreen"`    : White, Green color scale.
-- `"greenwhite"`    : Green, White color scale.
-- `"yellowgreen"`   : Yellow, Green color scale.
-- `"greenyellow"`   : Green, Yellow color scale. (default)
+- `"redyellowgreen"`: Red, Yellow, Green 3-color scale.
+- `"greenyellowred"`: Green, Yellow, Red 3-color scale.
+- `"redwhitegreen"` : Red, White, Green 3-color scale.
+- `"greenwhitered"` : Green, White, Red 3-color scale.
+- `"redwhiteblue"`  : Red, White, Blue 3-color scale.
+- `"bluewhitered"`  : Blue, White, Red 3-color scale.
+- `"redwhite"`      : Red, White 2-color scale.
+- `"whitered"`      : White, Red 2-color scale.
+- `"whitegreen"`    : White, Green 2-color scale.
+- `"greenwhite"`    : Green, White 2-color scale.
+- `"yellowgreen"`   : Yellow, Green 2-color scale.
+- `"greenyellow"`   : Green, Yellow 2-color scale (default).
 
 Alternatively, you can define a custom color scale by omitting the `colorscale` keyword and 
 instead using the following keywords:
@@ -526,8 +501,8 @@ If not specified (when required), `value` will be the arithmetic average of the
 (non-missing) cell values in the range if values are numeric. If the cell values 
 are non-numeric, an error is thrown.
 
-Formatting to be applied if the condition is met can be defined in two ways. Use the keyword
-`dxStyle` to select one of the built-in Excel formats. 
+Formatting to be applied if the condition is met can be defined in one of two ways. 
+Use the keyword `dxStyle` to select one of the built-in Excel formats. 
 Valid options are:
 
 - `redfilltext`     (light red fill, dark red text) (default)
@@ -620,7 +595,7 @@ Valid values for the `operator` keyword are the following:
 - `topN%`           (cell is in the top n% (= `value`) values of the range)
 - `bottomN%`        (cell is in the bottom n% (= `value`) values of the range)
 
-The remaining keywords are defined as above for the `:cellIs` conditional format type.
+The remaining keywords are defined as above for `type = :cellIs`.
 
 # Examples
 
@@ -655,17 +630,114 @@ Valid values for the `operator` keyword are the following:
 - `minus2StdDev`    (cell is below the average of the range - 2 standard deviations)
 - `minus3StdDev`    (cell is below the average of the range - 3 standard deviations)
 
-The remaining keywords are defined as above for the `:cellIs` conditional format type.
+The remaining keywords are defined as above for `type = :cellIs`.
 
 # Examples
 
 ```julia
+julia> using Random, Distributions
+
+julia> d=Normal()
+Normal{Float64}(μ=0.0, σ=1.0)
+
+julia> columns=rand(d,1000)                                                                                                                                                        
+1000-element Vector{Float64}:
+-1.5515478694605092
+  0.36859583733587165
+  1.5349535865662158
+ -0.2352610551087202
+  0.12355875388105911
+  0.5859222303845908
+ -0.6326662651426166
+  1.0610118292961683
+ -0.7891578831398097
+  0.031022172414689787
+ -0.5534440118018843
+ -2.3538883599955023
+  ⋮
+  0.4813001892130465
+  0.03871017417416217
+  0.7224728281160403
+ -1.1265372949908539
+  1.5714393857211955
+  0.31438739499933255
+  0.4852591013082452
+  0.5363388236349432
+  1.1268430910133729
+  0.7691442442244849
+  1.0061732938516454
+
+julia> XLSX.writetable!(s, [columns], ["normal"])
+
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\\...\\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
+
+julia> XLSX.writetable!(s, [columns], ["normal"])
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="plus3StdDev",
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"red"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="minus3StdDev",
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"red"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="plus2StdDev",
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"tomato"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="minus2StdDev",
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"tomato"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="minus1StdDev",
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"pink"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="plus1StdDev",
+                stopIfTrue = "true",
+                fill = ["pattern"=>"solid", "bgColor"=>"pink"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="belowEqAverage",
+                fill = ["pattern"=>"solid", "bgColor"=>"green"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
+                operator="aboveEqAverage", 
+                fill = ["pattern"=>"solid", "bgColor"=>"green"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
 ```
 
-# type = :containsText
-# type = :notContainsText
-# type = :beginsWith
-# type = :endsWith
+# type = :containsText, :notContains, :beginsWith or :endsWith
 
 Highlight cells in the range that contain (or do not contain), begin or end with 
 a specific text string.
@@ -682,12 +754,45 @@ Valid keywords are:
 
 `value` gives the literal text to compare (eg. "Hello World") or provides a cell reference (e.g. `"A1"`).
 
-The remaining keywords are optional and are defined as above for the `:cellIs` conditional format type.
+The remaining keywords are optional and are defined as above for `type = :cellIs`.
 
 # Examples
 
 ```julia
+julia> s[:]
+4×1 Matrix{Any}:
+ "Hello World"
+ "Life the universe and everything"
+ "Once upon a time"
+ "In America"
+
+julia> XLSX.setConditionalFormat(s, "A1:A4", :containsText;
+                value="th",
+                fill = ["pattern"=>"solid", "bgColor"=>"cyan"],
+                font = ["color"=>"black", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A4", :notContainsText;
+                value="i",
+                fill = ["pattern"=>"solid", "bgColor"=>"green"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A4", :beginsWith ;
+                value="On",
+                fill = ["pattern"=>"solid", "bgColor"=>"red"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A4", :endsWith ;
+                value="ica",
+                fill = ["pattern"=>"solid", "bgColor"=>"blue"],
+                font = ["color"=>"white", "bold"=>"true"])
+0
+
 ```
+![image|320x500](./images/containsText.png)
+
 
 # type = :timePeriod
 
@@ -715,19 +820,47 @@ Valid values for the keyword `operator` are the following:
 - `thisMonth`
 - `nextMonth`
 
-The remaining keywords are defined as above for the `:cellIs` conditional format type.
+The remaining keywords are defined as above for `type = :cellIs`.
 
 # Examples
 
 ```julia
-```
+julia> s[1:13, 1]
+13×1 Matrix{Any}:
+ "Dates"
+ 2024-11-20
+ 2024-12-20
+ 2025-01-08
+ 2025-02-08
+ 2025-03-08
+ 2025-04-08
+ 2025-05-08
+ 2025-05-09
+ 2025-05-10
+ 2025-05-14
+ 2025-06-08
+ 2025-07-08
 
-# type = :containsErrors
-# type = :notContainsErrors
-# type = :containsBlanks
-# type = :notContainsBlanks
-# type = :uniqueValues
-# type = :duplicateValues
+julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod; operator="today", dxStyle = "greenfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod; operator="tomorrow", dxStyle = "yellowfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod; operator="nextMonth", dxStyle = "redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod;
+                operator="lastMonth", 
+                fill = ["pattern"=>"solid", "bgColor"=>"blue"], 
+                font = ["color"=>"yellow", "bold"=>"true"])        
+0
+
+```
+![image|320x500](./images/timePeriod-9thMay2025.png)
+
+
+# type = :containsErrors, :notContainsErrors, :containsBlanks, :notContainsBlanks, :uniqueValues or :duplicateValues
 
 These conditional formattimg options highlight cells that contain or don't contain errors, 
 are blank or not blank, are unique in the range or duplicates within the range. 
@@ -745,8 +878,47 @@ These keywords are defined as above for the `:cellIs` conditional format type.
 # Examples
 
 ```julia
-```
+julia> XLSX.setConditionalFormat(s, "A1:A7", :containsErrors;
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"blue"],
+                font = ["color"=>"white", "bold"=>"true"])        
+0
 
+julia> XLSX.setConditionalFormat(s, "A1:A7", :containsBlanks;
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"green"],
+                font = ["color"=>"black", "bold"=>"true"])       
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A7", :uniqueValues;
+                stopIfTrue="true",
+                fill = ["pattern"=>"solid", "bgColor"=>"yellow"],
+                font = ["color"=>"black", "bold"=>"true"])        
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:A7", :duplicateValues;
+                fill = ["pattern"=>"solid", "bgColor"=>"cyan"],
+                font = ["color"=>"black", "bold"=>"true"])
+0
+
+```
+![image|320x500](./images/errorBlank.png)
+
+!!! note "Overlaying conditional formats"
+    
+    It is possible to overlay multiple conditional formats to the same range or to 
+    overlapping ranges. Each format is applied in turn to each cell in priority 
+    order which, here, is the order in which they are created. Different format 
+    options may complement or override each other and the finished appearance will 
+    be the resuilt of all formats overlaying each other.
+
+    It is possible to terminate the sequential application of conditional formats to a 
+    cell if the condition related to any format is met. This is achieved by setting the 
+    keyword option `stopIfTrue="true"` in the relevant conditional format.
+
+    While the `stopIfTrue` keyword is available for most conditional formats, it is not 
+    available for `:colorScale`, `:dataBar` or `:iconSet` conditional formats since these 
+    do not apply a specific test in each cell.
 
 """
 function setConditionalFormat(f, r, type::Symbol; kw...)
@@ -962,23 +1134,24 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     new_dx= get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
+    type=operator
     if operator == "containsText"
         formula = "NOT(ISERROR(SEARCH(\"__txt__\",__CR__)))"
     elseif operator == "notContainsText"
         operator = "notContains"
         formula = "ISERROR(SEARCH(\"__txt__\",__CR__))"
     elseif operator == "beginsWith"
-        operator = "beginsWith"
+#        operator = "beginsWith"
         formula = "LEFT(__CR__,LEN(\"__txt__\"))=\"__txt__\""
     elseif operator == "endsWith"
-        operator = "endsWith"
+#        operator = "endsWith"
         formula = "RIGHT(__CR__,LEN(\"__txt__\"))=\"__txt__\""
     else
-        throw(XLSXError("Invalid operator: $operator. Valid options are: `containsText`, `notContainsText`, `beginsWith`, `endsWith`."))
+        throw(XLSXError("Invalid operator: $operator. Valid options are: `containsText`, `notContains`, `beginsWith`, `endsWith`."))
     end
     formula = replace(formula, "__txt__" => value, "__CR__" => string(first(rng)))
 
-    cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id))
+    cfx = XML.Element("cfRule"; type=type, dxfId=Int(dxid.id))
     cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
@@ -1093,26 +1266,27 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
     new_dx= get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
-     if operator == "aboveAverage"
+
+    if operator == "aboveAverage"
         cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1")
     elseif operator == "aboveEqAverage"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", equalAverage="1")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", equalAverage="1")
     elseif operator == "plus1StdDev"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", bottom="1", stdDev="1")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", stdDev="1")
     elseif operator == "plus2StdDev"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", percent="1", stdDev="2")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", stdDev="2")
     elseif operator == "plus3StdDev"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", percent="1", stdDev="3")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", stdDev="3")
     elseif operator == "belowAverage"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", aboveAverage="0", )
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0" )
     elseif operator == "belowEqAverage"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", aboveAverage="0", equalAverage="1")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0", equalAverage="1")
     elseif operator == "minus1StdDev"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", aboveAverage="0", stdDev="1")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0", stdDev="1")
     elseif operator == "minus2StdDev"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", aboveAverage="0", stdDev="2")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0", stdDev="2")
     elseif operator == "minus3StdDev"
-        cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1", aboveAverage="0", stdDev="3")
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0", stdDev="3")
     else
         throw(XLSXError("Invalid operator: $operator. Valid options are: `aboveAverage`, `aboveEqAverage`, `plus1sStdDev`, `plus2StdDev`, `plus3StdDev`, `belowAverage`, `belowEqAverage`, `minus1StdDev`, `minus2StdDev`, `minus3StdDev`."))
     end
