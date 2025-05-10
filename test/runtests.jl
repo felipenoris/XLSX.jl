@@ -3247,7 +3247,7 @@ end
 
 @testset "Conditional Formats" begin
 
-    @testset "ColorScale" begin
+    @testset "colorScale" begin
         f=XLSX.newxlsx()
         s=f[1]
         for i in 1:5, j in 1:5
@@ -3255,11 +3255,10 @@ end
         end
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :colorScale) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :colorScale) # Vectors may be non-contiguous
-#        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
-#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A1", :colorScale) # One cell cellrange not allowed
-        XLSX.setConditionalFormat(s, "1:1", :colorScale)
-        XLSX.setConditionalFormat(s, 2, :, :colorScale; colorscale = "redwhiteblue")
-        XLSX.setConditionalFormat(s, 3, 1:5, :colorScale;
+        @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :colorScale) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "1:1", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, 2, :, :colorScale; colorscale = "redwhiteblue")==0
+        @test XLSX.setConditionalFormat(s, 3, 1:5, :colorScale;
             min_type="min",
             min_col="green",
             mid_type="percentile",
@@ -3267,35 +3266,72 @@ end
             mid_col="red",
             max_type="max",
             max_col="blue"
-        )
-        XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :colorScale;
+        )==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :colorScale;
             min_type="min",
             min_col="tomato",
             max_type="max",
             max_col="gold4"
-        )
-        XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :colorScale;
+        )==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :colorScale;
             min_type="min",
             min_col="yellow",
             max_type="max",
             max_col="darkgreen"
-        )
+        )==0
         @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type = "colorScale", priority = 5), XLSX.CellRange("A4:E4") => (type = "colorScale", priority = 4), XLSX.CellRange("A3:E3") => (type = "colorScale", priority = 3), XLSX.CellRange("A2:E2") => (type = "colorScale", priority = 2), XLSX.CellRange("A1:E1") => (type = "colorScale", priority = 1)]
-#        @test_throws MethodError XLSX.setConditionalFormat(s, "A1", :colorScale) # Single cell not allowed
-#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :colorScale) # Overlaps with existing conditionalFormat range
-#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(f, "Sheet1!1:2", :colorScale) # Overlaps with existing conditionalFormat range
-#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :colorScale) # Overlaps with existing conditionalFormat range
-#        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, :, :colorScale) # Overlaps with existing conditionalFormat range
+        @test XLSX.setConditionalFormat(s, "A1", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :colorScale)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :colorScale)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :colorScale)==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, :, :colorScale)==0
+        @test XLSX.setConditionalFormat(s, :, :, :colorScale)==0
+        @test length(XLSX.getConditionalFormats(s)) == 22
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:E5") => (type = "colorScale", priority = 21), 
+            XLSX.CellRange("A1:E5") => (type = "colorScale", priority = 22), 
+            XLSX.CellRange("A1:E3") => (type = "colorScale", priority = 17), 
+            XLSX.CellRange("A1:C5") => (type = "colorScale", priority = 12), 
+            XLSX.CellRange("A1:C5") => (type = "colorScale", priority = 13), 
+            XLSX.CellRange("A1:C5") => (type = "colorScale", priority = 15), 
+            XLSX.CellRange("A1:C5") => (type = "colorScale", priority = 16), 
+            XLSX.CellRange("A1:C5") => (type = "colorScale", priority = 19), 
+            XLSX.CellRange("A1:C5") => (type = "colorScale", priority = 20), 
+            XLSX.CellRange("A2:E4") => (type = "colorScale", priority = 11), 
+            XLSX.CellRange("A2:E4") => (type = "colorScale", priority = 18), 
+            XLSX.CellRange("A1:E2") => (type = "colorScale", priority = 10), 
+            XLSX.CellRange("A1:E2") => (type = "colorScale", priority = 14), 
+            XLSX.CellRange("A1:A2") => (type = "colorScale", priority = 9), 
+            XLSX.CellRange("A1:C3") => (type = "colorScale", priority = 7), 
+            XLSX.CellRange("A1:A1") => (type = "colorScale", priority = 6), 
+            XLSX.CellRange("A1:A1") => (type = "colorScale", priority = 8), 
+            XLSX.CellRange("A5:E5") => (type = "colorScale", priority = 5), 
+            XLSX.CellRange("A4:E4") => (type = "colorScale", priority = 4), 
+            XLSX.CellRange("A3:E3") => (type = "colorScale", priority = 3), 
+            XLSX.CellRange("A2:E2") => (type = "colorScale", priority = 2), 
+            XLSX.CellRange("A1:E1") => (type = "colorScale", priority = 1)
+        ]
 
         f=XLSX.newxlsx()
         s=f[1]
         for i in 1:5, j in 1:5
             s[i,j] = i+j
         end
-        XLSX.setConditionalFormat(s, "A1:A5", :colorScale)
-        XLSX.setConditionalFormat(s, :, 2, :colorScale; colorscale = "redwhiteblue")
-        XLSX.setConditionalFormat(s, "Sheet1!E:E", :colorScale; colorscale = "greenwhitered")
-        XLSX.setConditionalFormat(s, 1:5, 3:4, :colorScale;
+        @test XLSX.setConditionalFormat(s, "A1:A5", :colorScale)==0
+        @test XLSX.setConditionalFormat(s, :, 2, :colorScale; colorscale = "redwhiteblue")==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!E:E", :colorScale; colorscale = "greenwhitered")==0
+        @test XLSX.setConditionalFormat(s, 1:5, 3:4, :colorScale;
             min_type="min",
             min_col="green",
             mid_type="percentile",
@@ -3303,7 +3339,7 @@ end
             mid_col="red",
             max_type="max",
             max_col="blue"
-        )
+        )==0
         @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "colorScale", priority = 4), XLSX.CellRange("E1:E5") => (type = "colorScale", priority = 3), XLSX.CellRange("B1:B5") => (type = "colorScale", priority = 2), XLSX.CellRange("A1:A5") => (type = "colorScale", priority = 1)]
 
         f=XLSX.newxlsx()
@@ -3312,7 +3348,7 @@ end
             s[i,j] = i+j
         end
 
-        XLSX.setConditionalFormat(s, :, 1:4, :colorScale;
+        @test XLSX.setConditionalFormat(s, :, 1:4, :colorScale;
             min_type="min",
             min_col="green",
             mid_type="percentile",
@@ -3320,6 +3356,477 @@ end
             mid_col="red",
             max_type="max",
             max_col="blue"
+        ) == 0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+        XLSX.addDefinedName(s, "myRange", "A1:B5")
+        @test XLSX.setConditionalFormat(s, "myRange", :colorScale;
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="50",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        ) == 0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :colorScale; # Non-contiguous ranges not allowed
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="50",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        )
+
+    end
+    
+    @testset "cellIs" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :cellIs) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :cellIs) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :cellIs) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "1:1", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, 2, :, :cellIs; dxStyle = "greenfilltext")==0
+        @test XLSX.setConditionalFormat(s, 3, 1:5, :cellIs;
+            operator="between",
+            value="2",
+            value2="3",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            format = ["format"=>"0.00%"],
+            font = ["color"=>"blue", "bold"=>"true"]
+        ) ==0
+
+        @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :cellIs;
+            operator="greaterThan",
+            value="4",
+            fill = ["pattern" => "none", "bgColor"=>"green"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"red", "italic"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :cellIs;
+            operator="lessThan",
+            value="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type = "cellIs", priority = 5), XLSX.CellRange("A4:E4") => (type = "cellIs", priority = 4), XLSX.CellRange("A3:E3") => (type = "cellIs", priority = 3), XLSX.CellRange("A2:E2") => (type = "cellIs", priority = 2), XLSX.CellRange("A1:E1") => (type = "cellIs", priority = 1)]
+        @test XLSX.setConditionalFormat(s, "A1", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :cellIs)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :cellIs)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :cellIs)==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :cellIs)==0
+        @test XLSX.setConditionalFormat(s, :, :cellIs)==0
+        @test XLSX.setConditionalFormat(s, :, :, :cellIs)==0
+        @test length(XLSX.getConditionalFormats(s)) == 22
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:E5") => (type = "cellIs", priority = 21), 
+            XLSX.CellRange("A1:E5") => (type = "cellIs", priority = 22), 
+            XLSX.CellRange("A1:E3") => (type = "cellIs", priority = 17), 
+            XLSX.CellRange("A1:C5") => (type = "cellIs", priority = 12), 
+            XLSX.CellRange("A1:C5") => (type = "cellIs", priority = 13), 
+            XLSX.CellRange("A1:C5") => (type = "cellIs", priority = 15), 
+            XLSX.CellRange("A1:C5") => (type = "cellIs", priority = 16), 
+            XLSX.CellRange("A1:C5") => (type = "cellIs", priority = 19), 
+            XLSX.CellRange("A1:C5") => (type = "cellIs", priority = 20), 
+            XLSX.CellRange("A2:E4") => (type = "cellIs", priority = 11), 
+            XLSX.CellRange("A2:E4") => (type = "cellIs", priority = 18), 
+            XLSX.CellRange("A1:E2") => (type = "cellIs", priority = 10), 
+            XLSX.CellRange("A1:E2") => (type = "cellIs", priority = 14), 
+            XLSX.CellRange("A1:A2") => (type = "cellIs", priority = 9), 
+            XLSX.CellRange("A1:C3") => (type = "cellIs", priority = 7), 
+            XLSX.CellRange("A1:A1") => (type = "cellIs", priority = 6), 
+            XLSX.CellRange("A1:A1") => (type = "cellIs", priority = 8), 
+            XLSX.CellRange("A5:E5") => (type = "cellIs", priority = 5), 
+            XLSX.CellRange("A4:E4") => (type = "cellIs", priority = 4), 
+            XLSX.CellRange("A3:E3") => (type = "cellIs", priority = 3), 
+            XLSX.CellRange("A2:E2") => (type = "cellIs", priority = 2), 
+            XLSX.CellRange("A1:E1") => (type = "cellIs", priority = 1)
+        ]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+        XLSX.setConditionalFormat(s, "A1:A5", :cellIs)
+        XLSX.setConditionalFormat(s, :, 2, :cellIs; dxStyle = "redborder")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :cellIs; dxStyle = "redfilltext")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :cellIs;
+            operator="beween",
+            value="2",
+            value2="4",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+    
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "cellIs", priority = 4), XLSX.CellRange("E1:E5") => (type = "cellIs", priority = 3), XLSX.CellRange("B1:B5") => (type = "cellIs", priority = 2), XLSX.CellRange("A1:A5") => (type = "cellIs", priority = 1)]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :cellIs;
+            operator="lessThan",
+            value="\$E\$4",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green",  "under"=>"double"],
+            border = ["style"=>"thin", "color"=>"coral"]
+        )==0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i in 1:5, j in 1:5
+            s[i,j] = i+j
+        end
+        XLSX.addDefinedName(s, "myRange", "A1:B5")
+        @test XLSX.setConditionalFormat(s, "myRange", :cellIs;
+            operator="lessThan",
+            value="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )==0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :cellIs; # Non-contiguous ranges not allowed
+            operator="lessThan",
+            value="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )
+
+    end
+    
+    @testset "containsText" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:E1"] = "Hello World"
+        s["A2:E2"] = "Life the universe and everything"
+        s["A3:E3"] = "Once upon a time"
+        s["A4:E4"] = "In America"
+        s["A5:E5"] = "a"
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :containsText; value="a") # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :containsText; value="a") # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :containsText; value="a") # StepRange is non-contiguous
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "1:1", :containsText) # value must be defined
+        @test XLSX.setConditionalFormat(s, "1:1", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, 2, :, :containsText; value="a", dxStyle = "greenfilltext")==0
+        @test XLSX.setConditionalFormat(s, 3, 1:5, :containsText;
+            operator = "notContainsText",
+            value="a", 
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            format = ["format"=>"0.00%"],
+            font = ["color"=>"blue", "bold"=>"true"]
+        ) ==0
+
+        @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :containsText;
+            operator = "notContainsText",
+            value="a", 
+            fill = ["pattern" => "none", "bgColor"=>"green"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"red", "italic"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :containsText;
+            operator = "beginsWith",
+            value="a", 
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type = "beginsWith", priority = 5), XLSX.CellRange("A4:E4") => (type = "notContainsText", priority = 4), XLSX.CellRange("A3:E3") => (type = "notContainsText", priority = 3), XLSX.CellRange("A2:E2") => (type = "containsText", priority = 2), XLSX.CellRange("A1:E1") => (type = "containsText", priority = 1)]
+#        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type = "containsText", priority = 5), XLSX.CellRange("A4:E4") => (type = "containsText", priority = 4), XLSX.CellRange("A3:E3") => (type = "containsText", priority = 3), XLSX.CellRange("A2:E2") => (type = "containsText", priority = 2), XLSX.CellRange("A1:E1") => (type = "containsText", priority = 1)]
+        @test XLSX.setConditionalFormat(s, "A1", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "2:4", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "A:C", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "2:4", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "A:C", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, :, :containsText; value="a")==0
+        @test XLSX.setConditionalFormat(s, :, :, :containsText; value="a")==0
+        @test length(XLSX.getConditionalFormats(s)) == 22
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:E5") => (type = "containsText", priority = 21),
+            XLSX.CellRange("A1:E5") => (type = "containsText", priority = 22),
+            XLSX.CellRange("A1:E3") => (type = "containsText", priority = 17),
+            XLSX.CellRange("A1:C5") => (type = "containsText", priority = 12),
+            XLSX.CellRange("A1:C5") => (type = "containsText", priority = 13),
+            XLSX.CellRange("A1:C5") => (type = "containsText", priority = 15),
+            XLSX.CellRange("A1:C5") => (type = "containsText", priority = 16),
+            XLSX.CellRange("A1:C5") => (type = "containsText", priority = 19),
+            XLSX.CellRange("A1:C5") => (type = "containsText", priority = 20),
+            XLSX.CellRange("A2:E4") => (type = "containsText", priority = 11),
+            XLSX.CellRange("A2:E4") => (type = "containsText", priority = 18),
+            XLSX.CellRange("A1:E2") => (type = "containsText", priority = 10),
+            XLSX.CellRange("A1:E2") => (type = "containsText", priority = 14),
+            XLSX.CellRange("A1:A2") => (type = "containsText", priority = 9),
+            XLSX.CellRange("A1:C3") => (type = "containsText", priority = 7),
+            XLSX.CellRange("A1:A1") => (type = "containsText", priority = 6),
+            XLSX.CellRange("A1:A1") => (type = "containsText", priority = 8),
+            XLSX.CellRange("A5:E5") => (type = "beginsWith", priority = 5),
+            XLSX.CellRange("A4:E4") => (type = "notContainsText", priority = 4),
+            XLSX.CellRange("A3:E3") => (type = "notContainsText", priority = 3),
+            XLSX.CellRange("A2:E2") => (type = "containsText", priority = 2), 
+            XLSX.CellRange("A1:E1") => (type = "containsText", priority = 1)
+        ] 
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:E1"] = "Hello World"
+        s["A2:E2"] = "Life the universe and everything"
+        s["A3:E3"] = "Once upon a time"
+        s["A4:E4"] = "In America"
+        s["A5:E5"] = "a"
+        XLSX.setConditionalFormat(s, "A1:A5", :containsText; value="a")
+        XLSX.setConditionalFormat(s, :, 2, :containsText; value="a", dxStyle = "redborder")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :containsText; value="a", dxStyle = "redfilltext")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :containsText;
+            operator = "endsWith",
+            value="a", 
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+    
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "endsWith", priority = 4), XLSX.CellRange("E1:E5") => (type = "containsText", priority = 3), XLSX.CellRange("B1:B5") => (type = "containsText", priority = 2), XLSX.CellRange("A1:A5") => (type = "containsText", priority = 1)]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:E1"] = "Hello World"
+        s["A2:E2"] = "Life the universe and everything"
+        s["A3:E3"] = "Once upon a time"
+        s["A4:E4"] = "In America"
+        s["A5:E5"] = "a"
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :containsText;
+            operator="containsText",
+            value="Sheet1!\$E\$5",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green",  "under"=>"double"],
+            border = ["style"=>"thin", "color"=>"coral"]
+        )==0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s["A1:E1"] = "Hello World"
+        s["A2:E2"] = "Life the universe and everything"
+        s["A3:E3"] = "Once upon a time"
+        s["A4:E4"] = "In America"
+        s["A5:E5"] = "a"
+        XLSX.addDefinedName(s, "myRange", "A1:B5")
+        @test XLSX.setConditionalFormat(s, "myRange", :containsText;
+            operator="notContainsText",
+            value="a",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )==0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :containsText; # Non-contiguous ranges not allowed
+            operator="beginsWith",
+            value="a",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )
+
+    end
+    
+    @testset "top10" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :top10) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :top10) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :top10) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "1:1", :top10)==0
+        @test XLSX.setConditionalFormat(s, 2, :, :top10; dxStyle = "greenfilltext")==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:10, :top10;
+            operator="topN",
+            value="5",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:10, :top10;
+            operator="bottomN",
+            value="5",
+            stopIfTrue="true",
+            fill = ["pattern" => "lightVertical", "fgColor"=>"grey", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:10, :top10;
+            operator="topN%",
+            value="20",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:10, :top10;
+            operator="bottomN%",
+            value="30",
+            fill = ["pattern" => "none", "bgColor"=>"pink"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A1:J10") => (type = "top10", priority = 3), XLSX.CellRange("A1:J10") => (type = "top10", priority = 4), XLSX.CellRange("A1:J10") => (type = "top10", priority = 5), XLSX.CellRange("A1:J10") => (type = "top10", priority = 6), XLSX.CellRange("A2:J2") => (type = "top10", priority = 2), XLSX.CellRange("A1:J1") => (type = "top10", priority = 1)]
+
+        @test XLSX.setConditionalFormat(s, "A1", :top10)==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :top10)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :top10)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :top10)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :top10)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :top10)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :top10)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :top10)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :top10)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :top10)==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :top10)==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :top10)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :top10)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :top10)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :top10)==0
+        @test XLSX.setConditionalFormat(s, :, :top10)==0
+        @test XLSX.setConditionalFormat(s, :, :, :top10)==0
+        @test length(XLSX.getConditionalFormats(s)) == 23
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:J3") => (type = "top10", priority = 18),
+            XLSX.CellRange("A1:C10") => (type = "top10", priority = 13),
+            XLSX.CellRange("A1:C10") => (type = "top10", priority = 14),
+            XLSX.CellRange("A1:C10") => (type = "top10", priority = 16),
+            XLSX.CellRange("A1:C10") => (type = "top10", priority = 17),
+            XLSX.CellRange("A1:C10") => (type = "top10", priority = 20),
+            XLSX.CellRange("A1:C10") => (type = "top10", priority = 21),
+            XLSX.CellRange("A2:J4") => (type = "top10", priority = 12),
+            XLSX.CellRange("A2:J4") => (type = "top10", priority = 19),
+            XLSX.CellRange("A1:J2") => (type = "top10", priority = 11),
+            XLSX.CellRange("A1:J2") => (type = "top10", priority = 15), 
+            XLSX.CellRange("A1:A2") => (type = "top10", priority = 10), 
+            XLSX.CellRange("A1:C3") => (type = "top10", priority = 8), 
+            XLSX.CellRange("A1:A1") => (type = "top10", priority = 7),
+            XLSX.CellRange("A1:A1") => (type = "top10", priority = 9),
+            XLSX.CellRange("A1:J10") => (type = "top10", priority = 3),
+            XLSX.CellRange("A1:J10") => (type = "top10", priority = 4),
+            XLSX.CellRange("A1:J10") => (type = "top10", priority = 5),
+            XLSX.CellRange("A1:J10") => (type = "top10", priority = 6),
+            XLSX.CellRange("A1:J10") => (type = "top10", priority = 22),
+            XLSX.CellRange("A1:J10") => (type = "top10", priority = 23),
+            XLSX.CellRange("A2:J2") => (type = "top10", priority = 2),
+            XLSX.CellRange("A1:J1") => (type = "top10", priority = 1)
+        ]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        XLSX.setConditionalFormat(s, "A1:A5", :top10)
+        XLSX.setConditionalFormat(s, :, 2, :top10; dxStyle = "redborder")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :top10; dxStyle = "redfilltext")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :top10;
+            operator="topN%",
+            value="20",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+    
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "top10", priority = 4), XLSX.CellRange("E1:E5") => (type = "top10", priority = 3), XLSX.CellRange("B1:B5") => (type = "top10", priority = 2), XLSX.CellRange("A1:A5") => (type = "top10", priority = 1)]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :top10;
+            operator="bottomN",
+            value="\$E\$4",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green",  "under"=>"double"],
+            border = ["style"=>"thin", "color"=>"coral"]
+        )==0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        XLSX.addDefinedName(s, "myRange", "A1:E5")
+        @test XLSX.setConditionalFormat(s, "myRange", :top10;
+            operator="topN%",
+            value="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"medium", "color"=>"cyan"]
+        )==0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :top10; # Non-contiguous ranges not allowed
+            operator="bottomN%",
+            value="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
         )
 
     end

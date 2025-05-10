@@ -580,7 +580,7 @@ range or in the top (bottom) n% (ie in the top 5 or in the top 5% of values in t
 The available keywords are:
 
 - `operator`   : Defines the comparison to make.
-- `value`     : Gives the for comparison or a cell reference (e.g. `"A1"`).
+- `value`      : Gives the for comparison or a cell reference (e.g. `"A1"`).
 - `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply.
 - `format`     : defines the numFmt to apply if opting for a custom format.
@@ -781,14 +781,14 @@ julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
 
 ```
 
-# type = :containsText, :notContains, :beginsWith or :endsWith
+# type = :containsText, :notContainsText, :beginsWith or :endsWith
 
 Highlight cells in the range that contain (or do not contain), begin or end with 
 a specific text string.
 
 Valid keywords are:
 
-- `value`     : Gives the literal text to match or provides a cell reference (e.g. `"A1"`).
+- `value`      : Gives the literal text to match or provides a cell reference (e.g. `"A1"`).
 - `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply.
 - `format`     : defines the numFmt to apply if opting for a custom format.
@@ -1016,6 +1016,8 @@ setCfColorScale(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}
 setCfColorScale(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfColorScale, ws, nothing, nothing; kw...)
 setCfColorScale(ws::Worksheet, ::Colon; kw...) = process_colon(setCfColorScale, ws, nothing, nothing; kw...)
 setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfColorScale(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfColorScale(ws::Worksheet, cell::CellRef; kw...) = setCfColorScale(ws, CellRange(cell, cell); kw...)
+setCfColorScale(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfColorScale(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfColorScale(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rng; kw...)
 setCfColorScale(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.colrng; kw...)
 setCfColorScale(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rowrng; kw...)
@@ -1089,6 +1091,8 @@ setCfCellIs(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw
 setCfCellIs(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfCellIs, ws, nothing, nothing; kw...)
 setCfCellIs(ws::Worksheet, ::Colon; kw...) = process_colon(setCfCellIs, ws, nothing, nothing; kw...)
 setCfCellIs(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfCellIs(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfCellIs(ws::Worksheet, cell::CellRef; kw...) = setCfCellIs(ws, CellRange(cell, cell); kw...)
+setCfCellIs(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfCellIs(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfCellIs(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfCellIs(ws, rng.rng; kw...)
 setCfCellIs(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfCellIs(ws, rng.colrng; kw...)
 setCfCellIs(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfCellIs(ws, rng.rowrng; kw...)
@@ -1147,6 +1151,8 @@ setCfContainsText(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer
 setCfContainsText(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfContainsText, ws, nothing, nothing; kw...)
 setCfContainsText(ws::Worksheet, ::Colon; kw...) = process_colon(setCfContainsText, ws, nothing, nothing; kw...)
 setCfContainsText(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfContainsText(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfContainsText(ws::Worksheet, cell::CellRef; kw...) = setCfContainsText(ws, CellRange(cell, cell); kw...)
+setCfContainsText(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfContainsText(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfContainsText(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfContainsText(ws, rng.rng; kw...)
 setCfContainsText(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfContainsText(ws, rng.colrng; kw...)
 setCfContainsText(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfContainsText(ws, rng.rowrng; kw...)
@@ -1156,7 +1162,7 @@ setCfContainsText(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process
 setCfContainsText(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfContainsText, ws, ref_or_rng; kw...)
 function setCfContainsText(ws::Worksheet, rng::CellRange;
     operator::Union{Nothing,String}="containsText",
-    value::Union{Nothing,String}="",
+    value::Union{Nothing,String}=nothing,
     stopIfTrue::Union{Nothing,String}=nothing,
     dxStyle::Union{Nothing,String}=nothing,
     format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
@@ -1170,7 +1176,7 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-#    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
+    isnothing(value) && throw(XLSXError("Invalid `value`: $value. Must contain text or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -1190,7 +1196,7 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
 #        operator = "endsWith"
         formula = "RIGHT(__CR__,LEN(\"__txt__\"))=\"__txt__\""
     else
-        throw(XLSXError("Invalid operator: $operator. Valid options are: `containsText`, `notContains`, `beginsWith`, `endsWith`."))
+        throw(XLSXError("Invalid operator: $type. Valid options are: `containsText`, `notContainsText`, `beginsWith`, `endsWith`."))
     end
     formula = replace(formula, "__txt__" => value, "__CR__" => string(first(rng)))
 
@@ -1213,6 +1219,8 @@ setCfTop10(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw.
 setCfTop10(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfTop10, ws, nothing, nothing; kw...)
 setCfTop10(ws::Worksheet, ::Colon; kw...) = process_colon(setCfTop10, ws, nothing, nothing; kw...)
 setCfTop10(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfTop10(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfTop10(ws::Worksheet, cell::CellRef; kw...) = setCfTop10(ws, CellRange(cell, cell); kw...)
+setCfTop10(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfTop10(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfTop10(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfTop10(ws, rng.rng; kw...)
 setCfTop10(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfTop10(ws, rng.colrng; kw...)
 setCfTop10(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfTop10(ws, rng.rowrng; kw...)
@@ -1280,6 +1288,8 @@ setCfAboveAverage(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer
 setCfAboveAverage(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfAboveAverage, ws, nothing, nothing; kw...)
 setCfAboveAverage(ws::Worksheet, ::Colon; kw...) = process_colon(setCfAboveAverage, ws, nothing, nothing; kw...)
 setCfAboveAverage(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfAboveAverage(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfAboveAverage(ws::Worksheet, cell::CellRef; kw...) = setCfAboveAverage(ws, CellRange(cell, cell); kw...)
+setCfAboveAverage(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfAboveAverage(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfAboveAverage(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfAboveAverage(ws, rng.rng; kw...)
 setCfAboveAverage(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfAboveAverage(ws, rng.colrng; kw...)
 setCfAboveAverage(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfAboveAverage(ws, rng.rowrng; kw...)
@@ -1349,6 +1359,8 @@ setCfTimePeriod(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}
 setCfTimePeriod(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfTimePeriod, ws, nothing, nothing; kw...)
 setCfTimePeriod(ws::Worksheet, ::Colon; kw...) = process_colon(setCfTimePeriod, ws, nothing, nothing; kw...)
 setCfTimePeriod(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfTimePeriod(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfTimePeriod(ws::Worksheet, cell::CellRef; kw...) = setCfTimePeriod(ws, CellRange(cell, cell); kw...)
+setCfTimePeriod(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfTimePeriod(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfTimePeriod(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfTimePeriod(ws, rng.rng; kw...)
 setCfTimePeriod(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfTimePeriod(ws, rng.colrng; kw...)
 setCfTimePeriod(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfTimePeriod(ws, rng.rowrng; kw...)
@@ -1420,6 +1432,8 @@ setCfContainsBlankErrorUniqDup(ws::Worksheet, ::Colon, col::Union{Integer,UnitRa
 setCfContainsBlankErrorUniqDup(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfContainsBlankErrorUniqDup, ws, nothing, nothing; kw...)
 setCfContainsBlankErrorUniqDup(ws::Worksheet, ::Colon; kw...) = process_colon(setCfContainsBlankErrorUniqDup, ws, nothing, nothing; kw...)
 setCfContainsBlankErrorUniqDup(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfContainsBlankErrorUniqDup(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfContainsBlankErrorUniqDup(ws::Worksheet, cell::CellRef; kw...) = setCfContainsBlankErrorUniqDup(ws, CellRange(cell, cell); kw...)
+setCfContainsBlankErrorUniqDup(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfContainsBlankErrorUniqDup(ws, CellRange(cell.cellref, cell.cellref); kw...)
 setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfContainsBlankErrorUniqDup(ws, rng.rng; kw...)
 setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfContainsBlankErrorUniqDup(ws, rng.colrng; kw...)
 setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfContainsBlankErrorUniqDup(ws, rng.rowrng; kw...)
