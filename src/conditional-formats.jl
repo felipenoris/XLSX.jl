@@ -600,7 +600,51 @@ The remaining keywords are defined as above for `type = :cellIs`.
 # Examples
 
 ```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\\...\\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+julia> for i=1:10;for j=1:10; s[i,j]=i*j;end;end
+
+julia> s[:]
+10×10 Matrix{Any}:
+  1   2   3   4   5   6   7   8   9   10
+  2   4   6   8  10  12  14  16  18   20
+  3   6   9  12  15  18  21  24  27   30
+  4   8  12  16  20  24  28  32  36   40
+  5  10  15  20  25  30  35  40  45   50
+  6  12  18  24  30  36  42  48  54   60
+  7  14  21  28  35  42  49  56  63   70
+  8  16  24  32  40  48  56  64  72   80
+  9  18  27  36  45  54  63  72  81   90
+ 10  20  30  40  50  60  70  80  90  100
+
+julia> XLSX.setConditionalFormat(s, "A1:J10", :top10; operator="bottomN", value="1", stopIfTrue="true", dxStyle="redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:J10", :top10; operator="topN", value="1", stopIfTrue="true", dxStyle="greenfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:J10", :top10;
+                operator="topN%",
+                value="20",
+                fill=["pattern"=>"solid", "bgColor"=>"cyan"])
+0
+
+julia> XLSX.setConditionalFormat(s, "A1:J10", :top10;
+                operator="bottomN%",
+                value="20",
+                fill=["pattern"=>"solid", "bgColor"=>"yellow"])
+0
+
 ```
+![image|320x500](./images/topN.png)
 
 # type = :aboveAverage
 
@@ -792,7 +836,6 @@ julia> XLSX.setConditionalFormat(s, "A1:A4", :endsWith ;
 
 ```
 ![image|320x500](./images/containsText.png)
-
 
 # type = :timePeriod
 
@@ -1070,8 +1113,8 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
-    !isnothing(value2) && !is_valid_cellname(value2) && !is_valid_sheet_cellname(value2) && isnothing(tryparse(Float64, value2)) && throw(XLSXError("Invalid `value2`: $value2. Must be a number or a CellRef."))
+    !isnothing(value) && !is_valid_cellname(value) && !is_valid_fixed_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
+    !isnothing(value2) && !is_valid_cellname(value2) && !is_valid_fixed_cellname(value2) && isnothing(tryparse(Float64, value2)) && throw(XLSXError("Invalid `value2`: $value2. Must be a number or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
@@ -1193,7 +1236,7 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(allcfs) # extract conditional format info
 
-    !isnothing(value) && !is_valid_cellname(value) && !is_valid_sheet_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
+    !isnothing(value) && !is_valid_cellname(value) && !is_valid_fixed_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
 
     wb=get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)

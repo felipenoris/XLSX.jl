@@ -305,7 +305,7 @@ all of the indexing options described above. For example:
 
 ```julia
 
-julia> XLSX.setRowHeight(s, "A2:A5"; height=25) # Rows 1 to 5 (columns ignored)
+julia> XLSX.setRowHeight(s, "A2:A5"; height=25)  # Rows 1 to 5 (columns ignored)
 
 julia> XLSX.setColumnWidth(s, 5:5:100; width=50) # Every 5th column.
 ```
@@ -326,13 +326,16 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     In Excel, conditional formats are dynamic. If the cell values change, the formats are updated based 
     on application of the condition to the new values.
 
-    The examples of conditional formatting given here are mainly static. They apply formatting based on the 
-    current cell values, but the formats are then static regardless of updates to cell values. They
-    can be updated by re-running the conditional formatting functions described but otherwise remain 
-    unchanged.
+    The examples of conditional formatting given here a mix of static and dynamic formats.
+    
+    Static conditional formats apply formatting based on the current cell values at the time the format 
+    is set, but the formats are then static regardless of updates to cell values. They can be updated 
+    by re-running the conditional formatting functions described but otherwise remain unchanged. Static 
+    formats are created by applying the `setAttribute()` functions described above.
 
-    Some dynamic conditional formatting is possible in `XLSX.jl`, using Excel native functions, but the range of 
-    functions is currently more limited than Excel itself can provide (work in progress).
+    Dynamic conditional formatting, using the native Excel conditional format functionality, is possible 
+    using the `setConditionalFormat()` function, giving access to many of Excels's options (but not yet 
+    all of them). 
 
 ### Static conditional formats
 
@@ -380,7 +383,7 @@ blankmissing(sheet, XLSX.CellRange("B3:L6"))
 
 XLSX.jl provides a function to create native Excel conditional formats that will be saved as part of 
 an `XLSXFile` and which will update dynamically if the values in the cell range to which the formatting 
-is applied are updated.
+is applied are subsequently updated.
 
 `XLSX.setConditionalFormat(sheet, CellRange, :formatting_type; kwargs...)`
 
@@ -415,7 +418,7 @@ used. All the functions of `Highlight Cell Rules` and `Top/Bottom Rules` are pro
 
 ![image|320x500](./images/cell1.png) ![image|100x500](./images/blank.png) ![image|320x500](./images/cell2.png)
 
-Excel uses range of `:formatting_type` values describe these conditional formats and the same values 
+Excel uses a range of `:formatting_type` values describe these conditional formats and the same values 
 are used here, as follows:
 - `:cellIs`
 - `:top10`
@@ -445,7 +448,7 @@ to apply the formatting. Valid `operator` values are:
 - `between`         (cell between `value` and `value2`)
 - `notBetween`      (cell not between `value` and `value2`)
 
-Eac of these need a keyword `value` to be specified and, for `between` and `notBetween`, `value2` 
+Each of these need the keyword `value` to be specified and, for `between` and `notBetween`, `value2` 
 must also be specified.
 
 All the cell value formatting types can use one of six built-in formats in Excel as illustrated here 
@@ -462,8 +465,8 @@ keyword with one of the following values:
 * `redtext`
 * `redborder`
 
-Thus, for example, we can create a simple `XLSXFile` from scratch and then apply some 
-conditional formats to its cells, as follows:
+Thus, for example, to create a simple `XLSXFile` from scratch and then apply some 
+conditional formats to its cells:
 
 ```julia
 julia> columns = [ [1, 2, 3, 4], ["Hey", "You", "Out", "There"], [10.2, 20.3, 30.4, 40.5] ]
@@ -571,7 +574,6 @@ julia> XLSX.getConditionalFormats(s)
 
 ![image|320x500](./images/custom-cellvalue-example.png)
 
-
 The `formatting_type` needed for these different functions varies, as do the keyword options.
 Refer to [XLSX.setConditionalFormat()](@ref) for full details.
 
@@ -587,7 +589,7 @@ custom color scales, too.
 
 ![image|320x500](./images/colorScales.png)
 
-In XLSX.jl, the twelve built-in scales are named by their start/mid/end colors as follows 
+In XLSX.jl, the twelve built-in scales are named by their end/mid/start colors as follows 
 (layout follows image)
 
 |                  |                  |                 |                 |
@@ -639,6 +641,96 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 
 (In development)
 
+#### formulas
+
+(In development)
+
+#### Specifying cell references in Conditional Formats
+
+##### Cell Ranges
+
+Cell ranges for conditional formats always use absolute refences. The specified range to which a 
+conditional format is to be applied is always converted to use absolute cell references so that, 
+for example
+```julia
+julia> XLSX.setConditionalFormat(s, "A2:C5", :colorScale; colorscale="greenyellow")
+```
+will be converted automatically to the range "\$A\$2:\$C\$5". There is therefore no need to specify 
+an absolute cell range when calling `setCondtionalFormat()`
+
+##### Relative and absolute cell references
+
+Cell references used to specify `value` or `value2` or in any `formula` may be either absolute 
+or relative and both can be very useful. it is important to understand which reference style you 
+need and to specify accordingly. As in Excel, an absolute reference is defined using a `$` prefix 
+to either or both the row or the column part of the cell reference but here the `$` must be 
+appropriately escaped. Thus:
+```
+value = "B2"          # relative reference
+value = "\$B\$2"      # (escaped) absolute reference
+```
+The cell used in a comparison is adjusted for each cell in the range if a relative reference is used. This is 
+illustrated in the following example. Cells in column A are referenced to column B using a relative reference,
+meaning `A2` is compared with `B2` but `A3` is compared with `B3` and so on until `A5` is compared with `B5`.
+In contrast, column B is referenced to cell `C2` using an absolute reference. Each cell in column B is compared 
+with cell `C2`.
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+julia> col1=rand(5)
+5-element Vector{Float64}:
+ 0.6283728884101448
+ 0.7516580026008692
+ 0.2738854683970795
+ 0.13517788102005834
+ 0.4659468387663539
+
+julia> col2=rand(5)
+5-element Vector{Float64}:
+ 0.7582186445697804
+ 0.739539172599636
+ 0.4389109821689414
+ 0.14156225872248773
+ 0.10715394525726485
+
+julia> XLSX.writetable!(s, [col1, col2],["col1", "col2"])
+
+julia> s["C2"]=0.5
+0.5
+
+julia> s[:]
+6×3 Matrix{Any}:
+  "col1"    "col2"    missing
+ 0.628373  0.758219  0.5
+ 0.751658  0.739539   missing
+ 0.273885  0.438911   missing
+ 0.135178  0.141562   missing
+ 0.465947  0.107154   missing
+
+julia> XLSX.setConditionalFormat(s, "A2:A6", :cellIs; operator="greaterThan", value="B2", dxStyle="redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "B2:B6", :cellIs; operator="greaterThan", value="\$C\$2", dxStyle="greenfilltext")
+0
+
+```
+![image|320x500](./images/relative-CellRef.png)
+
+!!! note
+
+    Excel permits cell references to cells in other sheets for comparisons in conditional formats
+    (e.g. "OtherSheet!A1"), but this is handled differently internally than references within the 
+    same sheet. This functionality is not implemented in XLSX.jl yet. 
+
 #### Overlaying conditional formats
 
 It is possible to overlay multiple conditional formats over each other in a cell range 
@@ -688,7 +780,7 @@ julia> XLSX.getConditionalFormats(s)
 
 When applying multiple overlayed formats, it is possible to make the formatting stop if any cell meets 
 one of the conditions, so that lower proirity conditional formats are not applied to that cell. This is 
-achieved with te `stopIfTrue` keyword.
+achieved with the `stopIfTrue` keyword.
 
 For example:
 
@@ -724,26 +816,6 @@ Overlaying the same three conditional formats without setting the `stopIfTrue` o
 will result in the following, instead:
 
 ![image|320x500](./images/no-stop-if-true.png)
-
-#### Specifying cell references in Conditional Formats
-
-The specified range to which a conditional format is to be applied is always converted to use 
-absolute cell references so that, for example
-```julia
-julia> XLSX.setConditionalFormat(s, "A2:C5", :colorScale; colorscale="greenyellow")
-```
-will alsways actually refer to the range "$A$2:$C$5".
-
-However, cell references used to specify `value` or `value2` or in any `formula` may be either 
-absolute or relative. XLSX.jl makes no assumption about whether these cell references should be 
-relative or absolute and will accept whatever is specified.
-
-Relative references (e.g. "G8") used here are interpreted (by Excel) relative to the top-left 
-cell in the range. For each of the other cells in the formatted range, the reference will be to 
-the cell with the same offset as cell G8 has to the top-left cell.
-
-On the other hand, if an absolute cell reference (e.g. "$G$8") is provided, the cell referred to 
-will be the same for each cell in the formatted range.
 
 ## Working with Merged Cells
 
