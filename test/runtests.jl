@@ -2,7 +2,8 @@
 import XLSX
 import Tables
 using Test, Dates, XML
-import DataFrames
+import DataFrames, Random
+import Distributions as Dist
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 struct xpath
@@ -3823,6 +3824,553 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :top10; # Non-contiguous ranges not allowed
             operator="bottomN%",
             value="2",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )
+
+    end
+
+    @testset "aboveAverage" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        d=Dist.Normal()
+        columns=[rand(d,1000),rand(d,1000),rand(d,1000)]
+        XLSX.writetable!(s, columns, ["normal1", "normal2", "normal3"])
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A2:A1001,C1:C1000", :aboveAverage) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [2, 3, 19], 1:3, :aboveAverage) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 2, 1:3:7, :aboveAverage) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "2:2", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, 2, :, :aboveAverage; dxStyle = "greenfilltext")==0
+        @test XLSX.setConditionalFormat(s, 2:10, 1:3, :aboveAverage;
+            operator="plus3StdDev",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 2:1001, 1:3, :aboveAverage;
+            operator="minus3StdDev",
+            stopIfTrue="true",
+            fill = ["pattern" => "lightVertical", "fgColor"=>"grey", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 2:1001, 1:3, :aboveAverage;
+            operator="plus2StdDev",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 2:1001, 1:3, :aboveAverage;
+            operator="minus2StdDev",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"pink"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 2:1001, 1:3, :aboveAverage;
+            operator="plus1StdDev",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:1001, 1:3, :aboveAverage;
+            operator="minus1StdDev",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"green", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:1001, 1:3, :aboveAverage;
+            operator="aboveAverage",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
+            border = ["style"=>"thick", "color"=>"gray"],
+            font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:1001, 1:3, :aboveAverage;
+            operator="belowAverage",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            border = ["style"=>"thick", "color"=>"green"],
+            font = ["color"=>"green", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 8),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 9),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 10),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 4),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 5),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 6),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 7),
+            XLSX.CellRange("A2:C10") => (type = "aboveAverage", priority = 3),
+            XLSX.CellRange("A2:C2") => (type = "aboveAverage", priority = 1),
+            XLSX.CellRange("A2:C2") => (type = "aboveAverage", priority = 2)
+        ]
+
+        @test XLSX.setConditionalFormat(s, "A1", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, :, :aboveAverage)==0
+        @test XLSX.setConditionalFormat(s, :, :, :aboveAverage)==0
+        @test length(XLSX.getConditionalFormats(s)) == 27
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A2:C4") => (type = "aboveAverage", priority = 16),
+            XLSX.CellRange("A2:C4") => (type = "aboveAverage", priority = 23),
+            XLSX.CellRange("A1:C2") => (type = "aboveAverage", priority = 15),
+            XLSX.CellRange("A1:C2") => (type = "aboveAverage", priority = 19),
+            XLSX.CellRange("A1:A2") => (type = "aboveAverage", priority = 14),
+            XLSX.CellRange("A1:C3") => (type = "aboveAverage", priority = 12),
+            XLSX.CellRange("A1:C3") => (type = "aboveAverage", priority = 22),
+            XLSX.CellRange("A1:A1") => (type = "aboveAverage", priority = 11),
+            XLSX.CellRange("A1:A1") => (type = "aboveAverage", priority = 13),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 8),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 9),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 10),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 17),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 18),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 20),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 21),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 24),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 25),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 26),
+            XLSX.CellRange("A1:C1001") => (type = "aboveAverage", priority = 27),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 4),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 5),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 6),
+            XLSX.CellRange("A2:C1001") => (type = "aboveAverage", priority = 7),
+            XLSX.CellRange("A2:C10") => (type = "aboveAverage", priority = 3),
+            XLSX.CellRange("A2:C2") => (type = "aboveAverage", priority = 1),
+            XLSX.CellRange("A2:C2") => (type = "aboveAverage", priority = 2)
+        ]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        XLSX.setConditionalFormat(s, "A1:A5", :aboveAverage)
+        XLSX.setConditionalFormat(s, :, 2, :aboveAverage; dxStyle = "redborder")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :aboveAverage; dxStyle = "redfilltext")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :aboveAverage;
+            operator="aboveEqAverage",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+    
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "aboveAverage", priority = 4), XLSX.CellRange("E1:E5") => (type = "aboveAverage", priority = 3), XLSX.CellRange("B1:B5") => (type = "aboveAverage", priority = 2), XLSX.CellRange("A1:A5") => (type = "aboveAverage", priority = 1)]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :aboveAverage;
+            operator="belowEqAverage",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green",  "under"=>"double"],
+            border = ["style"=>"thin", "color"=>"coral"]
+        )==0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        XLSX.addDefinedName(s, "myRange", "A1:E5")
+        @test XLSX.setConditionalFormat(s, "myRange", :aboveAverage;
+            operator="aboveEqAverage",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"medium", "color"=>"cyan"]
+        )==0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :aboveAverage; # Non-contiguous ranges not allowed
+            operator="belowEqAverage",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )
+
+    end
+    @testset "timePeriod" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        todaynow=Dates.today()
+        s[1, 1:10] = todaynow - Dates.Year(1)
+        s[2, 1:10] = todaynow - Dates.Month(1)
+        s[3, 1:10] = todaynow - Dates.Day(14)
+        s[4, 1:10] = todaynow - Dates.Day(5)
+        s[5, 1:10] = todaynow - Dates.Day(1)
+        s[6, 1:10] = todaynow
+        s[7, 1:10] = todaynow + Dates.Day(1)
+        s[8, 1:10] = todaynow + Dates.Day(14)
+        s[9, 1:10] = todaynow + Dates.Month(1)
+        s[10, 1:10] = todaynow + Dates.Year(1)
+
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1:A5,C1:C5", :timePeriod) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [2, 3, 8], 1:3, :timePeriod) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 2, 1:3:7, :timePeriod) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "2:2", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, 2, :, :timePeriod; dxStyle = "greenfilltext")==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="today",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="yesterday",
+            stopIfTrue="true",
+            fill = ["pattern" => "lightVertical", "fgColor"=>"grey", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="tomorrow",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="lastMonth",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"pink"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="nextMonth",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="last7Days",
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"green", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 3), 
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 4),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 5),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 6),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 7),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 8),
+            XLSX.CellRange("A2:J2") => (type = "timePeriod", priority = 1),
+            XLSX.CellRange("A2:J2") => (type = "timePeriod", priority = 2)
+        ]
+
+        @test XLSX.setConditionalFormat(s, "A1", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :timePeriod)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :timePeriod)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, :, :timePeriod)==0
+        @test XLSX.setConditionalFormat(s, :, :, :timePeriod)==0
+        @test length(XLSX.getConditionalFormats(s)) == 25
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:J10") => (type = "timePeriod", priority = 24),
+            XLSX.CellRange("A1:J10") => (type = "timePeriod", priority = 25),
+            XLSX.CellRange("A1:J3") => (type = "timePeriod", priority = 20),
+            XLSX.CellRange("A2:J4") => (type = "timePeriod", priority = 14),
+            XLSX.CellRange("A2:J4") => (type = "timePeriod", priority = 21),
+            XLSX.CellRange("A1:J2") => (type = "timePeriod", priority = 13),
+            XLSX.CellRange("A1:J2") => (type = "timePeriod", priority = 17),
+            XLSX.CellRange("A1:A2") => (type = "timePeriod", priority = 12),
+            XLSX.CellRange("A1:C3") => (type = "timePeriod", priority = 10),
+            XLSX.CellRange("A1:A1") => (type = "timePeriod", priority = 9),
+            XLSX.CellRange("A1:A1") => (type = "timePeriod", priority = 11),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 3),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 4),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 5),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 6),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 7),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 8),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 15),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 16),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 18),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 19),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 22),
+            XLSX.CellRange("A1:C10") => (type = "timePeriod", priority = 23),
+            XLSX.CellRange("A2:J2") => (type = "timePeriod", priority = 1),
+            XLSX.CellRange("A2:J2") => (type = "timePeriod", priority = 2)
+        ]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1, 1:10] = todaynow - Dates.Year(1)
+        s[2, 1:10] = todaynow - Dates.Month(1)
+        s[3, 1:10] = todaynow - Dates.Day(14)
+        s[4, 1:10] = todaynow - Dates.Day(5)
+        s[5, 1:10] = todaynow - Dates.Day(1)
+        s[6, 1:10] = todaynow
+        s[7, 1:10] = todaynow + Dates.Day(1)
+        s[8, 1:10] = todaynow + Dates.Day(14)
+        s[9, 1:10] = todaynow + Dates.Month(1)
+        s[10, 1:10] = todaynow + Dates.Year(1)
+        XLSX.setConditionalFormat(s, "A1:A5", :timePeriod)
+        XLSX.setConditionalFormat(s, :, 2, :timePeriod; dxStyle = "redborder")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :timePeriod; dxStyle = "redfilltext")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :timePeriod;
+            operator="lastWeek",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+    
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "timePeriod", priority = 4), XLSX.CellRange("E1:E10") => (type = "timePeriod", priority = 3), XLSX.CellRange("B1:B10") => (type = "timePeriod", priority = 2), XLSX.CellRange("A1:A5") => (type = "timePeriod", priority = 1)] 
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1, 1:10] = todaynow - Dates.Year(1)
+        s[2, 1:10] = todaynow - Dates.Month(1)
+        s[3, 1:10] = todaynow - Dates.Day(14)
+        s[4, 1:10] = todaynow - Dates.Day(5)
+        s[5, 1:10] = todaynow - Dates.Day(1)
+        s[6, 1:10] = todaynow
+        s[7, 1:10] = todaynow + Dates.Day(1)
+        s[8, 1:10] = todaynow + Dates.Day(14)
+        s[9, 1:10] = todaynow + Dates.Month(1)
+        s[10, 1:10] = todaynow + Dates.Year(1)
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :timePeriod;
+            operator="thisWeek",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green",  "under"=>"double"],
+            border = ["style"=>"thin", "color"=>"coral"]
+        )==0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        s[1, 1:10] = todaynow - Dates.Year(1)
+        s[2, 1:10] = todaynow - Dates.Month(1)
+        s[3, 1:10] = todaynow - Dates.Day(14)
+        s[4, 1:10] = todaynow - Dates.Day(5)
+        s[5, 1:10] = todaynow - Dates.Day(1)
+        s[6, 1:10] = todaynow
+        s[7, 1:10] = todaynow + Dates.Day(1)
+        s[8, 1:10] = todaynow + Dates.Day(14)
+        s[9, 1:10] = todaynow + Dates.Month(1)
+        s[10, 1:10] = todaynow + Dates.Year(1)
+        XLSX.addDefinedName(s, "myRange", "A1:E5")
+        @test XLSX.setConditionalFormat(s, "myRange", :timePeriod;
+            operator="nextWeek",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"medium", "color"=>"cyan"]
+        )==0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :timePeriod; # Non-contiguous ranges not allowed
+            operator="lastWeek",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"hair", "color"=>"cyan"]
+        )
+
+    end
+
+    @testset "containsErrors" begin
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1:A5,C1:C5", :containsErrors) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [2, 3, 8], 1:3, :containsErrors) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 2, 1:3:7, :containsErrors) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "2:2", :containsErrors)==0
+        @test XLSX.setConditionalFormat(s, 2, :, :containsErrors; dxStyle = "greenfilltext")==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :containsErrors;
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :notContainsErrors;
+            stopIfTrue="true",
+            fill = ["pattern" => "lightVertical", "fgColor"=>"grey", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :containsBlanks;
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :notContainsBlanks;
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"pink"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"blue", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :uniqueValues;
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
+        ) ==0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :duplicateValues;
+            stopIfTrue="true",
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            border = ["style"=>"thick", "color"=>"coral"],
+            font = ["color"=>"green", "bold"=>"true", "italic"=>"true"]
+        )==0
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 3), 
+            XLSX.CellRange("A1:C10") => (type = "notContainsErrors", priority = 4),
+            XLSX.CellRange("A1:C10") => (type = "containsBlanks", priority = 5),
+            XLSX.CellRange("A1:C10") => (type = "notContainsBlanks", priority = 6),
+            XLSX.CellRange("A1:C10") => (type = "uniqueValues", priority = 7),
+            XLSX.CellRange("A1:C10") => (type = "duplicateValues", priority = 8),
+            XLSX.CellRange("A2:J2") => (type = "containsErrors", priority = 1),
+            XLSX.CellRange("A2:J2") => (type = "containsErrors", priority = 2)
+        ]
+
+        @test XLSX.setConditionalFormat(s, "A1", :containsErrors)==0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :notContainsErrors)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :containsBlanks)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :notContainsBlanks)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :uniqueValues)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :duplicateValues)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :containsErrors)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :containsErrors)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :containsErrors)==0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :containsErrors)==0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :containsErrors)==0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :notContainsErrors)==0
+        @test XLSX.setConditionalFormat(s, "2:4", :containsBlanks)==0
+        @test XLSX.setConditionalFormat(s, "A:C", :notContainsBlanks)==0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :containsErrors)==0
+        @test XLSX.setConditionalFormat(s, :, :uniqueValues)==0
+        @test XLSX.setConditionalFormat(s, :, :, :duplicateValues)==0
+        @test length(XLSX.getConditionalFormats(s)) == 25
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:J10") => (type = "uniqueValues", priority = 24),
+            XLSX.CellRange("A1:J10") => (type = "duplicateValues", priority = 25),
+            XLSX.CellRange("A1:J3") => (type = "notContainsErrors", priority = 20),
+            XLSX.CellRange("A2:J4") => (type = "duplicateValues", priority = 14),
+            XLSX.CellRange("A2:J4") => (type = "containsBlanks", priority = 21),
+            XLSX.CellRange("A1:J2") => (type = "uniqueValues", priority = 13),
+            XLSX.CellRange("A1:J2") => (type = "containsErrors", priority = 17),
+            XLSX.CellRange("A1:A2") => (type = "notContainsBlanks", priority = 12),
+            XLSX.CellRange("A1:C3") => (type = "notContainsErrors", priority = 10),
+            XLSX.CellRange("A1:A1") => (type = "containsErrors", priority = 9),
+            XLSX.CellRange("A1:A1") => (type = "containsBlanks", priority = 11),
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 3),
+            XLSX.CellRange("A1:C10") => (type = "notContainsErrors", priority = 4),
+            XLSX.CellRange("A1:C10") => (type = "containsBlanks", priority = 5),
+            XLSX.CellRange("A1:C10") => (type = "notContainsBlanks", priority = 6),
+            XLSX.CellRange("A1:C10") => (type = "uniqueValues", priority = 7),
+            XLSX.CellRange("A1:C10") => (type = "duplicateValues", priority = 8),
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 15),
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 16),
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 18),
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 19),
+            XLSX.CellRange("A1:C10") => (type = "notContainsBlanks", priority = 22),
+            XLSX.CellRange("A1:C10") => (type = "containsErrors", priority = 23),
+            XLSX.CellRange("A2:J2") => (type = "containsErrors", priority = 1),
+            XLSX.CellRange("A2:J2") => (type = "containsErrors", priority = 2)
+        ]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        XLSX.setConditionalFormat(s, "A1:A5", :containsErrors)
+        XLSX.setConditionalFormat(s, :, 2, :notContainsErrors; dxStyle = "redborder")
+        XLSX.setConditionalFormat(s, "Sheet1!E:E", :containsBlanks; dxStyle = "redfilltext")
+        XLSX.setConditionalFormat(s, 1:5, 3:4, :uniqueValues;
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"thick", "color"=>"coral"]
+        )==0
+    
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type = "uniqueValues", priority = 4), XLSX.CellRange("E1:E10") => (type = "containsBlanks", priority = 3), XLSX.CellRange("B1:B10") => (type = "notContainsErrors", priority = 2), XLSX.CellRange("A1:A5") => (type = "containsErrors", priority = 1)] 
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :containsErrors;
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green",  "under"=>"double"],
+            border = ["style"=>"thin", "color"=>"coral"]
+        )==0
+
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i=1:10
+            for j=1:10
+                s[i,j]=i*j
+            end
+        end
+        XLSX.addDefinedName(s, "myRange", "A1:E5")
+        @test XLSX.setConditionalFormat(s, "myRange", :containsErrors;
+            fill = ["pattern" => "none", "bgColor"=>"yellow"],
+            format = ["format"=>"0.0"],
+            font = ["color"=>"green"],
+            border = ["style"=>"medium", "color"=>"cyan"]
+        )==0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :containsErrors; # Non-contiguous ranges not allowed
             fill = ["pattern" => "none", "bgColor"=>"yellow"],
             format = ["format"=>"0.0"],
             font = ["color"=>"green"],

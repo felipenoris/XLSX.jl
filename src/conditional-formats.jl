@@ -291,7 +291,9 @@ function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
     xroot = styles_xmlroot(wb)
     i, j = get_idces(xroot, "styleSheet", "dxfs")
     
-    if isnothing(j) # No existing conditional formats so need to add a block. Push everything lower down one.
+    if isnothing(j) # No existing conditional formats so need to add a block (is this even possible?). Push everything lower down one.
+        throw(XLSXError("No <dxfs> block found in the styles.xml file. Please submit an issue to report this and attach the Excel file you were working with."))
+    #=
         k, l = get_idces(xroot, "styleSheet", "cellStyles")
         l += 1 # The dxfs block comes after the cellXfs block.
         len = length(xroot[k])
@@ -305,6 +307,7 @@ function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
         xroot[k][l] = XML.Element("dxsf", count="0")
         j = l
         println(XML.write(xroot[i][j]))
+    =#
     else
         existing_dxf_elements_count = length(XML.children(xroot[i][j]))
 
@@ -349,6 +352,8 @@ end
 
 
 """
+    getConditionalFormats(ws::Worksheet)
+
 Get the conditional formats for a worksheet.
 
 # Arguments
@@ -427,8 +432,8 @@ instead using the following keywords:
 - `min_val` : The value of the minimum. Omit if `min_type="min"`.
 - `min_col` : The color of the minimum value.
 - `mid_type`: Valid values are: `percentile`, `percent` or `num`. Omit for a 2-color scale.
-- `mid_val` : The value of the middle value. Omit for a 2-color scale.
-- `mid_col` : The color of the middle value. Omit for a 2-color scale.
+- `mid_val` : The value of the scale mid point. Omit for a 2-color scale.
+- `mid_col` : The color of the mid point. Omit for a 2-color scale.
 - `max_type`: The type of the maximum value. Valid values are: `max`, `percentile`, `percent` or `num`.
 - `max_val` : The value of the maximum value. Omit if `max_type="max"`.
 - `max_col` : The color of the maximum value.
@@ -488,7 +493,7 @@ The keyword `operator` defines the comparison to use in the conditional formatti
 If the condition is met, the format is applied.
 Valid options are:
 
-- `greaterThan`     (cell >  `value`)
+- `greaterThan`     (cell >  `value`) (default)
 - `greaterEqual`    (cell >= `value`)
 - `lessThan`        (cell <  `value`)
 - `lessEqual`       (cell <= `value`)
@@ -595,6 +600,8 @@ Valid values for the `operator` keyword are the following:
 - `topN%`           (cell is in the top n% (= `value`) values of the range)
 - `bottomN%`        (cell is in the bottom n% (= `value`) values of the range)
 
+Default keyowrds are `operator="TopN"` and `value="10"`.
+
 The remaining keywords are defined as above for `type = :cellIs`.
 
 # Examples
@@ -663,7 +670,7 @@ The available keywords are:
 
 Valid values for the `operator` keyword are the following:
 
-- `aboveAverage`    (cell is above the average of the range)
+- `aboveAverage`    (cell is above the average of the range) (default)
 - `aboveEqAverage`  (cell is above or equal to the average of the range)
 - `plus1StdDev`     (cell is above the average of the range + 1 standard deviation)
 - `plus2StdDev`     (cell is above the average of the range + 2 standard deviations)
@@ -710,8 +717,6 @@ julia> columns=rand(d,1000)
   1.1268430910133729
   0.7691442442244849
   1.0061732938516454
-
-julia> XLSX.writetable!(s, [columns], ["normal"])
 
 julia> f=XLSX.newxlsx()
 XLSXFile("C:\\...\\blank.xlsx") containing 1 Worksheet
@@ -784,7 +789,7 @@ julia> XLSX.setConditionalFormat(s, "A2:A1001", :aboveAverage ;
 # type = :containsText, :notContainsText, :beginsWith or :endsWith
 
 Highlight cells in the range that contain (or do not contain), begin or end with 
-a specific text string.
+a specific text string. The default is `containsText`.
 
 Valid keywords are:
 
@@ -796,7 +801,8 @@ Valid keywords are:
 - `border`     : defines the border to apply if opting for a custom format.
 - `fill`       : defines the fill to apply if opting for a custom format.
 
-`value` gives the literal text to compare (eg. "Hello World") or provides a cell reference (e.g. `"A1"`).
+The keyword `value` gives the literal text to compare (eg. "Hello World") or provides a cell reference 
+(e.g. `"A1"`). It is a required keyword with no default value.
 
 The remaining keywords are optional and are defined as above for `type = :cellIs`.
 
@@ -855,7 +861,7 @@ Valid values for the keyword `operator` are the following:
 - `yesterday`
 - `today`
 - `tomorrow`
-- `last7Days`
+- `last7Days` (default)
 - `lastWeek`
 - `thisWeek`
 - `nextWeek`
@@ -906,7 +912,7 @@ julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod;
 # type = :containsErrors, :notContainsErrors, :containsBlanks, :notContainsBlanks, :uniqueValues or :duplicateValues
 
 These conditional formattimg options highlight cells that contain or don't contain errors, 
-are blank or not blank, are unique in the range or duplicates within the range. 
+are blank (default) or not blank, are unique in the range or duplicates within the range. 
 The available keywords are: 
 
 - `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
@@ -996,12 +1002,12 @@ function setConditionalFormat(f, r, c, type::Symbol; kw...)
     elseif type == :top10
         setCfTop10(f, r, c; kw...)
     elseif type == :aboveAverage
-        setCfAboveAverage(f, r; kw...)
+        setCfAboveAverage(f, r, c; kw...)
     elseif type == :timePeriod
         setCfTimePeriod(f, r, c; kw...)
     elseif type ∈ [:containsText, :notContainsText, :beginsWith, :endsWith]
         setCfContainsText(f, r, c; operator=String(type), kw...)
-    elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, duplicateValues, uniqueValues]
+    elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, :duplicateValues, :uniqueValues]
         setCfContainsBlankErrorUniqDup(f, r, c; operator=String(type), kw...)
 #    elseif type == :iconSet
 #        throw(XLSXError("Icon sets are not yet implemented."))
