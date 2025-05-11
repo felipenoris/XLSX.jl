@@ -1142,9 +1142,9 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     cfx["operator"] = operator
 
 
-    push!(cfx, XML.Element("formula", XML.Text(value)))
+    push!(cfx, XML.Element("formula", XML.Text(XML.escape(value))))
     if !isnothing(value2) && operator ∈ needsValue2
-        push!(cfx, XML.Element("formula", XML.Text(value2)))
+        push!(cfx, XML.Element("formula", XML.Text(XML.escape(value2))))
     end
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
@@ -1213,7 +1213,7 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     end
     cfx["operator"]=operator
     cfx["text"]=value
-    push!(cfx, XML.Element("formula", XML.Text(formula)))
+    push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
@@ -1424,9 +1424,9 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["operator"] = operator
+    cfx["timePeriod"] = operator
    
-    push!(cfx, XML.Element("formula", XML.Text(formula)))
+    push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
@@ -1489,7 +1489,7 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    formula !="" && push!(cfx, XML.Element("formula", XML.Text(formula)))
+    formula !="" && push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 

@@ -3406,7 +3406,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
             format = ["format"=>"0.00%"],
             font = ["color"=>"blue", "bold"=>"true"]
-        ) ==0
+        )==0
 
         @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :cellIs;
             operator="greaterThan",
@@ -3548,7 +3548,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
             format = ["format"=>"0.00%"],
             font = ["color"=>"blue", "bold"=>"true"]
-        ) ==0
+        )==0
 
         @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :containsText;
             operator = "notContainsText",
@@ -3694,7 +3694,7 @@ end
             operator="topN",
             value="5",
             stopIfTrue="true",
-            fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
+            fill = ["pattern" => "none", "bgColor"=>"green"],
             border = ["style"=>"thick", "color"=>"coral"],
             font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
         )==0
@@ -3712,7 +3712,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
             border = ["style"=>"thick", "color"=>"coral"],
             font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
-        ) ==0
+        )==0
         @test XLSX.setConditionalFormat(s, 1:10, 1:10, :top10;
             operator="bottomN%",
             value="30",
@@ -3877,7 +3877,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
             border = ["style"=>"thick", "color"=>"coral"],
             font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
-        ) ==0
+        )==0
         @test XLSX.setConditionalFormat(s, 1:1001, 1:3, :aboveAverage;
             operator="minus1StdDev",
             stopIfTrue="true",
@@ -3890,7 +3890,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
             border = ["style"=>"thick", "color"=>"gray"],
             font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
-        ) ==0
+        )==0
         @test XLSX.setConditionalFormat(s, 1:1001, 1:3, :aboveAverage;
             operator="belowAverage",
             fill = ["pattern" => "none", "bgColor"=>"yellow"],
@@ -4059,7 +4059,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFC7CE"],
             border = ["style"=>"thick", "color"=>"coral"],
             font = ["color"=>"blue", "bold"=>"true", "strike"=>"true"]
-        ) ==0
+        )==0
         @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
             operator="lastMonth",
             stopIfTrue="true",
@@ -4073,7 +4073,7 @@ end
             fill = ["pattern" => "none", "bgColor"=>"FFFFCFCE"],
             border = ["style"=>"thick", "color"=>"coral"],
             font = ["color"=>"yellow", "bold"=>"true", "strike"=>"true"]
-        ) ==0
+        )==0
         @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
             operator="last7Days",
             stopIfTrue="true",
