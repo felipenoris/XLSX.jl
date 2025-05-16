@@ -13,9 +13,7 @@ end
 
 function Base.axes(ws::Worksheet, d)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(DimensionMismatch("Worksheet $ws has no dimension"))
-    elseif d == 1
+    if d == 1
         return dim.start.row_number:dim.stop.row_number
     elseif d == 2
         return dim.start.column_number:dim.stop.column_number
@@ -59,18 +57,24 @@ end
 
 # Returns the dimension of this worksheet as a CellRange.
 # If the dimension is unknown, computes a dimension from cells in cache.
-# If cache is not being used (or is empty), return `nothing`.
+# If the cache is empty, set dimension to A1:A1.
+# If cache is not being used, throw an error.
 function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
     !isnothing(ws.dimension) && return ws.dimension
-    (isnothing(ws.cache) || length(ws.cache.cells) < 1) && return nothing
-    #    @warn "Dimension for worksheet $(ws.name) not found. Calculating from cells in cache."
-    row_extr = extrema(keys(ws.cache.cells))
-    row_min = first(row_extr)
-    row_max = last(row_extr)
-    col_extr = [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
-    col_min = minimum([x for x in first.(col_extr)])
-    col_max = maximum([x for x in last.(col_extr)])
-    set_dimension!(ws, CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max)))
+    #    if (isnothing(ws.cache) || length(ws.cache.cells) < 1)
+    if isnothing(ws.cache)
+        throw(XLSXError("No worksheet dimension found for $(ws.name)."))
+    elseif length(ws.cache.cells) < 1
+        set_dimension!(ws, CellRange(CellRef(1, 1), CellRef(1, 1)))
+    else
+        row_extr = extrema(keys(ws.cache.cells))
+        row_min = first(row_extr)
+        row_max = last(row_extr)
+        col_extr = [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
+        col_min = minimum([x for x in first.(col_extr)])
+        col_max = maximum([x for x in last.(col_extr)])
+        set_dimension!(ws, CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max)))
+    end
     return ws.dimension
 end
 
@@ -125,45 +129,25 @@ getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Inte
 getdata(ws::Worksheet, ::Colon, ::Colon) = getdata(ws)
 function getdata(ws::Worksheet, ::Colon)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        getdata(ws, dim)
-    end
+    getdata(ws, dim)
 end
 function getdata(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        getdata(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
-    end
+    getdata(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
 end
 function getdata(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        getdata(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
-    end
+    getdata(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
 end
 function getdata(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        col=dim.start.column_number:dim.stop.column_number
-    end
-        return getdata(ws, row, col)
+    col = dim.start.column_number:dim.stop.column_number
+    return getdata(ws, row, col)
 end
 function getdata(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}})
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        row=dim.start.row_number:dim.stop.row_number
-    end
-        return getdata(ws, row, col)
+    row = dim.start.row_number:dim.stop.row_number
+    return getdata(ws, row, col)
 end
 
 function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
@@ -197,23 +181,15 @@ end
 
 function getdata(ws::Worksheet, rng::ColumnRange)::Array{Any,2}
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        start = CellRef(dim.start.row_number, rng.start)
-        stop = CellRef(dim.stop.row_number, rng.stop)
-        return getdata(ws, CellRange(start, stop))
-    end
+    start = CellRef(dim.start.row_number, rng.start)
+    stop = CellRef(dim.stop.row_number, rng.stop)
+    return getdata(ws, CellRange(start, stop))
 end
 function getdata(ws::Worksheet, rng::RowRange)::Array{Any,2}
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        start = CellRef(rng.start, dim.start.column_number,)
-        stop = CellRef(rng.stop, dim.stop.column_number)
-        return getdata(ws, CellRange(start, stop))
-    end
+    start = CellRef(rng.start, dim.start.column_number,)
+    stop = CellRef(rng.stop, dim.stop.column_number)
+    return getdata(ws, CellRange(start, stop))
 end
 
 function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Any}
@@ -283,25 +259,16 @@ function getdata(ws::Worksheet, ref::AbstractString)
     end
 end
 
-function getdata(ws::Worksheet)
-    if ws.dimension !== nothing
-        return getdata(ws, get_dimension(ws))
-    else
-        throw(XLSXError("Worksheet dimension is unknown."))
-    end
-end
+getdata(ws::Worksheet) = getdata(ws, get_dimension(ws))
 
-#Base.getindex(f::Function, ws::Worksheet, r) = f(ws, r)
-#Base.getindex(f::Function, ws::Worksheet, r, c) = f(ws, r, c)
-#Base.getindex(f::Function, ws::Worksheet, ::Colon) = f::Function, (ws)
 Base.getindex(ws::Worksheet, r) = getdata(ws, r)
 Base.getindex(ws::Worksheet, r, c) = getdata(ws, r, c)
 Base.getindex(ws::Worksheet, ::Colon) = getdata(ws)
 
 function Base.show(io::IO, ws::Worksheet)
     hidden_string = ws.is_hidden ? "(hidden)" : ""
-    if get_dimension(ws) !== nothing
-        rg = get_dimension(ws)
+    rg = get_dimension(ws)
+    if rg !== nothing
         nrow, ncol = size(rg)
         @printf(io, "%d×%d %s: [\"%s\"](%s) %s", nrow, ncol, typeof(ws), ws.name, rg, hidden_string)
     else
@@ -369,25 +336,17 @@ getcell(ws::Worksheet, s::ColumnRange) = getcellrange(ws, s.colrng)
 getcell(ws::Worksheet, s::RowRange) = getcellrange(ws, s.rowrng)
 
 getcell(ws::Worksheet, row::Integer, col::Integer) = getcell(ws, CellRef(row, col))
-getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = getcellrange(ws, row,  col)
+getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = getcellrange(ws, row, col)
 getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcellrange(ws, row, col)
 getcell(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = getcellrange(ws, row, col)
 getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcellrange(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function getcell(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        getcellrange(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
-    end
+    getcellrange(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)))
 end
 function getcell(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}})
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        getcellrange(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
-    end
+    getcellrange(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
 end
 
 function getcell(ws::Worksheet, ref::AbstractString)
@@ -467,23 +426,15 @@ getcellrange(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) =
 
 function getcellrange(ws::Worksheet, rng::ColumnRange)::Array{AbstractCell,2}
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        start = CellRef(dim.start.row_number, rng.start)
-        stop = CellRef(dim.stop.row_number, rng.stop)
-        return getcellrange(ws, CellRange(start, stop))
-    end
+    start = CellRef(dim.start.row_number, rng.start)
+    stop = CellRef(dim.stop.row_number, rng.stop)
+    return getcellrange(ws, CellRange(start, stop))
 end
 function getcellrange(ws::Worksheet, rng::RowRange)::Array{AbstractCell,2}
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        start = CellRef(rng.start, dim.start.column_number,)
-        stop = CellRef(rng.stop, dim.stop.column_number)
-        return getcellrange(ws, CellRange(start, stop))
-    end
+    start = CellRef(rng.start, dim.start.column_number,)
+    stop = CellRef(rng.stop, dim.stop.column_number)
+    return getcellrange(ws, CellRange(start, stop))
 end
 
 function getcellrange(ws::Worksheet, rng::NonContiguousRange)::Vector{AbstractCell}

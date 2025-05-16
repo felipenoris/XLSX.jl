@@ -73,7 +73,7 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
 
     update_worksheets_xml!(xf)
     update_workbook_xml!(xf)
-#    update_relationships(xf)
+    #    update_relationships(xf)
 
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
@@ -284,9 +284,11 @@ function update_worksheets_xml!(xl::XLSXFile)
         local spans_str::String = ""
 
         # Every row has the `spans=1:<n_cols>` property. Set it to the whole range of columns by default
-        if !isnothing(get_dimension(sheet))
-            spans_str = string(column_number(get_dimension(sheet).start), ":", column_number(get_dimension(sheet).stop))
-        end
+        d = get_dimension(sheet)
+        #if !isnothing(get_dimension(sheet))
+        #    spans_str = string(column_number(get_dimension(sheet).start), ":", column_number(get_dimension(sheet).stop))
+        spans_str = string(column_number(d.start), ":", column_number(d.stop))
+        #end
 
         # iterates over WorksheetCache cells and write the XML
         for r in eachrow(sheet)
@@ -337,14 +339,16 @@ function update_worksheets_xml!(xl::XLSXFile)
         doc[i][j] = sheetData_node
 
         # updates worksheet dimension
-        if get_dimension(sheet) !== nothing
-            i, j = get_idces(doc, "worksheet", "dimension")
-            if !isnothing(j)
-                dimension_node = doc[i][j]
-                dimension_node["ref"] = string(get_dimension(sheet))
-                doc[i][j] = dimension_node
-            end
+        
+        #        if get_dimension(sheet) !== nothing
+        i, j = get_idces(doc, "worksheet", "dimension")
+        if !isnothing(j)
+            dimension_node = doc[i][j]
+            #                dimension_node["ref"] = string(get_dimension(sheet))
+            dimension_node["ref"] = string(d)
+            doc[i][j] = dimension_node
         end
+        #        end
 
         set_worksheet_xml_document!(sheet, doc)
     end
@@ -438,10 +442,10 @@ function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)
     # update worksheet dimension
     ws_dimension = get_dimension(ws)
 
-    if ws_dimension === nothing
-        set_dimension!(ws, CellRange(cell.ref, cell.ref))
-        return
-    end
+    #    if ws_dimension === nothing
+    #        set_dimension!(ws, CellRange(cell.ref, cell.ref))
+    #        return
+    #    end
 
     top = row_number(ws_dimension.start)
     left = column_number(ws_dimension.start)
@@ -652,23 +656,15 @@ function setdata!(ws::Worksheet, rng::CellRange, value)
 end
 function setdata!(ws::Worksheet, rng::RowRange, value)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        start = CellRef(rng.start, dim.start.column_number,)
-        stop = CellRef(rng.stop, dim.stop.column_number)
-        setdata!(ws, CellRange(start, stop), value)
-    end
+    start = CellRef(rng.start, dim.start.column_number,)
+    stop = CellRef(rng.stop, dim.stop.column_number)
+    setdata!(ws, CellRange(start, stop), value)
 end
 function setdata!(ws::Worksheet, rng::ColumnRange, value)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        start = CellRef(dim.start.row_number, rng.start)
-        stop = CellRef(dim.stop.row_number, rng.stop)
-        setdata!(ws, CellRange(start, stop), value)
-    end
+    start = CellRef(dim.start.row_number, rng.start)
+    stop = CellRef(dim.stop.row_number, rng.stop)
+    setdata!(ws, CellRange(start, stop), value)
 end
 function setdata!(ws::Worksheet, rng::NonContiguousRange, value)
     for r in rng.rng
@@ -684,49 +680,29 @@ end
 setdata!(ws::Worksheet, ::Colon, ::Colon, v) = setdata!(ws::Worksheet, :, v)
 function setdata!(ws::Worksheet, ::Colon, v)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        setdata!(ws, dim, v)
-    end
+    setdata!(ws, dim, v)
 end
 function setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon, v)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        setdata!(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)), v)
-    end
+    setdata!(ws, CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number)), v)
 end
 function setdata!(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}, v)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        setdata!(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))), v)
-    end
+    setdata!(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))), v)
 end
 function setdata!(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon, v)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        for a in row
-            for b in dim.start.column_number:dim.stop.column_number
-                setdata!(ws, CellRef(a, b), v)
-            end
+    for a in row
+        for b in dim.start.column_number:dim.stop.column_number
+            setdata!(ws, CellRef(a, b), v)
         end
     end
 end
 function setdata!(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}, v)
     dim = get_dimension(ws)
-    if dim === nothing
-        throw(XLSXError("No worksheet dimension found"))
-    else
-        for b in col
-            for a in dim.start.row_number:dim.stop.row_number
-                setdata!(ws, CellRef(a, b), v)
-            end
+    for b in col
+        for a in dim.start.row_number:dim.stop.row_number
+            setdata!(ws, CellRef(a, b), v)
         end
     end
 end

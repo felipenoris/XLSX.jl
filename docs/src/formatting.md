@@ -110,7 +110,7 @@ julia> s[1:100, 1:100] = "" # Ensure these aren't `EmptyCell`s.
 ""
 
 julia> XLSX.setFont(s, "A1:CV100"; name="Arial", size=24, color="blue", bold=true)
--1                          # Returns -1 on a range .
+-1                          # Returns -1 on a range.
 
 julia> XLSX.setBorder(s, "A1:CV100"; allsides = ["style" => "thin", "color" => "black"])
 -1
@@ -166,7 +166,6 @@ it uniformly to each cell in the range. This ensures that all of font, fill, bor
 alignment are all completely consistent across the range:
 
 ```julia
-
 julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be uniformly tha same as cell A1.
 7    # this is the `styleId` that has now been applied to all cells in the range
 ```
@@ -180,7 +179,7 @@ consider the following worksheet, which has very hetrogeneous formatting across 
 
 We can apply `setBorder()` to add a top border to each cell:
 
-```
+```julia
 julia> XLSX.setBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
 -1
 ```
@@ -191,7 +190,7 @@ This merges the new top border definition with the other, existing attributes, t
 Alternatively, we can apply `setUniformBorder()`, which will update the borders of cell `B2` 
 and then apply all the border formatting to the other cells, overwriting the previous settings:
 
-```
+```julia
 julia> XLSX.setUniformBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
 4
 ```
@@ -203,7 +202,7 @@ attributes as they were.
 
 Finally, we can set `B2` to have the formatting we want, and then apply a uniform style to all three cells.
 
-```
+```julia
 julia> XLSX.setBorder(s, "B2"; top=["style"=>"thick", "color"=>"red"])
 4
 
@@ -217,7 +216,7 @@ Which results in all formatting attributes being entirely consistent across the 
 ### Performance differences between methods
 
 To illustrtate the relative performance of these three methods, applied to a million cells:
-```
+```julia
 using XLSX
 function setup()
     f = XLSX.newxlsx()
@@ -260,7 +259,7 @@ Using `setUniformStyles` :   0.589316 seconds (14.00 M allocations: 416.628 MiB,
 
 The same test, using the more involved `setBorder` function
 
-```
+```julia
 do_format(f) = XLSX.setBorder(f[1], 1:1000, 1:1000;
         left     = ["style" => "dotted", "color" => "FF000FF0"],
         right    = ["style" => "medium", "color" => "firebrick2"],
@@ -287,7 +286,6 @@ It is possible to use non-contiguous ranges to copy format attributes from any c
 whether you are also updating the source cell's format or not.
 
 ```julia
-
 julia> XLSX.setBorder(s, "BB50"; allsides = ["style" => "medium", "color" => "yellow"])
 3 # Cell BB50 now has the border format I want!
 
@@ -304,7 +302,6 @@ Two functions offer the ability to set the column width and row height within a 
 all of the indexing options described above. For example:
 
 ```julia
-
 julia> XLSX.setRowHeight(s, "A2:A5"; height=25)  # Rows 1 to 5 (columns ignored)
 
 julia> XLSX.setColumnWidth(s, 5:5:100; width=50) # Every 5th column.
@@ -334,7 +331,7 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     formats are created by applying the `setAttribute()` functions described above.
 
     Dynamic conditional formatting, using the native Excel conditional format functionality, is possible 
-    using the `setConditionalFormat()` function, giving access to many of Excels's options (but not yet 
+    using the `setConditionalFormat()` function, giving access to many of Excel's options (but not yet 
     all of them). 
 
 ### Static conditional formats
@@ -387,9 +384,8 @@ is applied are subsequently updated.
 
 `XLSX.setConditionalFormat(sheet, CellRange, :formatting_type; kwargs...)`
 
-Excel uses range of `:formatting_type` values describe these conditional formats and the same values 
+Excel uses a range of `:formatting_type` values to describe these conditional formats and the same values 
 are used here, as follows:
-- `:colorScale`
 - `:cellIs`
 - `:top10`
 - `:aboveAverage`
@@ -404,6 +400,10 @@ are used here, as follows:
 - `:notContainsBlanks`
 - `:uniqueValues`
 - `:duplicateValues`
+- `:expression`
+- `:dataBar`
+- `:colorScale`
+- `:iconSet`
 
 Use of these different `:formatting_type`s is illustrated in the following sections.
 For more details on the range of `:formatting_types` and their associated keyword 
@@ -414,7 +414,7 @@ options, refer to [XLSX.setConditionalFormat()](@ref).
 It is possible to format each cell in a range when the cell's value meets a specified condition using one 
 of a number of built-in cell format options or using custom formatting. This group of formatting options 
 represents the greatest range of conditional formatting options available in Excel and the most often 
-used. All the functions of `Highlight Cell Rules` and `Top/Bottom Rules` are provided.
+used. All the functions of `Highlight Cells Rules` and `Top/Bottom Rules` are provided.
 
 ![image|320x500](./images/cell1.png) ![image|100x500](./images/blank.png) ![image|320x500](./images/cell2.png)
 
@@ -482,11 +482,10 @@ julia> colnames = [ "integers", "strings", "floats" ]
  "floats"
 
 julia> f=XLSX.newxlsx()
-XLSXFile(""C:\...\blank.xlsx"") containing 1 Worksheet
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
             sheetname size          range        
 -------------------------------------------------
                Sheet1 1x1           A1:A1
-
 
 julia> s=f[1]
 1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
@@ -577,6 +576,135 @@ julia> XLSX.getConditionalFormats(s)
 The `formatting_type` needed for these different functions varies, as do the keyword options.
 Refer to [XLSX.setConditionalFormat()](@ref) for full details.
 
+#### Expressions
+
+It is possible to use an Excel formula directly to determine whether to apply a conditional formula. 
+Any expression that evaluates to true or false can be used.
+
+![image|320x500](./images/expression.png)
+
+For example, to compare one column with another and apply a conditional format accordingly:
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range        
+-------------------------------------------------
+               Sheet1 1x1           A1:A1        
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
+
+julia> XLSX.writetable!(s, [rand(10), rand(10), rand(10), rand(10)], ["col1", "col2", "col3", "col4"])
+
+julia> s[:]
+11×4 Matrix{Any}:
+  "col1"     "col2"     "col3"     "col4"
+ 0.810579   0.13742    0.0146856  0.654739
+ 0.169043   0.623955   0.713874   0.103253
+ 0.198619   0.19622    0.0818595  0.863316
+ 0.353214   0.0949461  0.961917   0.812889
+ 0.343781   0.0957323  0.061183   0.822921
+ 0.34115    0.243949   0.527914   0.758945
+ 0.161748   0.744446   0.119521   0.52732
+ 0.39707    0.284588   0.501409   0.374944
+ 0.327938   0.191197   0.943983   0.755799
+ 0.0314949  0.560541   0.526068   0.45253
+
+julia> XLSX.setConditionalFormat(s, "A2:A10", :expression; formula = "A2>B2", dxStyle = "redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "C2:D10", :expression; formula = "C2>\$B2", dxStyle = "greenfilltext")
+0
+```
+![image|320x500](./images/simpleComparison.png)
+
+Column A uses relative referencing. Columns C and D use an absolute reference for the column but not the row.
+
+The following example uses absolute references on rows and compares the average of each column with the 
+average of the preceding column.
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+julia> XLSX.writetable!(s, [rand(10).*1000, rand(10).*1000, rand(10).*1000, rand(10).*1000], ["2022", "2023", "2024", "2025"])
+
+julia> XLSX.setConditionalFormat(s, "B2:D11", :expression; formula = "average(B\$2:B\$11) > average(A\$2:A\$11)", dxStyle = "greenfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "B2:D11", :expression; formula = "average(B\$2:B\$11) < average(A\$2:A\$11)", dxStyle = "redfilltext")
+0
+```
+![image|320x500](./images/averageComparison.png)
+
+(Row 13 above is the average of each column, calculated in Excel)
+
+When a formula uses relative references, the relative position of the reference to the base cell in the range to which 
+the condition is applied is used consistently throughout the range.
+This is illustrated in the following example:
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
+
+julia> for i=1:10; for j=1:10; s[i, j] = i*j; end; end
+
+julia> XLSX.setConditionalFormat(s, "A1:E5", :expression; formula = "E5<50", dxStyle = "redfilltext")
+0
+```
+![image|320x500](./images/relativeComparison.png)
+
+The format applied in cell `A1` is determined by comparison of cell `E5` to the value 50. In `B2` it is 
+based on cell `F6`, in `C3`, on cell `G7` and so on throughtout the range.
+
+Text based comparisons in Excel are not case sensitive by default, but can be forced to be so:
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+julia> s[1:3,1:3]="HELLO WORLD"
+"HELLO WORLD"
+
+julia> s["A1"] = "Hello World"
+"Hello World"
+
+julia> s["B2"] = "Hello World"
+"Hello World"
+
+julia> s["C3"] = "Hello World"
+"Hello World"
+
+julia> XLSX.setConditionalFormat(s, "A1:A3", :expression; formula = "A1=\"hello world\"", dxStyle = "redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "B1:B3", :expression; formula = "B1=\"HELLO WORLD\"", dxStyle = "redfilltext")
+0
+
+julia> XLSX.setConditionalFormat(s, "C1:C3", :expression; formula = "exact(\"Hello World\", C1)", dxStyle = "greenfilltext")
+0
+```
+![image|320x500](./images/caseSensitiveComparison.png)
+
 #### Data Bar
 
 (In development)
@@ -637,11 +765,7 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 ```
 ![image|320x500](./images/custom-colorscale.png)
 
-#### Icon Sets
-
-(In development)
-
-#### formulas
+#### Icon Set
 
 (In development)
 
@@ -740,7 +864,6 @@ order (priority 1 is higher priority than priority 2) which is the same as the o
 which they were defined with `setConditionalFormat`.
 
 ```julia
-
 julia> s[1:5, 1:3]
 5×3 Matrix{Any}:
    "first"    "middle"    "last"

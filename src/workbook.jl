@@ -1,7 +1,7 @@
 
 EmptyWorkbook() = Workbook(EmptyMSOfficePackage(), Vector{Worksheet}(), false,
-    Vector{Relationship}(), SharedStringTable(), Dict{Int, Bool}(), Dict{Int, Bool}(),
-    Dict{String, DefinedNameValueTypes}(), Dict{Tuple{Int, String}, DefinedNameValueTypes}(), nothing)
+    Vector{Relationship}(), SharedStringTable(), Dict{Int,Bool}(), Dict{Int,Bool}(),
+    Dict{String,DefinedNameValueTypes}(), Dict{Tuple{Int,String},DefinedNameValueTypes}(), nothing)
 
 #=
 Indicates whether this XLSX file can be edited.
@@ -16,7 +16,7 @@ is_writable(xl::XLSXFile) = xl.is_writable
 
 Return a vector with Worksheet names for this Workbook.
 """
-sheetnames(wb::Workbook) = [ s.name for s in wb.sheets ]
+sheetnames(wb::Workbook) = [s.name for s in wb.sheets]
 @inline sheetnames(xl::XLSXFile) = sheetnames(xl.workbook)
 
 """
@@ -25,7 +25,7 @@ sheetnames(wb::Workbook) = [ s.name for s in wb.sheets ]
 
 Return `true` if `wb` contains a sheet named `sheetname`.
 """
-function hassheet(wb::Workbook, sheetname::AbstractString) :: Bool
+function hassheet(wb::Workbook, sheetname::AbstractString)::Bool
     for s in wb.sheets
         if s.name == unquoteit(sheetname)
             return true
@@ -45,10 +45,10 @@ Count the number of sheets in the Workbook.
 @inline sheetcount(xl::XLSXFile) = sheetcount(xl.workbook)
 
 # Returns true if workbook follows date1904 convention.
-@inline isdate1904(wb::Workbook) :: Bool = wb.date1904
-@inline isdate1904(xf::XLSXFile) :: Bool = isdate1904(get_workbook(xf))
+@inline isdate1904(wb::Workbook)::Bool = wb.date1904
+@inline isdate1904(xf::XLSXFile)::Bool = isdate1904(get_workbook(xf))
 
-function getsheet(wb::Workbook, sheetname::String) :: Worksheet
+function getsheet(wb::Workbook, sheetname::String)::Worksheet
     for ws in wb.sheets
         if ws.name == unquoteit(sheetname)
             return ws
@@ -57,9 +57,9 @@ function getsheet(wb::Workbook, sheetname::String) :: Worksheet
     throw(XLSXError("$(get_xlsxfile(wb).source) does not have a Worksheet named `$sheetname`."))
 end
 
-@inline getsheet(wb::Workbook, sheet_index::Int) :: Worksheet = wb.sheets[sheet_index]
-@inline getsheet(xl::XLSXFile, sheetname::String) :: Worksheet = getsheet(xl.workbook, sheetname)
-@inline getsheet(xl::XLSXFile, sheet_index::Int) :: Worksheet = getsheet(xl.workbook, sheet_index)
+@inline getsheet(wb::Workbook, sheet_index::Int)::Worksheet = wb.sheets[sheet_index]
+@inline getsheet(xl::XLSXFile, sheetname::String)::Worksheet = getsheet(xl.workbook, sheetname)
+@inline getsheet(xl::XLSXFile, sheet_index::Int)::Worksheet = getsheet(xl.workbook, sheet_index)
 
 function Base.show(io::IO, xf::XLSXFile)
 
@@ -74,13 +74,13 @@ function Base.show(io::IO, xf::XLSXFile)
 
     wb = xf.workbook
     print(io, "XLSXFile(\"$(xf.source)\") ",
-              "containing $(sheetcountstr(wb))\n")
+        "containing $(sheetcountstr(wb))\n")
     @printf(io, "%21s %-13s %-13s\n", "sheetname", "size", "range")
-    println(io, "-"^(21+1+13+1+13))
+    println(io, "-"^(21 + 1 + 13 + 1 + 13))
 
     for s in wb.sheets
-        sheetname = s.name 
-        if textwidth(sheetname) > 20 
+        sheetname = s.name
+        if textwidth(sheetname) > 20
             sheetname = sheetname[collect(eachindex(s.name))[1:20]] * "…"
         end
 
@@ -132,10 +132,10 @@ end
 function getdata(xl::XLSXFile, s::AbstractString)
     if is_workbook_defined_name(xl, s)
         v = get_defined_name_value(xl.workbook, s)
-       if is_defined_name_value_a_constant(v)
+        if is_defined_name_value_a_constant(v)
             return v
         elseif is_defined_name_value_a_reference(v)
-             return getdata(xl, v)
+            return getdata(xl, v)
         else
             throw(XLSXError("Unexpected Workbook defined name value: $v."))
         end
@@ -222,15 +222,18 @@ function getcellrange(xl::XLSXFile, rng_str::AbstractString)
     throw(XLSXError("`$rng_str` is not a valid SheetCellRange."))
 end
 
-@inline is_workbook_defined_name(wb::Workbook, name::AbstractString) :: Bool = haskey(wb.workbook_names, name)
-@inline is_workbook_defined_name(xl::XLSXFile, name::AbstractString) :: Bool = is_workbook_defined_name(get_workbook(xl), name)
-@inline is_worksheet_defined_name(ws::Worksheet, name::AbstractString) :: Bool = is_worksheet_defined_name(get_workbook(ws), ws.sheetId, name)
-@inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString) :: Bool = haskey(wb.worksheet_names, (sheetId, name))
-@inline is_worksheet_defined_name(wb::Workbook, sheet_name::AbstractString, name::AbstractString) :: Bool = is_worksheet_defined_name(wb, getsheet(wb, sheet_name).sheetId, name)
+# Defined names are case-insensitive in Excel. Need to check on this basis (haskey is insufficient).
+@inline is_workbook_defined_name(wb::Workbook, name::AbstractString)::Bool = !isnothing(findfirst(x -> uppercase(x)==uppercase(name), collect(keys(wb.workbook_names))))
+@inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString)::Bool = !isnothing(findfirst(x -> uppercase(last(x))==uppercase(name) && first(x)==sheetId, collect(keys(wb.worksheet_names))))
+@inline is_workbook_defined_name(xl::XLSXFile, name::AbstractString)::Bool = is_workbook_defined_name(get_workbook(xl), name)
+@inline is_worksheet_defined_name(ws::Worksheet, name::AbstractString)::Bool = is_worksheet_defined_name(get_workbook(ws), ws.sheetId, name)
+@inline is_worksheet_defined_name(wb::Workbook, sheet_name::AbstractString, name::AbstractString)::Bool = is_worksheet_defined_name(wb, getsheet(wb, sheet_name).sheetId, name)
+#@inline is_workbook_defined_name(wb::Workbook, name::AbstractString)::Bool = haskey(wb.workbook_names, name)
+#@inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString)::Bool = haskey(wb.worksheet_names, (sheetId, name))
 
-    @inline get_defined_name_value(wb::Workbook, name::AbstractString) :: DefinedNameValueTypes = wb.workbook_names[name].value
+@inline get_defined_name_value(wb::Workbook, name::AbstractString)::DefinedNameValueTypes = wb.workbook_names[name].value
 
-function get_defined_name_value(ws::Worksheet, name::AbstractString) :: DefinedNameValueTypes
+function get_defined_name_value(ws::Worksheet, name::AbstractString)::DefinedNameValueTypes
     wb = get_workbook(ws)
     sheetId = ws.sheetId
     dn = wb.worksheet_names[(sheetId, name)]
@@ -240,8 +243,14 @@ end
 @inline is_defined_name_value_a_reference(v::DefinedNameValueTypes) = isa(v, SheetCellRef) || isa(v, SheetCellRange) || isa(v, NonContiguousRange)
 @inline is_defined_name_value_a_constant(v::DefinedNameValueTypes) = !is_defined_name_value_a_reference(v)
 
-function is_valid_defined_name(name::AbstractString) :: Bool
+function is_valid_defined_name(name::AbstractString)::Bool
     if isempty(name)
+        return false
+    end
+    if is_valid_cellname(name) || is_valid_cellrange(name) || is_valid_non_contiguous_cellrange(name)
+        return false
+    end
+    if is_valid_sheet_cellname(name) || is_valid_sheet_cellrange(name) || is_valid_non_contiguous_sheetcellrange(name)
         return false
     end
     if !isletter(name[1]) && name[1] != '_'
@@ -329,8 +338,8 @@ julia> XLSX.addDefinedName(xf, "first_name", "Hello World")
 ```
 """
 function addDefinedName end
-addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(xf, name, value; absolute=true)
-addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int, Float64}; absolute=true) = addDefName(ws, name, value; absolute=true)
+addDefinedName(xf::XLSXFile, name::AbstractString, value::Union{Int,Float64}; absolute=true) = addDefName(xf, name, value; absolute)
+addDefinedName(ws::Worksheet, name::AbstractString, value::Union{Int,Float64}; absolute=true) = addDefName(ws, name, value; absolute)
 function addDefinedName(xf::XLSXFile, name::AbstractString, value::AbstractString; absolute=true)
     if value == ""
         throw(XLSXError("Defined name value cannot be an empty string."))

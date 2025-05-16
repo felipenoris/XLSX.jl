@@ -508,16 +508,25 @@ function nc_bounds(r::NonContiguousRange)::CellRange # Smallest rectangualar `Ce
     end
     return CellRange(CellRef(top, left), CellRef(bottom, right))
 end
-function Base.length(r::NonContiguousRange)::Int # Number of cells in `r`.
-    s = 0
+function Base.length(r::NonContiguousRange)::Int # Number of cells in `r`, eliminating duplicates.
+#    s = 0
+    allcells= Vector{String}()
     for rng in r.rng
         if rng isa CellRef
-            s += 1
+            push!(allcells, rng.name)
         else
-            s += length(rng)
+            for cell in rng
+                push!(allcells, cell.name)
+            end
         end
     end
-    return s
+#        if rng isa CellRef
+#            s += 1
+#        else
+#            s += length(rng)
+#        end
+#    end
+    return length(unique(allcells))
 end
 
 const RGX_SHEET_CELLNAME = r"^.+![A-Z]+[0-9]+$"

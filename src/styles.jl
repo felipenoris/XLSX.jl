@@ -48,7 +48,7 @@ function get_num_style_index(ws::Worksheet, numformatid::Integer)
     style_index = styles_get_cellXf_with_numFmtId(wb, numformatid)
     if isempty(style_index)
         # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId=formatid xfId="0"/>
-        style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat"=>"1", "borderId"=>"0", "fillId"=>"0", "fontId"=>"0", "numFmtId"=>string(numformatid), "xfId"=>"0"))
+        style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat" => "1", "borderId" => "0", "fillId" => "0", "fontId" => "0", "numFmtId" => string(numformatid), "xfId" => "0"))
     end
 
     return style_index
@@ -76,17 +76,17 @@ function styles_xmlroot(workbook::Workbook)
     return workbook.styles_xroot
 end
 
-            
+
 # Returns the xf XML node element for style `index`.
 # `index` is 0-based.
-function styles_cell_xf(wb::Workbook, index::Int) :: XML.Node
+function styles_cell_xf(wb::Workbook, index::Int)::XML.Node
     xroot = styles_xmlroot(wb)
-    xf_elements = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":cellXfs/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":xf", xroot)
+    xf_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", xroot)
     return xf_elements[index+1]
 end
 
 # Queries numFmtId from cellXfs -> xf nodes."
-function styles_cell_xf_numFmtId(wb::Workbook, index::Int) :: Int
+function styles_cell_xf_numFmtId(wb::Workbook, index::Int)::Int
     el = styles_cell_xf(wb, index)
     if !haskey(el, "numFmtId")
         return 0
@@ -96,23 +96,23 @@ end
 
 # Defines a custom number format to render numbers, dates or text.
 # Returns the index to be used as the `numFmtId` in a cellXf definition.
-function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
+function styles_add_numFmt(wb::Workbook, format_code::AbstractString)::Integer
     xroot = styles_xmlroot(wb)
 
-    numfmts = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmts", xroot)
+    numfmts = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":numFmts", xroot)
     if isempty(numfmts)
-        stylesheet = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet", xroot)[begin] # find first
+        stylesheet = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet", xroot)[begin] # find first
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
-#        nchildren = length(XML.children(stylesheet))
-        numfmts = XML.Element("numFmts", count="1") 
+        #        nchildren = length(XML.children(stylesheet))
+        numfmts = XML.Element("numFmts", count="1")
         XML.pushfirst!(stylesheet, numfmts)
-#        push!(stylesheet, stylesheet[end])
-#        for i in nchildren-1:-1:1
-#            stylesheet[i+1]=stylesheet[i]
-#        end
-#        stylesheet[1]=numfmts
+        #        push!(stylesheet, stylesheet[end])
+        #        for i in nchildren-1:-1:1
+        #            stylesheet[i+1]=stylesheet[i]
+        #        end
+        #        stylesheet[1]=numfmts
     else
         numfmts = numfmts[1]
     end
@@ -120,23 +120,23 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString) :: Integer
     existing_numFmt_elements_count = length(XML.children(numfmts))
     fmt_code = existing_numFmt_elements_count + PREDEFINED_NUMFMT_COUNT
     new_fmt = XML.Element("numFmt";
-        numFmtId = fmt_code,
-        formatCode = XML.escape(format_code)
+        numFmtId=fmt_code,
+        formatCode=XML.escape(format_code)
     )
     push!(numfmts, new_fmt)
     return fmt_code
 end
 
-const FontAttribute = Union{String, Pair{String, Pair{String, String}}}
+const FontAttribute = Union{String,Pair{String,Pair{String,String}}}
 
 # Queries numFmt formatCode field by numFmtId.
-function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString) :: String
+function styles_numFmt_formatCode(wb::Workbook, numFmtId::AbstractString)::String
     if haskey(builtinFormats, numFmtId)
         return builtinFormats[numFmtId]
     end
     xroot = styles_xmlroot(wb)
-    nodes_found = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmts/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":numFmt", xroot)
-    elements_found = filter(x->XML.attributes(x)["numFmtId"] == numFmtId, nodes_found)
+    nodes_found = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":numFmts/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":numFmt", xroot)
+    elements_found = filter(x -> XML.attributes(x)["numFmtId"] == numFmtId, nodes_found)
     length(elements_found) != 1 && throw(XLSXError("numFmtId $numFmtId not found."))
     return XML.attributes(elements_found[1])["formatCode"]
 end
@@ -149,10 +149,10 @@ function remove_formatting(code::AbstractString)
     # this regex should cover all the formatting cases found here(colors/conditionals/quotes/spacing):
     # https://support.office.com/en-us/article/create-or-delete-a-custom-number-format-78f2a361-936b-4c03-8772-09fab54be7f4
     ignoredformatting = r"""\[.{2,}?\]|&quot;.+?&quot;|_.|\\.|\*."""x # Had to add ? to "&quot;.+&quot;" to make it work. Don't understand what made this necessary!
-        replace(code, ignoredformatting => "")
+    replace(code, ignoredformatting => "")
 end
 
-function styles_is_datetime(wb::Workbook, index::Int) :: Bool
+function styles_is_datetime(wb::Workbook, index::Int)::Bool
     if !haskey(wb.buffer_styles_is_datetime, index)
         isdatetime = false
 
@@ -163,7 +163,7 @@ function styles_is_datetime(wb::Workbook, index::Int) :: Bool
         elseif numFmtId > 81
             code = lowercase(styles_numFmt_formatCode(wb, numFmtId))
             code = remove_formatting(code)
-            if any(map(x->occursin(x, code), DATETIME_CODES))
+            if any(map(x -> occursin(x, code), DATETIME_CODES))
                 isdatetime = true
             end
         end
@@ -183,7 +183,7 @@ end
 
 styles_is_datetime(ws::Worksheet, index) = styles_is_datetime(get_workbook(ws), index)
 
-function styles_is_float(wb::Workbook, index::Int) :: Bool
+function styles_is_float(wb::Workbook, index::Int)::Bool
     if !haskey(wb.buffer_styles_is_float, index)
         isfloat = false
         numFmtId = styles_cell_xf_numFmtId(wb, index)
@@ -233,9 +233,9 @@ Returns -1 if not found.
             <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId="22" xfId="0"/>
 ```
 =#
-function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: AbstractCellDataFormat
+function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int)::AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
-    elements_found = find_all_nodes("/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":styleSheet/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":cellXfs/"*SPREADSHEET_NAMESPACE_XPATH_ARG*":xf", xroot)
+    elements_found = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", xroot)
 
     if isempty(elements_found)
         return EmptyCellDataFormat()
@@ -244,7 +244,7 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
             el = XML.attributes(elements_found[i])
             if !isnothing(el) && haskey(el, "numFmtId")
                 if parse(Int, el["numFmtId"]) == numFmtId
-                    return CellDataFormat(i-1) # CellDataFormat is zero-indexed
+                    return CellDataFormat(i - 1) # CellDataFormat is zero-indexed
                 end
             end
         end
@@ -255,14 +255,14 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int) :: Abstrac
 end
 
 function styles_add_cell_xf(wb::Workbook, attributes::Dict{String,String})::CellDataFormat
-    new_xf = XML.Node(XML.Element, "xf", XML.OrderedDict{String, String}(), nothing, nothing)
+    new_xf = XML.Node(XML.Element, "xf", XML.OrderedDict{String,String}(), nothing, nothing)
     for k in keys(attributes)
         new_xf[k] = attributes[k]
     end
     return styles_add_cell_xf(wb, new_xf)
 end
 
-function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
+function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node)::CellDataFormat
     xroot = styles_xmlroot(wb)
     i, j = get_idces(xroot, "styleSheet", "cellXfs")
     existing_cellxf_elements_count = length(XML.children(xroot[i][j]))
@@ -272,8 +272,8 @@ function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node) :: CellDataFormat
     # Check new_xf doesn't duplicate any existing xf. If yes, use that rather than create new.
     # Need to work around XML.jl issue # 33
     for (k, node) in enumerate(XML.children(xroot[i][j]))
-        #if XML.nodetype(node) == XML.nodetype(new_xf) && XML.parse(XML.Node, XML.write(node)) == XML.parse(XML.Node, XML.write(new_xf)) # XML.jl defines `Base.:(==)`
         if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_xf))[1] # XML.jl defines `Base.:(==)`
+            #        if node == new_xf # XML.jl defines `Base.:(==)`
             return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
         end
     end

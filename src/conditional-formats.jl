@@ -147,6 +147,32 @@ const timeperiods::Dict{String,String} = Dict(
     "nextMonth" => "AND(MONTH(__CR__)=MONTH(EDATE(TODAY(),0+1)),YEAR(__CR__)=YEAR(EDATE(TODAY(),0+1)))"
 )
 
+function uppercase_unquoted(s::AbstractString)
+    result = IOBuffer()
+    i = firstindex(s)
+    inside_quote = false
+    while i <= lastindex(s)
+        c = s[i]
+        if c == '\\' && nextind(s, i) <= lastindex(s)
+            # Handle escaped character
+            next_i = nextind(s, i)
+            print(result, s[i:next_i])
+            i = nextind(s, next_i)
+        elseif c == '"'
+            inside_quote = !inside_quote
+            print(result, c)
+            i = nextind(s, i)
+        else
+            if inside_quote
+                print(result, c)
+            else
+                print(result, uppercase(c))
+            end
+            i = nextind(s, i)
+        end
+    end
+    return String(take!(result))
+end
 function get_dx(dxStyle::Union{Nothing, String}, format::Union{Nothing, Vector{Pair{String, String}}}, font::Union{Nothing, Vector{Pair{String, String}}}, border::Union{Nothing, Vector{Pair{String, String}}}, fill::Union{Nothing, Vector{Pair{String, String}}})::Dict{String,Dict{String, String}}
     if isnothing(dxStyle)
         if all(isnothing.([border, fill, font, format]))
@@ -953,6 +979,45 @@ julia> XLSX.setConditionalFormat(s, "A1:A7", :duplicateValues;
 ```
 ![image|320x500](./images/errorBlank.png)
 
+# type = :expressiom
+
+Set a conditional format when an expression evaluated in each cell is `true`.
+
+The available keywords are:
+
+- `formula`    : Specifies the formula to use. This must be a valid Excel formula.
+- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply
+- `format`     : defines the numFmt to apply if opting for a custom format.
+- `font`       : defines the font to apply if opting for a custom format.
+- `border`     : defines the border to apply if opting for a custom format.
+- `fill`       : defines the fill to apply if opting for a custom format.
+
+THe keyword `formula` is required and there is no default value. Formulae must be valid 
+Excel formulae and written in US english with comma separators. Cell references may be 
+absolute or relative references in either the row or the column or both.
+
+The remaining keywords are defined as above for `type = :cellIs`.
+
+# Examples
+
+```julia
+julia> XLSX.setConditionalFormat(s, "A1:C4", :expression; formula = "A1 < 16", dxStyle="greenfilltext")
+
+julia> XLSX.setConditionalFormat(s, 1:5, 1:4, :expression;
+            formula="A1=1",
+            fill=["pattern" => "none", "bgColor" => "yellow"],
+            format=["format" => "0.0"],
+            font=["color" => "green"],
+            border=["style" => "thick", "color" => "coral"]
+        )
+
+julia> XLSX.setConditionalFormat(s, "B2:D11", :expression; formula = "average(B\$2:B\$11) > average(A\$2:A\$11)", dxStyle = "greenfilltext")
+
+julia> XLSX.setConditionalFormat(s, "A1:E5", :expression; formula = "E5<50", dxStyle = "redfilltext")
+
+```
+
 !!! note "Overlaying conditional formats"
     
     It is possible to overlay multiple conditional formats to the same range or to 
@@ -985,12 +1050,14 @@ function setConditionalFormat(f, r, type::Symbol; kw...)
         setCfContainsText(f, r; operator=String(type), kw...)
     elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, :duplicateValues, :uniqueValues]
         setCfContainsBlankErrorUniqDup(f, r; operator=String(type), kw...)
+    elseif type == :expression
+        setCfFormula(f, r; kw...)
 #    elseif type == :iconSet
 #        throw(XLSXError("Icon sets are not yet implemented."))
 #    elseif type == :dataBar
 #        throw(XLSXError("Data bars are not yet implemented."))
 else
-        throw(XLSXError("Invalid conditional format type: $type. Valid options are: `:colorScale`, `:cellIs`"))
+        throw(XLSXError("Invalid conditional format type: $type."))
     end
 end
 
@@ -1009,12 +1076,14 @@ function setConditionalFormat(f, r, c, type::Symbol; kw...)
         setCfContainsText(f, r, c; operator=String(type), kw...)
     elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, :duplicateValues, :uniqueValues]
         setCfContainsBlankErrorUniqDup(f, r, c; operator=String(type), kw...)
+    elseif type == :expression
+        setCfFormula(f, r, c; kw...)
 #    elseif type == :iconSet
 #        throw(XLSXError("Icon sets are not yet implemented."))
 #    elseif type == :dataBar
 #        throw(XLSXError("Data bars are not yet implemented."))
     else
-        throw(XLSXError("Invalid conditional format type: $type. Valid options are: `:colorScale`, `:cellIs`."))
+        throw(XLSXError("Invalid conditional format type: $type."))
     end
 end
 setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfColorScale, ws, row, nothing; kw...)
@@ -1079,7 +1148,7 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
 
         else
             if !haskey(colorscales, colorscale)
-                throw(XLSXError("Invalid color scale: $colorScale. Valid options are: $(keys(colorscales))."))
+                throw(XLSXError("Invalid color scale: $colorscale. Valid options are: $(keys(colorscales))."))
             end
             cfx=colorscales[colorscale]
             cfx["priority"] = new_pr
@@ -1490,6 +1559,53 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
         cfx["stopIfTrue"] = "1"
     end
     formula !="" && push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
+
+    update_worksheet_cfx!(allcfs, cfx, ws, rng)
+
+    return 0
+end
+
+setCfFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfFormula, ws, row, nothing; kw...)
+setCfFormula(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfFormula, ws, nothing, col; kw...)
+setCfFormula(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfFormula, ws, nothing, nothing; kw...)
+setCfFormula(ws::Worksheet, ::Colon; kw...) = process_colon(setCfFormula, ws, nothing, nothing; kw...)
+setCfFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfFormula(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfFormula(ws::Worksheet, cell::CellRef; kw...) = setCfFormula(ws, CellRange(cell, cell); kw...)
+setCfFormula(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfFormula(ws, CellRange(cell.cellref, cell.cellref); kw...)
+setCfFormula(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfFormula(ws, rng.rng; kw...)
+setCfFormula(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfFormula(ws, rng.colrng; kw...)
+setCfFormula(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfFormula(ws, rng.rowrng; kw...)
+setCfFormula(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfFormula, ws, rng; kw...)
+setCfFormula(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfFormula, ws, rng; kw...)
+setCfFormula(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfFormula, xl, sheetcell; kw...)
+setCfFormula(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfFormula, ws, ref_or_rng; kw...)
+function setCfFormula(ws::Worksheet, rng::CellRange;
+    formula::Union{Nothing,String},
+    stopIfTrue::Union{Nothing,String}=nothing,
+    dxStyle::Union{Nothing,String}=nothing,
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
+
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+
+    wb=get_workbook(ws)
+    dx = get_dx(dxStyle, format, font, border, fill)
+    new_dx = get_new_dx(wb, dx)
+    dxid = Add_Cf_Dx(wb, new_dx)
+
+    cfx = XML.Element("cfRule"; type="expression", dxfId=Int(dxid.id))
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    if !isnothing(stopIfTrue) && stopIfTrue == "true"
+        cfx["stopIfTrue"] = "1"
+    end
+   
+    push!(cfx, XML.Element("formula", XML.Text("("*XML.escape(uppercase_unquoted(formula))*")")))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
