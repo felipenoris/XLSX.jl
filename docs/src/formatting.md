@@ -378,13 +378,13 @@ blankmissing(sheet, XLSX.CellRange("B3:L6"))
 
 ### Dynamic conditional formats
 
-XLSX.jl provides a function to create native Excel conditional formats that will be saved as part of 
-an `XLSXFile` and which will update dynamically if the values in the cell range to which the formatting 
-is applied are subsequently updated.
+XLSX.jl provides a function to create native Excel conditional formats that will be saved 
+as part of an `XLSXFile` and which will update dynamically if the values in the cell range 
+to which the formatting is applied are subsequently updated.
 
-`XLSX.setConditionalFormat(sheet, CellRange, :formatting_type; kwargs...)`
+`XLSX.setConditionalFormat(sheet, CellRange, :type; kwargs...)`
 
-Excel uses a range of `:formatting_type` values to describe these conditional formats and the same values 
+Excel uses a range of `:type` values to describe these conditional formats and the same values 
 are used here, as follows:
 - `:cellIs`
 - `:top10`
@@ -405,8 +405,8 @@ are used here, as follows:
 - `:colorScale`
 - `:iconSet`
 
-Use of these different `:formatting_type`s is illustrated in the following sections.
-For more details on the range of `:formatting_types` and their associated keyword 
+Use of these different `:type`s is illustrated in the following sections.
+For more details on the range of `:type` values and their associated keyword 
 options, refer to [XLSX.setConditionalFormat()](@ref).
 
 #### Cell Value
@@ -418,8 +418,7 @@ used. All the functions of `Highlight Cells Rules` and `Top/Bottom Rules` are pr
 
 ![image|320x500](./images/cell1.png) ![image|100x500](./images/blank.png) ![image|320x500](./images/cell2.png)
 
-Excel uses a range of `:formatting_type` values describe these conditional formats and the same values 
-are used here, as follows:
+The following `:type` values are used to set conditional formats by making direct comparisons to a cell's value:
 - `:cellIs`
 - `:top10`
 - `:aboveAverage`
@@ -435,9 +434,9 @@ are used here, as follows:
 - `:uniqueValues`
 - `:duplicateValues`
 
-Each of these formatting types needs a set of keyword options to fully define its operation. For example, 
-the `:cellIs` type needs an `operator` keyword, set to define the test to make to determine whether or not 
-to apply the formatting. Valid `operator` values are:
+Each of these formatting types needs a set of keyword options to fully define its operation. 
+For example, the `:cellIs` type needs an `operator` keyword, set to define the test to make 
+to determine whether or not to apply the formatting. Valid `operator` values are:
 
 - `greaterThan`     (cell >  `value`)
 - `greaterEqual`    (cell >= `value`)
@@ -578,7 +577,7 @@ Refer to [XLSX.setConditionalFormat()](@ref) for full details.
 
 #### Expressions
 
-It is possible to use an Excel formula directly to determine whether to apply a conditional formula. 
+It is possible to use an Excel formula directly to determine whether to apply a conditional format. 
 Any expression that evaluates to true or false can be used.
 
 ![image|320x500](./images/expression.png)
@@ -662,7 +661,7 @@ julia> s=f[1]
 
 julia> for i=1:10; for j=1:10; s[i, j] = i*j; end; end
 
-julia> XLSX.setConditionalFormat(s, "A1:E5", :expression; formula = "E5<50", dxStyle = "redfilltext")
+julia> XLSX.setConditionalFormat(s, "A1:E5", :expression; formula = "E5 < 50", dxStyle = "redfilltext")
 0
 ```
 ![image|320x500](./images/relativeComparison.png)
@@ -709,6 +708,10 @@ julia> XLSX.setConditionalFormat(s, "C1:C3", :expression; formula = "exact(\"Hel
 
 (In development)
 
+![image|320x500](./images/dataBars.png)
+
+![image|320x500](./images/dataBarOptions.png)
+
 #### Color Scale
 
 It is possible to apply a `:colorScale` formatting type to a range of cells.
@@ -744,6 +747,9 @@ A custom color scale may be defined by the colors at each end of the scale and (
 mid-point color, too. Colors can be specified using hex RGB values or by name using any of the colors
 in [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
+In Excel, the colorScale options (for a 3 color scale) look like this:
+![image|320x500](./images/colorScaleOptions.png)
+
 The end points (and optional mid-point) can be defined using an absolute number (`num`), a `percent`, 
 a `percentile` or as a `min` or `max`. For the first three options, a value must also be given.
 The value may be taken from a cell by setting `min_val`, `mid_val` or `max_val` to a cell reference.
@@ -767,7 +773,171 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 
 #### Icon Set
 
-(In development)
+It is possible to apply an `:iconSet` formatting type to a range of cells.
+In Excel there are twenty built-in icon sets available, but it is possible to 
+create a custom icon set from the 52 built-in icons, too.
+
+![image|320x500](./images/iconSets.png)
+
+In XLSX.jl, the twenty built-in icon sets are named as follows 
+(layout follows image)
+
+|                |                |                 |
+|:--------------:|:--------------:|:---------------:|
+| Directional    |    3Arrows     |  3ArrowsGray    |
+|                |   3Triangles   |  4ArrowsGray    |
+|                |    4Arrows     |  5ArrowsGray    |
+|                |    5Arrows     |                 |
+| Shapes         | 3TrafficLights | 3TrafficLights2 |
+|                |    3Signs      | 4TrafficLights  |
+|                |  4BlackToRed   |                 |
+| Indicators     |   3Symbols     |   3Symbols2     | 
+|                |    3Flags      |                 |
+| Ratings        |    3Stars      |   4Ratings      |
+|                |   5Quarters    |   5Ratings      |
+|                |    5Boxes      |                 |
+
+Choose one of these icon sets by name using the `iconset` keyword. If no `iconset` 
+is specified, `3TrafficLights` is the default choice. For example
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range        
+-------------------------------------------------
+               Sheet1 1x1           A1:A1        
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
+
+julia> s[1:10, 1]=1:10
+1:10
+
+julia> s[1:10, 1]=collect(1:10)
+10-element Vector{Int64}:
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+
+julia> XLSX.setConditionalFormat(s, "A1:A10", :iconSet)
+0
+```
+![image|320x500](./images/basicIconSet.png)
+
+All of the options to control an iconSet in Excel are available. The iconSet options 
+(for a 4-icon set) look like this:
+![image|320x500](./images/iconSetOptions.png)
+
+Each icon set includes a default set of thresholds defining which symbol to use. These 
+relate the cell value to the range of values in the cell range to which the conditional 
+format is being applied. This can be illustrated (for a 4-icon set) as follows:
+
+```
+  Range     ┌────────────────┬─────────────────┬─────────────────┬────────────────┐   Range
+  Minimum ->│     Icon 1     │     Icon 2      │     Icon 3      │     Icon 4     │<- Maximum
+                         `min_val`         `mid_val`         `max_val`
+                         threshold         threshold         threshold
+``` 
+The starting value for the first icon is always the minimum value of the range, and the stoping
+value for the last icon is always the maximum value in the range. No cells will have values for 
+which an icon cannot be assigned. The internal thresholds for transition from one icon to the 
+next are defined (in a 3-icon set) by `min_val` and `max_val`. In a 4-icon set, an additional 
+threshold, `mid-val` is required and in a 5-icon set, `mid2_val` is needed as well.
+
+The type of these thresholds can be defined in terms of `percent` (of the range), `percentile` 
+or simply with a `num` (number) (e.g. as `min_type="percent"`). For each threshold, 
+the value can either be given as a number (as a String) or as a simple cell reference. 
+Alternatively, specifying the type as `formula` allows the value to be determined by valid Excel 
+formula.
+
+!!! note
+
+    Cell references used to define threshold values in an iconSet MUST always be given as absolute 
+    cell references (e.g. `"\$A\$4"`). Relative references should not be used (but are not checked).
+
+Using the example above, change both the type and value of the thresholds like this:
+
+```julia
+julia> XLSX.setConditionalFormat(s, "A1:A10", :iconSet; min_type="num", max_type="num", min_val="2", max_val="9")
+0
+```
+![image|320x500](./images/newValIconSet.png)
+
+To suppress the values in cells and just show the icons, use `showVal="false"`, to reverse the icon ordering 
+use `reverse="true"` and to change the default comparison from `>=` to `>` set `min_gte="false"` (and 
+equivalent for mid, mid2 and max):
+```julia
+julia> XLSX.writetable!(s, [collect(1:10), collect(1:10), collect(1:10), collect(1:10)],
+                           ["normal", "showVal=\"false\"", "reverse=\"true\"", "min_gte=\"false\""]
+                           )
+
+julia> XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
+            min_type="num",  max_type="num",
+            min_val="3",     max_val="8")
+0
+
+julia> XLSX.setConditionalFormat(s, "B2:B11", :iconSet;
+            min_type="num",  max_type="num",
+            min_val="3",     max_val="8",
+            showVal="false")
+0
+
+julia> XLSX.setConditionalFormat(s, "C2:C11", :iconSet;
+            min_type="num",  max_type="num",
+            min_val="3",     max_val="8",
+            reverse="true")
+0
+
+julia> XLSX.setConditionalFormat(s, "D2:D11", :iconSet;
+            min_type="num",  max_type="num",
+            min_val="3",     max_val="8",
+            min_gte="false", max_gte="false")
+0
+```
+
+![image|320x500](./images/showValIcons.png)
+
+Create a custom icon set by specifying `iconset="Custom"`. The icons to use in the custom set are 
+defined with `icon_list` keyword, which takes a vector of integers definingwhich of the 52 built 
+in icons to use. Use of the val and type keywords dictate the number of icons to use. If mid_type 
+and mid_val are both defined, but not mid2_val and mid2_type, then a 4-icon will be used. If both 
+sets are defined, a 5-icon set is used and if neither, a 3-icon set.
+
+This is illustrated with code below, which produces a key defining which integer to use 
+in `icon_list` to represent any desired icon:
+```julia
+using XLSX
+f=XLSX.newxlsx()
+s=f[1]
+for i = 0:3
+    for j=1:13
+        s[i+1,j]=i*13+j
+    end
+end
+for j=1:13
+     XLSX.setConditionalFormat(s, 1:4, j, :iconSet; # Create a custom 4-icon set in each column.
+        iconset="Custom",
+        icon_list=[j, 13+j, 26+j, 39+j],
+        min_type="percent", mid_type="percent", max_type="percent",
+        min_val="25", mid_val="50", max_val="75"
+        )
+end
+XLSX.setColumnWidth(s, 1:13, width=6.4)
+XLSX.setRowHeight(s, 1:4, height=27.75)
+XLSX.setAlignment(s, "A1:M4", horizontal="center", vertical="center")
+XLSX.setBorder(s, "A1:M4", allsides = ["style"=>"thin","color"=>"black"])
+XLSX.writexlsx("iconKey.xlsx", f, overwrite=true)
+```
+![image|320x500](./images/iconKey.png)
+
+Specifying too few icons throws an error, any extra will simply be ignored.
 
 #### Specifying cell references in Conditional Formats
 
@@ -805,7 +975,6 @@ XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
             sheetname size          range
 -------------------------------------------------
                Sheet1 1x1           A1:A1
-
 
 julia> s=f[1]
 1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
@@ -857,11 +1026,11 @@ julia> XLSX.setConditionalFormat(s, "B2:B6", :cellIs; operator="greaterThan", va
 
 #### Overlaying conditional formats
 
-It is possible to overlay multiple conditional formats over each other in a cell range 
-or even in different, overlapping cell ranges. Starting with a table of integers, we can 
-apply three different conditional formats sequentially. Excel applies these in priority 
-order (priority 1 is higher priority than priority 2) which is the same as the order in 
-which they were defined with `setConditionalFormat`.
+It is possible to overlay multiple conditional formats over each other in a 
+cell range or even in different, overlapping cell ranges. Starting with a table of 
+integers, we can apply three different conditional formats sequentially. Excel applies 
+these in priority order (priority 1 is higher priority than priority 2) which is the 
+same as the order in which they were defined with `setConditionalFormat`.
 
 ```julia
 julia> s[1:5, 1:3]
@@ -903,7 +1072,8 @@ julia> XLSX.getConditionalFormats(s)
 
 When applying multiple overlayed formats, it is possible to make the formatting stop if any cell meets 
 one of the conditions, so that lower proirity conditional formats are not applied to that cell. This is 
-achieved with the `stopIfTrue` keyword.
+achieved with the `stopIfTrue` keyword. It is not possible to apply `stopIfTrue` to dataBars, colorScales or 
+iconSets.
 
 For example:
 
@@ -1024,7 +1194,8 @@ It is not allowed to create new merged cells that overlap at all with any existi
 
 !!! warning
 
-    It is possible to write into a merged cell using `XLSX.jl`. This is illustrated below:
+    It is possible to write into any merged cell using `XLSX.jl`, even those that are not the 
+    base cell of the merged range. This is illustrated below:
 
     ```julia
 

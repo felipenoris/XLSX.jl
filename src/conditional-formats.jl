@@ -1,28 +1,27 @@
 const needsValue2::Vector{String} = ["between", "notBetween"]
-const highlights::Dict{String,Dict{String,Dict{String, String}}} = Dict(
+const highlights::Dict{String,Dict{String,Dict{String,String}}} = Dict(
     "redfilltext" => Dict(
-        "font" => Dict("color"=>"FF9C0006"),
-        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFC7CE")
+        "font" => Dict("color" => "FF9C0006"),
+        "fill" => Dict("pattern" => "solid", "bgColor" => "FFFFC7CE")
     ),
     "yellowfilltext" => Dict(
-        "font" => Dict("color"=>"FF9C5700"),
-        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFEB9C")
+        "font" => Dict("color" => "FF9C5700"),
+        "fill" => Dict("pattern" => "solid", "bgColor" => "FFFFEB9C")
     ),
     "greenfilltext" => Dict(
-        "font" => Dict("color"=>"FF006100"),
-        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFC6EFCE")
+        "font" => Dict("color" => "FF006100"),
+        "fill" => Dict("pattern" => "solid", "bgColor" => "FFC6EFCE")
     ),
     "redfill" => Dict(
-        "fill" => Dict("pattern" => "solid", "bgColor"=>"FFFFC7CE")
+        "fill" => Dict("pattern" => "solid", "bgColor" => "FFFFC7CE")
     ),
     "redtext" => Dict(
-        "font" => Dict("color"=>"FF9C0006"),
+        "font" => Dict("color" => "FF9C0006"),
     ),
     "redborder" => Dict(
-        "border" => Dict("color"=>"FF9C0006", "style"=>"thin")
+        "border" => Dict("color" => "FF9C0006", "style" => "thin")
     )
-) # for type = :Cell
-
+)
 const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, built-in Excel color scales for conditional formatting.
     "greenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
         XML.h.colorScale(
@@ -133,248 +132,211 @@ const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, b
         )
     )
 )
-
+const iconsets::Dict{String,XML.Node} = Dict(    # Defines the 20 standard, built-in Excel icon sets for conditional formatting.
+    "3Arrows" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Arrows",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "5ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="5ArrowsGray",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="20"),
+            XML.h.cfvo(type="percent", val="40"),
+            XML.h.cfvo(type="percent", val="60"),
+            XML.h.cfvo(type="percent", val="80"),
+        )
+    ),
+    "3TrafficLights" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3TrafficLights",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3Flags" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Flags",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "5Quarters" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="5Quarters",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="20"),
+            XML.h.cfvo(type="percent", val="40"),
+            XML.h.cfvo(type="percent", val="60"),
+            XML.h.cfvo(type="percent", val="80"),
+        )
+    ),
+    "4Rating" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4Rating",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "5Rating" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="5Rating",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="20"),
+            XML.h.cfvo(type="percent", val="40"),
+            XML.h.cfvo(type="percent", val="60"),
+            XML.h.cfvo(type="percent", val="80"),
+        )
+    ),
+    "3Symbols" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Symbols",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3Symbols2" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Symbols2",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3Signs" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Signs",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3TrafficLights2" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3TrafficLights2",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "4TrafficLights" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4TraficLights",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "4RedToBlack" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4RedToBlack",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "4Arrows" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4Arrows",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "5Arrows" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="5Arrows",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3ArrowsGray",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="20"),
+            XML.h.cfvo(type="percent", val="40"),
+            XML.h.cfvo(type="percent", val="60"),
+            XML.h.cfvo(type="percent", val="80"),
+        )
+    ),
+    "4ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4ArrowsGray",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    # These three require Excel 2010 extensions and will be ignored by earlier versions of Excel.
+    "3Triangles" => get_x14_icon("3Triangles"),
+    "3Stars" => get_x14_icon("3Stars"),
+    "5Boxes" => get_x14_icon("5Boxes"),
+    "Custom" => get_x14_icon("Custom")
+)
+const allIcons::Dict{String,Tuple{String,String}} = Dict(
+    "1"  => ("3Arrows", "0"),
+    "2"  => ("3Arrows", "1"),
+    "3"  => ("3Arrows", "2"),
+    "4"  => ("4Arrows", "1"),
+    "5"  => ("4Arrows", "2"),
+    "6"  => ("3ArrowsGray", "0"),
+    "7"  => ("3ArrowsGray", "1"),
+    "8"  => ("3ArrowsGray", "2"),
+    "9"  => ("4ArrowsGray", "1"),
+    "10" => ("4ArrowsGray", "2"),
+    "11" => ("3Flags", "0"),
+    "12" => ("3Flags", "1"),
+    "13" => ("3Flags", "2"),
+    "14" => ("3TrafficLights1", "0"),
+    "15" => ("3TrafficLights1", "1"),
+    "16" => ("3TrafficLights1", "2"),
+    "17" => ("3TrafficLights2", "0"),
+    "18" => ("3TrafficLights2", "1"),
+    "19" => ("3TrafficLights2", "2"),
+    "20" => ("4TrafficLights", "0"),
+    "21" => ("3Signs", "0"),
+    "22" => ("3Signs", "1"),
+    "23" => ("3Symbols", "0"),
+    "24" => ("3Symbols", "1"),
+    "25" => ("3Symbols", "2"),
+    "26" => ("3Symbols2", "0"),
+    "27" => ("3Symbols2", "1"),
+    "28" => ("3Symbols2", "2"),
+    "29" => ("4RedToBlack", "0"),
+    "30" => ("4RedToBlack", "1"),
+    "31" => ("4RedToBlack", "2"),
+    "32" => ("4RedToBlack", "3"),
+    "33" => ("5Quarters", "0"),
+    "34" => ("5Quarters", "1"),
+    "35" => ("5Quarters", "2"),
+    "36" => ("5Quarters", "3"),
+    "37" => ("5Rating", "0"),
+    "38" => ("5Rating", "1"),
+    "39" => ("5Rating", "2"),
+    "40" => ("5Rating", "3"),
+    "41" => ("5Rating", "4"),
+    "42" => ("3Stars", "0"),
+    "43" => ("3Stars", "1"),
+    "44" => ("3Stars", "2"),
+    "45" => ("3Triangles", "0"),
+    "46" => ("3Triangles", "1"),
+    "47" => ("3Triangles", "2"),
+    "48" => ("5Boxes", "0"),
+    "49" => ("5Boxes", "1"),
+    "50" => ("5Boxes", "2"),
+    "51" => ("5Boxes", "3"),
+    "52" => ("5Boxes", "4")
+)
 const timeperiods::Dict{String,String} = Dict(
     "last7Days" => "AND(TODAY()-FLOOR(__CR__,1)<=6,FLOOR(__CR__,1)<=TODAY())",
     "yesterday" => "FLOOR(__CR__,1)=TODAY()-1",
-    "today"     => "FLOOR(__CR__,1)=TODAY()",
-    "tomorrow"  => "FLOOR(__CR__,1)=TODAY()+1",
-    "lastWeek"  => "AND(TODAY()-ROUNDDOWN(__CR__,0)>=(WEEKDAY(TODAY())),TODAY()-ROUNDDOWN(__CR__,0)<(WEEKDAY(TODAY())+7))",
-    "thisWeek"  => "AND(TODAY()-ROUNDDOWN(__CR__,0)<=WEEKDAY(TODAY())-1,ROUNDDOWN(__CR__,0)-TODAY()<=7-WEEKDAY(TODAY()))",
-    "nextWeek"  => "AND(ROUNDDOWN(__CR__,0)-TODAY()>(7-WEEKDAY(TODAY())),ROUNDDOWN(__CR__,0)-TODAY()<(15-WEEKDAY(TODAY())))",
+    "today" => "FLOOR(__CR__,1)=TODAY()",
+    "tomorrow" => "FLOOR(__CR__,1)=TODAY()+1",
+    "lastWeek" => "AND(TODAY()-ROUNDDOWN(__CR__,0)>=(WEEKDAY(TODAY())),TODAY()-ROUNDDOWN(__CR__,0)<(WEEKDAY(TODAY())+7))",
+    "thisWeek" => "AND(TODAY()-ROUNDDOWN(__CR__,0)<=WEEKDAY(TODAY())-1,ROUNDDOWN(__CR__,0)-TODAY()<=7-WEEKDAY(TODAY()))",
+    "nextWeek" => "AND(ROUNDDOWN(__CR__,0)-TODAY()>(7-WEEKDAY(TODAY())),ROUNDDOWN(__CR__,0)-TODAY()<(15-WEEKDAY(TODAY())))",
     "lastMonth" => "AND(MONTH(__CR__)=MONTH(EDATE(TODAY(),0-1)),YEAR(__CR__)=YEAR(EDATE(TODAY(),0-1)))",
     "thisMonth" => "AND(MONTH(__CR__)=MONTH(TODAY()),YEAR(__CR__)=YEAR(TODAY()))",
     "nextMonth" => "AND(MONTH(__CR__)=MONTH(EDATE(TODAY(),0+1)),YEAR(__CR__)=YEAR(EDATE(TODAY(),0+1)))"
 )
-
-function uppercase_unquoted(s::AbstractString)
-    result = IOBuffer()
-    i = firstindex(s)
-    inside_quote = false
-    while i <= lastindex(s)
-        c = s[i]
-        if c == '\\' && nextind(s, i) <= lastindex(s)
-            # Handle escaped character
-            next_i = nextind(s, i)
-            print(result, s[i:next_i])
-            i = nextind(s, next_i)
-        elseif c == '"'
-            inside_quote = !inside_quote
-            print(result, c)
-            i = nextind(s, i)
-        else
-            if inside_quote
-                print(result, c)
-            else
-                print(result, uppercase(c))
-            end
-            i = nextind(s, i)
-        end
-    end
-    return String(take!(result))
-end
-function get_dx(dxStyle::Union{Nothing, String}, format::Union{Nothing, Vector{Pair{String, String}}}, font::Union{Nothing, Vector{Pair{String, String}}}, border::Union{Nothing, Vector{Pair{String, String}}}, fill::Union{Nothing, Vector{Pair{String, String}}})::Dict{String,Dict{String, String}}
-    if isnothing(dxStyle)
-        if all(isnothing.([border, fill, font, format]))
-            dx=highlights["redfilltext"]
-        else
-            dx = Dict{String,Dict{String, String}}()
-            for att in ["font" => font, "fill" => fill, "border" => border, "format" => format]
-                if !isnothing(last(att))
-                    dxx = Dict{String, String}()
-                    for i in last(att)
-                        push!(dxx, first(i) => last(i))
-                    end
-                    push!(dx, first(att) => dxx)
-                end
-            end
-        end
-    elseif haskey(highlights, dxStyle)
-        dx = highlights[dxStyle]
-    else
-        throw(XLSXError("Invalid dxStyle: $dxStyle. Valid options are: $(keys(highlights))."))
-    end
-    return dx
-end
-function get_new_dx(wb::Workbook, dx::Dict{String,Dict{String, String}})::XML.Node
-    new_dx = XML.Element("dxf")
-    for k in ["font", "format", "fill", "border"] # Order is important to Excel.
-        if haskey(dx, k)
-            v = dx[k]
-            if k=="fill"
-                if !isnothing(v)
-                    filldx=XML.Element("fill")
-                    patterndx=XML.Element("patternFill")
-                    for (y, z) in v
-                        y in ["pattern", "bgColor", "fgColor"] || throw(XLSXError("Invalid fill attribute: $k. Valid options are: `pattern`, `bgColor`, `fgColor`."))
-                        if y in ["fgColor", "bgColor"]
-                            push!(patterndx, XML.Element(y, rgb=get_color(z)))
-                        elseif y == "pattern" && z != "none"
-                            patterndx["patternType"] = z
-                        end
-                    end
-                    push!(filldx, patterndx)
-                end
-                push!(new_dx, filldx)
-            elseif k=="font"
-                if !isnothing(v)
-                    fontdx=XML.Element("font")
-                    for (y, z) in v
-                        y in ["color", "bold", "italic", "under", "strike"] || throw(XLSXError("Invalid font attribute: $y. Valid options are: `color`, `bold`, `italic`, `under`, `strike`.")) 
-                        if y=="color"
-                            push!(fontdx, XML.Element(y, rgb=get_color(z)))
-                        elseif y == "bold"
-                            z=="true" && push!(fontdx, XML.Element("b", val="0"))
-                        elseif y == "italic"
-                            z=="true" && push!(fontdx, XML.Element("i", val="0"))
-                        elseif y == "under"
-                            z != "none" && push!(fontdx, XML.Element("u"; val="v"))
-                        elseif y == "strike"
-                            z=="true" && push!(fontdx, XML.Element(y))
-                        end
-                    end
-                end
-                push!(new_dx, fontdx)
-            elseif k=="border"
-                if !isnothing(v)
-                    all([y in ["color", "style"] for y in keys(v)]) || throw(XLSXError("Invalid border attribute. Valid options are: `color`, `style`."))
-                    borderdx=XML.Element("border")
-                    cdx = haskey(v, "color") ? XML.Element("color", rgb=get_color(v["color"])) : nothing
-                    sdx = haskey(v, "style") ? v["style"] : nothing
-                    leftdx = XML.Element("left")
-                    rightdx = XML.Element("right")
-                    topdx = XML.Element("top")
-                    bottomdx = XML.Element("bottom")
-                    if !isnothing(sdx)
-                        leftdx["style"]=sdx
-                        rightdx["style"]=sdx
-                        topdx["style"]=sdx
-                        bottomdx["style"]=sdx
-                    end
-                    if !isnothing(cdx)
-                        push!(leftdx, cdx)
-                        push!(rightdx, cdx)
-                        push!(topdx, cdx)
-                        push!(bottomdx, cdx)
-                    end
-                end
-                push!(borderdx, leftdx)
-                push!(borderdx, rightdx)
-                push!(borderdx, topdx)
-                push!(borderdx, bottomdx)
-                push!(new_dx, borderdx)
-            elseif k=="format"
-                if !isnothing(v)
-                    if haskey(v, "format")
-                        fmtCode = v["format"]
-                        new_formatId = get_new_formatId(wb, fmtCode)
-                        new_fmtCode = styles_numFmt_formatCode(wb, new_formatId)
-                        fmtdx=XML.Element("numFmt"; numFmtId=string(new_formatId), formatCode=new_fmtCode)
-                        push!(new_dx, fmtdx)
-                    end
-                end
-            end
-        end
-        
-    end
-    return new_dx
-end
-
-function add_cf_to_XML(ws, new_cf) # Add a new conditional formatting to the worksheet XML.
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # The <conditionalFormatting> blocks come after the <sheetData>
-    k, l = get_idces(sheetdoc, "worksheet", "sheetData")
-    len = length(sheetdoc[k])
-    if l != len
-        push!(sheetdoc[k], sheetdoc[k][end])
-        if l + 1 < len
-            for pos = len-1:-1:l+1
-                sheetdoc[k][pos+1] = sheetdoc[k][pos]
-            end
-        end
-        sheetdoc[k][l+1] = new_cf
-    else
-        push!(sheetdoc[k], new_cf)
-    end
-end
-
-function update_worksheet_cfx!(allcfs, cfx, ws, rng)
-    matchcfs = filter(x->x["sqref"]==string(rng), allcfs)   # Match range with existing conditional formatting blocks.
-    l = length(matchcfs)
-    if l == 0                                               # No existing conditional formatting blocks for this range so create a new one.
-        new_cf = XML.Element("conditionalFormatting"; sqref=rng)
-        push!(new_cf, cfx)
-        add_cf_to_XML(ws, new_cf)                           # Add the new conditional formatting block to the worksheet XML.
-    elseif l==1                                             # Existing conditional formatting block found for this range so add new rule to that block.
-        push!(matchcfs[1], cfx)
-    else
-        throw(XLSXError("Too many conditional formatting blocks for range `$rng`. Must be one or none, found `$l`."))
-    end
-    update_worksheets_xml!(get_xlsxfile(ws))
-end
-
-function Add_Cf_Dx(wb::Workbook, new_dx::XML.Node)::DxFormat
-    # Check if the workbook already has a dxfs element. If not, add one.
-    xroot = styles_xmlroot(wb)
-    i, j = get_idces(xroot, "styleSheet", "dxfs")
-    
-    if isnothing(j) # No existing conditional formats so need to add a block (is this even possible?). Push everything lower down one.
-        throw(XLSXError("No <dxfs> block found in the styles.xml file. Please submit an issue to report this and attach the Excel file you were working with."))
-    #=
-        k, l = get_idces(xroot, "styleSheet", "cellStyles")
-        l += 1 # The dxfs block comes after the cellXfs block.
-        len = length(xroot[k])
-        i != k && throw(XLSXError("Some problem here!"))
-        push!(xroot[k], xroot[k][end]) # duplicate last element then move everything else down one
-        if l < len
-            for pos = len-1:-1:l
-                xroot[k][pos+1] = xroot[k][pos]
-            end
-        end
-        xroot[k][l] = XML.Element("dxsf", count="0")
-        j = l
-        println(XML.write(xroot[i][j]))
-    =#
-    else
-        existing_dxf_elements_count = length(XML.children(xroot[i][j]))
-
-        if parse(Int, xroot[i][j]["count"]) != existing_dxf_elements_count
-            throw(XLSXError("Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
-        end
-    end
-    
-#   Don't reuse duplicates here. Always create new!
-    existingdx=XML.children(xroot[i][j])
-    dxfs = unlink(xroot[i][j], ("dxfs", "dxf")) # Create the new <dxfs> Node
-    if length(existingdx) > 0
-        for c in existingdx
-            push!(dxfs, c) # Copy each existing <dxf> into the new <dxfs> Node
-        end
-    end
-    push!(dxfs, new_dx)
- 
-    xroot[i][j] = dxfs # Update the worksheet with the new cols.
-
-    xroot[i][j]["count"] = string(existing_dxf_elements_count + 1)
-
-    return DxFormat(existing_dxf_elements_count) # turns out this is the new index (because it's zero-based)
-
-end
-
-function convertref(c)
-    if !isnothing(c)
-        if is_valid_cellname(c)
-            c = abscell(CellRef(c))
-        elseif is_valid_sheet_cellname(c)
-            c = mkabs(SheetCellRef(c))
-        end
-    end
-    return c
-end
-
-function allCfs(ws::Worksheet)
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find all the <conditionalFormatting> blocks in the worksheet's xml file
-    return find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":worksheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":conditionalFormatting", sheetdoc)
-end
 
 
 """
@@ -389,7 +351,7 @@ Return a vector of pairs: CellRange => NamedTuple{type::String, priority::Int}}.
 
 
 """
-getConditionalFormats(ws::Worksheet) = getConditionalFormats(allCfs(ws))
+getConditionalFormats(ws::Worksheet) = append!(getConditionalFormats(allCfs(ws)), getConditionalExtFormats(allExtCfs(ws)))
 function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple}}
     allcfs = Vector{Pair{CellRange,NamedTuple}}()
     for cf in allcfnodes
@@ -401,19 +363,47 @@ function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRa
     end
     return allcfs
 end
+function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple}}
+    allcfs = Vector{Pair{CellRange,NamedTuple}}()
+    for cf in allcfnodes
+        let t, p, r, rule = false, ref = false
+            if XML.tag(cf) != "x14:conditionalFormatting"
+                throw(XLSXEror("Something wrong here"))
+            end
+            sqref = cf[end]
+            if XML.tag(sqref) == "xm:sqref"
+                r = XML.simple_value(sqref)
+                ref = true
+            end
+            for child in XML.children(cf)
+                if XML.tag(child) == "x14:cfRule"
+                    t = child["type"]
+                    p = parse(Int, child["priority"])
+                    rule = true
+                end
+                if rule && ref
+                    push!(allcfs, CellRange(r) => (; type=t, priority=p))
+                    rule = false
+                end
+            end
+        end
+    end
+    return allcfs
+end
 
 """
     setConditionalFormat(ws::Worksheet, cr::String, type::Symbol; kw...) -> ::Int
     setConditionalFormat(xf::XLSXFile,  cr::String, type::Symbol; kw...) -> ::Int
 
-    setConditionalFormat(ws::Worksheet, rows, cols,   type::Symbol; kw...) -> ::Int
+    setConditionalFormat(ws::Worksheet, rows, cols, type::Symbol; kw...) -> ::Int
 
 Add a new conditional format to a cell range, row range or column range in a 
 worksheet or `XLSXFile`.  Alternatively, ranges can be specified by giving rows 
 and columns separately.
 
+The `type` argument specifies which of Excel's conditional format types will be applied.
+
 Valid options for `type` are:
-- `:colorScale`
 - `:cellIs`
 - `:top10`
 - `:aboveAverage`
@@ -428,75 +418,11 @@ Valid options for `type` are:
 - `:notContainsBlanks`
 - `:uniqueValues`
 - `:duplicateValues`
+- `:dataBar`
+- `:colorScale`
+- `:iconSet`
 
-The `type` argument determines which type of conditional formatting is being defined.
 Keyword options differ according to the `type` specified, as set out below.
-
-# type = :colorScale
-
-Define a 2-color or 3-color colorscale conditional format.
-
-Use the keyword `colorscale` to choose one of the 12 built-in Excel colorscales:
-
-- `"redyellowgreen"`: Red, Yellow, Green 3-color scale.
-- `"greenyellowred"`: Green, Yellow, Red 3-color scale.
-- `"redwhitegreen"` : Red, White, Green 3-color scale.
-- `"greenwhitered"` : Green, White, Red 3-color scale.
-- `"redwhiteblue"`  : Red, White, Blue 3-color scale.
-- `"bluewhitered"`  : Blue, White, Red 3-color scale.
-- `"redwhite"`      : Red, White 2-color scale.
-- `"whitered"`      : White, Red 2-color scale.
-- `"whitegreen"`    : White, Green 2-color scale.
-- `"greenwhite"`    : Green, White 2-color scale.
-- `"yellowgreen"`   : Yellow, Green 2-color scale.
-- `"greenyellow"`   : Green, Yellow 2-color scale (default).
-
-Alternatively, you can define a custom color scale by omitting the `colorscale` keyword and 
-instead using the following keywords:
-
-- `min_type`: The type of the minimum value. Valid values are: `min`, `percentile`, `percent` or `num`.
-- `min_val` : The value of the minimum. Omit if `min_type="min"`.
-- `min_col` : The color of the minimum value.
-- `mid_type`: Valid values are: `percentile`, `percent` or `num`. Omit for a 2-color scale.
-- `mid_val` : The value of the scale mid point. Omit for a 2-color scale.
-- `mid_col` : The color of the mid point. Omit for a 2-color scale.
-- `max_type`: The type of the maximum value. Valid values are: `max`, `percentile`, `percent` or `num`.
-- `max_val` : The value of the maximum value. Omit if `max_type="max"`.
-- `max_col` : The color of the maximum value.
-
-The keywords `min_val`, `mid_val`, and `max_val` can be either a cell reference (e.g. `"A1"`) 
-or a number. If a cell reference is used, it will be converted to an absolute cell reference 
-when writing to an XLSXFile.
-
-Colors can be specified using an 8-digit hex string (e.g. `FF0000FF` for blue) or any named 
-color from Colors.jl ([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
-
-# Examples
-
-```julia
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellow` built-in scale.
-0
-
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorscale="whitered")
-0
-
-julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorscale="bluewhitered")
-0
-
-julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
-            min_type="num", 
-            min_val="2",
-            min_col="tomato",
-            mid_type="num",
-            mid_val="6", 
-            mid_col="lawngreen",
-            max_type="num",
-            max_val="10",
-            max_col="cadetblue"
-        )
-0
-
-```
 
 # type = :cellIs
 
@@ -1018,6 +944,145 @@ julia> XLSX.setConditionalFormat(s, "A1:E5", :expression; formula = "E5<50", dxS
 
 ```
 
+# type = :dataBar
+
+(In development)
+
+# type = :colorScale
+
+Define a 2-color or 3-color colorscale conditional format.
+
+Use the keyword `colorscale` to choose one of the 12 built-in Excel colorscales:
+
+- `"redyellowgreen"`: Red, Yellow, Green 3-color scale.
+- `"greenyellowred"`: Green, Yellow, Red 3-color scale.
+- `"redwhitegreen"` : Red, White, Green 3-color scale.
+- `"greenwhitered"` : Green, White, Red 3-color scale.
+- `"redwhiteblue"`  : Red, White, Blue 3-color scale.
+- `"bluewhitered"`  : Blue, White, Red 3-color scale.
+- `"redwhite"`      : Red, White 2-color scale.
+- `"whitered"`      : White, Red 2-color scale.
+- `"whitegreen"`    : White, Green 2-color scale.
+- `"greenwhite"`    : Green, White 2-color scale.
+- `"yellowgreen"`   : Yellow, Green 2-color scale.
+- `"greenyellow"`   : Green, Yellow 2-color scale (default).
+
+Alternatively, you can define a custom color scale by omitting the `colorscale` keyword and 
+instead using the following keywords:
+
+- `min_type`: The type of the minimum value. Valid values are: `min`, `percentile`, `percent`, `num` or `formula`.
+- `min_val` : The value of the minimum. Omit if `min_type="min"`.
+- `min_col` : The color of the minimum value.
+- `mid_type`: Valid values are: `percentile`, `percent`, `num` or `formula`. Omit for a 2-color scale.
+- `mid_val` : The value of the scale mid point. Omit for a 2-color scale.
+- `mid_col` : The color of the mid point. Omit for a 2-color scale.
+- `max_type`: The type of the maximum value. Valid values are: `max`, `percentile`, `percent`, `num` or `formula`.
+- `max_val` : The value of the maximum value. Omit if `max_type="max"`.
+- `max_col` : The color of the maximum value.
+
+The keywords `min_val`, `mid_val`, and `max_val` can be a number or cell reference (e.g. `"\$A\$1"`) for any value 
+of the related type keyword or, if the related type keyword is set to `formula`, may be a valid Excel formula that 
+calculates a number. Cell references is used (in a formula) should usually be specified as absolute references.
+
+Colors can be specified using an 8-digit hex string (e.g. `FF0000FF` for blue) or any named 
+color from Colors.jl ([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+
+# Examples
+
+```julia
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A1:F12", :colorScale) # Defaults to the `greenyellow` built-in scale.
+0
+
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:C18", :colorScale; colorscale="whitered")
+0
+
+julia> XLSX.setConditionalFormat(f["Sheet1"], "D13:F18", :colorScale; colorscale="bluewhitered")
+0
+
+julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
+            min_type="num", 
+            min_val="2",
+            min_col="tomato",
+            mid_type="num",
+            mid_val="6", 
+            mid_col="lawngreen",
+            max_type="num",
+            max_val="10",
+            max_col="cadetblue"
+        )
+0
+
+```
+
+# type = :iconSet
+
+Apply a set of icons to cells in a range depending on their values. The kwyword `iconset`
+can be used to select one of 20 built-in icon sets Excel provides by name. Valid names are:
+- `3Arrows`
+- `5ArrowsGray`
+- `3TrafficLights` (default)
+- `3Flags`
+- `5Quarters`
+- `4Rating`
+- `5Rating`
+- `3Symbols`
+- `3Symbols2`
+- `3Signs`
+- `3TrafficLights2`
+- `4TrafficLights`
+- `4BlackToRed`
+- `4Arrows`
+- `5Arrows`
+- `3ArrowsGray`
+- `4ArrowsGray`
+- `3Triangles`
+- `3Stars`
+- `5Boxes`
+
+The digit prefix to the name indicates how many icons there are in a set, and therefore
+how the cell values with be binned by value. Bin boundaries may optionally be specified
+by the following  keywords to override the default values for each icon set:
+
+- `min_type`  = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `min_val`     (default: "33" (3 icons), "25" (4 icons) or "20" (5 icons))
+- `mid_type`  = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `mid_val`     (default: "50" (4 icons), "40" (5 icons))
+- `mid2_type` = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `mid2_val`    (default: "60" (5 icons))
+- `max_type`  = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `max_val`     (default: "67" (3 icons), "75" (4 icons) or "80" (5 icons))
+
+The keywords `min_val`, `mid_val`, `mid2_val` and `max_val` may contain numbers (as strings) 
+or valid cell references. If `formula` is specified for the related type keyword, a valid 
+Excel formula can be provided to evaluate to the bin threshold value to be used.
+Three-icon sets require two thresholds (min_* and max_*), four-icon sets require three 
+thresholds (with the addition of mid_*) and five-icon sets require four thresholds (mid2_*).
+Thresholds defined (using val and type keywords) that are unnecessary are simply ignored.
+
+Each value can be tested using `>=` (default) or `>`. To change from the default,
+optionally set `min_gte`, `mid_gte`, `mid2_gte` and/or `max_gte` to `"false"` to 
+use `>` in the comparison. Any other value for these gte keywords will be ignored 
+and the default `>=` comparison used.
+
+The built-in icon sets Excel provides are composed of 52 individual icons. It is 
+possible to mix and match any of these to make a custom 3-icon, 4-icon or 5-icon 
+set by specifying `iconset = "Custom"`. The number of icons in the set will be 
+determined by whether `mid_value` and `mid_type` keywords and `mid2_value` and 
+`mid2_type` keywords are provided.
+
+The icons that will be used in a `Custom` iconset are defined using the `icon_list` 
+keyword which takes a vector of integers in the range from 1 to 52. For a key relating
+integers to the icons they represent, see the [Icon Set](@ref) section in the Formatting 
+Guide.
+
+The order in which the symbols is appiled can be reversed from the default order (or, for 
+`Custom` icon sets, the order given in `icon_list`), by optionally setting `reverse = "true"`. 
+Any other value provided for `reverse` will be ignored, and the default order applied.
+
+The cell value can be suppressed, so that only the icon is shown in the Excel cell by 
+optionally specifying `showVal = "false"`. Any other value provided for `showVal` will be 
+ignored, and the cell value will be displayed with the icon.
+
 !!! note "Overlaying conditional formats"
     
     It is possible to overlay multiple conditional formats to the same range or to 
@@ -1052,11 +1117,11 @@ function setConditionalFormat(f, r, type::Symbol; kw...)
         setCfContainsBlankErrorUniqDup(f, r; operator=String(type), kw...)
     elseif type == :expression
         setCfFormula(f, r; kw...)
-#    elseif type == :iconSet
-#        throw(XLSXError("Icon sets are not yet implemented."))
-#    elseif type == :dataBar
-#        throw(XLSXError("Data bars are not yet implemented."))
-else
+    elseif type == :iconSet
+        setCfIconSet(f, r; kw...)
+        #    elseif type == :dataBar
+        #        throw(XLSXError("Data bars are not yet implemented."))
+    else
         throw(XLSXError("Invalid conditional format type: $type."))
     end
 end
@@ -1078,87 +1143,13 @@ function setConditionalFormat(f, r, c, type::Symbol; kw...)
         setCfContainsBlankErrorUniqDup(f, r, c; operator=String(type), kw...)
     elseif type == :expression
         setCfFormula(f, r, c; kw...)
-#    elseif type == :iconSet
-#        throw(XLSXError("Icon sets are not yet implemented."))
-#    elseif type == :dataBar
-#        throw(XLSXError("Data bars are not yet implemented."))
+    elseif type == :iconSet
+        setCfIconSet(f, r, c; kw...)
+        #    elseif type == :dataBar
+        #        throw(XLSXError("Data bars are not yet implemented."))
     else
         throw(XLSXError("Invalid conditional format type: $type."))
     end
-end
-setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfColorScale, ws, row, nothing; kw...)
-setCfColorScale(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfColorScale, ws, nothing, col; kw...)
-setCfColorScale(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfColorScale, ws, nothing, nothing; kw...)
-setCfColorScale(ws::Worksheet, ::Colon; kw...) = process_colon(setCfColorScale, ws, nothing, nothing; kw...)
-setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfColorScale(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
-setCfColorScale(ws::Worksheet, cell::CellRef; kw...) = setCfColorScale(ws, CellRange(cell, cell); kw...)
-setCfColorScale(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfColorScale(ws, CellRange(cell.cellref, cell.cellref); kw...)
-setCfColorScale(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rng; kw...)
-setCfColorScale(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.colrng; kw...)
-setCfColorScale(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rowrng; kw...)
-setCfColorScale(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfColorScale, ws, rng; kw...)
-setCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfColorScale, ws, rng; kw...)
-setCfColorScale(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfColorScale, xl, sheetcell; kw...)
-setCfColorScale(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfColorScale, ws, ref_or_rng; kw...)
-function setCfColorScale(ws::Worksheet, rng::CellRange;
-    colorscale::Union{Nothing,String}=nothing,
-    min_type::Union{Nothing,String}="min",
-    min_val::Union{Nothing,String}=nothing,
-    min_col::Union{Nothing,String}="FFF8696B",
-    mid_type::Union{Nothing,String}=nothing,
-    mid_val::Union{Nothing,String}=nothing,
-    mid_col::Union{Nothing,String}=nothing,
-    max_type::Union{Nothing,String}="max",
-    max_val::Union{Nothing,String}=nothing,
-    max_col::Union{Nothing,String}="FFFFEB84",
-)::Int
-
-    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
-
-    allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
-
-    let new_pr, new_cf
-
-        new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
-
-        if isnothing(colorscale)
-
-            min_type in ["min", "percentile", "percent", "num"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num."))
-            isnothing(min_val) || is_valid_cellname(min_val) || !is_valid_sheet_cellname(min_val) || !isnothing(tryparse(Float64,min_val)) || throw(XLSXError("Invalid mid_type: $min_val. Valid options are a CellRef (e.g. `A1`) or a number."))
-            isnothing(mid_type) || mid_type in ["percentile", "percent", "num"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num."))
-            isnothing(mid_val) || is_valid_cellname(mid_val) || !is_valid_sheet_cellname(mid_val) || !isnothing(tryparse(Float64,mid_val)) || throw(XLSXError("Invalid mid_type: $mid_val. Valid options are a CellRef (e.g. `A1`) or a number."))
-            max_type in ["max", "percentile", "percent", "num"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: max, percentile, percent, num."))
-            isnothing(max_val) || is_valid_cellname(max_val) || !is_valid_sheet_cellname(max_val) || !isnothing(tryparse(Float64,max_val)) || throw(XLSXError("Invalid mid_type: $max_val. Valid options are a CellRef (e.g. `A1`) or a number."))
-
-            min_val = convertref(min_val)
-            mid_val = convertref(mid_val)
-            max_val = convertref(max_val)
-
-            cfx = XML.h.cfRule(type="colorScale", priority=new_pr,
-                XML.h.colorScale(
-                    isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
-                    isnothing(mid_type) ? nothing : XML.h.cfvo(type=mid_type, val=mid_val),
-                    isnothing(max_val) ? XML.h.cfvo(type=max_type) : XML.h.cfvo(type=max_type, val=max_val),
-                    XML.h.color(rgb=get_color(min_col)),
-                    isnothing(mid_type) ? nothing : XML.h.color(rgb=get_color(mid_col)),
-                    XML.h.color(rgb=get_color(max_col))
-                )
-            )
-
-        else
-            if !haskey(colorscales, colorscale)
-                throw(XLSXError("Invalid color scale: $colorscale. Valid options are: $(keys(colorscales))."))
-            end
-            cfx=colorscales[colorscale]
-            cfx["priority"] = new_pr
-        end
-
-        update_worksheet_cfx!(allcfs, cfx, ws, rng)
-
-    end
-
-    return 0
 end
 
 setCfCellIs(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfCellIs, ws, row, nothing; kw...)
@@ -1190,21 +1181,21 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
     !isnothing(value) && !is_valid_cellname(value) && !is_valid_fixed_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
     !isnothing(value2) && !is_valid_cellname(value2) && !is_valid_fixed_cellname(value2) && isnothing(tryparse(Float64, value2)) && throw(XLSXError("Invalid `value2`: $value2. Must be a number or a CellRef."))
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
-    new_dx= get_new_dx(wb, dx)
+    new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
     if isnothing(value)
-        value = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng]))/count(!ismissing, ws[rng]))
+        value = all(ismissing.(ws[rng])) ? nothing : string(sum(skipmissing(ws[rng])) / count(!ismissing, ws[rng]))
     end
     cfx = XML.Element("cfRule"; type="cellIs", dxfId=Int(dxid.id))
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
@@ -1249,26 +1240,26 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
     isnothing(value) && throw(XLSXError("Invalid `value`: $value. Must contain text or a CellRef."))
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
-    new_dx= get_new_dx(wb, dx)
+    new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
-    type=operator
+    type = operator
     if operator == "containsText"
         formula = "NOT(ISERROR(SEARCH(\"__txt__\",__CR__)))"
     elseif operator == "notContainsText"
         operator = "notContains"
         formula = "ISERROR(SEARCH(\"__txt__\",__CR__))"
     elseif operator == "beginsWith"
-#        operator = "beginsWith"
+        #        operator = "beginsWith"
         formula = "LEFT(__CR__,LEN(\"__txt__\"))=\"__txt__\""
     elseif operator == "endsWith"
-#        operator = "endsWith"
+        #        operator = "endsWith"
         formula = "RIGHT(__CR__,LEN(\"__txt__\"))=\"__txt__\""
     else
         throw(XLSXError("Invalid operator: $type. Valid options are: `containsText`, `notContainsText`, `beginsWith`, `endsWith`."))
@@ -1276,12 +1267,12 @@ function setCfContainsText(ws::Worksheet, rng::CellRange;
     formula = replace(formula, "__txt__" => value, "__CR__" => string(first(rng)))
 
     cfx = XML.Element("cfRule"; type=type, dxfId=Int(dxid.id))
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    cfx["operator"]=operator
-    cfx["text"]=value
+    cfx["operator"] = operator
+    cfx["text"] = value
     push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
@@ -1317,31 +1308,31 @@ function setCfTop10(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
     !isnothing(value) && !is_valid_cellname(value) && !is_valid_fixed_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
-    new_dx= get_new_dx(wb, dx)
+    new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
- 
+
     percent = ""
     bottom = ""
     cfx = XML.Element("cfRule"; type="top10", dxfId=Int(dxid.id))
     if operator == "topN"
     elseif operator == "topN%"
-        percent="1"
+        percent = "1"
     elseif operator == "bottomN"
-        bottom="1"
+        bottom = "1"
     elseif operator == "bottomN%"
-        percent="1"
-        bottom="1"
+        percent = "1"
+        bottom = "1"
     else
         throw(XLSXError("Invalid operator: $operator. Valid options are: `topN`, `topN%`, `bottomN`, `bottomN%`."))
     end
 
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
@@ -1385,13 +1376,13 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
-#    isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
+    #    isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
-    new_dx= get_new_dx(wb, dx)
+    new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
 
@@ -1406,7 +1397,7 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
     elseif operator == "plus3StdDev"
         cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", stdDev="3")
     elseif operator == "belowAverage"
-        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0" )
+        cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0")
     elseif operator == "belowEqAverage"
         cfx = XML.Element("cfRule"; type="aboveAverage", dxfId=Int(dxid.id), priority="1", aboveAverage="0", equalAverage="1")
     elseif operator == "minus1StdDev"
@@ -1419,7 +1410,7 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
         throw(XLSXError("Invalid operator: $operator. Valid options are: `aboveAverage`, `aboveEqAverage`, `plus1sStdDev`, `plus2StdDev`, `plus3StdDev`, `belowAverage`, `belowEqAverage`, `minus1StdDev`, `minus2StdDev`, `minus3StdDev`."))
     end
 
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
@@ -1456,7 +1447,7 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
     if operator == "yesterday"
         formula = "FLOOR(__CR__,1)=TODAY()-1"
@@ -1483,18 +1474,18 @@ function setCfTimePeriod(ws::Worksheet, rng::CellRange;
     end
     formula = replace(formula, "__CR__" => string(first(rng)))
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
     cfx = XML.Element("cfRule"; type="timePeriod", dxfId=Int(dxid.id))
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
     cfx["timePeriod"] = operator
-   
+
     push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
@@ -1529,7 +1520,7 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
     if operator == "containsBlanks"
         formula = "LEN(TRIM(__CR__))=0"
@@ -1548,17 +1539,17 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
     end
     formula = replace(formula, "__CR__" => string(first(rng)))
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
     cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id))
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-    formula !="" && push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
+    formula != "" && push!(cfx, XML.Element("formula", XML.Text(XML.escape(formula))))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
 
@@ -1592,22 +1583,254 @@ function setCfFormula(ws::Worksheet, rng::CellRange;
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
-    old_cf = getConditionalFormats(allcfs) # extract conditional format info
+    old_cf = getConditionalFormats(ws) # extract conditional format info
 
-    wb=get_workbook(ws)
+    wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
 
     cfx = XML.Element("cfRule"; type="expression", dxfId=Int(dxid.id))
-    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)])+1) : 1
+    cfx["priority"] = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
     if !isnothing(stopIfTrue) && stopIfTrue == "true"
         cfx["stopIfTrue"] = "1"
     end
-   
-    push!(cfx, XML.Element("formula", XML.Text("("*XML.escape(uppercase_unquoted(formula))*")")))
+
+    push!(cfx, XML.Element("formula", XML.Text("(" * XML.escape(uppercase_unquoted(formula)) * ")")))
 
     update_worksheet_cfx!(allcfs, cfx, ws, rng)
+
+    return 0
+end
+
+setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfColorScale, ws, row, nothing; kw...)
+setCfColorScale(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfColorScale, ws, nothing, col; kw...)
+setCfColorScale(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfColorScale, ws, nothing, nothing; kw...)
+setCfColorScale(ws::Worksheet, ::Colon; kw...) = process_colon(setCfColorScale, ws, nothing, nothing; kw...)
+setCfColorScale(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfColorScale(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfColorScale(ws::Worksheet, cell::CellRef; kw...) = setCfColorScale(ws, CellRange(cell, cell); kw...)
+setCfColorScale(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfColorScale(ws, CellRange(cell.cellref, cell.cellref); kw...)
+setCfColorScale(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rng; kw...)
+setCfColorScale(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.colrng; kw...)
+setCfColorScale(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfColorScale(ws, rng.rowrng; kw...)
+setCfColorScale(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfColorScale, ws, rng; kw...)
+setCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfColorScale, ws, rng; kw...)
+setCfColorScale(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfColorScale, xl, sheetcell; kw...)
+setCfColorScale(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfColorScale, ws, ref_or_rng; kw...)
+function setCfColorScale(ws::Worksheet, rng::CellRange;
+    colorscale::Union{Nothing,String}=nothing,
+    min_type::Union{Nothing,String}="min",
+    min_val::Union{Nothing,String}=nothing,
+    min_col::Union{Nothing,String}="FFF8696B",
+    mid_type::Union{Nothing,String}=nothing,
+    mid_val::Union{Nothing,String}=nothing,
+    mid_col::Union{Nothing,String}=nothing,
+    max_type::Union{Nothing,String}="max",
+    max_val::Union{Nothing,String}=nothing,
+    max_col::Union{Nothing,String}="FFFFEB84",
+)::Int
+
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+
+    allcfs = allCfs(ws)                    # get all conditional format blocks
+    old_cf = getConditionalFormats(ws) # extract conditional format info
+
+    let new_pr, new_cf
+
+        new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
+
+        if isnothing(colorscale)
+
+            min_type in ["min", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num, formula."))
+            min_type == "formula" || isnothing(min_val) || is_valid_cellname(min_val) || is_valid_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+            isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
+            (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_cellname(mid_val) || is_valid_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+            max_type in ["max", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: max, percentile, percent, num, formula."))
+            max_type == "formula" || isnothing(max_val) || is_valid_cellname(max_val) || is_valid_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+
+            min_val = isnothing(min_val) ? nothing : XML.escape(uppercase_unquoted(min_val))
+            mid_val = isnothing(mid_val) ? nothing : XML.escape(uppercase_unquoted(mid_val))
+            max_val = isnothing(max_val) ? nothing : XML.escape(uppercase_unquoted(max_val))
+
+            cfx = XML.h.cfRule(type="colorScale", priority=new_pr,
+                XML.h.colorScale(
+                    isnothing(min_val) ? XML.h.cfvo(type=min_type) : XML.h.cfvo(type=min_type, val=min_val),
+                    isnothing(mid_type) ? "" : XML.h.cfvo(type=mid_type, val=mid_val),
+                    isnothing(max_val) ? XML.h.cfvo(type=max_type) : XML.h.cfvo(type=max_type, val=max_val),
+                    XML.h.color(rgb=get_color(min_col)),
+                    isnothing(mid_type) ? "" : XML.h.color(rgb=get_color(mid_col)),
+                    XML.h.color(rgb=get_color(max_col))
+                )
+            )
+
+        else
+            if !haskey(colorscales, colorscale)
+                throw(XLSXError("Invalid color scale: $iconset. Valid options are: $(keys(iconsets))."))
+            end
+            cfx = copynode(colorscales[colorscale])
+            cfx["priority"] = new_pr
+        end
+
+        update_worksheet_cfx!(allcfs, cfx, ws, rng)
+
+    end
+
+    return 0
+end
+
+setCfIconSet(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfIconSet, ws, row, nothing; kw...)
+setCfIconSet(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfIconSet, ws, nothing, col; kw...)
+setCfIconSet(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfIconSet, ws, nothing, nothing; kw...)
+setCfIconSet(ws::Worksheet, ::Colon; kw...) = process_colon(setCfIconSet, ws, nothing, nothing; kw...)
+setCfIconSet(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfIconSet(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfIconSet(ws::Worksheet, cell::CellRef; kw...) = setCfIconSet(ws, CellRange(cell, cell); kw...)
+setCfIconSet(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfIconSet(ws, CellRange(cell.cellref, cell.cellref); kw...)
+setCfIconSet(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfIconSet(ws, rng.rng; kw...)
+setCfIconSet(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfIconSet(ws, rng.colrng; kw...)
+setCfIconSet(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfIconSet(ws, rng.rowrng; kw...)
+setCfIconSet(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfIconSet, ws, rng; kw...)
+setCfIconSet(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfIconSet, ws, rng; kw...)
+setCfIconSet(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfIconSet, xl, sheetcell; kw...)
+setCfIconSet(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfIconSet, ws, ref_or_rng; kw...)
+function setCfIconSet(ws::Worksheet, rng::CellRange;
+    iconset::Union{Nothing,String}="3TrafficLights",
+    reverse::Union{Nothing,String}=nothing,
+    showVal::Union{Nothing,String}=nothing,
+    min_type::Union{Nothing,String}=nothing,
+    min_val::Union{Nothing,String}=nothing,
+    min_gte::Union{Nothing,String}=nothing,    
+    mid_type::Union{Nothing,String}=nothing,
+    mid_val::Union{Nothing,String}=nothing,
+    mid_gte::Union{Nothing,String}=nothing,    
+    mid2_type::Union{Nothing,String}=nothing,
+    mid2_val::Union{Nothing,String}=nothing,
+    mid2_gte::Union{Nothing,String}=nothing,    
+    max_type::Union{Nothing,String}=nothing,
+    max_val::Union{Nothing,String}=nothing,
+    max_gte::Union{Nothing,String}=nothing,    
+    icon_list::Union{Nothing,Vector{Int64}}=nothing
+    )::Int
+
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+
+    allcfs = allCfs(ws)                # get all conditional format blocks
+    old_cf = getConditionalFormats(ws) # extract conditional format info
+    allextcfs = allExtCfs(ws)          # get all extended conditional format blocks
+
+    let new_pr, new_cf
+
+        new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
+
+        isnothing(mid_type) || min_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: percentile, percent, num, formula."))
+        (!isnothing(min_type) && min_type == "formula") || isnothing(min_val) || is_valid_cellname(min_val) || is_valid_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
+        (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_cellname(mid_val) || !is_valid_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        isnothing(mid2_type) || mid2_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid2_type. Valid options are: percentile, percent, num, formula."))
+        (!isnothing(mid2_type) && mid2_type == "formula") || isnothing(mid2_val) || is_valid_cellname(mid2_val) || is_valid_sheet_cellname(mid2_val) || !isnothing(tryparse(Float64, mid2_val)) || throw(XLSXError("Invalid mid2_type: `$mid2_val`. Valid options (unless mid2_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        isnothing(max_type) || max_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: percentile, percent, num, formula."))
+        (!isnothing(max_type) && max_type == "formula") || isnothing(max_val) || is_valid_cellname(max_val) || is_valid_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+
+        for val in [min_val, mid_val, mid2_val, max_val]
+            val = isnothing(val) ? nothing : XML.escape(uppercase_unquoted(val))
+        end
+        if !haskey(iconsets, iconset)
+            throw(XLSXError("Invalid color scale: $iconset. Valid options are: $(keys(iconsets))"))
+        end
+        l = first(iconset)
+        cfx = copynode(iconsets[iconset])
+        if l=='C'
+            cfvo = XML.Element("x14:cfvo", type="percent")
+            push!(cfvo, XML.Element("xm:f", XML.Text("dummy")))
+            for _ in 1:2
+                push!(cfx[1], copynode(cfvo))
+            end
+            if isnothing(mid_type) || isnothing(mid_val)
+                list = [(min_type, min_val, min_gte), (max_type, max_val, max_gte)]
+                nicons=3
+            elseif isnothing(mid2_type) || isnothing(mid2_val)
+                push!(cfx[1], copynode(cfvo))
+                cfx[1]["iconSet"] = "4Arrows"
+                nicons=4
+                list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (max_type, max_val, max_gte)]
+            else
+                push!(cfx[1], copynode(cfvo))
+                cfx[1]["iconSet"] = "5Quarters"
+                nicons=5
+                list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (mid2_type, mid2_val, mid2_gte), (max_type, max_val, max_gte)]
+           end
+        elseif l == '5'
+            list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (mid2_type, mid2_val, mid2_gte), (max_type, max_val, max_gte)]
+        elseif l == '4'
+            list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (max_type, max_val, max_gte)]
+        else
+            list = [(min_type, min_val, min_gte), (max_type, max_val, max_gte)]
+        end
+        if iconset in ["3Triangles", "3Stars", "5Boxes", "Custom"]
+            cfx["id"] = "{" * uppercase(string(UUIDs.uuid4())) * "}"
+            cfx["priority"] = new_pr
+            if !isnothing(showVal) && showVal == "false"
+                cfx[1]["showValue"] = "0"
+            end
+            if !isnothing(reverse) && reverse == "true"
+                if iconset=="Custom"
+                    reverse!(icon_list)
+                else
+                    cfx[1]["reverse"] = "1"
+                end
+            end
+            for (i, (type, val, gte)) in enumerate(list)
+                if !isnothing(type)
+                    cfx[1][i+1]["type"] = type # Need +1 because the first <cfvo> is always 0 percent.
+                end
+                if !isnothing(val)
+                    cfx[1][i+1][1] = XML.Element("xm:f", XML.Text(val))
+                end
+                if !isnothing(gte) && gte == "false"
+                    cfx[1][i+1]["gte"] = "0"
+                end
+            end
+            if iconset == "Custom"
+                licons=length(icon_list)
+                if licons == 0
+                    throw(XLSXError("No custom icons specified. Must specify between two and four icons."))
+                elseif licons<nicons
+                    throw(XLSXError("Too few custom icons specified: $licons. Expected $nicons"))
+                end
+                    for (count, icon) in enumerate(string.(icon_list))
+                    if !isnothing(icon)
+                        if !haskey(allIcons, icon)
+                            throw(XLSXError("Invalid custom icon specified: $icon. Valid values are \"1\" to \"52\"."))
+                        end
+                        i=allIcons[icon]
+                        push!(cfx[1],XML.Element("x14:cfIcon", iconSet=first(i), iconId=last(i)))
+                        count==nicons && break
+                    end
+                end
+            end
+            update_worksheet_ext_cfx!(allextcfs, cfx, ws, rng)
+        else
+            cfx["priority"] = new_pr
+            if !isnothing(showVal) && showVal == "false"
+                cfx[1]["showValue"] = "0"
+            end
+            if !isnothing(reverse) && reverse == "true"
+                cfx[1]["reverse"] = "1"
+            end
+            for (i, (type, val, gte)) in enumerate(list)
+                if !isnothing(val)
+                    cfx[1][i+1]["val"] = val
+                end
+                if !isnothing(type)
+                    cfx[1][i+1]["type"] = type
+                end
+                if !isnothing(gte) && gte == "false"
+                    cfx[1][i+1]["gte"] = "0"
+                end
+             end
+            update_worksheet_cfx!(allcfs, cfx, ws, rng)
+        end
+
+    end
 
     return 0
 end
