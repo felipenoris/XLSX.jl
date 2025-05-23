@@ -840,8 +840,8 @@ relate the cell value to the range of values in the cell range to which the cond
 format is being applied. This can be illustrated (for a 4-icon set) as follows:
 
 ```
-  Range     ┌────────────────┬─────────────────┬─────────────────┬────────────────┐   Range
-  Minimum ->│     Icon 1     │     Icon 2      │     Icon 3      │     Icon 4     │<- Maximum
+ Range     ┌─────────────────┬─────────────────┬─────────────────┬────────────────┐   Range
+ Minimum ->│     Icon 1      │     Icon 2      │     Icon 3      │     Icon 4     │<- Maximum
                          `min_val`         `mid_val`         `max_val`
                          threshold         threshold         threshold
 ``` 
@@ -865,7 +865,9 @@ formula.
 Using the example above, change both the type and value of the thresholds like this:
 
 ```julia
-julia> XLSX.setConditionalFormat(s, "A1:A10", :iconSet; min_type="num", max_type="num", min_val="2", max_val="9")
+julia> XLSX.setConditionalFormat(s, "A1:A10", :iconSet;
+            min_type="num", max_type="num", 
+            min_val="2", max_val="9")
 0
 ```
 ![image|320x500](./images/newValIconSet.png)
@@ -875,8 +877,7 @@ use `reverse="true"` and to change the default comparison from `>=` to `>` set `
 equivalent for mid, mid2 and max):
 ```julia
 julia> XLSX.writetable!(s, [collect(1:10), collect(1:10), collect(1:10), collect(1:10)],
-                           ["normal", "showVal=\"false\"", "reverse=\"true\"", "min_gte=\"false\""]
-                           )
+            ["normal", "showVal=\"false\"", "reverse=\"true\"", "min_gte=\"false\""])
 
 julia> XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
             min_type="num",  max_type="num",
@@ -943,23 +944,23 @@ Specifying too few icons throws an error, any extra will simply be ignored.
 
 ##### Cell Ranges
 
-Cell ranges for conditional formats always use absolute refences. The specified range to which a 
-conditional format is to be applied is always converted to use absolute cell references so that, 
+Cell ranges for conditional formats are always absolute refences. The specified range to which a 
+conditional format is to be applied is always treated as an absolute cell references so that, 
 for example
 ```julia
 julia> XLSX.setConditionalFormat(s, "A2:C5", :colorScale; colorscale="greenyellow")
 ```
-will be converted automatically to the range "\$A\$2:\$C\$5". There is therefore no need to specify 
-an absolute cell range when calling `setCondtionalFormat()`
+will be converted automatically to the range "\$A\$2:\$C\$5" by Excel itself. There is therefore no need to specify 
+absolute cell ranges when calling `setCondtionalFormat()`
 
 ##### Relative and absolute cell references
 
-Cell references used to specify `value` or `value2` or in any `formula` may be either absolute 
-or relative and both can be very useful. it is important to understand which reference style you 
-need and to specify accordingly. As in Excel, an absolute reference is defined using a `$` prefix 
-to either or both the row or the column part of the cell reference but here the `$` must be 
-appropriately escaped. Thus:
-```
+Cell references used to specify `value` or `value2` or in any `formula` (for `:expression` type 
+conditional formats only) may be either absolute or relative, and both can be useful. It is 
+important to understand which reference style you need and to specify accordingly. As in Excel, 
+an absolute reference is defined using a `$` prefix to either or both the row or the column part 
+of the cell reference but here the `$` must be appropriately escaped. Thus:
+```julia
 value = "B2"          # relative reference
 value = "\$B\$2"      # (escaped) absolute reference
 ```
@@ -1020,9 +1021,14 @@ julia> XLSX.setConditionalFormat(s, "B2:B6", :cellIs; operator="greaterThan", va
 
 !!! note
 
+    It is not possible to use relative cell references in conditional format types `:dataBar`, 
+    `:colorScale` or `:iconSet`.
+
+!!! note
+
     Excel permits cell references to cells in other sheets for comparisons in conditional formats
     (e.g. "OtherSheet!A1"), but this is handled differently internally than references within the 
-    same sheet. This functionality is not implemented in XLSX.jl yet. 
+    same sheet. This functionality is not universally implemented in XLSX.jl yet. 
 
 #### Overlaying conditional formats
 

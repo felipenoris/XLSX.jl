@@ -471,26 +471,28 @@ end
 #
 function process_colon(f::Function, ws::Worksheet, row, col; kw...)
     dim = get_dimension(ws)
+    @assert isnothing(row) || isnothing(col) "Something wrong here!"
     if isnothing(row) && isnothing(col)
         return f(ws, dim; kw...)
     elseif isnothing(col)
         rng = CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
-    elseif isnothing(row)
-        rng = CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
     else
-        throw(XLSXError("Something wrong here!"))
+        rng = CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
+#    else
+#        throw(XLSXError("Something wrong here!"))
     end
 
     return f(ws, rng; kw...)
 end
 function process_veccolon(f::Function, ws::Worksheet, row, col; kw...)
     dim = get_dimension(ws)
+    @assert isnothing(row) || isnothing(col) "Something wrong here!"
     if isnothing(col)
         col = dim.start.column_number:dim.stop.column_number
-    elseif isnothing(row)
-        row = dim.start.row_number:dim.stop.row_number
     else
-        throw(XLSXError("Something wrong here!"))
+        row = dim.start.row_number:dim.stop.row_number
+#    else
+#        throw(XLSXError("Something wrong here!"))
     end
     isInDim(ws, dim, row, col)
     if length(row) == 1 && length(col) == 1
@@ -586,18 +588,23 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
             newid = nothing
             first = true
             for r in ncrng.rng
-                if r isa CellRef && getcell(ws, r) isa EmptyCell
-                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
-                    continue
-                end
+                @assert r isa CellRef || r isa CellRange "Something wrong here"
+#                if r isa CellRef && getcell(ws, r) isa EmptyCell
+#                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
+#                    continue
+#                end
                 if r isa CellRef
+                    if getcell(ws, r) isa EmptyCell
+                        single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
+                        continue
+                    end
                     newid, first = process_uniform_core(f, ws, r, atts, newid, first; kw...)
-                elseif r isa CellRange
+                else
                     for c in r
                         newid, first = process_uniform_core(f, ws, c, atts, newid, first; kw...)
                     end
-                else
-                    throw(XLSXError("Something wrong here!"))
+#                else
+#                    throw(XLSXError("Something wrong here!"))
                 end
             end
             if first
@@ -611,12 +618,13 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
 end
 function process_uniform_veccolon(f::Function, ws::Worksheet, row, col, atts::Vector{String}; kw...)
     dim = get_dimension(ws)
+    @assert isnothing(row) || isnothing(col) "Something wrong here!"
     if isnothing(col)
         col = dim.start.column_number:dim.stop.column_number
-    elseif isnothing(row)
-        row = dim.start.row_number:dim.stop.row_number
     else
-        throw(XLSXError("Something wrong here!"))
+        row = dim.start.row_number:dim.stop.row_number
+#    else
+#        throw(XLSXError("Something wrong here!"))
     end
     isInDim(ws, dim, row, col)
     let newid::Union{Int,Nothing}, first::Bool
@@ -690,18 +698,23 @@ function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
             newid = nothing
             first = true
             for r in ncrng.rng
-                if r isa CellRef && getcell(ws, r) isa EmptyCell
-                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
-                    continue
-                end
+                @assert r isa CellRef || r isa CellRange "Something wrong here"
+#                if r isa CellRef && getcell(ws, r) isa EmptyCell
+#                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
+#                    continue
+#                end
                 if r isa CellRef
+                    if getcell(ws, r) isa EmptyCell
+                        single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
+                        continue
+                    end
                     newid, first = process_uniform_core(ws, r, newid, first)
-                elseif r isa CellRange
+                else
                     for c in r
                         newid, first = process_uniform_core(ws, c, newid, first)
                     end
-                else
-                    throw(XLSXError("Something wrong here!"))
+#                else
+#                    throw(XLSXError("Something wrong here!"))
                 end
             end
             if first
@@ -715,26 +728,28 @@ function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
 end
 function process_colon(ws::Worksheet, row, col)
     dim = get_dimension(ws)
+    @assert isnothing(row) || isnothing(col) "Something wrong here!"
     if isnothing(row) && isnothing(col)
         return setUniformStyle(ws, dim)
     elseif isnothing(col)
         rng = CellRange(CellRef(first(row), dim.start.column_number), CellRef(last(row), dim.stop.column_number))
-    elseif isnothing(row)
-        rng = CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
     else
-        throw(XLSXError("Something wrong here!"))
+        rng = CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col)))
+#    else
+#        throw(XLSXError("Something wrong here!"))
     end
 
     return setUniformStyle(ws, rng)
 end
 function process_uniform_veccolon(ws::Worksheet, row, col)
     dim = get_dimension(ws)
+    @assert isnothing(row) || isnothing(col) "Something wrong here!"
     if isnothing(col)
         col = dim.start.column_number:dim.stop.column_number
-    elseif isnothing(row)
-        row = dim.start.row_number:dim.stop.row_number
     else
-        throw(XLSXError("Something wrong here!"))
+        row = dim.start.row_number:dim.stop.row_number
+#    else
+#        throw(XLSXError("Something wrong here!"))
     end
     isInDim(ws, dim, row, col)
     let newid::Union{Int,Nothing}, first::Bool
@@ -835,18 +850,23 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
             first = true
             alignment_node = nothing
             for r in ncrng.rng
+                @assert r isa CellRef || r isa CellRange "Something wrong here"
                 if r isa CellRef && getcell(ws, r) isa EmptyCell
                     single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
                     continue
                 end
                 if r isa CellRef
+                    if getcell(ws, r) isa EmptyCell
+                        single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
+                        continue
+                    end
                     newid, first, alignment_node = process_uniform_core(f, ws, r, newid, first, alignment_node; kw...)
-                elseif r isa CellRange
+                else
                     for c in r
                         newid, first, alignment_node = process_uniform_core(f, ws, c, newid, first, alignment_node; kw...)
                     end
-                else
-                    throw(XLSXError("Something wrong here!"))
+#                else
+#                    throw(XLSXError("Something wrong here!"))
                 end
             end
             if first
@@ -863,12 +883,13 @@ function process_uniform_veccolon(f::Function, ws::Worksheet, row, col; kw...)
     if dim === nothing
         throw(XLSXError("No worksheet dimension found"))
     else
+        @assert isnothing(row) || isnothing(col) "Something wrong here!"
         if isnothing(col)
             col = dim.start.column_number:dim.stop.column_number
-        elseif isnothing(row)
-            row = dim.start.row_number:dim.stop.row_number
         else
-            throw(XLSXError("Something wrong here!"))
+            row = dim.start.row_number:dim.stop.row_number
+#        else
+#            throw(XLSXError("Something wrong here!"))
         end
         isInDim(ws, dim, row, col)
         let newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}

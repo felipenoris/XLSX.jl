@@ -84,12 +84,9 @@ function sst_load!(workbook::Workbook)
 
             for el in XML.children(sst_root)
                 XML.nodetype(el) == XML.Text && continue
-                if XML.tag(el) != "si"
-                    throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
-                end
+                XML.tag(el) != "si" && throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
                 push!(sst.unformatted_strings, unformatted_text(el))
                 push!(sst.formatted_strings, XML.write(el))
-
             end
 
             init_sst_index(sst)

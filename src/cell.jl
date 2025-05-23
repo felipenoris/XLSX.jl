@@ -317,7 +317,7 @@ end
 # See also XLSX.isdate1904.
 function excel_value_to_datetime(x::Float64, _is_date_1904::Bool) :: Dates.DateTime
     if x < 0
-        throw(XLSXError("Cannot have a datetime value < 0. Got $XML"))
+        throw(XLSXError("Cannot have a datetime value < 0. Got $x"))
     end
 
     local dt::Dates.Date

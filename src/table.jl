@@ -418,9 +418,10 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
     end
 
     # if the `is_empty_table_row` check above was successful, we can't get empty sheet_row here
-    if is_empty_table_row(sheet_row) && !itr.keep_empty_rows
-        throw(XLSXError("Something wrong here!"))
-    end
+    @assert !is_empty_table_row(sheet_row) || itr.keep_empty_rows "Something wrong here!"
+#    if is_empty_table_row(sheet_row) && !itr.keep_empty_rows
+#        throw(XLSXError("Something wrong here!"))
+#    end
     table_row = TableRow(table_row_index, itr.index, sheet_row)
 
     # user asked to stop (or end of row range)

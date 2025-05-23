@@ -131,6 +131,7 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         catch e
             @test occursin("This package does not support XLS file format", "$e")
         end
+
     end
 
     @testset "Read invalid XLSX error" begin
@@ -149,6 +150,12 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
             @test occursin("does not support Excel template files", "$e")
         end
     end
+
+    @testset "missing file or bad `mode`" begin
+        @test_throws XLSX.XLSXError XLSX.openxlsx("noSuchFile.xlsx")
+        @test_throws XLSX.XLSXError XLSX.openxlsx(joinpath(data_directory, "Book1.xlsx"); mode="tg")
+    end
+
 end
 
 @testset "Cell names" begin
@@ -1291,6 +1298,11 @@ end
         @test df[2, "regular text"] == 102.2
         @test df[3, 2] == Dates.Date(1983, 04, 16)
         @test df[5, 2] == Dates.DateTime(2018, 04, 16, 19, 19, 51)
+
+        @test_throws XLSX.XLSXError df = XLSX.readdf(joinpath(data_directory, "general.xlsx"))           # No sink
+        @test_throws XLSX.XLSXError df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), 3)        # No sink
+        @test_throws XLSX.XLSXError df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), 3, "F:G") # No sink
+
     end
 
     @testset "normalizenames" begin # Issue #260
@@ -3361,11 +3373,16 @@ end
 @testset "Conditional Formats" begin
 
     @testset "colorScale" begin
+
         f = XLSX.newxlsx()
         s = f[1]
         for i in 1:5, j in 1:5
             s[i, j] = i + j
         end
+
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1,A3", :wrongOne)
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1, 2, :wrongOne)
+
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :colorScale) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :colorScale) # Vectors may be non-contiguous
         @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :colorScale) # StepRange is non-contiguous
@@ -3496,7 +3513,285 @@ end
             max_type="max",
             max_col="blue"
         )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A2", :colorScale; 
+            colorscale="rainbow"
+        )
 
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:12
+            s[i, j] = i + j
+        end
+        for (j, k) in enumerate(keys(XLSX.colorscales))
+            @test XLSX.setConditionalFormat(s, :, j, :colorScale; colorscale=k)==0
+        end
+    end
+
+    @testset "iconSet" begin
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:5
+            s[i, j] = i + j
+        end
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :iconSet) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :iconSet) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :iconSet) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "1:1", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, 2, :, :iconSet; iconset="3Arrows") == 0
+        @test XLSX.setConditionalFormat(s, 3, 1:5, :iconSet;
+            min_type="percent",
+            min_val="20",
+            max_type="num",
+            max_val="4"
+        ) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :iconSet;
+            min_type="percentile",
+            min_val="10",
+            max_type="num",
+            max_val="\$C\$4"
+        ) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :iconSet;
+            min_type="percentile",
+            min_val="\$D\$5",
+            max_type="percent",
+            max_val="95"
+        ) == 0
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type = "iconSet", priority = 5),XLSX.CellRange("A4:E4") => (type = "iconSet", priority = 4), XLSX.CellRange("A3:E3") => (type = "iconSet", priority = 3), XLSX.CellRange("A2:E2") => (type = "iconSet", priority = 2), XLSX.CellRange("A1:E1") => (type = "iconSet", priority = 1)]
+        @test XLSX.setConditionalFormat(s, "A1", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "2:4", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "A:C", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :iconSet) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :iconSet) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "2:4", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "A:C", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, :, :iconSet) == 0
+        @test XLSX.setConditionalFormat(s, :, :, :iconSet) == 0
+        @test length(XLSX.getConditionalFormats(s)) == 22
+
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:E5") => (type = "iconSet", priority = 21),
+            XLSX.CellRange("A1:E5") => (type = "iconSet", priority = 22),
+            XLSX.CellRange("A1:E3") => (type = "iconSet", priority = 17),
+            XLSX.CellRange("A1:C5") => (type = "iconSet", priority = 12),
+            XLSX.CellRange("A1:C5") => (type = "iconSet", priority = 13),
+            XLSX.CellRange("A1:C5") => (type = "iconSet", priority = 15),
+            XLSX.CellRange("A1:C5") => (type = "iconSet", priority = 16),
+            XLSX.CellRange("A1:C5") => (type = "iconSet", priority = 19),
+            XLSX.CellRange("A1:C5") => (type = "iconSet", priority = 20),
+            XLSX.CellRange("A2:E4") => (type = "iconSet", priority = 11),
+            XLSX.CellRange("A2:E4") => (type = "iconSet", priority = 18),
+            XLSX.CellRange("A1:E2") => (type = "iconSet", priority = 10),
+            XLSX.CellRange("A1:E2") => (type = "iconSet", priority = 14),
+            XLSX.CellRange("A1:A2") => (type = "iconSet", priority = 9),
+            XLSX.CellRange("A1:C3") => (type = "iconSet", priority = 7),
+            XLSX.CellRange("A1:A1") => (type = "iconSet", priority = 6),
+            XLSX.CellRange("A1:A1") => (type = "iconSet", priority = 8),
+            XLSX.CellRange("A5:E5") => (type = "iconSet", priority = 5),
+            XLSX.CellRange("A4:E4") => (type = "iconSet", priority = 4),
+            XLSX.CellRange("A3:E3") => (type = "iconSet", priority = 3),
+            XLSX.CellRange("A2:E2") => (type = "iconSet", priority = 2),
+            XLSX.CellRange("A1:E1") => (type = "iconSet", priority = 1)
+        ]
+
+        f=XLSX.newxlsx()
+        s=f[1]
+
+        XLSX.writetable!(s, [collect(1:10), collect(1:10), collect(1:10), collect(1:10), collect(1:10), collect(1:10)],
+                    ["normal", "showVal=\"false\"", "reverse=\"true\"", "min_gte=\"false\"", "extra1", "extra2"])
+        s["G1"]=3
+        s["G4"]="y"
+
+        @test XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
+                    min_type="num",  max_type="formula",
+                    min_val="3",     max_val="if(\$G\$4=\"y\", \$G\$1+5, 10)") == 0
+
+                    @test XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
+                    min_type="num",  max_type="num",
+                    min_val="3",     max_val="8") == 0
+
+        @test XLSX.setConditionalFormat(s, "B2:B11", :iconSet; iconset = "4TrafficLights",
+                    min_type="num",  mid_type="percent", max_type="num",
+                    min_val="3",     mid_val="50",       max_val="8",
+                    showVal="false") == 0
+
+        @test XLSX.setConditionalFormat(s, "C2:C11", :iconSet; iconset = "3Symbols2",
+                    min_type="num",  mid_type="percentile", max_type="num",
+                    min_val="3",     mid_val="50",          max_val="8",
+                    reverse="true") == 0
+
+        @test XLSX.setConditionalFormat(s, "D2:D11", :iconSet; iconset = "5Arrows",
+                    min_type="num",  mid_type="percentile", mid2_type="percentile", max_type="num",
+                    min_val="3",     mid_val="45", mid2_val="65", max_val="8",
+                    min_gte="false", max_gte="false") == 0
+
+        @test XLSX.setConditionalFormat(s, "E2:E11", :iconSet; iconset = "3Stars",
+                    reverse = "true",
+                    showVal = "false",
+                    min_type="num",  mid_type="percentile", mid2_type="percentile", max_type="num",
+                    min_val="3",     mid_val="45",          mid2_val="65",          max_val="8",
+                    min_gte="false", max_gte="false") == 0
+
+        @test XLSX.setConditionalFormat(s, "F2:F11", :iconSet; iconset = "5Boxes",
+                    reverse = "true",
+                    showVal = "false",
+                    min_type="num",  mid_type="percentile", mid2_type="percentile", max_type="num",
+                    min_val="3",     mid_val="45",          mid2_val="65",          max_val="8",
+                    min_gte="false", mid_gte="false",       mid2_gte="false",       max_gte="false") == 0
+
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("D2:D11") => (type = "iconSet", priority = 5),
+            XLSX.CellRange("C2:C11") => (type = "iconSet", priority = 4),
+            XLSX.CellRange("B2:B11") => (type = "iconSet", priority = 3),
+            XLSX.CellRange("A2:A11") => (type = "iconSet", priority = 1),
+            XLSX.CellRange("A2:A11") => (type = "iconSet", priority = 2),
+            XLSX.CellRange("E2:E11") => (type = "iconSet", priority = 6),
+            XLSX.CellRange("F2:F11") => (type = "iconSet", priority = 7)
+        ]
+        
+        f=XLSX.newxlsx()
+        s=f[1]
+        for i = 0:3
+            for j=1:13
+                s[i+1,j]=i*13+j
+            end
+        end
+        for j=1:13
+            @test XLSX.setConditionalFormat(s, 1:4, j, :iconSet; # Create a custom 4-icon set in each column.
+                iconset="Custom",
+                icon_list=[j, 13+j, 26+j, 39+j],
+                min_type="percent", mid_type="percent", max_type="percent",
+                min_val="25", mid_val="50", max_val="75"
+                ) == 0
+        end
+
+        @test XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list = [1,2,3,4,5],
+                min_type="percent", max_type="percent",
+                min_val="25", max_val="75",
+                min_gte="false", max_gte="false"
+                ) == 0
+        @test XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                showVal = "false",
+                icon_list = [1,2,3,4,5],
+                min_type="percent", mid_type="percent", max_type="percent",
+                min_val="25", mid_val="50", max_val="75"
+                ) == 0
+        @test XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                reverse="true",
+                icon_list = [1,2,3,4,5],
+                min_type="percent", mid_type="percent", mid2_type="percentile", max_type="percent",
+                min_val="25", mid_val="50", mid2_val="60", max_val="75"
+                ) == 0
+
+        @test XLSX.setConditionalFormat(s, "A2:M2", :iconSet;
+                iconset = "Custom",
+                icon_list = [31,24,11],
+                min_type="num",  max_type="formula",
+                min_val="3",     max_val="if(\$G\$4=\"y\", \$G\$1+5, 10)") == 0
+
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list = [1,2,3,4,5],
+                min_type="percent", mid_type="madeUp", mid2_type="percentile", max_type="num",
+                min_val="25", mid_val="50", mid2_val="60", max_val="75"
+                )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list = [99,2,3,4,5],
+                min_type="percent", mid_type="percent", mid2_type="percentile", max_type="num",
+                min_val="25", mid_val="50", mid2_val="60", max_val="75"
+                )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                min_type="percent", mid_type="percent", max_type="percent",
+                min_val="25", mid_val="50", max_val="75"
+                )
+        @test_throws TypeError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list=[],
+                min_type="percent", mid_type="percent", max_type="percent",
+                min_val="25", mid_val="50", max_val="75"
+                )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list=[1, 13, 26],
+                min_type="percent", mid_type="percent", max_type="percent",
+                min_val="25", mid_val="50", max_val="75"
+                )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list=[1, 13, 26, 39],
+                min_type="percent", max_type="percent",
+                min_val="25"
+                )==0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet;
+                iconset="Custom",
+                icon_list=[1, 13, 26, 39],
+                min_type="percent", 
+                min_val="25", max_val="75"
+                )==0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="Custom",
+                icon_list=[1, 13, 26, 39]
+                )==0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+                iconset="10ThousandManiacs",
+                )==0
+
+
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:A4") => (type = "iconSet", priority = 16),
+            XLSX.CellRange("A1:A4") => (type = "iconSet", priority = 15),
+            XLSX.CellRange("A1:A4") => (type = "iconSet", priority = 14),
+            XLSX.CellRange("A1:A4") => (type = "iconSet", priority = 1),
+            XLSX.CellRange("B1:B4") => (type = "iconSet", priority = 2),
+            XLSX.CellRange("C1:C4") => (type = "iconSet", priority = 3),
+            XLSX.CellRange("D1:D4") => (type = "iconSet", priority = 4),
+            XLSX.CellRange("E1:E4") => (type = "iconSet", priority = 5),
+            XLSX.CellRange("F1:F4") => (type = "iconSet", priority = 6),
+            XLSX.CellRange("G1:G4") => (type = "iconSet", priority = 7),
+            XLSX.CellRange("H1:H4") => (type = "iconSet", priority = 8),
+            XLSX.CellRange("I1:I4") => (type = "iconSet", priority = 9),
+            XLSX.CellRange("J1:J4") => (type = "iconSet", priority = 10),
+            XLSX.CellRange("K1:K4") => (type = "iconSet", priority = 11),
+            XLSX.CellRange("L1:L4") => (type = "iconSet", priority = 12),
+            XLSX.CellRange("M1:M4") => (type = "iconSet", priority = 13),
+            XLSX.CellRange("A2:M2") => (type = "iconSet", priority = 17)
+        ]
+
+        XLSX.addDefinedName(s, "myRange", "A1:B2")
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test XLSX.setConditionalFormat(s, "myRange", :iconSet) == 0
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :iconSet)
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:21
+            s[i, j] = i + j
+        end
+        for (j, k) in enumerate(keys(XLSX.iconsets))
+            if k=="Custom"
+                @test XLSX.setConditionalFormat(s, :, j, :iconSet;
+                    iconset=k,
+                    icon_list=[1,2,3,4,5],
+                    min_type="num", mid_type="num", mid2_type="num", max_type="num",
+                    min_val="8", mid_val="12", mid2_val="15", max_val="18",
+                    )==0
+            else
+                @test XLSX.setConditionalFormat(s, :, j, :iconSet; iconset=k)==0
+            end
+        end
     end
 
     @testset "cellIs" begin
@@ -3508,6 +3803,7 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :cellIs) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :cellIs) # Vectors may be non-contiguous
         @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :cellIs) # StepRange is non-contiguous
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A3", :cellIs; dxStyle="madeUp") # StepRange is non-contiguous
         @test XLSX.setConditionalFormat(s, "1:1", :cellIs) == 0
         @test XLSX.setConditionalFormat(s, 2, :, :cellIs; dxStyle="greenfilltext") == 0
         @test XLSX.setConditionalFormat(s, 3, 1:5, :cellIs;
@@ -3578,6 +3874,13 @@ end
             XLSX.CellRange("A2:E2") => (type="cellIs", priority=2),
             XLSX.CellRange("A1:E1") => (type="cellIs", priority=1)
         ]
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :cellIs;
+            operator="madeUp",
+            value="4",
+            fill=["pattern" => "none", "bgColor" => "green"],
+            format=["format" => "0.0"],
+            font=["color" => "red", "italic" => "true"]
+        )
 
         f = XLSX.newxlsx()
         s = f[1]
@@ -3588,7 +3891,7 @@ end
         XLSX.setConditionalFormat(s, :, 2, :cellIs; dxStyle="redborder")
         XLSX.setConditionalFormat(s, "Sheet1!E:E", :cellIs; dxStyle="redfilltext")
         XLSX.setConditionalFormat(s, 1:5, 3:4, :cellIs;
-            operator="beween",
+            operator="between",
             value="2",
             value2="4",
             fill=["pattern" => "none", "bgColor" => "yellow"],
@@ -3638,7 +3941,16 @@ end
             border=["style" => "hair", "color" => "cyan"]
         )
 
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:6
+            s[i, j] = i + j
+        end
+        for (j, k) in enumerate(keys(XLSX.highlights))
+            @test XLSX.setConditionalFormat(s, :, j, :cellIs; dxStyle=k)==0
+        end
     end
+
 
     @testset "containsText" begin
         f = XLSX.newxlsx()
@@ -3771,6 +4083,14 @@ end
         XLSX.addDefinedName(s, "myRange", "A1:B5")
         @test XLSX.setConditionalFormat(s, "myRange", :containsText;
             operator="notContainsText",
+            value="a",
+            fill=["pattern" => "none", "bgColor" => "yellow"],
+            format=["format" => "0.0"],
+            font=["color" => "green"],
+            border=["style" => "hair", "color" => "cyan"]
+        ) == 0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "myRange", :containsText;
+            operator="madeUp",
             value="a",
             fill=["pattern" => "none", "bgColor" => "yellow"],
             format=["format" => "0.0"],
@@ -3941,6 +4261,14 @@ end
             font=["color" => "green"],
             border=["style" => "hair", "color" => "cyan"]
         )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "myRange", :top10;
+            operator="madeUp",
+            value="2",
+            fill=["pattern" => "none", "bgColor" => "yellow"],
+            format=["format" => "0.0"],
+            font=["color" => "green"],
+            border=["style" => "hair", "color" => "cyan"]
+        )
 
     end
 
@@ -4077,11 +4405,18 @@ end
                 s[i, j] = i * j
             end
         end
-        XLSX.setConditionalFormat(s, "A1:A5", :aboveAverage)
-        XLSX.setConditionalFormat(s, :, 2, :aboveAverage; dxStyle="redborder")
-        XLSX.setConditionalFormat(s, "Sheet1!E:E", :aboveAverage; dxStyle="redfilltext")
-        XLSX.setConditionalFormat(s, 1:5, 3:4, :aboveAverage;
+        @test XLSX.setConditionalFormat(s, "A1:A5", :aboveAverage) == 0
+        @test XLSX.setConditionalFormat(s, :, 2, :aboveAverage; dxStyle="redborder") == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!E:E", :aboveAverage; dxStyle="redfilltext") == 0
+        @test XLSX.setConditionalFormat(s, 1:5, 3:4, :aboveAverage;
             operator="aboveEqAverage",
+            fill=["pattern" => "none", "bgColor" => "yellow"],
+            format=["format" => "0.0"],
+            font=["color" => "green"],
+            border=["style" => "thick", "color" => "coral"]
+        ) == 0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:5, 3:4, :aboveAverage;
+            operator="madeup",
             fill=["pattern" => "none", "bgColor" => "yellow"],
             format=["format" => "0.0"],
             font=["color" => "green"],
@@ -4152,6 +4487,13 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, 2, 1:3:7, :timePeriod) # StepRange is non-contiguous
         @test XLSX.setConditionalFormat(s, "2:2", :timePeriod) == 0
         @test XLSX.setConditionalFormat(s, 2, :, :timePeriod; dxStyle="greenfilltext") == 0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="madeUp",
+            stopIfTrue="true",
+            fill=["pattern" => "none", "bgColor" => "FFFFC7CE"],
+            border=["style" => "thick", "color" => "coral"],
+            font=["color" => "blue", "bold" => "true", "strike" => "true"]
+        )
         @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
             operator="today",
             stopIfTrue="true",
@@ -4181,6 +4523,13 @@ end
             font=["color" => "blue", "bold" => "true", "italic" => "true"]
         ) == 0
         @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
+            operator="thisMonth",
+            stopIfTrue="true",
+            fill=["pattern" => "none", "bgColor" => "FFCC4411"],
+            border=["style" => "thick", "color" => "coral"],
+            font=["color" => "yellow", "bold" => "true", "strike" => "true"]
+        ) == 0
+        @test XLSX.setConditionalFormat(s, 1:10, 1:3, :timePeriod;
             operator="nextMonth",
             stopIfTrue="true",
             fill=["pattern" => "none", "bgColor" => "FFFFCFCE"],
@@ -4201,6 +4550,7 @@ end
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=6),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=7),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=8),
+            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=9),
             XLSX.CellRange("A2:J2") => (type="timePeriod", priority=1),
             XLSX.CellRange("A2:J2") => (type="timePeriod", priority=2)
         ]
@@ -4222,31 +4572,33 @@ end
         @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :timePeriod) == 0
         @test XLSX.setConditionalFormat(s, :, :timePeriod) == 0
         @test XLSX.setConditionalFormat(s, :, :, :timePeriod) == 0
-        @test length(XLSX.getConditionalFormats(s)) == 25
+        @test length(XLSX.getConditionalFormats(s)) == 26
+
         @test XLSX.getConditionalFormats(s) == [
-            XLSX.CellRange("A1:J10") => (type="timePeriod", priority=24),
             XLSX.CellRange("A1:J10") => (type="timePeriod", priority=25),
-            XLSX.CellRange("A1:J3") => (type="timePeriod", priority=20),
-            XLSX.CellRange("A2:J4") => (type="timePeriod", priority=14),
-            XLSX.CellRange("A2:J4") => (type="timePeriod", priority=21),
-            XLSX.CellRange("A1:J2") => (type="timePeriod", priority=13),
-            XLSX.CellRange("A1:J2") => (type="timePeriod", priority=17),
-            XLSX.CellRange("A1:A2") => (type="timePeriod", priority=12),
-            XLSX.CellRange("A1:C3") => (type="timePeriod", priority=10),
-            XLSX.CellRange("A1:A1") => (type="timePeriod", priority=9),
-            XLSX.CellRange("A1:A1") => (type="timePeriod", priority=11),
+            XLSX.CellRange("A1:J10") => (type="timePeriod", priority=26),
+            XLSX.CellRange("A1:J3") => (type="timePeriod", priority=21),
+            XLSX.CellRange("A2:J4") => (type="timePeriod", priority=15),
+            XLSX.CellRange("A2:J4") => (type="timePeriod", priority=22),
+            XLSX.CellRange("A1:J2") => (type="timePeriod", priority=14),
+            XLSX.CellRange("A1:J2") => (type="timePeriod", priority=18),
+            XLSX.CellRange("A1:A2") => (type="timePeriod", priority=13),
+            XLSX.CellRange("A1:C3") => (type="timePeriod", priority=11),
+            XLSX.CellRange("A1:A1") => (type="timePeriod", priority=10),
+            XLSX.CellRange("A1:A1") => (type="timePeriod", priority=12),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=3),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=4),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=5),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=6),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=7),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=8),
-            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=15),
+            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=9),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=16),
-            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=18),
+            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=17),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=19),
-            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=22),
+            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=20),
             XLSX.CellRange("A1:C10") => (type="timePeriod", priority=23),
+            XLSX.CellRange("A1:C10") => (type="timePeriod", priority=24),
             XLSX.CellRange("A2:J2") => (type="timePeriod", priority=1),
             XLSX.CellRange("A2:J2") => (type="timePeriod", priority=2)
         ]
@@ -4342,6 +4694,12 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, 2, 1:3:7, :expression; formula = "A1 < 7") # StepRange is non-contiguous
         @test XLSX.setConditionalFormat(s, "2:2", :expression; formula = "A1 = 16") == 0
         @test XLSX.setConditionalFormat(s, 2, :, :expression; formula = "A1 < 16", dxStyle="greenfilltext") == 0
+        @test_throws UndefKeywordError XLSX.setConditionalFormat(s, 1:10, 1:3, :expression;
+            stopIfTrue="true",
+            fill=["pattern" => "none", "bgColor" => "FFFFC7CE"],
+            border=["style" => "thick", "color" => "coral"],
+            font=["color" => "blue", "bold" => "true", "strike" => "true"]
+        ) == 0
         @test XLSX.setConditionalFormat(s, 1:10, 1:3, :expression;
             formula = "A1 > 15",
             stopIfTrue="true",

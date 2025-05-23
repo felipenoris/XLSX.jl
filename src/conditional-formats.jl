@@ -140,6 +140,38 @@ const iconsets::Dict{String,XML.Node} = Dict(    # Defines the 20 standard, buil
             XML.h.cfvo(type="percent", val="67"),
         )
     ),
+    "4Arrows" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4Arrows",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "5Arrows" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="5Arrows",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="20"),
+            XML.h.cfvo(type="percent", val="40"),
+            XML.h.cfvo(type="percent", val="60"),
+            XML.h.cfvo(type="percent", val="80"),
+        )
+    ),
+    "3ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3ArrowsGray",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "4ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4ArrowsGray",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
     "5ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
         XML.h.iconSet(iconSet="5ArrowsGray",
             XML.h.cfvo(type="percent", val="0"),
@@ -151,6 +183,50 @@ const iconsets::Dict{String,XML.Node} = Dict(    # Defines the 20 standard, buil
     ),
     "3TrafficLights" => XML.h.cfRule(type="iconSet", priority="1",
         XML.h.iconSet(iconSet="3TrafficLights",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3Signs" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Signs",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "4RedToBlack" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4RedToBlack",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "3TrafficLights2" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3TrafficLights2",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "4TrafficLights" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="4TraficLights",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="25"),
+            XML.h.cfvo(type="percent", val="50"),
+            XML.h.cfvo(type="percent", val="75"),
+        )
+    ),
+    "3Symbols" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Symbols",
+            XML.h.cfvo(type="percent", val="0"),
+            XML.h.cfvo(type="percent", val="33"),
+            XML.h.cfvo(type="percent", val="67"),
+        )
+    ),
+    "3Symbols2" => XML.h.cfRule(type="iconSet", priority="1",
+        XML.h.iconSet(iconSet="3Symbols2",
             XML.h.cfvo(type="percent", val="0"),
             XML.h.cfvo(type="percent", val="33"),
             XML.h.cfvo(type="percent", val="67"),
@@ -187,82 +263,6 @@ const iconsets::Dict{String,XML.Node} = Dict(    # Defines the 20 standard, buil
             XML.h.cfvo(type="percent", val="40"),
             XML.h.cfvo(type="percent", val="60"),
             XML.h.cfvo(type="percent", val="80"),
-        )
-    ),
-    "3Symbols" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="3Symbols",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="33"),
-            XML.h.cfvo(type="percent", val="67"),
-        )
-    ),
-    "3Symbols2" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="3Symbols2",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="33"),
-            XML.h.cfvo(type="percent", val="67"),
-        )
-    ),
-    "3Signs" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="3Signs",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="33"),
-            XML.h.cfvo(type="percent", val="67"),
-        )
-    ),
-    "3TrafficLights2" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="3TrafficLights2",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="33"),
-            XML.h.cfvo(type="percent", val="67"),
-        )
-    ),
-    "4TrafficLights" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="4TraficLights",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="25"),
-            XML.h.cfvo(type="percent", val="50"),
-            XML.h.cfvo(type="percent", val="75"),
-        )
-    ),
-    "4RedToBlack" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="4RedToBlack",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="25"),
-            XML.h.cfvo(type="percent", val="50"),
-            XML.h.cfvo(type="percent", val="75"),
-        )
-    ),
-    "4Arrows" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="4Arrows",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="25"),
-            XML.h.cfvo(type="percent", val="50"),
-            XML.h.cfvo(type="percent", val="75"),
-        )
-    ),
-    "5Arrows" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="5Arrows",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="33"),
-            XML.h.cfvo(type="percent", val="67"),
-        )
-    ),
-    "3ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="3ArrowsGray",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="20"),
-            XML.h.cfvo(type="percent", val="40"),
-            XML.h.cfvo(type="percent", val="60"),
-            XML.h.cfvo(type="percent", val="80"),
-        )
-    ),
-    "4ArrowsGray" => XML.h.cfRule(type="iconSet", priority="1",
-        XML.h.iconSet(iconSet="4ArrowsGray",
-            XML.h.cfvo(type="percent", val="0"),
-            XML.h.cfvo(type="percent", val="25"),
-            XML.h.cfvo(type="percent", val="50"),
-            XML.h.cfvo(type="percent", val="75"),
         )
     ),
     # These three require Excel 2010 extensions and will be ignored by earlier versions of Excel.
@@ -367,9 +367,7 @@ function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{Cel
     allcfs = Vector{Pair{CellRange,NamedTuple}}()
     for cf in allcfnodes
         let t, p, r, rule = false, ref = false
-            if XML.tag(cf) != "x14:conditionalFormatting"
-                throw(XLSXEror("Something wrong here"))
-            end
+            @assert XML.tag(cf) == "x14:conditionalFormatting" "Something wrong here"
             sqref = cf[end]
             if XML.tag(sqref) == "xm:sqref"
                 r = XML.simple_value(sqref)
@@ -1083,6 +1081,25 @@ The cell value can be suppressed, so that only the icon is shown in the Excel ce
 optionally specifying `showVal = "false"`. Any other value provided for `showVal` will be 
 ignored, and the cell value will be displayed with the icon.
 
+# Examples
+```julia
+XLSX.setConditionalFormat(s, "F2:F11", :iconSet; iconset="3Arrows")
+
+XLSX.setConditionalFormat(s, 2, :, :iconSet; iconset = "5Boxes",
+            reverse = "true",
+            showVal = "false",
+            min_type="num",  mid_type="percentile", mid2_type="percentile", max_type="num",
+            min_val="3",     mid_val="45",          mid2_val="65",          max_val="8",
+            min_gte="false", mid_gte="false",       mid2_gte="false",       max_gte="false")
+
+XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
+        iconset = "Custom",
+        icon_list = [31,24],
+        min_type="num",  max_type="formula",
+        min_val="3",     max_val="if(\$G\$4=\"y\", \$G\$1+5, 10)")
+
+```
+
 !!! note "Overlaying conditional formats"
     
     It is possible to overlay multiple conditional formats to the same range or to 
@@ -1185,7 +1202,7 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
 
     !isnothing(value) && !is_valid_cellname(value) && !is_valid_fixed_cellname(value) && isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number or a CellRef."))
     !isnothing(value2) && !is_valid_cellname(value2) && !is_valid_fixed_cellname(value2) && isnothing(tryparse(Float64, value2)) && throw(XLSXError("Invalid `value2`: $value2. Must be a number or a CellRef."))
-
+    !isnothing(operator) && operator ∉ ["greaterThan", "greaterEqual", "lessThan", "lessEqual", "equal", "notEqual", "between", "notBetween"] && throw(XLSXError("Invalid `operator`: $operator. Valid options are: `greaterThan`, `greaterEqual`, `lessThan`, `lessEqual`, `equal`, `notEqual`, `between`, `notBetween`"))
     wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
     new_dx = get_new_dx(wb, dx)
@@ -1534,8 +1551,6 @@ function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
         formula = ""
     elseif operator == "duplicateValues"
         formula = ""
-    else
-        throw(XLSXError("Invalid operator: $operator. Valid options are: `containsBlanks`, `notContainsBlanks`, `containsErrors`, `notContainsErrors`, `uniqueValues`, `duplicateValues`."))
     end
     formula = replace(formula, "__CR__" => string(first(rng)))
 
@@ -1665,7 +1680,7 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
 
         else
             if !haskey(colorscales, colorscale)
-                throw(XLSXError("Invalid color scale: $iconset. Valid options are: $(keys(iconsets))."))
+                throw(XLSXError("Invalid color scale: $colorscale. Valid options are: $(keys(colorscales))."))
             end
             cfx = copynode(colorscales[colorscale])
             cfx["priority"] = new_pr
@@ -1722,13 +1737,13 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
         new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
 
         isnothing(mid_type) || min_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: percentile, percent, num, formula."))
-        (!isnothing(min_type) && min_type == "formula") || isnothing(min_val) || is_valid_cellname(min_val) || is_valid_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        (!isnothing(min_type) && min_type == "formula") || isnothing(min_val) || is_valid_fixed_cellname(min_val) || is_valid_fixed_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
         isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
-        (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_cellname(mid_val) || !is_valid_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_fixed_cellname(mid_val) || !is_valid_fixed_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
         isnothing(mid2_type) || mid2_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid2_type. Valid options are: percentile, percent, num, formula."))
-        (!isnothing(mid2_type) && mid2_type == "formula") || isnothing(mid2_val) || is_valid_cellname(mid2_val) || is_valid_sheet_cellname(mid2_val) || !isnothing(tryparse(Float64, mid2_val)) || throw(XLSXError("Invalid mid2_type: `$mid2_val`. Valid options (unless mid2_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        (!isnothing(mid2_type) && mid2_type == "formula") || isnothing(mid2_val) || is_valid_fixed_cellname(mid2_val) || is_valid_fixed_sheet_cellname(mid2_val) || !isnothing(tryparse(Float64, mid2_val)) || throw(XLSXError("Invalid mid2_type: `$mid2_val`. Valid options (unless mid2_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
         isnothing(max_type) || max_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: percentile, percent, num, formula."))
-        (!isnothing(max_type) && max_type == "formula") || isnothing(max_val) || is_valid_cellname(max_val) || is_valid_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        (!isnothing(max_type) && max_type == "formula") || isnothing(max_val) || is_valid_fixed_cellname(max_val) || is_valid_fixed_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
 
         for val in [min_val, mid_val, mid2_val, max_val]
             val = isnothing(val) ? nothing : XML.escape(uppercase_unquoted(val))
@@ -1741,19 +1756,21 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
         if l=='C'
             cfvo = XML.Element("x14:cfvo", type="percent")
             push!(cfvo, XML.Element("xm:f", XML.Text("dummy")))
-            for _ in 1:2
-                push!(cfx[1], copynode(cfvo))
-            end
-            if isnothing(mid_type) || isnothing(mid_val)
+            push!(cfx[1], copynode(cfvo)) # for min_val
+            push!(cfx[1], copynode(cfvo)) # for max_val
+            if isnothing(min_type) || isnothing(min_val) || isnothing(max_type) || isnothing(max_val)
+                throw(XLSXError("No type or val keywords defined. Must define at least `min_type`, `min_val`, `max_type` and `max_val` for a custom iconSet"))
+            elseif isnothing(mid_type) || isnothing(mid_val)
                 list = [(min_type, min_val, min_gte), (max_type, max_val, max_gte)]
                 nicons=3
             elseif isnothing(mid2_type) || isnothing(mid2_val)
-                push!(cfx[1], copynode(cfvo))
+                push!(cfx[1], copynode(cfvo)) # for mid_val
                 cfx[1]["iconSet"] = "4Arrows"
                 nicons=4
                 list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (max_type, max_val, max_gte)]
             else
-                push!(cfx[1], copynode(cfvo))
+                push!(cfx[1], copynode(cfvo)) # for mid_val
+                push!(cfx[1], copynode(cfvo)) # for mid2_val
                 cfx[1]["iconSet"] = "5Quarters"
                 nicons=5
                 list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (mid2_type, mid2_val, mid2_gte), (max_type, max_val, max_gte)]
@@ -1783,18 +1800,21 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                     cfx[1][i+1]["type"] = type # Need +1 because the first <cfvo> is always 0 percent.
                 end
                 if !isnothing(val)
-                    cfx[1][i+1][1] = XML.Element("xm:f", XML.Text(val))
+                    if !isnothing(type) && type=="formula"
+                        cfx[1][i+1][1] = XML.Element("xm:f", XML.Text("(" * val * ")"))
+                    else
+                        cfx[1][i+1][1] = XML.Element("xm:f", XML.Text(val))
+                    end
                 end
                 if !isnothing(gte) && gte == "false"
                     cfx[1][i+1]["gte"] = "0"
                 end
             end
             if iconset == "Custom"
-                licons=length(icon_list)
-                if licons == 0
+                if isnothing(icon_list)
                     throw(XLSXError("No custom icons specified. Must specify between two and four icons."))
-                elseif licons<nicons
-                    throw(XLSXError("Too few custom icons specified: $licons. Expected $nicons"))
+                elseif length(icon_list)<nicons
+                    throw(XLSXError("Too few custom icons specified: $(length(icon_list)). Expected $nicons"))
                 end
                     for (count, icon) in enumerate(string.(icon_list))
                     if !isnothing(icon)
@@ -1818,7 +1838,11 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
             end
             for (i, (type, val, gte)) in enumerate(list)
                 if !isnothing(val)
-                    cfx[1][i+1]["val"] = val
+                    if !isnothing(type) && type=="formula"
+                        cfx[1][i+1]["val"] = "(" * val * ")"
+                    else
+                         cfx[1][i+1]["val"] = val
+                    end
                 end
                 if !isnothing(type)
                     cfx[1][i+1]["type"] = type
