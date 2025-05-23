@@ -1,7 +1,7 @@
 
 # Formatting Guide
 
-## Excel Formatting
+## Excel formatting
 
 Each cell in an Excel spreadsheet may refer to an Excel `style`. Multiple cells can 
 refer to the same `style` and therefore have a uniform appearance. A `style` defines
@@ -435,8 +435,9 @@ The following `:type` values are used to set conditional formats by making direc
 - `:duplicateValues`
 
 Each of these formatting types needs a set of keyword options to fully define its operation. 
-For example, the `:cellIs` type needs an `operator` keyword, set to define the test to make 
-to determine whether or not to apply the formatting. Valid `operator` values are:
+This can be exemplified by considering the `:cellIs` type. Like the other conditional formats 
+in this group, `:cellIs` needs an `operator` keyword to define the test to make to determine 
+whether or not to apply the formatting. Valid `operator` values for `:cellIs` are:
 
 - `greaterThan`     (cell >  `value`)
 - `greaterEqual`    (cell >= `value`)
@@ -450,8 +451,8 @@ to determine whether or not to apply the formatting. Valid `operator` values are
 Each of these need the keyword `value` to be specified and, for `between` and `notBetween`, `value2` 
 must also be specified.
 
-All the cell value formatting types can use one of six built-in formats in Excel as illustrated here 
-for the `greaterThan` comparison.
+Like all the cell value formatting types, `:cellIs` can use one of six built-in Excel formats, as 
+illustrated here for the `greaterThan` comparison.
 
 ![image|320x500](./images/cellvalue-formats.png)
 
@@ -465,7 +466,7 @@ keyword with one of the following values:
 * `redborder`
 
 Thus, for example, to create a simple `XLSXFile` from scratch and then apply some 
-conditional formats to its cells:
+`:cellIs` conditional formats to its cells:
 
 ```julia
 julia> columns = [ [1, 2, 3, 4], ["Hey", "You", "Out", "There"], [10.2, 20.3, 30.4, 40.5] ]
@@ -572,8 +573,8 @@ julia> XLSX.getConditionalFormats(s)
 
 ![image|320x500](./images/custom-cellvalue-example.png)
 
-The `formatting_type` needed for these different functions varies, as do the keyword options.
-Refer to [XLSX.setConditionalFormat()](@ref) for full details.
+Each of the conditional format `type`s in the cell value group take similar keyword options but 
+the specific details vary for each. For more details, refer to [XLSX.setConditionalFormat()](@ref).
 
 #### Expressions
 
@@ -618,7 +619,8 @@ julia> XLSX.setConditionalFormat(s, "C2:D10", :expression; formula = "C2>\$B2", 
 ```
 ![image|320x500](./images/simpleComparison.png)
 
-Column A uses relative referencing. Columns C and D use an absolute reference for the column but not the row.
+Column A uses relative referencing. Columns C and D use an absolute reference for the column but not the 
+row of the comparison reference.
 
 The following example uses absolute references on rows and compares the average of each column with the 
 average of the preceding column.
@@ -645,8 +647,8 @@ julia> XLSX.setConditionalFormat(s, "B2:D11", :expression; formula = "average(B\
 
 (Row 13 above is the average of each column, calculated in Excel)
 
-When a formula uses relative references, the relative position of the reference to the base cell in the range to which 
-the condition is applied is used consistently throughout the range.
+When a formula uses relative references, the relative position (offset) of the reference to the base cell in the 
+range to which the condition is applied is used consistently throughout the range.
 This is illustrated in the following example:
 
 ```julia
@@ -845,17 +847,17 @@ format is being applied. This can be illustrated (for a 4-icon set) as follows:
                          `min_val`         `mid_val`         `max_val`
                          threshold         threshold         threshold
 ``` 
-The starting value for the first icon is always the minimum value of the range, and the stoping
+The starting value for the first icon is always the minimum value of the range, and the stopping
 value for the last icon is always the maximum value in the range. No cells will have values for 
 which an icon cannot be assigned. The internal thresholds for transition from one icon to the 
 next are defined (in a 3-icon set) by `min_val` and `max_val`. In a 4-icon set, an additional 
-threshold, `mid-val` is required and in a 5-icon set, `mid2_val` is needed as well.
+threshold, `mid-val`, is required and in a 5-icon set, `mid2_val` is needed as well.
 
 The type of these thresholds can be defined in terms of `percent` (of the range), `percentile` 
 or simply with a `num` (number) (e.g. as `min_type="percent"`). For each threshold, 
 the value can either be given as a number (as a String) or as a simple cell reference. 
-Alternatively, specifying the type as `formula` allows the value to be determined by valid Excel 
-formula.
+Alternatively, specifying the type as `formula` allows the value to be determined by any 
+valid Excel formula.
 
 !!! note
 
@@ -906,10 +908,11 @@ julia> XLSX.setConditionalFormat(s, "D2:D11", :iconSet;
 ![image|320x500](./images/showValIcons.png)
 
 Create a custom icon set by specifying `iconset="Custom"`. The icons to use in the custom set are 
-defined with `icon_list` keyword, which takes a vector of integers definingwhich of the 52 built 
-in icons to use. Use of the val and type keywords dictate the number of icons to use. If mid_type 
-and mid_val are both defined, but not mid2_val and mid2_type, then a 4-icon will be used. If both 
-sets are defined, a 5-icon set is used and if neither, a 3-icon set.
+defined with `icon_list` keyword, which takes a vector of integers defining which of the 52 built 
+in icons to use. Use of the val and type keywords dictate the number of icons to use. If `mid_type` 
+and `mid_val` are both defined, but not `mid2_val` or `mid2_type`, then a 4-icon set will be used. 
+If both sets of keywords are defined, a 5-icon set is used and if neither is set, a 3-icon set will 
+be used.
 
 This is illustrated with code below, which produces a key defining which integer to use 
 in `icon_list` to represent any desired icon:
@@ -938,7 +941,7 @@ XLSX.writexlsx("iconKey.xlsx", f, overwrite=true)
 ```
 ![image|320x500](./images/iconKey.png)
 
-Specifying too few icons throws an error, any extra will simply be ignored.
+Specifying too few icons throws an error while any extra will simply be ignored.
 
 #### Specifying cell references in Conditional Formats
 
@@ -956,14 +959,15 @@ absolute cell ranges when calling `setCondtionalFormat()`
 ##### Relative and absolute cell references
 
 Cell references used to specify `value` or `value2` or in any `formula` (for `:expression` type 
-conditional formats only) may be either absolute or relative, and both can be useful. It is 
-important to understand which reference style you need and to specify accordingly. As in Excel, 
-an absolute reference is defined using a `$` prefix to either or both the row or the column part 
-of the cell reference but here the `$` must be appropriately escaped. Thus:
+conditional formats only) may be either absolute or relative. As in Excel, an absolute reference 
+is defined using a `$` prefix to either or both the row or the column part of the cell reference 
+but here the `$` must be appropriately escaped. Thus:
+
 ```julia
 value = "B2"          # relative reference
 value = "\$B\$2"      # (escaped) absolute reference
 ```
+
 The cell used in a comparison is adjusted for each cell in the range if a relative reference is used. This is 
 illustrated in the following example. Cells in column A are referenced to column B using a relative reference,
 meaning `A2` is compared with `B2` but `A3` is compared with `B3` and so on until `A5` is compared with `B5`.
@@ -1081,7 +1085,8 @@ one of the conditions, so that lower proirity conditional formats are not applie
 achieved with the `stopIfTrue` keyword. It is not possible to apply `stopIfTrue` to dataBars, colorScales or 
 iconSets.
 
-For example:
+The example below illustrates how `stopIfTrue` is used to stop further conditional formats from being 
+applied to cells to which red borders are applied:
 
 ```julia
 julia> s[1:5, 1:3]
@@ -1116,7 +1121,7 @@ will result in the following, instead:
 
 ![image|320x500](./images/no-stop-if-true.png)
 
-## Working with Merged Cells
+## Working with merged cells
 
 Worksheets may contain merged cells. XLSX.jl provides functions to identify the merged cells in a worksheet, 
 to determine if a cell is part of a merged range and to determine the value of a merged cell range from any 

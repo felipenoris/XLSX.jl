@@ -456,6 +456,26 @@ If not specified (when required), `value` will be the arithmetic average of the
 (non-missing) cell values in the range if values are numeric. If the cell values 
 are non-numeric, an error is thrown.
 
+
+!!! note "Overlaying conditional formats"
+    
+    It is possible to overlay multiple conditional formats to the same range or to 
+    overlapping ranges. Each format is applied in turn to each cell in priority 
+    order which, here, is the order in which they are created. Different format 
+    options may complement or override each other and the finished appearance will 
+    be the resuilt of all formats overlaying each other.
+
+    It is possible to terminate the sequential application of conditional formats to a 
+    cell if the condition related to any format is met. This is achieved by setting the 
+    keyword option `stopIfTrue="true"` in the relevant conditional format.
+
+    While the `stopIfTrue` keyword is available for most conditional formats, it is not 
+    available for `:colorScale`, `:dataBar` or `:iconSet` conditional formats since these 
+    do not apply a specific test in each cell.
+
+    For example usage of the `stopIfTrue` keyword, refer to [Overlaying conditional formats](@ref) 
+    in the Formatting Guide.
+
 Formatting to be applied if the condition is met can be defined in one of two ways. 
 Use the keyword `dxStyle` to select one of the built-in Excel formats. 
 Valid options are:
@@ -483,7 +503,7 @@ more details on the valid attributes and values.
 !!! note
 
     Excel limits the formatting attributes that can be set in a conditional format.
-    It is not possible to set the size or name of a font and nor is it possible to set 
+    It is not possible to set the size or name of a font and neither is it possible to set 
     any of the cell alignment attributes. Diagonal borders cannot be set either.
 
     Although it is not a limitation of Excel, this function sets all the border attributes 
@@ -516,7 +536,7 @@ julia> XLSX.setConditionalFormat(s, "B1:B5", :cellIs;
             font = ["color"=>"red", "italic"=>"true"]
         )
 
-julia> XLSX.setConditionalFormat(s, "B1:B5", :cell;
+julia> XLSX.setConditionalFormat(s, "B1:B5", :cellIs;
             operator="lessThan",
             value="2",
             fill = ["pattern" => "none", "bgColor"=>"yellow"],
@@ -861,8 +881,8 @@ julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod;
 
 # type = :containsErrors, :notContainsErrors, :containsBlanks, :notContainsBlanks, :uniqueValues or :duplicateValues
 
-These conditional formattimg options highlight cells that contain or don't contain errors, 
-are blank (default) or not blank, are unique in the range or duplicates within the range. 
+These conditional formatting options highlight cells that contain or don't contain errors, 
+are blank (default) or not blank, are unique in the range or are duplicates within the range. 
 The available keywords are: 
 
 - `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
@@ -917,7 +937,7 @@ The available keywords are:
 - `border`     : defines the border to apply if opting for a custom format.
 - `fill`       : defines the fill to apply if opting for a custom format.
 
-THe keyword `formula` is required and there is no default value. Formulae must be valid 
+The keyword `formula` is required and there is no default value. Formulae must be valid 
 Excel formulae and written in US english with comma separators. Cell references may be 
 absolute or relative references in either the row or the column or both.
 
@@ -980,10 +1000,10 @@ instead using the following keywords:
 
 The keywords `min_val`, `mid_val`, and `max_val` can be a number or cell reference (e.g. `"\$A\$1"`) for any value 
 of the related type keyword or, if the related type keyword is set to `formula`, may be a valid Excel formula that 
-calculates a number. Cell references is used (in a formula) should usually be specified as absolute references.
+calculates a number. Cell references is used in a formula must be specified as absolute references.
 
 Colors can be specified using an 8-digit hex string (e.g. `FF0000FF` for blue) or any named 
-color from Colors.jl ([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 # Examples
 
@@ -1014,7 +1034,7 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 
 # type = :iconSet
 
-Apply a set of icons to cells in a range depending on their values. The kwyword `iconset`
+Apply a set of icons to cells in a range depending on their values. The keyword `iconset`
 can be used to select one of 20 built-in icon sets Excel provides by name. Valid names are:
 - `3Arrows`
 - `5ArrowsGray`
@@ -1039,23 +1059,24 @@ can be used to select one of 20 built-in icon sets Excel provides by name. Valid
 
 The digit prefix to the name indicates how many icons there are in a set, and therefore
 how the cell values with be binned by value. Bin boundaries may optionally be specified
-by the following  keywords to override the default values for each icon set:
+by the following keywords to override the default values for each icon set:
 
-- `min_type`  = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `min_type`  = "percent" (default), "percentile", "num" or "formula"
 - `min_val`     (default: "33" (3 icons), "25" (4 icons) or "20" (5 icons))
-- `mid_type`  = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `mid_type`  = "percent" (default), "percentile", "num" or "formula"
 - `mid_val`     (default: "50" (4 icons), "40" (5 icons))
-- `mid2_type` = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `mid2_type` = "percent" (default), "percentile", "num" or "formula"
 - `mid2_val`    (default: "60" (5 icons))
-- `max_type`  = "percent" (default), "percentile", "num", "percentile" or "formula"
+- `max_type`  = "percent" (default), "percentile", "num" or "formula"
 - `max_val`     (default: "67" (3 icons), "75" (4 icons) or "80" (5 icons))
 
 The keywords `min_val`, `mid_val`, `mid2_val` and `max_val` may contain numbers (as strings) 
 or valid cell references. If `formula` is specified for the related type keyword, a valid 
 Excel formula can be provided to evaluate to the bin threshold value to be used.
-Three-icon sets require two thresholds (min_* and max_*), four-icon sets require three 
-thresholds (with the addition of mid_*) and five-icon sets require four thresholds (mid2_*).
-Thresholds defined (using val and type keywords) that are unnecessary are simply ignored.
+Three-icon sets require two thresholds (`min_type`/`min_val` and `max_type`/`max_val`), 
+four-icon sets require three thresholds (with the addition of `mid_type`/`mid_val`) and 
+five-icon sets require four thresholds (adding `mid2_type`/`mid2_val`). Thresholds defined 
+(using val and type keywords) that are unnecessary are simply ignored.
 
 Each value can be tested using `>=` (default) or `>`. To change from the default,
 optionally set `min_gte`, `mid_gte`, `mid2_gte` and/or `max_gte` to `"false"` to 
@@ -1065,15 +1086,15 @@ and the default `>=` comparison used.
 The built-in icon sets Excel provides are composed of 52 individual icons. It is 
 possible to mix and match any of these to make a custom 3-icon, 4-icon or 5-icon 
 set by specifying `iconset = "Custom"`. The number of icons in the set will be 
-determined by whether `mid_value` and `mid_type` keywords and `mid2_value` and 
-`mid2_type` keywords are provided.
+determined by whether the `mid_val`/`mid_type` keywords and `mid2_val`/`mid2_type` 
+keywords are provided.
 
 The icons that will be used in a `Custom` iconset are defined using the `icon_list` 
 keyword which takes a vector of integers in the range from 1 to 52. For a key relating
 integers to the icons they represent, see the [Icon Set](@ref) section in the Formatting 
 Guide.
 
-The order in which the symbols is appiled can be reversed from the default order (or, for 
+The order in which the symbols are appiled can be reversed from the default order (or, for 
 `Custom` icon sets, the order given in `icon_list`), by optionally setting `reverse = "true"`. 
 Any other value provided for `reverse` will be ignored, and the default order applied.
 
@@ -1099,22 +1120,6 @@ XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
         min_val="3",     max_val="if(\$G\$4=\"y\", \$G\$1+5, 10)")
 
 ```
-
-!!! note "Overlaying conditional formats"
-    
-    It is possible to overlay multiple conditional formats to the same range or to 
-    overlapping ranges. Each format is applied in turn to each cell in priority 
-    order which, here, is the order in which they are created. Different format 
-    options may complement or override each other and the finished appearance will 
-    be the resuilt of all formats overlaying each other.
-
-    It is possible to terminate the sequential application of conditional formats to a 
-    cell if the condition related to any format is met. This is achieved by setting the 
-    keyword option `stopIfTrue="true"` in the relevant conditional format.
-
-    While the `stopIfTrue` keyword is available for most conditional formats, it is not 
-    available for `:colorScale`, `:dataBar` or `:iconSet` conditional formats since these 
-    do not apply a specific test in each cell.
 
 """
 function setConditionalFormat(f, r, type::Symbol; kw...)
