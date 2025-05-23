@@ -1,5 +1,12 @@
 # Migration Guides
 
+!!! note
+
+    This migration guide was introduced to describe migrating from a pre v0.8 version 
+    of XLSX.jl to v0.8. 
+    
+    It is a largely historic document now.
+
 ## Migrating Legacy Code to v0.8
 
 Version `v0.8` introduced a breaking change on methods [`XLSX.gettable`](@ref) and [`XLSX.readtable`](@ref).
