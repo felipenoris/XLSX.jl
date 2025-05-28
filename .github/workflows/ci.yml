@@ -18,9 +18,6 @@ jobs:
         version:
           - '1.8'
           - '1.9'
-          - '1.10'
-          - '1.11'
-          - 'lts'
           - '1' # automatically expands to the latest stable 1.x release of Julia
           - 'pre'
           - 'nightly'
@@ -30,39 +27,12 @@ jobs:
           - macOS-latest
         arch:
           - x64
-#        include: # must be a better way!
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: '1.8'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: '1.9'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: '1.10'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: '1.11'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: 'lts'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: '1'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: 'pre'
-#          - os: macOS-latest
-#            arch: aarch64
-#            version: 'nightly'
-
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-
       - uses: actions/cache@v4
         env:
           cache-name: cache-artifacts
