@@ -1,16 +1,23 @@
 #
 # ---- Some random helper functions
 #
-#function convertref(c)
-#    if !isnothing(c)
-#        if is_valid_cellname(c)
-#            c = abscell(CellRef(c))
-#        elseif is_valid_sheet_cellname(c)
-#            c = mkabs(SheetCellRef(c))
-#        end
-#    end
-#    return c
-#end
+function convertref(c)
+    if !isnothing(c)
+        if is_valid_cellname(c)
+            c = abscell(CellRef(c))
+        elseif is_valid_sheet_cellname(c)
+            c = mkabs(SheetCellRef(c))
+        end
+    end
+    return c
+end
+function isValidKw(kw::String, val::Union{String, Nothing}, valid::Vector{String})
+    if isnothing(val) || val ∈ valid
+        return true
+    else
+        throw(XLSXError("Invalid keyword $kw: $val. Valid values are $valid"))
+    end
+end
 function uppercase_unquoted(s::AbstractString)
     result = IOBuffer()
     i = firstindex(s)
@@ -142,7 +149,7 @@ function update_worksheet_ext_cfx!(allcfs, cfx, ws, rng)
     update_worksheets_xml!(get_xlsxfile(ws))
 end
 function get_x14_icon(x14set)
-    rule = XML.Element("x14:cfRule", type="iconSet", priority="1", id="XXXX-xxxx_XXXX") # replace id with UUID generated at time of use.
+    rule = XML.Element("x14:cfRule", type="iconSet", priority="1", id="XXXX-xxxx-XXXX") # replace id with UUID generated at time of use.
     if x14set == "Custom"
         icon = XML.Element("x14:iconSet", iconSet="3Arrows", custom="1")
     else

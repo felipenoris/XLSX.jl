@@ -708,11 +708,157 @@ julia> XLSX.setConditionalFormat(s, "C1:C3", :expression; formula = "exact(\"Hel
 
 #### Data Bar
 
-(In development)
+A `:dataBar` conditional format can be applied to a range of cells.
+In Excel there are twelve built-in data bars available, but it is possible 
+to customise many elements of these.
 
 ![image|320x500](./images/dataBars.png)
 
+In XLSX.jl, the twelve built-in data bars are named as follows 
+(layout follows image)
+
+|                |                |                 |                 |
+|:--------------:|:--------------:|:---------------:|:---------------:|
+| Gradient fill  |    bluegrad    |   greengrad     |    redgrad      |
+|                |   orangegrad   |  lightbluegrad  |   purplegrad    |
+| Solid fill     |      blue      |     green       |      red        |
+|                |     orange     |   lightblue     |    purple       |
+
+
+Choose one of these data bars by name using the `databar` keyword. If no `databar` 
+is specified, `bluegrad` is the default choice. For example
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range        
+-------------------------------------------------
+               Sheet1 1x1           A1:A1        
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
+
+julia> s[1:10, 1]=1:10
+1:10
+
+julia> s[1:10, 3]=1:10
+1:10
+
+julia> XLSX.setConditionalFormat(s, "A1:A10", :dataBar) # Defaults to `databar="bluegrad"`
+0
+
+julia> XLSX.setConditionalFormat(s, "C1:C10", :dataBar; databar="orange")
+0
+
+```
+![image|320x500](./images/simpleDataBar.png)
+
+All of the options provided by Excel can be adjusted using the provided keyword options. 
+
 ![image|320x500](./images/dataBarOptions.png)
+
+![image|320x500](./images/negAndAxisOptions.png)
+
+For example, the end points of the bar scale can be defined by setting the `min_type` and `max_type` 
+keywords to `num` (for an absolute number value), `percent`,  `percentile`, `formula` or `min` or `max`. 
+The default type is `automatic`.
+
+For the first three type options, a value must also be given by setting `min_val`, `max_val`.
+The value may be taken from a cell by setting `min_val`, `max_val` to a cell reference. When the type is 
+set to `formula`, any valid formula yielding a value can be given. Cell references must use absolute referencing.
+Types `min` and `max` set the scale endpoints to be exactly the minimum and maximum values of the data in the 
+cell range whereas using `automatic` allows Excel flexibility to make minor adjustments to these endpoints, 
+e.g. to improve appearance.
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+julia> s[1:10, 5]=1:10
+1:10
+
+julia> s[1:10, 1]=1:10
+1:10
+
+julia> s[1:10, 3]=1:10
+1:10
+
+julia> XLSX.setConditionalFormat(s, "A1:A10", :dataBar)
+0
+
+julia> XLSX.setConditionalFormat(s, "C1:C10", :dataBar; databar="purple", min_type="num", max_type="num", min_val="2", max_val="8")
+0
+
+julia> XLSX.setConditionalFormat(s, "E1:E10", :dataBar; databar="greengrad", min_type="percent", max_type="percent", min_val="35", max_val="65")
+0
+```
+
+![image|320x500](./images/minmaxDataBar.png)
+
+Choose whether to hide values using `showVal="false"`, convert a gradient fill to solid (or vice versa) 
+with `gradient="false"` (`gradient="true"`) and add borders to data bars with `borders="true"`.
+
+```julia
+julia> XLSX.setConditionalFormat(s, "A1:A10", :dataBar)
+0
+
+julia> XLSX.setConditionalFormat(s, "C1:C10", :dataBar, showVal="false", gradient="false")
+0
+
+julia> XLSX.setConditionalFormat(s, "E1:E10", :dataBar; databar=purple,  borders="true", gradient="true")
+0
+```
+![image|320x500](./images/borderAndGrad.png)
+
+Change bar colors using `fill_col=` and border colors using `border_col=`. Colors are specified using an 8-digit hexadecimal as `"FFRRGGBB"` or using any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
+
+By default, negative values are shown with red bars and borders. Override these defaults by setting `sameNegFill = "true"`and `sameNegBorders="true"` to use the same colors as positive bars. Alternatively, to use any available color, set `neg_fill_col=` and `neg_border_col=`.
+
+```julia
+julia> XLSX.setConditionalFormat(s, "A1:A11", :dataBar)
+0
+
+julia> XLSX.setConditionalFormat(s, "C1:C11", :dataBar; sameNegFill="true", sameNegBorders="true")
+0
+
+julia> XLSX.setConditionalFormat(s, "E1:E11", :dataBar; fill_col="cyan", border_col="blue", neg_fill_col="lemonchiffon1", neg_border_col="goldenrod4")
+0
+
+```
+![image|320x500](./images/customColors.png)
+
+Control the location of the axis using `axis_pos = "middle"` to locate it in the middle of the 
+column width or `axis_pos = "none"` to remove the axis. Excel chooses the direction of the bars 
+according to the context of the cell data. Force (postive) bars to go `leftToRight` or 
+`rightToLeft` using the `direction` key word. Change the color of the axis with `axis_col`.
+
+```julia
+julia> s[1:10, 1]=1:10
+1:10
+
+julia> s[1:10,3]=-5:4
+-5:4
+
+julia> s[1:10,5]=1:10
+1:10
+
+julia> XLSX.setConditionalFormat(s, "A1:A10", :dataBar)
+0
+
+julia> XLSX.setConditionalFormat(s, "C1:C10", :dataBar; direction="rightToLeft", axis_pos="middle", axis_col="magenta")
+0
+
+julia> XLSX.setConditionalFormat(s, "E1:E10", :dataBar; direction="leftToRight", min_type="num", min_val="-5", axis_pos="none")
+0
+
+```
+![image|320x500](./images/axisOptions.png)
 
 #### Color Scale
 
@@ -814,19 +960,6 @@ julia> s=f[1]
 
 julia> s[1:10, 1]=1:10
 1:10
-
-julia> s[1:10, 1]=collect(1:10)
-10-element Vector{Int64}:
-  1
-  2
-  3
-  4
-  5
-  6
-  7
-  8
-  9
- 10
 
 julia> XLSX.setConditionalFormat(s, "A1:A10", :iconSet)
 0
@@ -941,7 +1074,7 @@ XLSX.writexlsx("iconKey.xlsx", f, overwrite=true)
 ```
 ![image|320x500](./images/iconKey.png)
 
-Specifying too few icons throws an error while any extra will simply be ignored.
+Specifying too few icons in `icon_list` throws an error while any extra will simply be ignored.
 
 #### Specifying cell references in Conditional Formats
 
@@ -1120,6 +1253,36 @@ Overlaying the same three conditional formats without setting the `stopIfTrue` o
 will result in the following, instead:
 
 ![image|320x500](./images/no-stop-if-true.png)
+
+It is possible to overlay `:colorScale`s, `:dataBar`s and `:iconSets` in the same or 
+overlapping cell ranges.
+
+```julia
+julia> f=XLSX.newxlsx()
+XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 1x1           A1:A1
+
+julia> s=f[1]
+1×1 XLSX.Worksheet: ["Sheet1"](A1:A1)
+
+julia> XLSX.writetable!(s, [rand(10),rand(10),rand(10),rand(10),rand(10),rand(10),rand(10)],["col1","col2","col3","col4","col5","col6","col7"])
+
+julia> XLSX.setConditionalFormat(s, "A5:E8", :dataBar; direction="rightToLeft")
+0
+
+julia> XLSX.setConditionalFormat(s, "C5:G8", :iconSet; iconset="5Arrows")
+0
+
+julia> XLSX.setConditionalFormat(s, "C2:E11", :colorScale; colorscale="greenyellowred")
+0
+
+julia> XLSX.setFormat(s, "A2:G11"; format="#0.00")
+-1
+
+``` 
+![image|320x500](./images/moreMixed.png)
 
 ## Working with merged cells
 

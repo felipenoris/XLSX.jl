@@ -1661,7 +1661,7 @@ end
         isfile(f) && rm(f)
     end
 end
-
+@time begin
 @testset "Styles" begin
 
     @testset "Original" begin
@@ -3369,8 +3369,212 @@ end
         @test XLSX.getBorder(s, "J45").border == Dict("left" => Dict("indexed" => "64", "style" => "thin"), "bottom" => Dict("indexed" => "64", "style" => "thin"), "right" => Dict("indexed" => "64", "style" => "thin"), "top" => Dict("indexed" => "64", "style" => "thin"), "diagonal" => nothing)
     end
 end
+end
+@time begin
+@testset "Conditional Formats" verbose=true begin
 
-@testset "Conditional Formats" begin
+    @testset "DataBar" begin
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:5
+            s[i, j] = i + j
+        end
+
+        @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :dataBar) # Non-contiguous ranges not allowed
+        @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :dataBar) # Vectors may be non-contiguous
+        @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :dataBar) # StepRange is non-contiguous
+        @test XLSX.setConditionalFormat(s, "1:1", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, 2, :, :dataBar; databar="greengrad") == 0
+        @test XLSX.setConditionalFormat(s, 3, 1:5, :dataBar;
+            min_type="least",
+            min_val="green", #should be ignored because type=least
+            max_type="percentile",
+            max_val="50",
+        ) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A4:E4", :dataBar;
+            min_type="automatic",
+            max_type="automatic",
+        ) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :dataBar;
+            min_type="num",
+            min_val="\$A\$1",
+            max_type="formula",
+            max_val="\$A\$2"
+        ) == 0
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("A5:E5") => (type="dataBar", priority=5), XLSX.CellRange("A4:E4") => (type="dataBar", priority=4), XLSX.CellRange("A3:E3") => (type="dataBar", priority=3), XLSX.CellRange("A2:E2") => (type="dataBar", priority=2), XLSX.CellRange("A1:E1") => (type="dataBar", priority=1)]
+        @test XLSX.setConditionalFormat(s, "A1", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "A1:C3", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:A2", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!1:2", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "2:4", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "A:C", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :dataBar) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!1:2", :dataBar) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A:C", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, :, 1:3, :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, 1:3, :, :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "2:4", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "A:C", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!A:C", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, :, :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, :, :, :dataBar) == 0
+        @test length(XLSX.getConditionalFormats(s)) == 22
+        @test XLSX.getConditionalFormats(s) == [
+            XLSX.CellRange("A1:E5") => (type="dataBar", priority=21),
+            XLSX.CellRange("A1:E5") => (type="dataBar", priority=22),
+            XLSX.CellRange("A1:E3") => (type="dataBar", priority=17),
+            XLSX.CellRange("A1:C5") => (type="dataBar", priority=12),
+            XLSX.CellRange("A1:C5") => (type="dataBar", priority=13),
+            XLSX.CellRange("A1:C5") => (type="dataBar", priority=15),
+            XLSX.CellRange("A1:C5") => (type="dataBar", priority=16),
+            XLSX.CellRange("A1:C5") => (type="dataBar", priority=19),
+            XLSX.CellRange("A1:C5") => (type="dataBar", priority=20),
+            XLSX.CellRange("A2:E4") => (type="dataBar", priority=11),
+            XLSX.CellRange("A2:E4") => (type="dataBar", priority=18),
+            XLSX.CellRange("A1:E2") => (type="dataBar", priority=10),
+            XLSX.CellRange("A1:E2") => (type="dataBar", priority=14),
+            XLSX.CellRange("A1:A2") => (type="dataBar", priority=9),
+            XLSX.CellRange("A1:C3") => (type="dataBar", priority=7),
+            XLSX.CellRange("A1:A1") => (type="dataBar", priority=6),
+            XLSX.CellRange("A1:A1") => (type="dataBar", priority=8),
+            XLSX.CellRange("A5:E5") => (type="dataBar", priority=5),
+            XLSX.CellRange("A4:E4") => (type="dataBar", priority=4),
+            XLSX.CellRange("A3:E3") => (type="dataBar", priority=3),
+            XLSX.CellRange("A2:E2") => (type="dataBar", priority=2),
+            XLSX.CellRange("A1:E1") => (type="dataBar", priority=1)
+        ]
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:5
+            s[i, j] = i + j
+        end
+        @test XLSX.setConditionalFormat(s, "A1:A5", :dataBar) == 0
+        @test XLSX.setConditionalFormat(s, :, 2, :dataBar; databar="orange") == 0
+        @test XLSX.setConditionalFormat(s, "Sheet1!E:E", :dataBar; databar = "purplegrad") == 0
+        @test XLSX.setConditionalFormat(s, 1:5, 3:4, :dataBar;
+            borders = "false",    
+            min_type="percentile",
+            min_val="25",
+            max_type="percentile",
+            max_val="75"
+        ) == 0
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type="dataBar", priority=4), XLSX.CellRange("E1:E5") => (type="dataBar", priority=3), XLSX.CellRange("B1:B5") => (type="dataBar", priority=2), XLSX.CellRange("A1:A5") => (type="dataBar", priority=1)]
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:5
+            s[i, j] = i + j
+        end
+
+        @test XLSX.setConditionalFormat(s, :, 1:4, :dataBar;
+            databar="red",
+            borders="true",    
+            fill_col="blue",
+            border_col="yellow",
+            neg_fill_col="magenta",
+            neg_border_col="green",
+            axis_col="cyan"
+        ) == 0
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:5
+            s[i, j] = i + j
+        end
+        XLSX.addDefinedName(s, "myRange", "A1:B5")
+        @test XLSX.setConditionalFormat(s, "myRange", :dataBar;
+            showVal = "false",
+            direction="leftToRight",
+            borders="true",
+            sameNegBorders="false"
+        ) == 0
+        XLSX.addDefinedName(s, "myNCRange", "C1:C5,D1:D5")
+        @test_throws MethodError XLSX.setConditionalFormat(s, "myNCRange", :dataBar; # Non-contiguous ranges not allowed
+            showVal = "false",
+            direction="leftToRight",
+            borders="true",
+            sameNegBorders="false"
+        )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A2", :dataBar; 
+            databar="rainbow"
+        )
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:12
+            s[i, j] = i + j
+        end
+        s[1, 13]=5
+        
+        @test XLSX.setConditionalFormat(s, :, 1, :dataBar;
+            databar="orange",
+            sameNegFill="true",
+            sameNegBorders="true"
+        )==0
+        @test XLSX.setConditionalFormat(s, :, 2, :dataBar;
+            databar="orange",
+            axis_pos="none"
+        )==0
+        @test XLSX.setConditionalFormat(s, :, 3, :dataBar;
+            databar="orange",
+            axis_pos="middle"
+        )==0
+        @test XLSX.setConditionalFormat(s, :, 4, :dataBar;
+            databar="orange",
+            min_type="num",
+            min_val="Sheet1!\$M\$1"
+        )==0
+        @test XLSX.setConditionalFormat(s, :, 5, :dataBar;
+            databar="orange",
+            showVal = "false",
+            direction="rightToLeft",
+            borders="true",
+            sameNegBorders="false",
+            sameNegFill="false"
+        ) == 0
+
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, 4, :dataBar;
+            axis_pos="nonsense",
+            databar="orange",
+            min_type="num",
+            min_val="Sheet1!\$M\$1"
+        )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, 4, :dataBar;
+            borders="nonsense",
+            databar="orange",
+            min_type="num",
+            min_val="Sheet1!\$M\$1"
+        )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, 4, :dataBar;
+            fill_col="nonsense",
+            databar="orange",
+            min_type="num",
+            min_val="Sheet1!\$M\$1"
+        )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, 4, :dataBar;
+            sameNegFill="nonsense",
+            databar="orange",
+            min_type="num",
+            min_val="Sheet1!\$M\$1"
+        )
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, 4, :dataBar;
+            databar="orange",
+            min_type="num",
+            min_val="Sheet2!\$M\$1"
+        )
+
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:5, j in 1:12
+            s[i, j] = i + j
+        end
+        for (j, k) in enumerate(keys(XLSX.databars))
+            @test XLSX.setConditionalFormat(s, :, j, :dataBar; databar=k)==0
+        end
+    end
 
     @testset "colorScale" begin
 
@@ -3482,11 +3686,29 @@ end
             min_type="min",
             min_col="green",
             mid_type="percentile",
-            mid_val="E4",
+            mid_val="\$E\$4",
             mid_col="red",
             max_type="max",
             max_col="blue"
         ) == 0
+        @test XLSX.setConditionalFormat(s, :, 5, :colorScale;
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="Sheet1!\$E\$4",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        ) == 0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, :, 5, :colorScale;
+            min_type="min",
+            min_col="green",
+            mid_type="percentile",
+            mid_val="Sheet2!\$E\$4",
+            mid_col="red",
+            max_type="max",
+            max_col="blue"
+        )
 
         f = XLSX.newxlsx()
         s = f[1]
@@ -3792,6 +4014,39 @@ end
                 @test XLSX.setConditionalFormat(s, :, j, :iconSet; iconset=k)==0
             end
         end
+        f = XLSX.newxlsx()
+        s = f[1]
+        for i in 1:3, j in 1:21
+            s[i, j] = i + j
+        end
+        @test XLSX.setConditionalFormat(s, "Sheet1!A1:E1", :iconSet;
+            min_type="percentile",
+            min_val="10",
+            max_type="num",
+            max_val="Sheet1!\$C\$4"
+        ) == 0
+        @test XLSX.setConditionalFormat(f, "Sheet1!A2:E2", :iconSet;
+            min_type="percentile",
+            min_val="Sheet1!\$D\$5",
+            max_type="percent",
+            max_val="95"
+        ) == 0
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "Sheet1!A1:E1", :iconSet;
+            min_type="percentile",
+            min_val="10",
+            max_type="num",
+            max_val="Sheet2!\$C\$4"
+        )
+        @test_throws XLSX.XLSXError  XLSX.setConditionalFormat(f, "Sheet1!A5:E5", :iconSet;
+            min_type="percentile",
+            min_val="Sheet2!\$D\$5",
+            max_type="percent",
+            max_val="95"
+        )
+        @test XML.tag(XLSX.get_x14_icon("3Triangles")) == "x14:cfRule"
+        @test XML.attributes(XLSX.get_x14_icon("3Stars")) == XML.OrderedDict("type" => "iconSet", "priority" => "1", "id" => "XXXX-xxxx-XXXX")
+        @test length(XML.children(XLSX.get_x14_icon("5Boxes"))) == 1
+        @test typeof(XLSX.get_x14_icon("Custom")) == XML.Node
     end
 
     @testset "cellIs" begin
@@ -3803,7 +4058,7 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, "A1,A3", :cellIs) # Non-contiguous ranges not allowed
         @test_throws MethodError XLSX.setConditionalFormat(s, [1], 1, :cellIs) # Vectors may be non-contiguous
         @test_throws MethodError XLSX.setConditionalFormat(s, 1, 1:3:7, :cellIs) # StepRange is non-contiguous
-        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A3", :cellIs; dxStyle="madeUp") # StepRange is non-contiguous
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, "A1:A3", :cellIs; dxStyle="madeUp") # dxStyle invalid
         @test XLSX.setConditionalFormat(s, "1:1", :cellIs) == 0
         @test XLSX.setConditionalFormat(s, 2, :, :cellIs; dxStyle="greenfilltext") == 0
         @test XLSX.setConditionalFormat(s, 3, 1:5, :cellIs;
@@ -5010,7 +5265,7 @@ end
     end
 
 end
-
+end
 @testset "merged cells" begin
     XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx")) do f
         @test_throws XLSX.XLSXError XLSX.getMergedCells(f["Mock-up"]) # File isn't writeable

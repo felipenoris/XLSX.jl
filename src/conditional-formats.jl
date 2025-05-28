@@ -1,4 +1,4 @@
-const needsValue2::Vector{String} = ["between", "notBetween"]
+#const needsValue2::Vector{String} = ["between", "notBetween"]
 const highlights::Dict{String,Dict{String,Dict{String,String}}} = Dict(
     "redfilltext" => Dict(
         "font" => Dict("color" => "FF9C0006"),
@@ -21,6 +21,122 @@ const highlights::Dict{String,Dict{String,Dict{String,String}}} = Dict(
     "redborder" => Dict(
         "border" => Dict("color" => "FF9C0006", "style" => "thin")
     )
+)
+const databars::Dict{String, Dict{String, String}} = Dict(
+    "bluegrad" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FF638EC6",
+        "borders" => "true",
+        "sameNegBorders" => "false",
+        "border_col" => "FF638EC6",
+        "neg_fill_col" => "FFFF0000",
+        "neg_border_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "greengrad" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FF63C384",
+        "borders" => "true",
+        "sameNegBorders" => "false",
+        "border_col" => "FF63C384",
+        "neg_fill_col" => "FFFF0000",
+        "neg_border_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "redgrad" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FFFF555A",
+        "borders" => "true",
+        "sameNegBorders" => "false",
+        "border_col" => "FFFF555A",
+        "neg_fill_col" => "FFFF0000",
+        "neg_border_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ), 
+    "orangegrad" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FFFFB628",
+        "borders" => "true",
+        "sameNegBorders" => "false",
+        "border_col" => "FFFFB628",
+        "neg_fill_col" => "FFFF0000",
+        "neg_border_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "lightbluegrad" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FF008AEF",
+        "borders" => "true",
+        "sameNegBorders" => "false",
+        "border_col" => "FF008AEF",
+        "neg_fill_col" => "FFFF0000",
+        "neg_border_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "purplegrad" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FFD6007B",
+        "borders" => "true",
+        "sameNegBorders" => "false",
+        "border_col" => "FFD6007B",
+        "neg_fill_col" => "FFFF0000",
+        "neg_border_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ), 
+    "blue" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FF638EC6",
+        "gradient" => "false",
+        "neg_fill_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "green" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FF63C384",
+        "gradient" => "false",
+        "neg_fill_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "red" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FFFF555A",
+        "gradient" => "false",
+        "neg_fill_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ), 
+    "orange" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FFFFB628",
+        "gradient" => "false",
+        "neg_fill_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "lightblue" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FF008AEF",
+        "gradient" => "false",
+        "neg_fill_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ),
+    "purple" => Dict(
+        "min_type" => "automatic",
+        "max_type" => "automatic",
+        "fill_col" => "FFD6007B",
+        "gradient" => "false",
+        "neg_fill_col" => "FFFF0000",
+        "axis_col" => "FF000000"
+    ), 
 )
 const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, built-in Excel color scales for conditional formatting.
     "greenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
@@ -352,19 +468,19 @@ Return a vector of pairs: CellRange => NamedTuple{type::String, priority::Int}}.
 
 """
 getConditionalFormats(ws::Worksheet) = append!(getConditionalFormats(allCfs(ws)), getConditionalExtFormats(allExtCfs(ws)))
-function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple}}
-    allcfs = Vector{Pair{CellRange,NamedTuple}}()
+function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}
+    allcfs = Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}()
     for cf in allcfnodes
         for child in XML.children(cf)
             if XML.tag(child) == "cfRule"
-                push!(allcfs, CellRange(cf["sqref"]) => (; type=child["type"], priority=parse(Int, child["priority"])))
+                push!(allcfs, CellRange(cf["sqref"]) => (type=child["type"], priority=parse(Int, child["priority"])))
             end
         end
     end
     return allcfs
 end
-function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple}}
-    allcfs = Vector{Pair{CellRange,NamedTuple}}()
+function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}
+    allcfs = Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}()
     for cf in allcfnodes
         let t, p, r, rule = false, ref = false
             @assert XML.tag(cf) == "x14:conditionalFormatting" "Something wrong here"
@@ -376,11 +492,13 @@ function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{Cel
             for child in XML.children(cf)
                 if XML.tag(child) == "x14:cfRule"
                     t = child["type"]
-                    p = parse(Int, child["priority"])
-                    rule = true
+                    if t != "dataBar" # This is the other half of a dataBar definition - don't count twice!
+                        p = parse(Int, child["priority"])
+                        rule = true
+                    end
                 end
                 if rule && ref
-                    push!(allcfs, CellRange(r) => (; type=t, priority=p))
+                    push!(allcfs, CellRange(r) => (type=t, priority=p))
                     rule = false
                 end
             end
@@ -964,7 +1082,105 @@ julia> XLSX.setConditionalFormat(s, "A1:E5", :expression; formula = "E5<50", dxS
 
 # type = :dataBar
 
-(In development)
+Apply data bars to cells in a range depending on their values. The keyword `databar`
+can be used to select one of 12 built-in databars Excel provides by name. Valid names are:
+- `bluegrad` (default)
+- `greengrad`
+- `redgrad`
+- `orangegrad`
+- `lightbluegrad`
+- `purplegrad`
+- `blue`
+- `green`
+- `red`
+- `orange`
+- `lightblue`
+- `purple`
+
+The first six (with a `grad` suffix) yield bars with a color gradient while the remainder 
+yield bars of solid color. By default, all built in data bars define their range from the 
+minumum and maximum values in the range and negative values are given a red bar. These default
+settings can each be modified using the other keyword options available.
+
+Remaining keyword options provided are:
+- `showVal` - set to "false" to show databars only and hide cell values
+- `gradient` - set to "false" to use a solid color bar rather than a gradient fill
+- `borders` - set to "true" to show borders around each bar
+- `sameNegFill` - set to "true" to use the same fill color on negative bars as positive.
+- `sameNegBorders` - set to "false" to use the same border color on negative bars as positive
+- `direction` - determines the direction of the bars from the axis, "leftToRight" or "rightToLeft"
+- `min_type` - Defines how the minimum of the bar scale is defined ("num", "min", "percent", percentile", "formula" or "automatic")
+- `min_val` - Defines the minimum value for the data bar scale. May be a number(as a string), a cell reference or a formula (if type="formula").
+- `max_type` - Defines how the maximum of the bar scale is defined ("num", "max", "percent", percentile", "formula" or "automatic")
+- `max_val` - Defines the maximum value for the data bar scale. May be a number(as a string), a cell reference or a formula (if type="formula").
+- `fill_col` - Defines the color of the fill for positive bars (8 digit hex or by name)
+- `border_col` - Defines the color of the border for positive bars (8 digit hex or by name)
+- `neg_fill_col` - Defines the color of the fill for negative bars (8 digit hex or by name)
+- `neg_border_col` - Defines the color of the border for negative bars (8 digit hex or by name)
+- `axis_pos` - Defines the position of the axis ("middle" or "none")
+- `axis_col` - Defines the color of the axis (8 digit hex or by name)
+
+# Examples
+```julia
+julia> XLSX.setConditionalFormat(s, "A1:A11", :dataBar)
+
+julia> XLSX.setConditionalFormat(s, "B1:B11", :dataBar; databar="purple")
+
+julia> XLSX.setConditionalFormat(s, "D1:D11", :dataBar; 
+            gradient="true", 
+            direction="rightToLeft", 
+            axis_pos="none", 
+            showVal="false"
+        )
+
+jjulia> XLSX.setConditionalFormat(s, "F1:F11", :dataBar;
+            gradient="false",
+            sameNegFill="true",
+            sameNegBorders="true"
+        )
+
+julia> XLSX.setConditionalFormat(f, "Sheet1!G1:G11", :dataBar;
+            fill_col="coral", border_col = "cyan",
+            neg_fill_col="cyan", neg_border_col = "coral"
+        )
+
+julia> XLSX.setConditionalFormat(f, "Sheet1!J1:J11", :dataBar; axis_col="magenta")
+
+julia> XLSX.setConditionalFormat(s, 15:25, 1, :dataBar;
+            min_type="least", max_type="highest"
+        )
+
+julia> XLSX.setConditionalFormat(s, 15:25, 2, :dataBar; 
+            databar="purple", 
+            min_type="percent", max_type="percent",
+            min_val="20", max_val="60"
+        )
+
+julia> XLSX.setConditionalFormat(s, "C15:C25", :dataBar;
+            databar="blue",
+            min_type="num", max_type="num",
+            min_val="-1", max_val="6",
+            gradient="true",
+            direction="leftToRight", 
+            axis_pos="none"
+        )
+
+julia> XLSX.setConditionalFormat(s, "E15:E25", :dataBar;
+            gradient="true",
+            min_type="percentile", max_type="percentile",
+            min_val="20", max_val="80",
+            direction="rightToLeft",
+            axis_pos="middle"
+        )
+
+julia> XLSX.setConditionalFormat(s, "G15:G25", :dataBar; 
+            min_type="num", max_type="formula", 
+            min_val="\$L\$1", max_val="\$M\$1 * \$N\$1 + 3",
+            fill_col="coral", border_col = "cyan",
+            neg_fill_col="cyan", neg_border_col = "coral"
+        )
+
+```
 
 # type = :colorScale
 
@@ -1141,8 +1357,8 @@ function setConditionalFormat(f, r, type::Symbol; kw...)
         setCfFormula(f, r; kw...)
     elseif type == :iconSet
         setCfIconSet(f, r; kw...)
-        #    elseif type == :dataBar
-        #        throw(XLSXError("Data bars are not yet implemented."))
+    elseif type == :dataBar
+        setCfDataBar(f, r; kw...)
     else
         throw(XLSXError("Invalid conditional format type: $type."))
     end
@@ -1167,8 +1383,8 @@ function setConditionalFormat(f, r, c, type::Symbol; kw...)
         setCfFormula(f, r, c; kw...)
     elseif type == :iconSet
         setCfIconSet(f, r, c; kw...)
-        #    elseif type == :dataBar
-        #        throw(XLSXError("Data bars are not yet implemented."))
+    elseif type == :dataBar
+        setCfDataBar(f, r, c; kw...)
     else
         throw(XLSXError("Invalid conditional format type: $type."))
     end
@@ -1225,7 +1441,8 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
 
 
     push!(cfx, XML.Element("formula", XML.Text(XML.escape(value))))
-    if !isnothing(value2) && operator ∈ needsValue2
+    if !isnothing(value2) && operator ∈ ["between", "notBetween"]
+
         push!(cfx, XML.Element("formula", XML.Text(XML.escape(value2))))
     end
 
@@ -1650,7 +1867,7 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
     max_col::Union{Nothing,String}="FFFFEB84",
 )::Int
 
-    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension ($(get_dimension(ws)))."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(ws) # extract conditional format info
@@ -1662,15 +1879,27 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
         if isnothing(colorscale)
 
             min_type in ["min", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num, formula."))
-            min_type == "formula" || isnothing(min_val) || is_valid_cellname(min_val) || is_valid_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+            if min_type=="min"
+                min_val = nothing
+            end
+            min_type == "formula" || isnothing(min_val) || is_valid_fixed_cellname(min_val) || is_valid_fixed_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
             isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
-            (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_cellname(mid_val) || is_valid_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+            (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_fixed_cellname(mid_val) || is_valid_fixed_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
             max_type in ["max", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: max, percentile, percent, num, formula."))
-            max_type == "formula" || isnothing(max_val) || is_valid_cellname(max_val) || is_valid_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+            if max_type=="max"
+                max_val = nothing
+            end
+            max_type == "formula" || isnothing(max_val) || is_valid_fixed_cellname(max_val) || is_valid_fixed_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
 
-            min_val = isnothing(min_val) ? nothing : XML.escape(uppercase_unquoted(min_val))
-            mid_val = isnothing(mid_val) ? nothing : XML.escape(uppercase_unquoted(mid_val))
-            max_val = isnothing(max_val) ? nothing : XML.escape(uppercase_unquoted(max_val))
+            for val in [min_val, mid_val, max_val]
+                if !isnothing(val)
+                    if is_valid_fixed_sheet_cellname(val)
+                        do_sheet_names_match(ws, SheetCellRef(val))
+                        val=string(SheetCellRef(val).cellref)
+                    end
+                    val =  XML.escape(uppercase_unquoted(val))
+                end
+            end
 
             cfx = XML.h.cfRule(type="colorScale", priority=new_pr,
                 XML.h.colorScale(
@@ -1685,7 +1914,7 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
 
         else
             if !haskey(colorscales, colorscale)
-                throw(XLSXError("Invalid color scale: $colorscale. Valid options are: $(keys(colorscales))."))
+                throw(XLSXError("Invalid colorscale option chosen: $colorscale. Valid options are: $(keys(colorscales))."))
             end
             cfx = copynode(colorscales[colorscale])
             cfx["priority"] = new_pr
@@ -1731,7 +1960,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
     icon_list::Union{Nothing,Vector{Int64}}=nothing
     )::Int
 
-    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension ($(get_dimension(ws)))."))
 
     allcfs = allCfs(ws)                # get all conditional format blocks
     old_cf = getConditionalFormats(ws) # extract conditional format info
@@ -1741,7 +1970,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
 
         new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : 1
 
-        isnothing(mid_type) || min_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: percentile, percent, num, formula."))
+        isnothing(min_type) || min_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: percentile, percent, num, formula."))
         (!isnothing(min_type) && min_type == "formula") || isnothing(min_val) || is_valid_fixed_cellname(min_val) || is_valid_fixed_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
         isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
         (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_fixed_cellname(mid_val) || !is_valid_fixed_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
@@ -1751,10 +1980,16 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
         (!isnothing(max_type) && max_type == "formula") || isnothing(max_val) || is_valid_fixed_cellname(max_val) || is_valid_fixed_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
 
         for val in [min_val, mid_val, mid2_val, max_val]
-            val = isnothing(val) ? nothing : XML.escape(uppercase_unquoted(val))
+            if !isnothing(val)
+                if is_valid_fixed_sheet_cellname(val)
+                    do_sheet_names_match(ws, SheetCellRef(val))
+                    val=string(SheetCellRef(val).cellref)
+                end
+                val =  XML.escape(uppercase_unquoted(val))
+            end
         end
         if !haskey(iconsets, iconset)
-            throw(XLSXError("Invalid color scale: $iconset. Valid options are: $(keys(iconsets))"))
+            throw(XLSXError("Invalid iconset option chosen: $iconset. Valid options are: $(keys(iconsets))"))
         end
         l = first(iconset)
         cfx = copynode(iconsets[iconset])
@@ -1861,5 +2096,204 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
 
     end
 
+    return 0
+end
+
+setCfDataBar(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setCfDataBar, ws, row, nothing; kw...)
+setCfDataBar(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setCfDataBar, ws, nothing, col; kw...)
+setCfDataBar(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setCfDataBar, ws, nothing, nothing; kw...)
+setCfDataBar(ws::Worksheet, ::Colon; kw...) = process_colon(setCfDataBar, ws, nothing, nothing; kw...)
+setCfDataBar(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setCfDataBar(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setCfDataBar(ws::Worksheet, cell::CellRef; kw...) = setCfDataBar(ws, CellRange(cell, cell); kw...)
+setCfDataBar(ws::Worksheet, cell::SheetCellRef; kw...) = do_sheet_names_match(ws, cell) && setCfDataBar(ws, CellRange(cell.cellref, cell.cellref); kw...)
+setCfDataBar(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setCfDataBar(ws, rng.rng; kw...)
+setCfDataBar(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setCfDataBar(ws, rng.colrng; kw...)
+setCfDataBar(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setCfDataBar(ws, rng.rowrng; kw...)
+setCfDataBar(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfDataBar, ws, rng; kw...)
+setCfDataBar(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfDataBar, ws, rng; kw...)
+setCfDataBar(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfDataBar, xl, sheetcell; kw...)
+setCfDataBar(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfDataBar, ws, ref_or_rng; kw...)
+function setCfDataBar(ws::Worksheet, rng::CellRange;
+    databar::Union{Nothing,String}="bluegrad",
+    showVal::Union{Nothing,String}=nothing,
+    gradient::Union{Nothing,String}=nothing,
+    borders::Union{Nothing,String}=nothing,
+    sameNegFill::Union{Nothing,String}=nothing,
+    sameNegBorders::Union{Nothing,String}=nothing,
+    direction::Union{Nothing,String}=nothing,
+    axis_pos::Union{Nothing,String}=nothing,
+    axis_col::Union{Nothing,String}=nothing,
+    min_type::Union{Nothing,String}=nothing,
+    min_val::Union{Nothing,String}=nothing,
+    max_type::Union{Nothing,String}=nothing,
+    max_val::Union{Nothing,String}=nothing,
+    fill_col::Union{Nothing,String}=nothing,
+    border_col::Union{Nothing,String}=nothing,
+    neg_fill_col::Union{Nothing,String}=nothing,
+    neg_border_col::Union{Nothing,String}=nothing,
+    )::Int
+
+    !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension ($(get_dimension(ws)))."))
+
+    allcfs = allCfs(ws)                # get all conditional format blocks
+    old_cf = getConditionalFormats(ws) # extract conditional format info
+    allextcfs = allExtCfs(ws)          # get all extended conditional format blocks
+
+    let new_pr, new_cf
+
+        new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : "1"
+        isnothing(min_type) || min_type in ["least","percentile", "percent", "num", "formula", "automatic"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: least, percentile, percent, num, formula."))
+        if min_type in ["least", "automatic"]
+            min_val=nothing
+        end
+        (!isnothing(min_type) && min_type == "formula") || isnothing(min_val) || is_valid_fixed_cellname(min_val) || is_valid_fixed_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+        isnothing(max_type) || max_type in ["highest", "percentile", "percent", "num", "formula", "automatic"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: highest, percentile, percent, num, formula."))
+        if min_type in ["highest", "automatic"]
+            max_val=nothing
+        end
+        (!isnothing(max_type) && max_type == "formula") || isnothing(max_val) || is_valid_fixed_cellname(max_val) || is_valid_fixed_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
+
+        for val in [min_val, max_val]
+            if !isnothing(val)
+                if is_valid_fixed_sheet_cellname(val)
+                    do_sheet_names_match(ws, SheetCellRef(val))
+                    val=string(SheetCellRef(val).cellref)
+                end
+                val =  XML.escape(uppercase_unquoted(val))
+            end
+        end
+        if !haskey(databars, databar)
+            throw(XLSXError("Invalid dataBar option chosen: $databar. Valid options are: $(keys(databars))"))
+        end
+    
+        allkws::Dict{String, Union{String, Nothing}} = Dict(
+            "showVal" => showVal,
+            "gradient" => gradient, 
+            "borders" => borders, 
+            "sameNegFill" => sameNegFill, 
+            "sameNegBorders" => sameNegBorders, 
+            "direction" => direction, 
+            "min_type" => min_type, 
+            "min_val" => min_val, 
+            "max_type" => max_type, 
+            "max_val" => max_val, 
+            "fill_col" => fill_col, 
+            "border_col" => border_col,
+            "neg_fill_col" => neg_fill_col, 
+            "neg_border_col" => neg_border_col, 
+            "axis_pos" => axis_pos, 
+            "axis_col" => axis_col
+        )
+
+        for (k, w) in allkws # Allow user input to override any default value
+            if isnothing(w)
+                if haskey(databars[databar], k)
+                    allkws[k] = databars[databar][k]
+                end
+            end
+        end
+        for kw in ["showVal", "gradient", "borders", "sameNegFill", "sameNegBorders"]
+            haskey(allkws, kw) && isValidKw(kw, allkws[kw], ["true", "false"])
+        end
+        haskey(allkws, "direction") && isValidKw("direction", allkws["direction"], ["leftToRight", "rightToLeft"])
+        haskey(allkws, "axis_pos") && isValidKw("axis_pos", allkws["axis_pos"], ["middle", "none"])
+
+        # Define basic elements of dataBar definition
+        id="{" * uppercase(string(UUIDs.uuid4())) * "}"
+        mnt = allkws["min_type"] ∈ ["automatic", "least"] ? "min" : allkws["min_type"]
+        mxt = allkws["max_type"] ∈ ["automatic", "highest"] ? "max" : allkws["max_type"]
+        cfx = XML.h.cfRule(type="dataBar", priority=new_pr,
+                    XML.h.dataBar(
+                        isnothing(allkws["min_val"]) ? XML.h.cfvo(type=mnt) : XML.h.cfvo(type=mnt, val=allkws["min_val"]),
+                        isnothing(allkws["max_val"]) ? XML.h.cfvo(type=mxt) : XML.h.cfvo(type=mxt, val=allkws["max_val"]),
+                        XML.h.color(rgb=get_color(allkws["fill_col"]))),
+                    XML.h.extLst()
+                )
+#        cfx = XML.Element("cfRule", type="dataBar", priority=new_pr)
+#        cfx_db = XML.Element("dataBar")
+#        if isnothing(allkws["min_val"])
+#            push!(cfx_db, XML.Element("cfvo", type=mnt))
+#        else
+#            push!(cfx_db, XML.Element("cfvo", type=mnt, val=allkws["min_val"]))
+#        end
+#        if isnothing(allkws["max_val"])
+#            push!(cfx_db, XML.Element("cfvo", type=mxt))
+#        else
+#            push!(cfx_db, XML.Element("cfvo", type=mxt, val=allkws["max_val"]))
+#        end
+#        push!(cfx_db, XML.Element("color", rgb=get_color(allkws["fill_col"])))
+#        push!(cfx, cfx_db)
+#        push!(cfx, XML.Element("extLst"))
+        if haskey(allkws, "showVal") && !isnothing(allkws["showVal"]) && allkws["showVal"] == "false"
+            cfx[1]["showValue"] = "0"
+        end
+        cfx_ext = XML.Element("ext") # This establishes link (via id) to the extension elements
+        cfx_ext["xmlns:x14"]="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
+        cfx_ext["uri"]="{B025F937-C7B1-47D3-B67F-A62EFF666E3E}"
+        push!(cfx_ext, XML.Element("x14:id", XML.Text(id)))
+        push!(cfx[end], cfx_ext)
+
+        # Define extension elements of dataBar definition
+        emnt = allkws["min_type"] == "automatic" ? "autoMin" : allkws["min_type"] == "least" ? "min" : allkws["min_type"]
+        emxt = allkws["max_type"] == "automatic" ? "autoMax" : allkws["max_type"] == "highest" ? "max" : allkws["max_type"]
+        emnv = allkws["min_type"] == "formula" ? "("*allkws["min_val"]*")" : allkws["min_val"]
+        emxv = allkws["max_type"] == "formula" ? "("*allkws["max_val"]*")" : allkws["max_val"]
+        ext_cfx = XML.Element("x14:cfRule", type="dataBar", id=id)
+        ext_db = XML.Element("x14:dataBar", minLength="0", maxLength="100")
+        valmin = XML.Element("x14:cfvo", type=emnt)
+        !isnothing(emnv) && push!(valmin, XML.Element("xm:f", XML.Text(emnv)))
+        valmax = XML.Element("x14:cfvo", type=emxt)
+        !isnothing(emxv) && push!(valmax, XML.Element("xm:f", XML.Text(emxv)))
+        push!(ext_db, valmin)
+        push!(ext_db, valmax)
+        if allkws["gradient"] == "false"
+            ext_db["gradient"] = "0"
+        end
+        do_borders=haskey(allkws, "borders") && allkws["borders"] == "true"
+        if do_borders
+            ext_db["border"] = "1"
+            if haskey(allkws, "border_col") && !isnothing(allkws["border_col"])
+                push!(ext_db, XML.Element("x14:borderColor", rgb=get_color(allkws["border_col"])))
+            else
+                push!(ext_db, XML.Element("x14:borderColor", rgb=get_color("FF638EC6"))) # Default colour
+            end
+        end
+        if haskey(allkws, "direction")
+            if allkws["direction"] == "leftToRight"
+                ext_db["direction"]="leftToRight"
+            elseif allkws["direction"] == "rightToLeft"
+                ext_db["direction"]="rightToLeft"
+            end
+        end
+        if haskey(allkws, "sameNegFill") && allkws["sameNegFill"]=="true"
+            ext_db["negativeBarColorSameAsPositive"]="1"
+        else
+            if haskey(allkws, "neg_fill_col") && !isnothing(allkws["neg_fill_col"])
+                push!(ext_db, XML.Element("x14:negativeFillColor", rgb=get_color(allkws["neg_fill_col"])))
+            else
+                push!(ext_db, XML.Element("x14:negativeFillColor", rgb=get_color("FFFF0000"))) # Default colour
+            end
+        end
+        if do_borders && haskey(allkws, "sameNegBorders") && allkws["sameNegBorders"]=="false"
+            ext_db["negativeBarBorderColorSameAsPositive"]="0"
+            if haskey(allkws, "neg_border_col") && !isnothing(allkws["neg_border_col"])
+                push!(ext_db, XML.Element("x14:negativeBorderColor", rgb=get_color(allkws["neg_border_col"])))
+            else
+                push!(ext_db, XML.Element("x14:negativeBorderColor", rgb=get_color("FFFF0000"))) # Default colour
+            end
+        end
+        if haskey(allkws, "axis_pos")
+            if allkws["axis_pos"] == "none"
+                ext_db["axisPosition"]="none"
+            elseif allkws["axis_pos"] == "middle"
+                ext_db["axisPosition"]="middle"
+            end
+        end
+        haskey(allkws, "axis_col") && push!(ext_db, XML.Element("x14:axisColor", rgb=get_color(allkws["axis_col"])))
+        push!(ext_cfx, ext_db)
+
+        update_worksheet_cfx!(allcfs, cfx, ws, rng)            # Add basic elements to worksheet xml file
+        update_worksheet_ext_cfx!(allextcfs, ext_cfx, ws, rng) # Add extension elements to worksheet xml file
+    end
     return 0
 end
