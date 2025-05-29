@@ -159,11 +159,11 @@ All the format setter functions have `setUniformAttribute` versions, too. See [`
 
 ### Setting uniform styles
 
-It is possible to use each of these functions in turn to ensure every possible attribute is consistently 
-applied to a range of cells. However, if perfect uniformity is required, then `setUniformStyle` is 
-considerably more efficient. It will simply take the `styleId` of the first cell in the range and apply 
-it uniformly to each cell in the range. This ensures that all of font, fill, border, format, and 
-alignment are all completely consistent across the range:
+It is possible to use each of the `setUniformAttribute` functions in turn to ensure every possible 
+attribute is consistently applied to a range of cells. However, if perfect uniformity is required, 
+then `setUniformStyle` is considerably more efficient. It will simply take the `styleId` of the 
+first cell in the range and apply it uniformly to each cell in the range. This ensures that all 
+of font, fill, border, format, and alignment are all completely consistent across the range:
 
 ```julia
 julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be uniformly tha same as cell A1.
@@ -183,12 +183,13 @@ We can apply `setBorder()` to add a top border to each cell:
 julia> XLSX.setBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
 -1
 ```
-This merges the new top border definition with the other, existing attributes, to get
+This merges the new top border definition with the other, existing border attributes, to get
 
 ![image|320x500](./images/multicell2.png)
 
 Alternatively, we can apply `setUniformBorder()`, which will update the borders of cell `B2` 
-and then apply all the border formatting to the other cells, overwriting the previous settings:
+and then apply all the border attributes of `B2` to the other cells, overwriting the previous 
+settings:
 
 ```julia
 julia> XLSX.setUniformBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red"])
@@ -196,7 +197,7 @@ julia> XLSX.setUniformBorder(s, "B2,D2,F2"; top=["style"=>"thick", "color"=>"red
 ```
 
 This makes the border formatting entirely consistent across the cells but leaves the other formatting 
-attributes as they were.
+attributes (font, fill, format, alignment) as they were.
 
 ![image|320x500](./images/multicell3.png)
 
@@ -276,9 +277,9 @@ Using `setBorder`        :  96.824494 seconds (2.82 G allocations: 194.342 GiB, 
 Using `setUniformBorder` :  32.182135 seconds (787.00 M allocations: 62.081 GiB, 20.85% gc time)
 Using `setUniformStyles` :   0.606058 seconds (14.00 M allocations: 416.660 MiB, 16.19% gc time)
 ```
-If maintaining heterogeneous formatting attributes is not important, it is much more efficient to 
+If maintaining heterogeneous formatting attributes is not important, it is more efficient to 
 apply `setUinformAttribute` functions rather than `setAttribute` functions, especially on large 
-cell ranges, and more efficient still to use `setUniformStyle`.
+cell ranges, and much more efficient still to use `setUniformStyle`.
 
 ## Copying formatting attributes
 
@@ -331,13 +332,12 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     formats are created by applying the `setAttribute()` functions described above.
 
     Dynamic conditional formatting, using the native Excel conditional format functionality, is possible 
-    using the `setConditionalFormat()` function, giving access to many of Excel's options (but not yet 
-    all of them). 
+    using the `setConditionalFormat()` function, giving access to all of Excel's options. 
 
 ### Static conditional formats
 
-As an example, a function to set true values in a range to use a bold green font color and false values to use a bold 
-red color a could be defined as follows:
+As an example, a simple function to set true values in a range to use a bold green font color and 
+false values to use a bold red color a could be defined as follows:
 
 ```julia
 function trueorfalse(sheet, rng) # Use green or red font for true or false respectively
@@ -833,10 +833,11 @@ julia> XLSX.setConditionalFormat(s, "E1:E11", :dataBar; fill_col="cyan", border_
 ```
 ![image|320x500](./images/customColors.png)
 
-Control the location of the axis using `axis_pos = "middle"` to locate it in the middle of the 
-column width or `axis_pos = "none"` to remove the axis. Excel chooses the direction of the bars 
-according to the context of the cell data. Force (postive) bars to go `leftToRight` or 
-`rightToLeft` using the `direction` key word. Change the color of the axis with `axis_col`.
+By default, Excel positions the axis automatically, based on the range of the cell data. 
+Control the location of the axis using `axis_pos = "middle"` to locate it in the middle 
+of the column width or `axis_pos = "none"` to remove the axis. Excel chooses the direction 
+of the bars according to the context of the cell data. Force (postive) bars to go `leftToRight` 
+or `rightToLeft` using the `direction` key word. Change the color of the axis with `axis_col`.
 
 ```julia
 julia> s[1:10, 1]=1:10
@@ -896,6 +897,7 @@ mid-point color, too. Colors can be specified using hex RGB values or by name us
 in [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 In Excel, the colorScale options (for a 3 color scale) look like this:
+
 ![image|320x500](./images/colorScaleOptions.png)
 
 The end points (and optional mid-point) can be defined using an absolute number (`num`), a `percent`, 
@@ -968,6 +970,7 @@ julia> XLSX.setConditionalFormat(s, "A1:A10", :iconSet)
 
 All of the options to control an iconSet in Excel are available. The iconSet options 
 (for a 4-icon set) look like this:
+
 ![image|320x500](./images/iconSetOptions.png)
 
 Each icon set includes a default set of thresholds defining which symbol to use. These 
@@ -995,7 +998,7 @@ valid Excel formula.
 !!! note
 
     Cell references used to define threshold values in an iconSet MUST always be given as absolute 
-    cell references (e.g. `"\$A\$4"`). Relative references should not be used (but are not checked).
+    cell references (e.g. `"\$A\$4"`). Relative references should not be used.
 
 Using the example above, change both the type and value of the thresholds like this:
 
@@ -1215,8 +1218,8 @@ julia> XLSX.getConditionalFormats(s)
 
 When applying multiple overlayed formats, it is possible to make the formatting stop if any cell meets 
 one of the conditions, so that lower proirity conditional formats are not applied to that cell. This is 
-achieved with the `stopIfTrue` keyword. It is not possible to apply `stopIfTrue` to dataBars, colorScales or 
-iconSets.
+achieved with the `stopIfTrue` keyword. It is not possible to apply `stopIfTrue` to `:dataBar`, 
+`:colorScale` or `:iconSet` types.
 
 The example below illustrates how `stopIfTrue` is used to stop further conditional formats from being 
 applied to cells to which red borders are applied:
@@ -1254,7 +1257,7 @@ will result in the following, instead:
 
 ![image|320x500](./images/no-stop-if-true.png)
 
-It is possible to overlay `:colorScale`s, `:dataBar`s and `:iconSets` in the same or 
+It is possible to overlay `:colorScale`s, `:dataBar`s and `:iconSet`s in the same or 
 overlapping cell ranges.
 
 ```julia
