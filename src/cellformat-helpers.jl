@@ -60,6 +60,7 @@ const floatformats = r"""
 function copynode(o::XML.Node)
     n = XML.parse(XML.Node, XML.write(o))[1]
     n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
+#    n = XML.Node(o.nodetype, o.tag, isnothing(o.attributes) ? XML.OrderedDict{String,String}() : o.attributes, o.value, isnothing(o.children) ? Vector{XML.Node}() : o.children)
     return n
 end
 function do_sheet_names_match(ws::Worksheet, rng::T) where {T<:Union{SheetCellRef,AbstractSheetCellRange}}
@@ -235,13 +236,11 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
     # Check new_att doesn't duplicate any existing att. If yes, use that rather than create new.
     for (k, node) in enumerate(XML.children(xroot[i][j]))
         if XML.tag(new_att) == "numFmt" # mustn't compare numFmtId attribute for formats
-            if XML.parse(XML.Node, XML.write(node))[1]["formatCode"] == XML.parse(XML.Node, XML.write(new_att))[1]["formatCode"] # XML.jl defines `Base.:(==)`
-                #            if node["formatCode"] == new_att["formatCode"] # XML.jl defines `Base.:(==)`
+            if node["formatCode"] == new_att["formatCode"]
                 return k - 1 # CellDataFormat is zero-indexed
             end
         else
-            if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_att))[1] # XML.jl defines `Base.:(==)`
-                #            if node == new_att # XML.jl defines `Base.:(==)`
+            if node == new_att
                 return k - 1 # CellDataFormat is zero-indexed
             end
         end
@@ -589,10 +588,6 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
             first = true
             for r in ncrng.rng
                 @assert r isa CellRef || r isa CellRange "Something wrong here"
-#                if r isa CellRef && getcell(ws, r) isa EmptyCell
-#                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
-#                    continue
-#                end
                 if r isa CellRef
                     if getcell(ws, r) isa EmptyCell
                         single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
@@ -699,10 +694,6 @@ function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
             first = true
             for r in ncrng.rng
                 @assert r isa CellRef || r isa CellRange "Something wrong here"
-#                if r isa CellRef && getcell(ws, r) isa EmptyCell
-#                    single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
-#                    continue
-#                end
                 if r isa CellRef
                     if getcell(ws, r) isa EmptyCell
                         single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))

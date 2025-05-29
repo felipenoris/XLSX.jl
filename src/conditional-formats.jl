@@ -1439,7 +1439,6 @@ function setCfCellIs(ws::Worksheet, rng::CellRange;
     end
     cfx["operator"] = operator
 
-
     push!(cfx, XML.Element("formula", XML.Text(XML.escape(value))))
     if !isnothing(value2) && operator ∈ ["between", "notBetween"]
 
@@ -1617,13 +1616,10 @@ function setCfAboveAverage(ws::Worksheet, rng::CellRange;
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(ws) # extract conditional format info
 
-    #    isnothing(tryparse(Float64, value)) && throw(XLSXError("Invalid `value`: $value. Must be a number."))
-
     wb = get_workbook(ws)
     dx = get_dx(dxStyle, format, font, border, fill)
     new_dx = get_new_dx(wb, dx)
     dxid = Add_Cf_Dx(wb, new_dx)
-
 
     if operator == "aboveAverage"
         cfx = XML.Element("cfRule"; type=operator, dxfId=Int(dxid.id), priority="1")
@@ -1819,7 +1815,7 @@ function setCfFormula(ws::Worksheet, rng::CellRange;
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
-    allcfs = allCfs(ws)                    # get all conditional format blocks
+    allcfs = allCfs(ws)                # get all conditional format blocks
     old_cf = getConditionalFormats(ws) # extract conditional format info
 
     wb = get_workbook(ws)
@@ -2209,21 +2205,6 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
                         XML.h.color(rgb=get_color(allkws["fill_col"]))),
                     XML.h.extLst()
                 )
-#        cfx = XML.Element("cfRule", type="dataBar", priority=new_pr)
-#        cfx_db = XML.Element("dataBar")
-#        if isnothing(allkws["min_val"])
-#            push!(cfx_db, XML.Element("cfvo", type=mnt))
-#        else
-#            push!(cfx_db, XML.Element("cfvo", type=mnt, val=allkws["min_val"]))
-#        end
-#        if isnothing(allkws["max_val"])
-#            push!(cfx_db, XML.Element("cfvo", type=mxt))
-#        else
-#            push!(cfx_db, XML.Element("cfvo", type=mxt, val=allkws["max_val"]))
-#        end
-#        push!(cfx_db, XML.Element("color", rgb=get_color(allkws["fill_col"])))
-#        push!(cfx, cfx_db)
-#        push!(cfx, XML.Element("extLst"))
         if haskey(allkws, "showVal") && !isnothing(allkws["showVal"]) && allkws["showVal"] == "false"
             cfx[1]["showValue"] = "0"
         end

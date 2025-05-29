@@ -105,14 +105,8 @@ function styles_add_numFmt(wb::Workbook, format_code::AbstractString)::Integer
 
         # We need to add the numFmts node directly after the styleSheet node
         # Move everything down one and then insert the new node at the top
-        #        nchildren = length(XML.children(stylesheet))
         numfmts = XML.Element("numFmts", count="1")
         XML.pushfirst!(stylesheet, numfmts)
-        #        push!(stylesheet, stylesheet[end])
-        #        for i in nchildren-1:-1:1
-        #            stylesheet[i+1]=stylesheet[i]
-        #        end
-        #        stylesheet[1]=numfmts
     else
         numfmts = numfmts[1]
     end
@@ -270,10 +264,8 @@ function styles_add_cell_xf(wb::Workbook, new_xf::XML.Node)::CellDataFormat
         throw(XLSXError("Wrong number of xf elements found: $existing_cellxf_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."))
     end
     # Check new_xf doesn't duplicate any existing xf. If yes, use that rather than create new.
-    # Need to work around XML.jl issue # 33
     for (k, node) in enumerate(XML.children(xroot[i][j]))
-        if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_xf))[1] # XML.jl defines `Base.:(==)`
-            #        if node == new_xf # XML.jl defines `Base.:(==)`
+        if node == new_xf
             return CellDataFormat(k - 1) # CellDataFormat is zero-indexed
         end
     end
