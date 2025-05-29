@@ -1661,7 +1661,7 @@ end
         isfile(f) && rm(f)
     end
 end
-@time begin
+
 @testset "Styles" begin
 
     @testset "Original" begin
@@ -3369,8 +3369,7 @@ end
         @test XLSX.getBorder(s, "J45").border == Dict("left" => Dict("indexed" => "64", "style" => "thin"), "bottom" => Dict("indexed" => "64", "style" => "thin"), "right" => Dict("indexed" => "64", "style" => "thin"), "top" => Dict("indexed" => "64", "style" => "thin"), "diagonal" => nothing)
     end
 end
-end
-@time begin
+
 @testset "Conditional Formats" verbose=true begin
 
     @testset "DataBar" begin
@@ -5265,7 +5264,7 @@ end
     end
 
 end
-end
+
 @testset "merged cells" begin
     XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx")) do f
         @test_throws XLSX.XLSXError XLSX.getMergedCells(f["Mock-up"]) # File isn't writeable
