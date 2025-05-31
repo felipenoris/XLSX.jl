@@ -58,16 +58,6 @@ const floatformats = r"""
 #
 
 function copynode(o::XML.Node)
-#    n = XML.parse(XML.Node, XML.write(o))[1]
-#    n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
-#    if isnothing(XML.children(o))
-#        n = XML.Node(o, children=nothing)
-#    elseif length(XML.children(o)) == 0
-#        n = XML.Node(o, children=nothing)
-#    else
-#        n = XML.Node(o, children=[x for x in o.children])
-#    end
-#    n = XML.Node(o.nodetype, o.tag, isnothing(o.attributes) ? XML.OrderedDict{String,String}() : o.attributes, o.value, isnothing(o.children) ? Vector{XML.Node}() : o.children)
     n = deepcopy(o)
     return n
 end
