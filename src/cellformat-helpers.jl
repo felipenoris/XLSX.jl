@@ -58,7 +58,8 @@ const floatformats = r"""
 #
 
 function copynode(o::XML.Node)
-    n = deepcopy(o)
+    n = XML.Node(o.nodetype, o.tag, o.attributes, o.value, isnothing(o.children) ? nothing : [copynode(x) for x in o.children])
+#    n = deepcopy(o)
     return n
 end
 function do_sheet_names_match(ws::Worksheet, rng::T) where {T<:Union{SheetCellRef,AbstractSheetCellRange}}
