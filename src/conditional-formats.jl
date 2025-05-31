@@ -2037,9 +2037,14 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                 end
                 if !isnothing(val)
                     if !isnothing(type) && type=="formula"
-                        cfx[1][i+1][1] = XML.Element("xm:f", XML.Text("(" * val * ")"))
+                        c=XML.Element("xm:f", XML.Text("(" * val * ")"))
                     else
-                        cfx[1][i+1][1] = XML.Element("xm:f", XML.Text(val))
+                        c=XML.Element("xm:f", XML.Text(val))
+                    end
+                    if isnothing(XML.children(cfx[1][i+1]))
+                        cfx[1][i+1] = XML.Node(cfx[1][i+1], c)
+                    else
+                        cfx[1][i+1][1] = c
                     end
                 end
                 if !isnothing(gte) && gte == "false"
@@ -2077,7 +2082,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                     if !isnothing(type) && type=="formula"
                         cfx[1][i+1]["val"] = "(" * val * ")"
                     else
-                         cfx[1][i+1]["val"] = val
+                        cfx[1][i+1]["val"] = val
                     end
                 end
                 if !isnothing(type)
@@ -2086,7 +2091,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                 if !isnothing(gte) && gte == "false"
                     cfx[1][i+1]["gte"] = "0"
                 end
-             end
+            end
             update_worksheet_cfx!(allcfs, cfx, ws, rng)
         end
 

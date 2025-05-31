@@ -2516,6 +2516,10 @@ The specified range must not overlap with any previously merged cells.
 
 It is not possible to merge a single cell!
 
+A non-contiguous range composed of multiple cell ranges will be processed as a 
+list of separate ranges. Each range will be merged separately. No range within 
+a non-contiguous range may be a single cell.
+
 The Excel file must be opened in write mode to work with merged cells.
 
 # Examples:
@@ -2534,7 +2538,7 @@ mergeCells(ws::Worksheet, rng::SheetColumnRange) = do_sheet_names_match(ws, rng)
 mergeCells(ws::Worksheet, rng::SheetRowRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.rowrng)
 mergeCells(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(mergeCells, ws, colrng)
 mergeCells(ws::Worksheet, rowrng::RowRange)::Int = process_rowranges(mergeCells, ws, rowrng)
-#mergeCells(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(mergeCells, ws, ncrng; kw...)
+mergeCells(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(mergeCells, ws, ncrng; kw...)
 mergeCells(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(mergeCells, xl, sheetcell)
 mergeCells(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(mergeCells, ws, ref_or_rng)
 mergeCells(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = process_colon(mergeCells, ws, row, nothing)
@@ -2586,12 +2590,9 @@ function mergeCells(ws::Worksheet, cr::CellRange)
             throw(XLSXError("Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."))
         end
         for child in c
-            #            for cell in cr
-            #                if cell in CellRange(child["ref"])
             if intersects(cr, CellRange(child["ref"]))
                 throw(XLSXError("Merged range (`$cr`) cannot overlap with existing merged range (`" * child["ref"] * "`)."))
             end
-            #            end
         end
     end
 

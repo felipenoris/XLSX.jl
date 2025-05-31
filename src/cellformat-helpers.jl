@@ -58,9 +58,17 @@ const floatformats = r"""
 #
 
 function copynode(o::XML.Node)
-    n = XML.parse(XML.Node, XML.write(o))[1]
-    n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
+#    n = XML.parse(XML.Node, XML.write(o))[1]
+#    n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
+#    if isnothing(XML.children(o))
+#        n = XML.Node(o, children=nothing)
+#    elseif length(XML.children(o)) == 0
+#        n = XML.Node(o, children=nothing)
+#    else
+#        n = XML.Node(o, children=[x for x in o.children])
+#    end
 #    n = XML.Node(o.nodetype, o.tag, isnothing(o.attributes) ? XML.OrderedDict{String,String}() : o.attributes, o.value, isnothing(o.children) ? Vector{XML.Node}() : o.children)
+    n = deepcopy(o)
     return n
 end
 function do_sheet_names_match(ws::Worksheet, rng::T) where {T<:Union{SheetCellRef,AbstractSheetCellRange}}
@@ -210,7 +218,9 @@ end
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
-    if length(XML.children(new_cell_xf)) == 0
+    if isnothing(new_cell_xf.children)
+        new_cell_xf=XML.Node(new_cell_xf, alignment)
+    elseif length(XML.children(new_cell_xf)) == 0
         push!(new_cell_xf, alignment)
     else
         new_cell_xf[1] = alignment

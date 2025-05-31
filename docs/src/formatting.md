@@ -243,7 +243,7 @@ function timeit()
     print("Using `setUniformFormat` : ")
     @time do_uniform_format(f)
     f = setup()
-    print("Using `setUniformStyles` : ")
+    print("Using `setUniformStyle` : ")
     @time do_format_styles(f)
     return f
 end
@@ -253,9 +253,9 @@ f=timeit()
 which yields the following timings:
 
 ```
-Using `setFormat`        :  39.925697 seconds (1.04 G allocations: 71.940 GiB, 19.13% gc time)
-Using `setUniformFormat` :  27.875646 seconds (711.00 M allocations: 48.195 GiB, 18.46% gc time)
-Using `setUniformStyles` :   0.589316 seconds (14.00 M allocations: 416.628 MiB, 16.98% gc time)
+Using `setFormat`        :  26.109917 seconds (653.00 M allocations: 53.515 GiB, 22.08% gc time)
+Using `setUniformFormat` :  17.602014 seconds (428.00 M allocations: 34.881 GiB, 22.89% gc time)
+Using `setUniformStyle` :   0.571542 seconds (14.00 M allocations: 416.621 MiB, 15.63% gc time)
 ```
 
 The same test, using the more involved `setBorder` function
@@ -273,10 +273,11 @@ do_format(f) = XLSX.setBorder(f[1], 1:1000, 1:1000;
 gives
 
 ```
-Using `setBorder`        :  96.824494 seconds (2.82 G allocations: 194.342 GiB, 18.82% gc time)
-Using `setUniformBorder` :  32.182135 seconds (787.00 M allocations: 62.081 GiB, 20.85% gc time)
-Using `setUniformStyles` :   0.606058 seconds (14.00 M allocations: 416.660 MiB, 16.19% gc time)
+Using `setBorder`        :  48.136904 seconds (1.23 G allocations: 111.901 GiB, 23.39% gc time)
+Using `setUniformBorder` :  23.961719 seconds (504.00 M allocations: 48.812 GiB, 23.93% gc time)
+Using `setUniformStyle` :   0.668181 seconds (14.00 M allocations: 416.626 MiB, 14.36% gc time)
 ```
+
 If maintaining heterogeneous formatting attributes is not important, it is more efficient to 
 apply `setUinformAttribute` functions rather than `setAttribute` functions, especially on large 
 cell ranges, and much more efficient still to use `setUniformStyle`.
