@@ -1,16 +1,16 @@
 #
 # ---- Some random helper functions
 #
-function convertref(c)
-    if !isnothing(c)
-        if is_valid_cellname(c)
-            c = abscell(CellRef(c))
-        elseif is_valid_sheet_cellname(c)
-            c = mkabs(SheetCellRef(c))
-        end
-    end
-    return c
-end
+#function convertref(c)
+#    if !isnothing(c)
+#        if is_valid_cellname(c)
+#            c = abscell(CellRef(c))
+#        elseif is_valid_sheet_cellname(c)
+#            c = mkabs(SheetCellRef(c))
+#        end
+#    end
+#    return c
+#end
 function isValidKw(kw::String, val::Union{String, Nothing}, valid::Vector{String})
     if isnothing(val) || val ∈ valid
         return true
