@@ -132,7 +132,7 @@ function setFont(sh::Worksheet, cellref::CellRef;
         cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
 
     new_font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     cell_font = getFont(wb, cell_style)
@@ -712,7 +712,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
         cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
     new_border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
 
     cell_borders = getBorder(wb, cell_style)
@@ -1170,7 +1170,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
         cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
 
     new_fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     patternFill = Dict{String,String}()
@@ -1481,7 +1481,7 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
         cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
 
     atts = XML.OrderedDict{String,String}()
     cell_alignment = getAlignment(wb, cell_style)
@@ -1777,7 +1777,7 @@ function setFormat(sh::Worksheet, cellref::CellRef;
         cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
 
     #    new_format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     new_format = XML.OrderedDict{String,String}()

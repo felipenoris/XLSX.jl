@@ -96,9 +96,8 @@ function styles_cell_xf(wb::Workbook, index::Int)::XML.Node
     xf_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", xroot)
     return xf_elements[index+1]
 end
-function styles_cell_xf(wb::Workbook, allXfNodes::Vector{XML.Node}, index::Int)::XML.Node
-    xf_elements = allXfNodes
-    return xf_elements[index+1]
+function styles_cell_xf(allXfNodes::Vector{XML.Node}, index::Int)::XML.Node
+    return allXfNodes[index+1]
 end
 
 # Queries numFmtId from cellXfs -> xf nodes."
@@ -109,8 +108,8 @@ function styles_cell_xf_numFmtId(wb::Workbook, index::Int)::Int
     end
     return parse(Int, el["numFmtId"])
 end
-function styles_cell_xf_numFmtId(wb::Workbook, allXfNodes::Vector{XML.Node}, index::Int)::Int
-    el = styles_cell_xf(wb, allXfNodes, index)
+function styles_cell_xf_numFmtId(allXfNodes::Vector{XML.Node}, index::Int)::Int
+    el = styles_cell_xf(allXfNodes, index)
     if !haskey(el, "numFmtId")
         return 0
     end
@@ -256,13 +255,11 @@ function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int)::AbstractC
     return styles_get_cellXf_with_numFmtId(allXfNodes, numFmtId)
 end
 function styles_get_cellXf_with_numFmtId(allXfNodes::Vector{XML.Node}, numFmtId::Int)::AbstractCellDataFormat
-    elements_found = allXfNodes
-
-    if isempty(elements_found)
+    if isempty(allXfNodes)
         return EmptyCellDataFormat()
     else
-        for i in 1:length(elements_found)
-            el = XML.attributes(elements_found[i])
+        for i in 1:length(allXfNodes)
+            el = XML.attributes(allXfNodes[i])
             if !isnothing(el) && haskey(el, "numFmtId")
                 if parse(Int, el["numFmtId"]) == numFmtId
                     return CellDataFormat(i - 1) # CellDataFormat is zero-indexed

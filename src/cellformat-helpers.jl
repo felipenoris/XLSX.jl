@@ -207,7 +207,7 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attri
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
 function update_template_xf(ws::Worksheet, allXfNodes::Vector{XML.Node}, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
-    old_cell_xf = styles_cell_xf(ws.package.workbook, allXfNodes, Int(existing_style.id))
+    old_cell_xf = styles_cell_xf(allXfNodes, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
     if length(attributes) != length(vals)
         throw(XLSXError("Attributes and values must be of the same length."))
@@ -230,7 +230,7 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, align
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
 function update_template_xf(ws::Worksheet, allXfNodes::Vector{XML.Node}, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
-    old_cell_xf = styles_cell_xf(ws.package.workbook, allXfNodes, Int(existing_style.id))
+    old_cell_xf = styles_cell_xf(allXfNodes, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
     if isnothing(new_cell_xf.children)
         new_cell_xf=XML.Node(new_cell_xf, alignment)
