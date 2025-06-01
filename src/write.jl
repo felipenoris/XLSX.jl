@@ -962,6 +962,9 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 
     xdoc = XML.read(file_sheet_template, XML.Node)
 
+    # generate a unique ID for the new sheet
+    xdoc[2]["xr:uid"] = "{" * string(UUIDs.uuid4()) * "}"
+
     # generate a unique name for the XML
     local xml_filename::String
     i = 1
