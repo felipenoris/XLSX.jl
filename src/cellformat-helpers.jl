@@ -206,8 +206,31 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attri
     end
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
+function update_template_xf(ws::Worksheet, allXfNodes::Vector{XML.Node}, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
+    old_cell_xf = styles_cell_xf(ws.package.workbook, allXfNodes, Int(existing_style.id))
+    new_cell_xf = copynode(old_cell_xf)
+    if length(attributes) != length(vals)
+        throw(XLSXError("Attributes and values must be of the same length."))
+    end
+    for (a, v) in zip(attributes, vals)
+        new_cell_xf[a] = v
+    end
+    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
+end
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
+    new_cell_xf = copynode(old_cell_xf)
+    if isnothing(new_cell_xf.children)
+        new_cell_xf=XML.Node(new_cell_xf, alignment)
+    elseif length(XML.children(new_cell_xf)) == 0
+        push!(new_cell_xf, alignment)
+    else
+        new_cell_xf[1] = alignment
+    end
+    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
+end
+function update_template_xf(ws::Worksheet, allXfNodes::Vector{XML.Node}, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
+    old_cell_xf = styles_cell_xf(ws.package.workbook, allXfNodes, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
     if isnothing(new_cell_xf.children)
         new_cell_xf=XML.Node(new_cell_xf, alignment)
@@ -381,9 +404,6 @@ function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...):
     end
 end
 function process_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
-    #    if occursin("Uniform", string(nameof(f))) # Shouldn't happen!
-    #        throw(XLSXError("Cannot apply `setUniformAttribute()` functions to a non-contiguous range.\nUse the equivalent `setAttribute()` function instead."))
-    #    end
     bounds = nc_bounds(ncrng)
     if length(ncrng) == 1
         single = true
@@ -536,9 +556,9 @@ end
 #
 
 #
-# Most set functions (but not Style or Alignment)
+# Most setUniform functions (but not Style or Alignment - see below)
 #
-function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, atts::Vector{String}, newid::Union{Int,Nothing}, first::Bool; kw...)
+function process_uniform_core(f::Function, ws::Worksheet, allXfNodes::Vector{XML.Node}, cellref::CellRef, atts::Vector{String}, newid::Union{Int,Nothing}, first::Bool; kw...)
     cell = getcell(ws, cellref)
     if cell isa EmptyCell # Can't add a attribute to an empty cell.
         return newid, first
@@ -548,9 +568,9 @@ function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, atts
         first = false
     else                               # Apply the same attribute to the rest of the cells in the range.
         if cell.style == ""
-            cell.style = string(get_num_style_index(ws, 0).id)
+            cell.style = string(get_num_style_index(ws, allXfNodes, 0).id)
         end
-        cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), atts, [string(newid), "1"]).id)
+        cell.style = string(update_template_xf(ws, allXfNodes, CellDataFormat(parse(Int, cell.style)), atts, [string(newid), "1"]).id)
     end
     return newid, first
 end
@@ -558,12 +578,13 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
     if !get_xlsxfile(ws).use_cache_for_sheet_data
         throw(XLSXError("Cannot set uniform attributes because cache is not enabled."))
     end
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
         isInDim(ws, get_dimension(ws), rng)
         for cellref in rng
-            newid, first = process_uniform_core(f, ws, cellref, atts, newid, first; kw...)
+            newid, first = process_uniform_core(f, ws, allXfNodes, cellref, atts, newid, first; kw...)
         end
         if first
             newid = -1
@@ -572,6 +593,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
     end
 end
 function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange, atts::Vector{String}; kw...)::Int
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
     bounds = nc_bounds(ncrng)
     if length(ncrng) == 1
         single = true
@@ -594,10 +616,10 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
                         single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
                         continue
                     end
-                    newid, first = process_uniform_core(f, ws, r, atts, newid, first; kw...)
+                    newid, first = process_uniform_core(f, ws, allXfNodes, r, atts, newid, first; kw...)
                 else
                     for c in r
-                        newid, first = process_uniform_core(f, ws, c, atts, newid, first; kw...)
+                        newid, first = process_uniform_core(f, ws, allXfNodes, c, atts, newid, first; kw...)
                     end
 #                else
 #                    throw(XLSXError("Something wrong here!"))
@@ -615,6 +637,7 @@ end
 function process_uniform_veccolon(f::Function, ws::Worksheet, row, col, atts::Vector{String}; kw...)
     dim = get_dimension(ws)
     @assert isnothing(row) || isnothing(col) "Something wrong here!"
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
     if isnothing(col)
         col = dim.start.column_number:dim.stop.column_number
     else
@@ -632,7 +655,7 @@ function process_uniform_veccolon(f::Function, ws::Worksheet, row, col, atts::Ve
                 if getcell(ws, cellref) isa EmptyCell
                     continue
                 end
-                newid, first = process_uniform_core(f, ws, cellref, atts, newid, first; kw...)
+                newid, first = process_uniform_core(f, ws, allXfNodes, cellref, atts, newid, first; kw...)
             end
         end
         if first
@@ -642,6 +665,7 @@ function process_uniform_veccolon(f::Function, ws::Worksheet, row, col, atts::Ve
     end
 end
 function process_uniform_vecint(f::Function, ws::Worksheet, row, col, atts::Vector{String}; kw...)
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
     let newid::Union{Int,Nothing}, first::Bool
         dim = get_dimension(ws)
         newid = nothing
@@ -652,7 +676,7 @@ function process_uniform_vecint(f::Function, ws::Worksheet, row, col, atts::Vect
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first = process_uniform_core(f, ws, cellref, atts, newid, first; kw...)
+            newid, first = process_uniform_core(f, ws, allXfNodes, cellref, atts, newid, first; kw...)
         end
         if first
             newid = -1
@@ -785,7 +809,7 @@ end
 #
 # Alignment is different
 #
-function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}; kw...) # setUniformAlignment is different
+function process_uniform_core(f::Function, ws::Worksheet, allXfNodes::Vector{XML.Node}, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}; kw...) # setUniformAlignment is different
     cell = getcell(ws, cellref)
     if cell isa EmptyCell # Can't add a attribute to an empty cell.
         return newid, first, alignment_node
@@ -797,9 +821,9 @@ function process_uniform_core(f::Function, ws::Worksheet, cellref::CellRef, newi
         first = false
     else                               # Apply the same attribute to the rest of the cells in the range.
         if cell.style == ""
-            cell.style = string(get_num_style_index(ws, 0).id)
+            cell.style = string(get_num_style_index(ws, allXfNodes, 0).id)
         end
-        cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
+        cell.style = string(update_template_xf(ws, allXfNodes, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
     end
     return newid, first, alignment_node
 end
@@ -807,6 +831,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
     if !get_xlsxfile(ws).use_cache_for_sheet_data
         throw(XLSXError("Cannot set uniform attributes because cache is not enabled."))
     end
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
     let newid::Union{Int,Nothing}, first::Bool, alignment_node::Union{XML.Node,Nothing}
         newid = nothing
         first = true
@@ -816,7 +841,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first, alignment_node = process_uniform_core(f, ws, cellref, newid, first, alignment_node; kw...)
+            newid, first, alignment_node = process_uniform_core(f, ws, allXfNodes, cellref, newid, first, alignment_node; kw...)
         end
         if first
             newid = -1
@@ -825,6 +850,7 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; k
     end
 end
 function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
     bounds = nc_bounds(ncrng)
     if length(ncrng) == 1
         single = true
@@ -852,10 +878,10 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
                         single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
                         continue
                     end
-                    newid, first, alignment_node = process_uniform_core(f, ws, r, newid, first, alignment_node; kw...)
+                    newid, first, alignment_node = process_uniform_core(f, ws, allXfNodes, r, newid, first, alignment_node; kw...)
                 else
                     for c in r
-                        newid, first, alignment_node = process_uniform_core(f, ws, c, newid, first, alignment_node; kw...)
+                        newid, first, alignment_node = process_uniform_core(f, ws, allXfNodes, c, newid, first, alignment_node; kw...)
                     end
 #                else
 #                    throw(XLSXError("Something wrong here!"))
@@ -876,6 +902,7 @@ function process_uniform_veccolon(f::Function, ws::Worksheet, row, col; kw...)
         throw(XLSXError("No worksheet dimension found"))
     else
         @assert isnothing(row) || isnothing(col) "Something wrong here!"
+        allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
         if isnothing(col)
             col = dim.start.column_number:dim.stop.column_number
         else
@@ -894,7 +921,7 @@ function process_uniform_veccolon(f::Function, ws::Worksheet, row, col; kw...)
                     if getcell(ws, cellref) isa EmptyCell
                         continue
                     end
-                    newid, first, alignment_node = process_uniform_core(f, ws, cellref, newid, first, alignment_node; kw...)
+                    newid, first, alignment_node = process_uniform_core(f, ws, allXfNodes, cellref, newid, first, alignment_node; kw...)
                 end
             end
             if first
@@ -910,6 +937,7 @@ function process_uniform_vecint(f::Function, ws::Worksheet, row, col; kw...)
         if dim === nothing
             throw(XLSXError("No worksheet dimension found"))
         end
+        allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(get_workbook(ws)))
         newid = nothing
         first = true
         alignment_node = nothing
@@ -919,7 +947,7 @@ function process_uniform_vecint(f::Function, ws::Worksheet, row, col; kw...)
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first, alignment_node = process_uniform_core(f, ws, cellref, newid, first, alignment_node; kw...)
+            newid, first, alignment_node = process_uniform_core(f, ws, allXfNodes, cellref, newid, first, alignment_node; kw...)
         end
         if first
             newid = -1

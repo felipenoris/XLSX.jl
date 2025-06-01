@@ -253,9 +253,9 @@ f=timeit()
 which yields the following timings:
 
 ```
-Using `setFormat`        :  26.109917 seconds (653.00 M allocations: 53.515 GiB, 22.08% gc time)
-Using `setUniformFormat` :  17.602014 seconds (428.00 M allocations: 34.881 GiB, 22.89% gc time)
-Using `setUniformStyle` :   0.571542 seconds (14.00 M allocations: 416.621 MiB, 15.63% gc time)
+Using `setFormat`        :  10.966803 seconds (256.00 M allocations: 19.771 GiB, 18.81% gc time)
+Using `setUniformFormat` :   2.222868 seconds (31.00 M allocations: 1.137 GiB, 19.48% gc time)
+Using `setUniformStyles` :   0.519658 seconds (14.00 M allocations: 416.587 MiB)
 ```
 
 The same test, using the more involved `setBorder` function
@@ -273,14 +273,14 @@ do_format(f) = XLSX.setBorder(f[1], 1:1000, 1:1000;
 gives
 
 ```
-Using `setBorder`        :  48.136904 seconds (1.23 G allocations: 111.901 GiB, 23.39% gc time)
-Using `setUniformBorder` :  23.961719 seconds (504.00 M allocations: 48.812 GiB, 23.93% gc time)
-Using `setUniformStyle` :   0.668181 seconds (14.00 M allocations: 416.626 MiB, 14.36% gc time)
+Using `setBorder`        :  29.536010 seconds (759.00 M allocations: 64.286 GiB, 22.01% gc time)
+Using `setUniformBorder` :   2.052018 seconds (31.00 M allocations: 1.197 GiB, 13.18% gc time)
+Using `setUniformStyles` :   0.599491 seconds (14.00 M allocations: 416.586 MiB, 15.20% gc time)
 ```
 
 If maintaining heterogeneous formatting attributes is not important, it is more efficient to 
 apply `setUinformAttribute` functions rather than `setAttribute` functions, especially on large 
-cell ranges, and much more efficient still to use `setUniformStyle`.
+cell ranges, and more efficient still to use `setUniformStyle`.
 
 ## Copying formatting attributes
 
@@ -1261,8 +1261,8 @@ will result in the following, instead:
 It is possible to overlay `:colorScale`s, `:dataBar`s and `:iconSet`s in the same or 
 overlapping cell ranges.
 
-```julia
-julia> f=XLSX.newxlsx()
+```juliaf=XLSX.newxlsx()
+julia> 
 XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
             sheetname size          range
 -------------------------------------------------

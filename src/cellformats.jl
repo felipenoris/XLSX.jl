@@ -126,11 +126,13 @@ function setFont(sh::Worksheet, cellref::CellRef;
         throw(XLSXError("Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
     if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
 
     new_font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     cell_font = getFont(wb, cell_style)
@@ -192,7 +194,7 @@ function setFont(sh::Worksheet, cellref::CellRef;
 
     new_fontid = styles_add_cell_attribute(wb, font_node, "fonts")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], [string(new_fontid), "1"]).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], [string(new_fontid), "1"]).id)
     cell.style = newstyle
     return new_fontid
 end
@@ -704,11 +706,13 @@ function setBorder(sh::Worksheet, cellref::CellRef;
         throw(XLSXError("Cannot set border for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
     if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
     new_border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
 
     cell_borders = getBorder(wb, cell_style)
@@ -763,7 +767,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     new_borderid = styles_add_cell_attribute(wb, border_node, "borders")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["borderId", "applyBorder"], [string(new_borderid), "1"]).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["borderId", "applyBorder"], [string(new_borderid), "1"]).id)
     cell.style = newstyle
     return new_borderid
 end
@@ -1160,11 +1164,13 @@ function setFill(sh::Worksheet, cellref::CellRef;
         throw(XLSXError("Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
     if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
 
     new_fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     patternFill = Dict{String,String}()
@@ -1211,7 +1217,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
 
     new_fillid = styles_add_cell_attribute(wb, fill_node, "fills")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], [string(new_fillid), "1"]).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], [string(new_fillid), "1"]).id)
     cell.style = newstyle
     return new_fillid
 end
@@ -1469,11 +1475,13 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
         throw(XLSXError("Cannot set alignment for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
     if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
 
     atts = XML.OrderedDict{String,String}()
     cell_alignment = getAlignment(wb, cell_style)
@@ -1523,7 +1531,7 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
 
     alignment_node = XML.Node(XML.Element, "alignment", atts, nothing, nothing)
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
     cell.style = newstyle
 
     return parse(Int, newstyle)
@@ -1763,11 +1771,13 @@ function setFormat(sh::Worksheet, cellref::CellRef;
         throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
     if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    cell_style = styles_cell_xf(wb, allXfNodes, parse(Int, cell.style))
 
     #    new_format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     new_format = XML.OrderedDict{String,String}()
@@ -1789,7 +1799,7 @@ function setFormat(sh::Worksheet, cellref::CellRef;
         atts = ["numFmtId", "applyNumberFormat"]
         vals = [string(new_formatid), "1"]
     end
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), atts, vals).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), atts, vals).id)
     cell.style = newstyle
 
     return new_formatid

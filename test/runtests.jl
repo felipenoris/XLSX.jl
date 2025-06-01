@@ -3370,7 +3370,7 @@ end
     end
 end
 
-@testset "Conditional Formats" verbose=true begin
+@testset "Conditional Formats" begin
 
     @testset "DataBar" begin
 
@@ -3938,7 +3938,7 @@ end
                 min_type="percent", mid_type="percent", max_type="percent",
                 min_val="25", mid_val="50", max_val="75"
                 )
-        @test_throws TypeError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:4, 1, :iconSet; 
                 iconset="Custom",
                 icon_list=[],
                 min_type="percent", mid_type="percent", max_type="percent",
@@ -4948,7 +4948,7 @@ end
         @test_throws MethodError XLSX.setConditionalFormat(s, 2, 1:3:7, :expression; formula = "A1 < 7") # StepRange is non-contiguous
         @test XLSX.setConditionalFormat(s, "2:2", :expression; formula = "A1 = 16") == 0
         @test XLSX.setConditionalFormat(s, 2, :, :expression; formula = "A1 < 16", dxStyle="greenfilltext") == 0
-        @test_throws UndefKeywordError XLSX.setConditionalFormat(s, 1:10, 1:3, :expression;
+        @test_throws XLSX.XLSXError XLSX.setConditionalFormat(s, 1:10, 1:3, :expression;
             stopIfTrue="true",
             fill=["pattern" => "none", "bgColor" => "FFFFC7CE"],
             border=["style" => "thick", "color" => "coral"],

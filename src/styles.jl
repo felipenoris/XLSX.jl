@@ -53,6 +53,18 @@ function get_num_style_index(ws::Worksheet, numformatid::Integer)
 
     return style_index
 end
+function get_num_style_index(ws::Worksheet, allXfNodes::Vector{XML.Node}, numformatid::Integer)
+    numformatid < 0 && throw(XLSXError("Invalid number format id"))
+
+    wb = get_workbook(ws)
+    style_index = styles_get_cellXf_with_numFmtId(allXfNodes, numformatid)
+    if isempty(style_index)
+        # adds default style <xf applyNumberFormat="1" borderId="0" fillId="0" fontId="0" numFmtId=formatid xfId="0"/>
+        style_index = styles_add_cell_xf(wb, Dict("applyNumberFormat" => "1", "borderId" => "0", "fillId" => "0", "fontId" => "0", "numFmtId" => string(numformatid), "xfId" => "0"))
+    end
+
+    return style_index
+end
 
 # get styles document for workbook
 function styles_xmlroot(workbook::Workbook)
@@ -84,10 +96,21 @@ function styles_cell_xf(wb::Workbook, index::Int)::XML.Node
     xf_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", xroot)
     return xf_elements[index+1]
 end
+function styles_cell_xf(wb::Workbook, allXfNodes::Vector{XML.Node}, index::Int)::XML.Node
+    xf_elements = allXfNodes
+    return xf_elements[index+1]
+end
 
 # Queries numFmtId from cellXfs -> xf nodes."
 function styles_cell_xf_numFmtId(wb::Workbook, index::Int)::Int
     el = styles_cell_xf(wb, index)
+    if !haskey(el, "numFmtId")
+        return 0
+    end
+    return parse(Int, el["numFmtId"])
+end
+function styles_cell_xf_numFmtId(wb::Workbook, allXfNodes::Vector{XML.Node}, index::Int)::Int
+    el = styles_cell_xf(wb, allXfNodes, index)
     if !haskey(el, "numFmtId")
         return 0
     end
@@ -229,7 +252,11 @@ Returns -1 if not found.
 =#
 function styles_get_cellXf_with_numFmtId(wb::Workbook, numFmtId::Int)::AbstractCellDataFormat
     xroot = styles_xmlroot(wb)
-    elements_found = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", xroot)
+    allXfNodes = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", xroot)
+    return styles_get_cellXf_with_numFmtId(allXfNodes, numFmtId)
+end
+function styles_get_cellXf_with_numFmtId(allXfNodes::Vector{XML.Node}, numFmtId::Int)::AbstractCellDataFormat
+    elements_found = allXfNodes
 
     if isempty(elements_found)
         return EmptyCellDataFormat()

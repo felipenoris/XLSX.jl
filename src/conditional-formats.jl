@@ -22,7 +22,7 @@ const highlights::Dict{String,Dict{String,Dict{String,String}}} = Dict(
         "border" => Dict("color" => "FF9C0006", "style" => "thin")
     )
 )
-const databars::Dict{String, Dict{String, String}} = Dict(
+const databars::Dict{String,Dict{String,String}} = Dict(
     "bluegrad" => Dict(
         "min_type" => "automatic",
         "max_type" => "automatic",
@@ -55,7 +55,7 @@ const databars::Dict{String, Dict{String, String}} = Dict(
         "neg_fill_col" => "FFFF0000",
         "neg_border_col" => "FFFF0000",
         "axis_col" => "FF000000"
-    ), 
+    ),
     "orangegrad" => Dict(
         "min_type" => "automatic",
         "max_type" => "automatic",
@@ -88,7 +88,7 @@ const databars::Dict{String, Dict{String, String}} = Dict(
         "neg_fill_col" => "FFFF0000",
         "neg_border_col" => "FFFF0000",
         "axis_col" => "FF000000"
-    ), 
+    ),
     "blue" => Dict(
         "min_type" => "automatic",
         "max_type" => "automatic",
@@ -112,7 +112,7 @@ const databars::Dict{String, Dict{String, String}} = Dict(
         "gradient" => "false",
         "neg_fill_col" => "FFFF0000",
         "axis_col" => "FF000000"
-    ), 
+    ),
     "orange" => Dict(
         "min_type" => "automatic",
         "max_type" => "automatic",
@@ -136,7 +136,7 @@ const databars::Dict{String, Dict{String, String}} = Dict(
         "gradient" => "false",
         "neg_fill_col" => "FFFF0000",
         "axis_col" => "FF000000"
-    ), 
+    ),
 )
 const colorscales::Dict{String,XML.Node} = Dict(    # Defines the 12 standard, built-in Excel color scales for conditional formatting.
     "greenyellowred" => XML.h.cfRule(type="colorScale", priority="1",
@@ -388,15 +388,15 @@ const iconsets::Dict{String,XML.Node} = Dict(    # Defines the 20 standard, buil
     "Custom" => get_x14_icon("Custom")
 )
 const allIcons::Dict{String,Tuple{String,String}} = Dict(
-    "1"  => ("3Arrows", "0"),
-    "2"  => ("3Arrows", "1"),
-    "3"  => ("3Arrows", "2"),
-    "4"  => ("4Arrows", "1"),
-    "5"  => ("4Arrows", "2"),
-    "6"  => ("3ArrowsGray", "0"),
-    "7"  => ("3ArrowsGray", "1"),
-    "8"  => ("3ArrowsGray", "2"),
-    "9"  => ("4ArrowsGray", "1"),
+    "1" => ("3Arrows", "0"),
+    "2" => ("3Arrows", "1"),
+    "3" => ("3Arrows", "2"),
+    "4" => ("4Arrows", "1"),
+    "5" => ("4Arrows", "2"),
+    "6" => ("3ArrowsGray", "0"),
+    "7" => ("3ArrowsGray", "1"),
+    "8" => ("3ArrowsGray", "2"),
+    "9" => ("4ArrowsGray", "1"),
     "10" => ("4ArrowsGray", "2"),
     "11" => ("3Flags", "0"),
     "12" => ("3Flags", "1"),
@@ -468,8 +468,8 @@ Return a vector of pairs: CellRange => NamedTuple{type::String, priority::Int}}.
 
 """
 getConditionalFormats(ws::Worksheet) = append!(getConditionalFormats(allCfs(ws)), getConditionalExtFormats(allExtCfs(ws)))
-function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}
-    allcfs = Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}()
+function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple{(:type, :priority),Tuple{String,Int64}}}}
+    allcfs = Vector{Pair{CellRange,NamedTuple{(:type, :priority),Tuple{String,Int64}}}}()
     for cf in allcfnodes
         for child in XML.children(cf)
             if XML.tag(child) == "cfRule"
@@ -479,8 +479,8 @@ function getConditionalFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRa
     end
     return allcfs
 end
-function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}
-    allcfs = Vector{Pair{CellRange, NamedTuple{(:type, :priority), Tuple{String, Int64}}}}()
+function getConditionalExtFormats(allcfnodes::Vector{XML.Node})::Vector{Pair{CellRange,NamedTuple{(:type, :priority),Tuple{String,Int64}}}}
+    allcfs = Vector{Pair{CellRange,NamedTuple{(:type, :priority),Tuple{String,Int64}}}}()
     for cf in allcfnodes
         let t, p, r, rule = false, ref = false
             @assert XML.tag(cf) == "x14:conditionalFormatting" "Something wrong here"
@@ -1339,52 +1339,56 @@ XLSX.setConditionalFormat(s, "A2:A11", :iconSet;
 
 """
 function setConditionalFormat(f, r, type::Symbol; kw...)
+    _allkws = Dict{Symbol,Any}(k => v for (k, v) in kw)
     if type == :colorScale
-        setCfColorScale(f, r; kw...)
+        setCfColorScale(f, r; allkws=_allkws)
     elseif type == :cellIs
-        setCfCellIs(f, r; kw...)
+        setCfCellIs(f, r; allkws=_allkws)
     elseif type == :top10
-        setCfTop10(f, r; kw...)
+        setCfTop10(f, r; allkws=_allkws)
     elseif type == :aboveAverage
-        setCfAboveAverage(f, r; kw...)
+        setCfAboveAverage(f, r; allkws=_allkws)
     elseif type == :timePeriod
-        setCfTimePeriod(f, r; kw...)
+        setCfTimePeriod(f, r; allkws=_allkws)
     elseif type ∈ [:containsText, :notContainsText, :beginsWith, :endsWith]
-        setCfContainsText(f, r; operator=String(type), kw...)
+        setCfContainsText(f, r; allkws=_allkws)
     elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, :duplicateValues, :uniqueValues]
-        setCfContainsBlankErrorUniqDup(f, r; operator=String(type), kw...)
+        push!(_allkws, :operator => string(type))
+        setCfContainsBlankErrorUniqDup(f, r; allkws=_allkws)
     elseif type == :expression
-        setCfFormula(f, r; kw...)
+        setCfFormula(f, r; allkws=_allkws)
     elseif type == :iconSet
-        setCfIconSet(f, r; kw...)
+        setCfIconSet(f, r; allkws=_allkws)
     elseif type == :dataBar
-        setCfDataBar(f, r; kw...)
+        setCfDataBar(f, r; allkws=_allkws)
     else
         throw(XLSXError("Invalid conditional format type: $type."))
     end
 end
 
 function setConditionalFormat(f, r, c, type::Symbol; kw...)
+    _allkws = Dict{Symbol,Any}(k => v for (k, v) in kw)
     if type == :colorScale
-        setCfColorScale(f, r, c; kw...)
+        setCfColorScale(f, r, c; allkws=_allkws)
     elseif type == :cellIs
-        setCfCellIs(f, r, c; kw...)
+        setCfCellIs(f, r, c; allkws=_allkws)
     elseif type == :top10
-        setCfTop10(f, r, c; kw...)
+        setCfTop10(f, r, c; allkws=_allkws)
     elseif type == :aboveAverage
-        setCfAboveAverage(f, r, c; kw...)
+        setCfAboveAverage(f, r, c; allkws=_allkws)
     elseif type == :timePeriod
-        setCfTimePeriod(f, r, c; kw...)
+        setCfTimePeriod(f, r, c; allkws=_allkws)
     elseif type ∈ [:containsText, :notContainsText, :beginsWith, :endsWith]
-        setCfContainsText(f, r, c; operator=String(type), kw...)
+        setCfContainsText(f, r, c; allkws=_allkws)
     elseif type ∈ [:containsBlanks, :notContainsBlanks, :containsErrors, :notContainsErrors, :duplicateValues, :uniqueValues]
-        setCfContainsBlankErrorUniqDup(f, r, c; operator=String(type), kw...)
+        push!(_allkws, :operator => string(type))
+        setCfContainsBlankErrorUniqDup(f, r, c; allkws=_allkws)
     elseif type == :expression
-        setCfFormula(f, r, c; kw...)
+        setCfFormula(f, r, c; allkws=_allkws)
     elseif type == :iconSet
-        setCfIconSet(f, r, c; kw...)
+        setCfIconSet(f, r, c; allkws=_allkws)
     elseif type == :dataBar
-        setCfDataBar(f, r, c; kw...)
+        setCfDataBar(f, r, c; allkws=_allkws)
     else
         throw(XLSXError("Invalid conditional format type: $type."))
     end
@@ -1404,17 +1408,41 @@ setCfCellIs(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfCellIs
 setCfCellIs(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfCellIs, ws, rng; kw...)
 setCfCellIs(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfCellIs, xl, sheetcell; kw...)
 setCfCellIs(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfCellIs, ws, ref_or_rng; kw...)
-function setCfCellIs(ws::Worksheet, rng::CellRange;
-    operator::Union{Nothing,String}="greaterThan",
-    value::Union{Nothing,String}=nothing,
-    value2::Union{Nothing,String}=nothing,
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfCellIs(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    operator::Union{Nothing,String}="greaterThan"
+    value::Union{Nothing,String}=nothing
+    value2::Union{Nothing,String}=nothing
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+
+    for (k, v) in allkws
+        if k == :operator
+            operator = v
+        elseif k == :value
+            value = v
+        elseif k == :value2
+            value2 = v
+        elseif k == :stopIfTrue
+            stopIfTrue = v
+        elseif k == :dxStyle
+            dxStyle = v
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid keywords are: `operator`, `value`, `value2`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border` and `fill`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -1464,16 +1492,37 @@ setCfContainsText(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCf
 setCfContainsText(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfContainsText, ws, rng; kw...)
 setCfContainsText(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfContainsText, xl, sheetcell; kw...)
 setCfContainsText(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfContainsText, ws, ref_or_rng; kw...)
-function setCfContainsText(ws::Worksheet, rng::CellRange;
-    operator::Union{Nothing,String}="containsText",
-    value::Union{Nothing,String}=nothing,
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfContainsText(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    operator::Union{Nothing,String}="containsText"
+    value::Union{Nothing,String}=nothing
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+    for (k, v) in allkws
+        if k == :operator
+            operator = String(v)
+        elseif k == :value
+            value = String(v)
+        elseif k == :stopIfTrue
+            stopIfTrue = String(v)
+        elseif k == :dxStyle
+            dxStyle = String(v)
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `operator`, `value`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border`, `fill`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -1532,16 +1581,37 @@ setCfTop10(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfTop10, 
 setCfTop10(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfTop10, ws, rng; kw...)
 setCfTop10(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfTop10, xl, sheetcell; kw...)
 setCfTop10(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfTop10, ws, ref_or_rng; kw...)
-function setCfTop10(ws::Worksheet, rng::CellRange;
-    operator::Union{Nothing,String}="topN",
-    value::Union{Nothing,String}="10",
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfTop10(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    operator::Union{Nothing,String}="topN"
+    value::Union{Nothing,String}="10"
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+    for (k, v) in allkws
+        if k == :operator
+            operator = v
+        elseif k == :value
+            value = v
+        elseif k == :stopIfTrue
+            stopIfTrue = v
+        elseif k == :dxStyle
+            dxStyle = v
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `operator`, `value`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border`, `fill`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -1601,15 +1671,34 @@ setCfAboveAverage(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCf
 setCfAboveAverage(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfAboveAverage, ws, rng; kw...)
 setCfAboveAverage(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfAboveAverage, xl, sheetcell; kw...)
 setCfAboveAverage(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfAboveAverage, ws, ref_or_rng; kw...)
-function setCfAboveAverage(ws::Worksheet, rng::CellRange;
-    operator::Union{Nothing,String}="aboveAverage",
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfAboveAverage(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    operator::Union{Nothing,String}="aboveAverage"
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+    for (k, v) in allkws
+        if k == :operator
+            operator = v
+        elseif k == :stopIfTrue
+            stopIfTrue = v
+        elseif k == :dxStyle
+            dxStyle = v
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `operator`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border`, `fill`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -1669,15 +1758,34 @@ setCfTimePeriod(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfTi
 setCfTimePeriod(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfTimePeriod, ws, rng; kw...)
 setCfTimePeriod(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfTimePeriod, xl, sheetcell; kw...)
 setCfTimePeriod(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfTimePeriod, ws, ref_or_rng; kw...)
-function setCfTimePeriod(ws::Worksheet, rng::CellRange;
-    operator::Union{Nothing,String}="last7Days",
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfTimePeriod(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    operator::Union{Nothing,String}="last7Days"
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+    for (k, v) in allkws
+        if k == :operator
+            operator = v
+        elseif k == :stopIfTrue
+            stopIfTrue = v
+        elseif k == :dxStyle
+            dxStyle = v
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `operator`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border`, `fill`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -1742,21 +1850,39 @@ setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::RowRange; kw...) = process_ro
 setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfContainsBlankErrorUniqDup, ws, rng; kw...)
 setCfContainsBlankErrorUniqDup(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfContainsBlankErrorUniqDup, xl, sheetcell; kw...)
 setCfContainsBlankErrorUniqDup(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfContainsBlankErrorUniqDup, ws, ref_or_rng; kw...)
-function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange;
-    operator::Union{Nothing,String}="containsBlank",
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfContainsBlankErrorUniqDup(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    operator::Union{Nothing,String}="containsBlanks"
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+    for (k, v) in allkws
+        if k == :operator
+            operator = v
+        elseif k == :stopIfTrue
+            stopIfTrue = v
+        elseif k == :dxStyle
+            dxStyle = v
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `operator`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border`, `fill`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
     allcfs = allCfs(ws)                    # get all conditional format blocks
     old_cf = getConditionalFormats(ws) # extract conditional format info
-
     if operator == "containsBlanks"
         formula = "LEN(TRIM(__CR__))=0"
     elseif operator == "notContainsBlanks"
@@ -1803,15 +1929,35 @@ setCfFormula(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfFormu
 setCfFormula(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfFormula, ws, rng; kw...)
 setCfFormula(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfFormula, xl, sheetcell; kw...)
 setCfFormula(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfFormula, ws, ref_or_rng; kw...)
-function setCfFormula(ws::Worksheet, rng::CellRange;
-    formula::Union{Nothing,String},
-    stopIfTrue::Union{Nothing,String}=nothing,
-    dxStyle::Union{Nothing,String}=nothing,
-    format::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    font::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-    border::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+function setCfFormula(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    formula::Union{Nothing,String}=nothing
+    stopIfTrue::Union{Nothing,String}=nothing
+    dxStyle::Union{Nothing,String}=nothing
+    format::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    font::Union{Nothing,Vector{Pair{String,String}}}=nothing
+    border::Union{Nothing,Vector{Pair{String,String}}}=nothing
     fill::Union{Nothing,Vector{Pair{String,String}}}=nothing
-)::Int
+    for (k, v) in allkws
+        if k == :formula
+            formula = v
+        elseif k == :stopIfTrue
+            stopIfTrue = v
+        elseif k == :dxStyle
+            dxStyle = v
+        elseif k == :format
+            format = v
+        elseif k == :font
+            font = v
+        elseif k == :border
+            border = v
+        elseif k == :fill
+            fill = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `formula`, `stopIfTrue`, `dxStyle`, `format`, `font`, `border`, `fill`."))
+        end
+    end
+    isnothing(formula) && throw(XLSXError("A `formula` must be provided as a keyword argument."))
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension."))
 
@@ -1850,18 +1996,43 @@ setCfColorScale(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfCo
 setCfColorScale(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfColorScale, ws, rng; kw...)
 setCfColorScale(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfColorScale, xl, sheetcell; kw...)
 setCfColorScale(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfColorScale, ws, ref_or_rng; kw...)
-function setCfColorScale(ws::Worksheet, rng::CellRange;
-    colorscale::Union{Nothing,String}=nothing,
-    min_type::Union{Nothing,String}="min",
-    min_val::Union{Nothing,String}=nothing,
-    min_col::Union{Nothing,String}="FFF8696B",
-    mid_type::Union{Nothing,String}=nothing,
-    mid_val::Union{Nothing,String}=nothing,
-    mid_col::Union{Nothing,String}=nothing,
-    max_type::Union{Nothing,String}="max",
-    max_val::Union{Nothing,String}=nothing,
-    max_col::Union{Nothing,String}="FFFFEB84",
-)::Int
+function setCfColorScale(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+    colorscale::Union{Nothing,String}=nothing
+    min_type::Union{Nothing,String}="min"
+    min_val::Union{Nothing,String}=nothing
+    min_col::Union{Nothing,String}="FFF8696B"
+    mid_type::Union{Nothing,String}=nothing
+    mid_val::Union{Nothing,String}=nothing
+    mid_col::Union{Nothing,String}=nothing
+    max_type::Union{Nothing,String}="max"
+    max_val::Union{Nothing,String}=nothing
+    max_col::Union{Nothing,String}="FFFFEB84"
+
+    for (k, v) in allkws
+        if k == :colorscale
+            colorscale = v
+        elseif k == :min_type
+            min_type = v
+        elseif k == :min_val
+            min_val = v
+        elseif k == :min_col
+            min_col = v
+        elseif k == :mid_type
+            mid_type = v
+        elseif k == :mid_val
+            mid_val = v
+        elseif k == :mid_col
+            mid_col = v
+        elseif k == :max_type
+            max_type = v
+        elseif k == :max_val
+            max_val = v
+        elseif k == :max_col
+            max_col = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `colorscale`, `min_type`, `min_val`, `min_col`, `mid_type`, `mid_val`, `mid_col`, `max_type`, `max_val`, `max_col`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension ($(get_dimension(ws)))."))
 
@@ -1875,14 +2046,14 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
         if isnothing(colorscale)
 
             min_type in ["min", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: min, percentile, percent, num, formula."))
-            if min_type=="min"
+            if min_type == "min"
                 min_val = nothing
             end
             min_type == "formula" || isnothing(min_val) || is_valid_fixed_cellname(min_val) || is_valid_fixed_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
             isnothing(mid_type) || mid_type in ["percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid mid_type: $mid_type. Valid options are: percentile, percent, num, formula."))
             (!isnothing(mid_type) && mid_type == "formula") || isnothing(mid_val) || is_valid_fixed_cellname(mid_val) || is_valid_fixed_sheet_cellname(mid_val) || !isnothing(tryparse(Float64, mid_val)) || throw(XLSXError("Invalid mid_val: `$mid_val`. Valid options (unless mid_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
             max_type in ["max", "percentile", "percent", "num", "formula"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: max, percentile, percent, num, formula."))
-            if max_type=="max"
+            if max_type == "max"
                 max_val = nothing
             end
             max_type == "formula" || isnothing(max_val) || is_valid_fixed_cellname(max_val) || is_valid_fixed_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
@@ -1891,9 +2062,9 @@ function setCfColorScale(ws::Worksheet, rng::CellRange;
                 if !isnothing(val)
                     if is_valid_fixed_sheet_cellname(val)
                         do_sheet_names_match(ws, SheetCellRef(val))
-                        val=string(SheetCellRef(val).cellref)
+                        val = string(SheetCellRef(val).cellref)
                     end
-                    val =  XML.escape(uppercase_unquoted(val))
+                    val = XML.escape(uppercase_unquoted(val))
                 end
             end
 
@@ -1937,25 +2108,63 @@ setCfIconSet(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfIconS
 setCfIconSet(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfIconSet, ws, rng; kw...)
 setCfIconSet(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfIconSet, xl, sheetcell; kw...)
 setCfIconSet(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfIconSet, ws, ref_or_rng; kw...)
-function setCfIconSet(ws::Worksheet, rng::CellRange;
-    iconset::Union{Nothing,String}="3TrafficLights",
-    reverse::Union{Nothing,String}=nothing,
-    showVal::Union{Nothing,String}=nothing,
-    min_type::Union{Nothing,String}=nothing,
-    min_val::Union{Nothing,String}=nothing,
-    min_gte::Union{Nothing,String}=nothing,    
-    mid_type::Union{Nothing,String}=nothing,
-    mid_val::Union{Nothing,String}=nothing,
-    mid_gte::Union{Nothing,String}=nothing,    
-    mid2_type::Union{Nothing,String}=nothing,
-    mid2_val::Union{Nothing,String}=nothing,
-    mid2_gte::Union{Nothing,String}=nothing,    
-    max_type::Union{Nothing,String}=nothing,
-    max_val::Union{Nothing,String}=nothing,
-    max_gte::Union{Nothing,String}=nothing,    
-    icon_list::Union{Nothing,Vector{Int64}}=nothing
-    )::Int
+function setCfIconSet(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
 
+    iconset::Union{Nothing,String} = "3TrafficLights"
+    reverse::Union{Nothing,String} = nothing
+    showVal::Union{Nothing,String} = nothing
+    min_type::Union{Nothing,String} = nothing
+    min_val::Union{Nothing,String} = nothing
+    min_gte::Union{Nothing,String} = nothing
+    mid_type::Union{Nothing,String} = nothing
+    mid_val::Union{Nothing,String} = nothing
+    mid_gte::Union{Nothing,String} = nothing
+    mid2_type::Union{Nothing,String} = nothing
+    mid2_val::Union{Nothing,String} = nothing
+    mid2_gte::Union{Nothing,String} = nothing
+    max_type::Union{Nothing,String} = nothing
+    max_val::Union{Nothing,String} = nothing
+    max_gte::Union{Nothing,String} = nothing
+    icon_list::Union{Nothing,Vector{Int64}}=nothing
+
+    for (k, v) in allkws
+        if k == :iconset
+            iconset = v
+        elseif k == :reverse
+            reverse = v
+        elseif k == :showVal
+            showVal = v
+        elseif k == :min_type
+            min_type = v
+        elseif k == :min_val
+            min_val = v
+        elseif k == :min_gte
+            min_gte = v 
+        elseif k == :mid_type
+            mid_type = v
+        elseif k == :mid_val
+            mid_val = v
+        elseif k == :mid_gte
+            mid_gte = v
+        elseif k == :mid2_type
+            mid2_type = v
+        elseif k == :mid2_val
+            mid2_val = v
+        elseif k == :mid2_gte
+            mid2_gte = v
+        elseif k == :max_type
+            max_type = v
+        elseif k == :max_val
+            max_val = v
+        elseif k == :max_gte
+            max_gte = v
+        elseif k == :icon_list
+            icon_list = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `iconset`, `reverse`, `showVal`, `min_type`, `min_val`, `min_gte`, `mid_type`, `mid_val`, `mid_gte`, `mid2_type`, `mid2_val`, `mid2_gte`, `max_type`, `max_val`, `max_gte`, `icon_list`."))
+        end
+    end
+    
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension ($(get_dimension(ws)))."))
 
     allcfs = allCfs(ws)                # get all conditional format blocks
@@ -1979,9 +2188,9 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
             if !isnothing(val)
                 if is_valid_fixed_sheet_cellname(val)
                     do_sheet_names_match(ws, SheetCellRef(val))
-                    val=string(SheetCellRef(val).cellref)
+                    val = string(SheetCellRef(val).cellref)
                 end
-                val =  XML.escape(uppercase_unquoted(val))
+                val = XML.escape(uppercase_unquoted(val))
             end
         end
         if !haskey(iconsets, iconset)
@@ -1989,7 +2198,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
         end
         l = first(iconset)
         cfx = copynode(iconsets[iconset])
-        if l=='C'
+        if l == 'C'
             cfvo = XML.Element("x14:cfvo", type="percent")
             push!(cfvo, XML.Element("xm:f", XML.Text("dummy")))
             push!(cfx[1], copynode(cfvo)) # for min_val
@@ -1998,19 +2207,19 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                 throw(XLSXError("No type or val keywords defined. Must define at least `min_type`, `min_val`, `max_type` and `max_val` for a custom iconSet"))
             elseif isnothing(mid_type) || isnothing(mid_val)
                 list = [(min_type, min_val, min_gte), (max_type, max_val, max_gte)]
-                nicons=3
+                nicons = 3
             elseif isnothing(mid2_type) || isnothing(mid2_val)
                 push!(cfx[1], copynode(cfvo)) # for mid_val
                 cfx[1]["iconSet"] = "4Arrows"
-                nicons=4
+                nicons = 4
                 list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (max_type, max_val, max_gte)]
             else
                 push!(cfx[1], copynode(cfvo)) # for mid_val
                 push!(cfx[1], copynode(cfvo)) # for mid2_val
                 cfx[1]["iconSet"] = "5Quarters"
-                nicons=5
+                nicons = 5
                 list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (mid2_type, mid2_val, mid2_gte), (max_type, max_val, max_gte)]
-           end
+            end
         elseif l == '5'
             list = [(min_type, min_val, min_gte), (mid_type, mid_val, mid_gte), (mid2_type, mid2_val, mid2_gte), (max_type, max_val, max_gte)]
         elseif l == '4'
@@ -2025,7 +2234,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                 cfx[1]["showValue"] = "0"
             end
             if !isnothing(reverse) && reverse == "true"
-                if iconset=="Custom"
+                if iconset == "Custom"
                     reverse!(icon_list)
                 else
                     cfx[1]["reverse"] = "1"
@@ -2036,10 +2245,10 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
                     cfx[1][i+1]["type"] = type # Need +1 because the first <cfvo> is always 0 percent.
                 end
                 if !isnothing(val)
-                    if !isnothing(type) && type=="formula"
-                        c=XML.Element("xm:f", XML.Text("(" * val * ")"))
+                    if !isnothing(type) && type == "formula"
+                        c = XML.Element("xm:f", XML.Text("(" * val * ")"))
                     else
-                        c=XML.Element("xm:f", XML.Text(val))
+                        c = XML.Element("xm:f", XML.Text(val))
                     end
                     if isnothing(XML.children(cfx[1][i+1]))
                         cfx[1][i+1] = XML.Node(cfx[1][i+1], c)
@@ -2054,17 +2263,17 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
             if iconset == "Custom"
                 if isnothing(icon_list)
                     throw(XLSXError("No custom icons specified. Must specify between two and four icons."))
-                elseif length(icon_list)<nicons
+                elseif length(icon_list) < nicons
                     throw(XLSXError("Too few custom icons specified: $(length(icon_list)). Expected $nicons"))
                 end
-                    for (count, icon) in enumerate(string.(icon_list))
+                for (count, icon) in enumerate(string.(icon_list))
                     if !isnothing(icon)
                         if !haskey(allIcons, icon)
                             throw(XLSXError("Invalid custom icon specified: $icon. Valid values are \"1\" to \"52\"."))
                         end
-                        i=allIcons[icon]
-                        push!(cfx[1],XML.Element("x14:cfIcon", iconSet=first(i), iconId=last(i)))
-                        count==nicons && break
+                        i = allIcons[icon]
+                        push!(cfx[1], XML.Element("x14:cfIcon", iconSet=first(i), iconId=last(i)))
+                        count == nicons && break
                     end
                 end
             end
@@ -2079,7 +2288,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange;
             end
             for (i, (type, val, gte)) in enumerate(list)
                 if !isnothing(val)
-                    if !isnothing(type) && type=="formula"
+                    if !isnothing(type) && type == "formula"
                         cfx[1][i+1]["val"] = "(" * val * ")"
                     else
                         cfx[1][i+1]["val"] = val
@@ -2114,25 +2323,65 @@ setCfDataBar(ws::Worksheet, rng::RowRange; kw...) = process_rowranges(setCfDataB
 setCfDataBar(ws::Worksheet, rng::ColumnRange; kw...) = process_columnranges(setCfDataBar, ws, rng; kw...)
 setCfDataBar(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setCfDataBar, xl, sheetcell; kw...)
 setCfDataBar(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setCfDataBar, ws, ref_or_rng; kw...)
-function setCfDataBar(ws::Worksheet, rng::CellRange;
-    databar::Union{Nothing,String}="bluegrad",
-    showVal::Union{Nothing,String}=nothing,
-    gradient::Union{Nothing,String}=nothing,
-    borders::Union{Nothing,String}=nothing,
-    sameNegFill::Union{Nothing,String}=nothing,
-    sameNegBorders::Union{Nothing,String}=nothing,
-    direction::Union{Nothing,String}=nothing,
-    axis_pos::Union{Nothing,String}=nothing,
-    axis_col::Union{Nothing,String}=nothing,
-    min_type::Union{Nothing,String}=nothing,
-    min_val::Union{Nothing,String}=nothing,
-    max_type::Union{Nothing,String}=nothing,
-    max_val::Union{Nothing,String}=nothing,
-    fill_col::Union{Nothing,String}=nothing,
-    border_col::Union{Nothing,String}=nothing,
-    neg_fill_col::Union{Nothing,String}=nothing,
-    neg_border_col::Union{Nothing,String}=nothing,
-    )::Int
+function setCfDataBar(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())::Int
+
+    databar::Union{Nothing,String}="bluegrad"
+    showVal::Union{Nothing,String}=nothing
+    gradient::Union{Nothing,String}=nothing
+    borders::Union{Nothing,String}=nothing
+    sameNegFill::Union{Nothing,String}=nothing
+    sameNegBorders::Union{Nothing,String}=nothing
+    direction::Union{Nothing,String}=nothing
+    axis_pos::Union{Nothing,String}=nothing
+    axis_col::Union{Nothing,String}=nothing
+    min_type::Union{Nothing,String}=nothing
+    min_val::Union{Nothing,String}=nothing
+    max_type::Union{Nothing,String}=nothing
+    max_val::Union{Nothing,String}=nothing
+    fill_col::Union{Nothing,String}=nothing
+    border_col::Union{Nothing,String}=nothing
+    neg_fill_col::Union{Nothing,String}=nothing
+    neg_border_col::Union{Nothing,String}=nothing
+
+    for (k, v) in allkws
+        if k == :databar
+            databar = v
+        elseif k == :showVal
+            showVal = v
+        elseif k == :gradient
+            gradient = v
+        elseif k == :borders
+            borders = v
+        elseif k == :sameNegFill
+            sameNegFill = v
+        elseif k == :sameNegBorders
+            sameNegBorders = v
+        elseif k == :direction
+            direction = v
+        elseif k == :axis_pos
+            axis_pos = v
+        elseif k == :axis_col
+            axis_col = v
+        elseif k == :min_type
+            min_type = v
+        elseif k == :min_val
+            min_val = v
+        elseif k == :max_type
+            max_type = v
+        elseif k == :max_val
+            max_val = v
+        elseif k == :fill_col
+            fill_col = v
+        elseif k == :border_col
+            border_col = v
+        elseif k == :neg_fill_col
+            neg_fill_col = v
+        elseif k == :neg_border_col
+            neg_border_col = v
+        else
+            throw(XLSXError("Invalid keyword argument: $k. Valid options are: `databar`, `showVal`, `gradient`, `borders`, `sameNegFill`, `sameNegBorders`, `direction`, `axis_pos`, `axis_col`, `min_type`, `min_val`, `max_type`, `max_val`, `fill_col`, `border_col`, `neg_fill_col`, `neg_border_col`."))
+        end
+    end
 
     !issubset(rng, get_dimension(ws)) && throw(XLSXError("Range `$rng` goes outside worksheet dimension ($(get_dimension(ws)))."))
 
@@ -2143,14 +2392,14 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
     let new_pr, new_cf
 
         new_pr = length(old_cf) > 0 ? string(maximum([last(x).priority for x in values(old_cf)]) + 1) : "1"
-        isnothing(min_type) || min_type in ["least","percentile", "percent", "num", "formula", "automatic"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: least, percentile, percent, num, formula."))
+        isnothing(min_type) || min_type in ["least", "percentile", "percent", "num", "formula", "automatic"] || throw(XLSXError("Invalid min_type: $min_type. Valid options are: least, percentile, percent, num, formula."))
         if min_type in ["least", "automatic"]
-            min_val=nothing
+            min_val = nothing
         end
         (!isnothing(min_type) && min_type == "formula") || isnothing(min_val) || is_valid_fixed_cellname(min_val) || is_valid_fixed_sheet_cellname(min_val) || !isnothing(tryparse(Float64, min_val)) || throw(XLSXError("Invalid min_val: `$min_val`. Valid options (unless min_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
         isnothing(max_type) || max_type in ["highest", "percentile", "percent", "num", "formula", "automatic"] || throw(XLSXError("Invalid max_type: $max_type. Valid options are: highest, percentile, percent, num, formula."))
         if min_type in ["highest", "automatic"]
-            max_val=nothing
+            max_val = nothing
         end
         (!isnothing(max_type) && max_type == "formula") || isnothing(max_val) || is_valid_fixed_cellname(max_val) || is_valid_fixed_sheet_cellname(max_val) || !isnothing(tryparse(Float64, max_val)) || throw(XLSXError("Invalid max_val: `$max_val`. Valid options (unless max_type is `formula`) are a CellRef (e.g. `\$A\$1`) or a number."))
 
@@ -2158,31 +2407,31 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
             if !isnothing(val)
                 if is_valid_fixed_sheet_cellname(val)
                     do_sheet_names_match(ws, SheetCellRef(val))
-                    val=string(SheetCellRef(val).cellref)
+                    val = string(SheetCellRef(val).cellref)
                 end
-                val =  XML.escape(uppercase_unquoted(val))
+                val = XML.escape(uppercase_unquoted(val))
             end
         end
         if !haskey(databars, databar)
             throw(XLSXError("Invalid dataBar option chosen: $databar. Valid options are: $(keys(databars))"))
         end
-    
-        allkws::Dict{String, Union{String, Nothing}} = Dict(
+
+        allkws::Dict{String,Union{String,Nothing}} = Dict(
             "showVal" => showVal,
-            "gradient" => gradient, 
-            "borders" => borders, 
-            "sameNegFill" => sameNegFill, 
-            "sameNegBorders" => sameNegBorders, 
-            "direction" => direction, 
-            "min_type" => min_type, 
-            "min_val" => min_val, 
-            "max_type" => max_type, 
-            "max_val" => max_val, 
-            "fill_col" => fill_col, 
+            "gradient" => gradient,
+            "borders" => borders,
+            "sameNegFill" => sameNegFill,
+            "sameNegBorders" => sameNegBorders,
+            "direction" => direction,
+            "min_type" => min_type,
+            "min_val" => min_val,
+            "max_type" => max_type,
+            "max_val" => max_val,
+            "fill_col" => fill_col,
             "border_col" => border_col,
-            "neg_fill_col" => neg_fill_col, 
-            "neg_border_col" => neg_border_col, 
-            "axis_pos" => axis_pos, 
+            "neg_fill_col" => neg_fill_col,
+            "neg_border_col" => neg_border_col,
+            "axis_pos" => axis_pos,
             "axis_col" => axis_col
         )
 
@@ -2200,30 +2449,30 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
         haskey(allkws, "axis_pos") && isValidKw("axis_pos", allkws["axis_pos"], ["middle", "none"])
 
         # Define basic elements of dataBar definition
-        id="{" * uppercase(string(UUIDs.uuid4())) * "}"
+        id = "{" * uppercase(string(UUIDs.uuid4())) * "}"
         mnt = allkws["min_type"] ∈ ["automatic", "least"] ? "min" : allkws["min_type"]
         mxt = allkws["max_type"] ∈ ["automatic", "highest"] ? "max" : allkws["max_type"]
         cfx = XML.h.cfRule(type="dataBar", priority=new_pr,
-                    XML.h.dataBar(
-                        isnothing(allkws["min_val"]) ? XML.h.cfvo(type=mnt) : XML.h.cfvo(type=mnt, val=allkws["min_val"]),
-                        isnothing(allkws["max_val"]) ? XML.h.cfvo(type=mxt) : XML.h.cfvo(type=mxt, val=allkws["max_val"]),
-                        XML.h.color(rgb=get_color(allkws["fill_col"]))),
-                    XML.h.extLst()
-                )
+            XML.h.dataBar(
+                isnothing(allkws["min_val"]) ? XML.h.cfvo(type=mnt) : XML.h.cfvo(type=mnt, val=allkws["min_val"]),
+                isnothing(allkws["max_val"]) ? XML.h.cfvo(type=mxt) : XML.h.cfvo(type=mxt, val=allkws["max_val"]),
+                XML.h.color(rgb=get_color(allkws["fill_col"]))),
+            XML.h.extLst()
+        )
         if haskey(allkws, "showVal") && !isnothing(allkws["showVal"]) && allkws["showVal"] == "false"
             cfx[1]["showValue"] = "0"
         end
         cfx_ext = XML.Element("ext") # This establishes link (via id) to the extension elements
-        cfx_ext["xmlns:x14"]="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
-        cfx_ext["uri"]="{B025F937-C7B1-47D3-B67F-A62EFF666E3E}"
+        cfx_ext["xmlns:x14"] = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
+        cfx_ext["uri"] = "{B025F937-C7B1-47D3-B67F-A62EFF666E3E}"
         push!(cfx_ext, XML.Element("x14:id", XML.Text(id)))
         push!(cfx[end], cfx_ext)
 
         # Define extension elements of dataBar definition
         emnt = allkws["min_type"] == "automatic" ? "autoMin" : allkws["min_type"] == "least" ? "min" : allkws["min_type"]
         emxt = allkws["max_type"] == "automatic" ? "autoMax" : allkws["max_type"] == "highest" ? "max" : allkws["max_type"]
-        emnv = allkws["min_type"] == "formula" ? "("*allkws["min_val"]*")" : allkws["min_val"]
-        emxv = allkws["max_type"] == "formula" ? "("*allkws["max_val"]*")" : allkws["max_val"]
+        emnv = allkws["min_type"] == "formula" ? "(" * allkws["min_val"] * ")" : allkws["min_val"]
+        emxv = allkws["max_type"] == "formula" ? "(" * allkws["max_val"] * ")" : allkws["max_val"]
         ext_cfx = XML.Element("x14:cfRule", type="dataBar", id=id)
         ext_db = XML.Element("x14:dataBar", minLength="0", maxLength="100")
         valmin = XML.Element("x14:cfvo", type=emnt)
@@ -2235,7 +2484,7 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
         if allkws["gradient"] == "false"
             ext_db["gradient"] = "0"
         end
-        do_borders=haskey(allkws, "borders") && allkws["borders"] == "true"
+        do_borders = haskey(allkws, "borders") && allkws["borders"] == "true"
         if do_borders
             ext_db["border"] = "1"
             if haskey(allkws, "border_col") && !isnothing(allkws["border_col"])
@@ -2246,13 +2495,13 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
         end
         if haskey(allkws, "direction")
             if allkws["direction"] == "leftToRight"
-                ext_db["direction"]="leftToRight"
+                ext_db["direction"] = "leftToRight"
             elseif allkws["direction"] == "rightToLeft"
-                ext_db["direction"]="rightToLeft"
+                ext_db["direction"] = "rightToLeft"
             end
         end
-        if haskey(allkws, "sameNegFill") && allkws["sameNegFill"]=="true"
-            ext_db["negativeBarColorSameAsPositive"]="1"
+        if haskey(allkws, "sameNegFill") && allkws["sameNegFill"] == "true"
+            ext_db["negativeBarColorSameAsPositive"] = "1"
         else
             if haskey(allkws, "neg_fill_col") && !isnothing(allkws["neg_fill_col"])
                 push!(ext_db, XML.Element("x14:negativeFillColor", rgb=get_color(allkws["neg_fill_col"])))
@@ -2260,8 +2509,8 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
                 push!(ext_db, XML.Element("x14:negativeFillColor", rgb=get_color("FFFF0000"))) # Default colour
             end
         end
-        if do_borders && haskey(allkws, "sameNegBorders") && allkws["sameNegBorders"]=="false"
-            ext_db["negativeBarBorderColorSameAsPositive"]="0"
+        if do_borders && haskey(allkws, "sameNegBorders") && allkws["sameNegBorders"] == "false"
+            ext_db["negativeBarBorderColorSameAsPositive"] = "0"
             if haskey(allkws, "neg_border_col") && !isnothing(allkws["neg_border_col"])
                 push!(ext_db, XML.Element("x14:negativeBorderColor", rgb=get_color(allkws["neg_border_col"])))
             else
@@ -2270,9 +2519,9 @@ function setCfDataBar(ws::Worksheet, rng::CellRange;
         end
         if haskey(allkws, "axis_pos")
             if allkws["axis_pos"] == "none"
-                ext_db["axisPosition"]="none"
+                ext_db["axisPosition"] = "none"
             elseif allkws["axis_pos"] == "middle"
-                ext_db["axisPosition"]="middle"
+                ext_db["axisPosition"] = "middle"
             end
         end
         haskey(allkws, "axis_col") && push!(ext_db, XML.Element("x14:axisColor", rgb=get_color(allkws["axis_col"])))
