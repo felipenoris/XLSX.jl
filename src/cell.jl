@@ -115,13 +115,13 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
     end
 
     if XML.is_simple(c_child_element)
-        formula_string = XML.simple_value(c_child_element)
+        formula_string = XML.unescape(XML.simple_value(c_child_element))
     else
         fs = [x for x in XML.children(c_child_element) if XML.nodetype(x) == XML.Text]
         if length(fs)==0
             formula_string=""
         else
-            formula_string=XML.value(fs[1])
+            formula_string=XML.unescape(XML.value(fs[1]))
         end
     end
 
