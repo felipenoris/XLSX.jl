@@ -2257,6 +2257,13 @@ end
     @test ismissing(sheet["J2"])
 end
 
+# issue #299
+@testset "empty_v" begin
+    xf = XLSX.readxlsx(joinpath(data_directory, "empty_v.xlsx"))
+    sheet1 = xf["Sheet1"]
+    @test XLSX.getcell(sheet1, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", XLSX.Formula("\"\""))
+end
+
 @testset "Tables.jl integration" begin
     f = XLSX.readxlsx(joinpath(data_directory, "general.xlsx"))
     s = f["table"]

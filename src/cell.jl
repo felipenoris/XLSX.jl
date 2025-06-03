@@ -90,7 +90,7 @@ function Cell(c::XML.LazyNode)
                     found_v = true
                 end
                 
-                v = XML.unescape(XML.simple_value(c_child_element))
+                v = length(c_child_element)==0 ? "" : XML.unescape(XML.simple_value(c_child_element))
 
             elseif XML.tag(c_child_element) == "f"
 
