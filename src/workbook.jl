@@ -287,8 +287,10 @@ function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValue
         throw(XLSXError("Worksheet `$(ws.name)` already has a defined name called `$name`."))
     end
 
+    if value isa NonContiguousRange || value isa SheetCellRange
+        value.sheet != ws.name && throw(XLSXError("Range $value is not in the given worksheet ($(ws.name))."))
+    end
     if value isa NonContiguousRange
-        value.sheet != ws.name && throw(XLSXError("Non-contiguous range must be in the same worksheet."))
         abs = absolute ? fill(true, length(value.rng)) : fill(false, length(value.rng))
     else
         abs = absolute ? true : false

@@ -17,6 +17,7 @@ XLSX.hassheet
 XLSX.Worksheet
 XLSX.rename!
 XLSX.addsheet!
+XLSX.copysheet!
 XLSX.deletesheet!
 XLSX.readdata
 XLSX.getdata

@@ -24,33 +24,51 @@ end
 
 # 18.3.1.35 - dimension (Worksheet Dimensions). This is optional, and not required.
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name)::Union{Nothing,CellRange}
-    local result::Union{Nothing,CellRange} = nothing
 
     wb = get_workbook(xf)
     target_file = get_relationship_target_by_id("xl", wb, relationship_id)
-    zip_io, doc = open_internal_file_stream(xf, target_file)
 
-    reader = iterate(doc)
-    # Now let's look for a row element, if it exists
-    while reader !== nothing # go next node
-        (sheet_row, state) = reader
-        if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
-
-            XML.depth(sheet_row) != 2 && throw(XLSXError("Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."))
-
-            ref_str = XML.attributes(sheet_row)["ref"]
-            if is_valid_cellname(ref_str)
-                result = CellRange("$(ref_str):$(ref_str)")
-            else
-                result = CellRange(ref_str)
-            end
-
-            break
+    if xf.is_writable # read from cached file
+        !haskey(xf.files, target_file) && throw(XLSXError("Worksheet \"$name\" not found in the XLSX file."))
+        i, j = get_idces(xf.data[target_file], "worksheet", "dimension")
+        if i == 0 || j == 0
+            # No dimension element found, return nothing
+            return nothing
         end
-        reader = iterate(doc, state)
-    end
+        ref= xf.data[target_file][i][j]["ref"]
+        if is_valid_cellname(ref)
+            return CellRange(ref*":"*ref)
+        elseif is_valid_cellrange(ref)
+            return CellRange(ref)
+        else
+            throw(XLSXError("Malformed Worksheet \"$name\": unexpected dimension reference: $ref."))
+        end
 
-    return result
+    else #read from xlsx file
+        local result::Union{Nothing,CellRange} = nothing
+        doc = open_internal_file_stream(xf, target_file)
+        reader = iterate(doc)
+        # Now let's look for a row element, if it exists
+        while reader !== nothing # go next node
+            (sheet_row, state) = reader
+            if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
+
+                XML.depth(sheet_row) != 2 && throw(XLSXError("Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."))
+
+                ref_str = XML.attributes(sheet_row)["ref"]
+                if is_valid_cellname(ref_str)
+                    result = CellRange("$(ref_str):$(ref_str)")
+                else
+                    result = CellRange(ref_str)
+                end
+
+                break
+            end
+            reader = iterate(doc, state)
+        end
+
+        return result
+    end
 end
 
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))

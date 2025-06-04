@@ -93,7 +93,7 @@ function add_relationship!(wb::Workbook, target::String, _type::String)::String
 
     # adds to XML tree
     xroot = get_workbook_relationship_root(xf)
-    el = XML.Element("Relationship"; Id=rId, Target=target, Type=_type)
+    el = XML.Element("Relationship"; Id=rId, Type=_type, Target=target)
     push!(xroot, el)
 
     return rId

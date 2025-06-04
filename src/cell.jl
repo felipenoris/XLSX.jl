@@ -92,7 +92,7 @@ function Cell(c::XML.LazyNode)
                     found_v = true
                 end
                 
-                v = XML.unescape(XML.simple_value(c_child_element))
+                v = length(c_child_element)==0 ? "" : XML.unescape(XML.simple_value(c_child_element))
 
             elseif XML.tag(c_child_element) == "f"
 
@@ -117,13 +117,13 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
     end
 
     if XML.is_simple(c_child_element)
-        formula_string = XML.simple_value(c_child_element)
+        formula_string = XML.unescape(XML.simple_value(c_child_element))
     else
         fs = [x for x in XML.children(c_child_element) if XML.nodetype(x) == XML.Text]
         if length(fs)==0
             formula_string=""
         else
-            formula_string=XML.value(fs[1])
+            formula_string=XML.unescape(XML.value(fs[1]))
         end
     end
 

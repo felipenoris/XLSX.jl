@@ -1388,6 +1388,7 @@ end
 end
 
 @testset "addsheet!" begin
+
     new_filename = "template_with_new_sheet.xlsx"
     f = XLSX.open_empty_template()
     s = XLSX.addsheet!(f, "new_sheet")
@@ -1395,7 +1396,6 @@ end
 
     @testset "check invalid sheet names" begin
         invalid_names = [
-            "new_sheet",
             "aaaaaaaaaabbbbbbbbbbccccccccccd1",
             "abc:def",
             "abcdef/",
@@ -1408,20 +1408,73 @@ end
         for invalid_name in invalid_names
             @test_throws XLSX.XLSXError XLSX.addsheet!(f, invalid_name)
         end
+
+        big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
+        s2 = XLSX.addsheet!(f, big_sheetname)
+
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+        fx = XLSX.opentemplate(new_filename)
+        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet", big_sheetname]
     end
 
-    big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
-    s2 = XLSX.addsheet!(f, big_sheetname)
+    @testset "copysheet!" begin
 
-    XLSX.writexlsx(new_filename, f, overwrite=true)
-    f = XLSX.opentemplate(new_filename)
-    @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet", big_sheetname]
+        f=XLSX.newxlsx()
+        XLSX.rename!(f["Sheet1"], "new_name")
+        XLSX.addsheet!(f)
+        for x=1:10, y=1:10
+            f["Sheet1"][x, y] = x + y
+            f["new_name"][x, y] = x * y
+        end
+        XLSX.addDefinedName(f["new_name"], "new_name_range", "A1:B10")
+        XLSX.addDefinedName(f["Sheet1"], "Sheet1_range", "C1:D10")
+        XLSX.setBorder(f["new_name"], "A1:D10"; allsides=["style"=>"thin", "color"=>"red"])
+        XLSX.setBorder(f["Sheet1"], "A1:D10"; allsides=["style"=>"thin", "color"=>"red"])
+        XLSX.setConditionalFormat(f["new_name"], "A1:D10", :colorScale)
+
+        s3 = XLSX.copysheet!(f["new_name"], "copied_sheet")
+        @test s3.name == "copied_sheet"
+        @test s3["A1"] == 1
+        @test s3[5, 5] == 25
+        @test s3[10, 10] == 100
+        @test XLSX.get_workbook(s3).worksheet_names == XLSX.get_workbook(f["new_name"]).worksheet_names
+        @test XLSX.getConditionalFormats(s3) == XLSX.getConditionalFormats(f["new_name"])
+        @test XLSX.getBorder(s3,"C5").border == XLSX.getBorder(f["new_name"],"C5").border
+
+        # Check that the original sheet is unchanged
+        s2=f["new_name"]
+        @test s2["A1"] == 1
+        @test s2[5, 5] == 25
+        @test s2[10, 10] == 100
+
+        s4 = XLSX.copysheet!(s3)
+        @test s4.name == "copied_sheet (copy)"
+        @test s4["A1"] == 1
+        @test s4[5, 5] == 25
+        @test s4[10, 10] == 100
+
+        @test XLSX.get_workbook(s4).worksheet_names == XLSX.get_workbook(f["new_name"]).worksheet_names
+        XLSX.setBorder(s4, "F1:H10"; allsides=["style"=>"thin", "color"=>"green"])
+        XLSX.setConditionalFormat(s4, "F1:H10", :colorScale; colorscale="redyellowgreen")
+       
+        XLSX.writexlsx("copied_sheets.xlsx", f, overwrite=true)
+        f = XLSX.opentemplate("copied_sheets.xlsx")
+        @test XLSX.sheetnames(f) == ["new_name", "Sheet1", "copied_sheet", "copied_sheet (copy)"]
+        @test XLSX.get_workbook(f["copied_sheet"]).worksheet_names == XLSX.get_workbook(f["new_name"]).worksheet_names
+        @test XLSX.getConditionalFormats(f["copied_sheet (copy)"]) == XLSX.getConditionalFormats(s4)
+        @test XLSX.getBorder(f["copied_sheet (copy)"],"C5").border == XLSX.getBorder(f["new_name"],"C5").border
+        @test XLSX.getBorder(f["copied_sheet (copy)"],"G5").border == XLSX.getBorder(s4,"G5").border
+
+    end
+    isfile("copied_sheets.xlsx") && rm("copied_sheets.xlsx")
 
     @testset "deletesheet!" begin
 
-        XLSX.deletesheet!(f, big_sheetname)
-        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet"]
-        XLSX.writexlsx(new_filename, f, overwrite=true)
+        big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
+        fx = XLSX.opentemplate(new_filename)
+        XLSX.deletesheet!(fx, big_sheetname)
+        @test XLSX.sheetnames(fx) == ["Sheet1", "new_sheet"]
+        XLSX.writexlsx(new_filename, fx, overwrite=true)
         f = XLSX.readxlsx(new_filename)
         @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet"]
 
@@ -1463,7 +1516,7 @@ end
 
     end
 
-    rm(new_filename)
+    isfile("template_with_new_sheet.xlsx") && rm("template_with_new_sheet.xlsx")
 
 end
 
@@ -5739,6 +5792,13 @@ end
     @test ismissing(sheet["I2"])
     @test ismissing(sheet["J1"])
     @test ismissing(sheet["J2"])
+end
+
+# issue #299
+@testset "empty_v" begin
+    xf = XLSX.readxlsx(joinpath(data_directory, "empty_v.xlsx"))
+    sheet1 = xf["Sheet1"]
+    @test XLSX.getcell(sheet1, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", XLSX.Formula("\"\""))
 end
 
 @testset "Tables.jl integration" begin
