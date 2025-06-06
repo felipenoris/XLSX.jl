@@ -3,12 +3,15 @@
     opentemplate(source::Union{AbstractString, IO}) :: XLSXFile
 
 Read an existing Excel (`.xlsx`) file as a template and return as a writable `XLSXFile` for editing 
-and saving to another file with `XLSX.writexlsx`.
+and saving to another file with [XLSX.writexlsx](@ref).
 
-Note: XLSX.jl only works with `.xlsx` files and cannot work with Excel `.xltx` template files.
-Reading as a template in this package merely means opening a `.xlsx` file to edit, update and 
-then write as an updated `.xlsx` file (e.g. `using XLSX.writexlsx()`). Doing so retains the 
-formatting and layout of the opened file, but this is not the same as using a `.xltx` file.
+A convenience function equivalent to `openxlsx(source; mode="rw", enable_cache=true)`
+
+!!! note
+    XLSX.jl only works with `.xlsx` files and cannot work with Excel `.xltx` template files. 
+    Reading as a template in this package merely means opening a `.xlsx` file to edit, update 
+    and then write as an updated `.xlsx` file (e.g. using `XLSX.writexlsx()`). Doing so retains 
+    the formatting and layout of the opened file, but this is not the same as using a `.xltx` file.
 
 # Examples
 ```julia
@@ -28,7 +31,7 @@ end
     newxlsx() :: XLSXFile
 
 Return an empty, writable `XLSXFile` with 1 worksheet (`Sheet1`) for editing and 
-saving to a file with `XLSX.writexlsx`.
+subsequent saving to a file with [XLSX.writexlsx](@ref).
 
 # Examples
 ```julia
@@ -904,13 +907,16 @@ function rename!(ws::Worksheet, name::AbstractString)
 end
 
 """
-    addsheet!(workbook, [name]) :: Worksheet
+    addsheet!(wb::Workbook, [name::AbstractString=""]) --> ::Worksheet
+    addsheet!(xf::XLSXFile, [name::AbstractString=""]) --> ::Worksheet
 
 Create a new worksheet named `name`.
 If `name` is not provided, a unique name is created.
 
+See also [copysheet!](@ref), [deletesheet!](@ref)
+
 """
-addsheet!(xl::XLSXFile, name::AbstractString="")::Worksheet = addsheet!(get_workbook(xl), name)
+addsheet!(xl::XLSXFile, name::AbstractString="")::Worksheet = addsheet!(get_workbook(xl), name) ::Worksheet
 function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path::String=_relocatable_data_path())::Worksheet
     file_sheet_template = joinpath(relocatable_data_path, "sheet_template.xml")
     !isfile(file_sheet_template) && throw(XLSXError("Couldn't find template file $file_sheet_template."))
@@ -935,7 +941,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
 end
 
 """
-    copysheet!(ws::Worksheet, name::AbstractString="") --> Worksheet
+    copysheet!(ws::Worksheet, [name::AbstractString=""]) --> ::Worksheet
 
 Create a copy of the worksheet `ws` and add it to the end of the workbook with the 
 specified worksheet name.
@@ -949,6 +955,8 @@ See also [`XLSX.openxlsx`](@ref) and [XLSX.opentemplate](@ref).
     This function is experimental is not guaranteed to work with all XLSX files, 
     especially those with complex features. However, cell formats, conditional formats 
     and worksheet defined names should all copy OK.
+
+See also [addsheet!](@ref), [deletesheet!](@ref)
 
 # Examples
 ```julia
@@ -995,7 +1003,7 @@ XLSXFile("C:\\...\\general.xlsx") containing 14 Worksheets
 ```
 
 """
-function copysheet!(ws::Worksheet, name::AbstractString="")
+function copysheet!(ws::Worksheet, name::AbstractString="")::Worksheet
     wb = get_workbook(ws)
     xl=get_xlsxfile(ws)
     !is_writable(get_xlsxfile(ws)) && throw(XLSXError("XLSXFile instance is not writable."))
@@ -1127,19 +1135,94 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, name::AbstractString=""; dim
 end
 
 """
-    deletesheet!(ws::Worksheet) -> ::Nothing
-    deletesheet!(wb::Workbook, name::AbstractString) -> ::Nothing
-    deletesheet!(xf::XLSXFile, name::AbstractString) -> ::Nothing
-    deletesheet!(xf::XLSXFile, idx::Integer) -> ::Nothing
+    deletesheet!(ws::Worksheet) -> ::XLSXFile
+    deletesheet!(wb::Workbook, name::AbstractString) -> ::XLSXFile
+    deletesheet!(xf::XLSXFile, name::AbstractString) -> ::XLSXFile
+    deletesheet!(xf::XLSXFile, sheetId::Integer) -> ::XLSXFile
 
-Delete the given worksheet. The workbook can be saved back to file using, 
-for example, `XLSX.writexlsx("myfile.xlsx", xf)`.
+Delete the given worksheet, the worksheet with the given name or the worksheet with the given `sheetId` from its `XLSXFile` 
+(`sheetId` is a 1-based integer representing the order in which worksheet tabs are displayed in Excel).
+
+See also [addsheet!](@ref), [copysheet!](@ref)
+
+# Examples
+
+```julia
+julia> f = XLSX.opentemplate("general.xlsx")
+XLSXFile("C:\\...\\general.xlsx") containing 13 Worksheets
+            sheetname size          range
+-------------------------------------------------
+              general 10x6          A1:F10
+               table3 5x6           A2:F6
+               table4 4x3           E12:G15
+                table 12x8          A2:H13
+               table2 5x3           A1:C5
+                empty 1x1           A1:A1        
+               table5 6x1           C3:C8
+               table6 8x2           B1:C8
+               table7 7x2           B2:C8
+               lookup 4x9           B2:J5
+         header_error 3x4           B2:E4
+       named_ranges_2 4x5           A1:E4
+         named_ranges 14x6          A2:F15
+
+
+julia> XLSX.deletesheet!(f[4])
+XLSXFile("C:\\...\\general.xlsx") containing 12 Worksheets
+            sheetname size          range
+-------------------------------------------------
+              general 10x6          A1:F10
+               table3 5x6           A2:F6
+               table4 4x3           E12:G15
+               table2 5x3           A1:C5
+                empty 1x1           A1:A1
+               table5 6x1           C3:C8
+               table6 8x2           B1:C8
+               table7 7x2           B2:C8
+               lookup 4x9           B2:J5
+         header_error 3x4           B2:E4
+       named_ranges_2 4x5           A1:E4
+         named_ranges 14x6          A2:F15
+
+
+julia> XLSX.deletesheet!(f, "table5")
+XLSXFile("C:\\...\\general.xlsx") containing 11 Worksheets
+            sheetname size          range
+-------------------------------------------------
+              general 10x6          A1:F10
+               table3 5x6           A2:F6
+               table4 4x3           E12:G15
+               table2 5x3           A1:C5
+                empty 1x1           A1:A1
+               table6 8x2           B1:C8
+               table7 7x2           B2:C8
+               lookup 4x9           B2:J5
+         header_error 3x4           B2:E4
+       named_ranges_2 4x5           A1:E4
+         named_ranges 14x6          A2:F15
+
+
+julia> XLSX.deletesheet!(f, 1)
+XLSXFile("C:\\...\\general.xlsx") containing 10 Worksheets
+            sheetname size          range
+-------------------------------------------------
+               table3 5x6           A2:F6
+               table4 4x3           E12:G15
+               table2 5x3           A1:C5
+                empty 1x1           A1:A1
+               table6 8x2           B1:C8
+               table7 7x2           B2:C8
+               lookup 4x9           B2:J5
+         header_error 3x4           B2:E4
+       named_ranges_2 4x5           A1:E4
+         named_ranges 14x6          A2:F15
+```
 
 """
 deletesheet!(ws::Worksheet) = deletesheet!(get_workbook(ws), ws.name)
-deletesheet!(xl::XLSXFile, idx::Integer) = deletesheet!(get_workbook(xl), xl[idx].name)
+deletesheet!(xl::XLSXFile, sheetId::Integer) = deletesheet!(get_workbook(xl), xl[sheetId].name)
 deletesheet!(xl::XLSXFile, name::AbstractString) = deletesheet!(get_workbook(xl), name)
-function deletesheet!(wb::Workbook, name::AbstractString)
+function deletesheet!(wb::Workbook, name::AbstractString)::XLSXFile
     hassheet(wb, name) || throw(XLSXError("Worksheet `$name` not found in workbook."))
     sheetcount(wb) > 1 || throw(XLSXError("`$name` is this workbook's only sheet. Cannot delete the only sheet!"))
 
@@ -1218,7 +1301,7 @@ function deletesheet!(wb::Workbook, name::AbstractString)
 
     update_workbook_xml!(xf)
 
-    return nothing
+    return xf
 end
 
 #

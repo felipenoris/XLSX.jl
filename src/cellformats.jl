@@ -1693,10 +1693,10 @@ end
     
     setFormat(sh::Worksheet, row, col; kw...) -> ::Int
    
-Set the format used used by a single cell, a cell range, a column range or 
-row range or a named cell or named range in a worksheet or XLSXfile.
-Alternatively, specify the row and column using any combination of 
-Integer, UnitRange, Vector{Integer} or `:`.
+Set the number format used used by a single cell, a cell range, a column 
+range or row range or a named cell or named range in a worksheet or 
+XLSXfile. Alternatively, specify the row and column using any combination 
+of Integer, UnitRange, Vector{Integer} or `:`.
 
 The function uses one keyword used to define a format:
 - `format::String = nothing` : Defines a built-in or custom number format

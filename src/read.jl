@@ -155,8 +155,6 @@ end
     openxlsx(source::Union{AbstractString, IO}; mode="r", enable_cache=true) :: XLSXFile
 
 Supports opening a XLSX file without using do-syntax.
-In this case, the user is responsible for closing the `XLSXFile`
-using `close` or writing it to file using `XLSX.writexlsx`.
 
 See also [`XLSX.writexlsx`](@ref).
 """

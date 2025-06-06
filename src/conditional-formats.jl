@@ -461,7 +461,7 @@ const timeperiods::Dict{String,String} = Dict(
 Get the conditional formats for a worksheet.
 
 # Arguments
-- `ws::Worksheet`: The worksheet to get the conditional formats for.
+- `ws::Worksheet`: The worksheet for which to get the conditional formats.
 
 Return a vector of pairs: CellRange => NamedTuple{type::String, priority::Int}}.
 
@@ -516,6 +516,9 @@ end
 Add a new conditional format to a cell range, row range or column range in a 
 worksheet or `XLSXFile`.  Alternatively, ranges can be specified by giving rows 
 and columns separately.
+
+There are many options for applying differnt types of custom format. For a basic guide, 
+refer to the section on [Conditional formats](@ref) in the Formatting Guide.
 
 The `type` argument specifies which of Excel's conditional format types will be applied.
 
@@ -573,26 +576,6 @@ Valid options are:
 If not specified (when required), `value` will be the arithmetic average of the 
 (non-missing) cell values in the range if values are numeric. If the cell values 
 are non-numeric, an error is thrown.
-
-
-!!! note "Overlaying conditional formats"
-    
-    It is possible to overlay multiple conditional formats to the same range or to 
-    overlapping ranges. Each format is applied in turn to each cell in priority 
-    order which, here, is the order in which they are created. Different format 
-    options may complement or override each other and the finished appearance will 
-    be the resuilt of all formats overlaying each other.
-
-    It is possible to terminate the sequential application of conditional formats to a 
-    cell if the condition related to any format is met. This is achieved by setting the 
-    keyword option `stopIfTrue="true"` in the relevant conditional format.
-
-    While the `stopIfTrue` keyword is available for most conditional formats, it is not 
-    available for `:colorScale`, `:dataBar` or `:iconSet` conditional formats since these 
-    do not apply a specific test in each cell.
-
-    For example usage of the `stopIfTrue` keyword, refer to [Overlaying conditional formats](@ref) 
-    in the Formatting Guide.
 
 Formatting to be applied if the condition is met can be defined in one of two ways. 
 Use the keyword `dxStyle` to select one of the built-in Excel formats. 
@@ -689,6 +672,14 @@ Valid values for the `operator` keyword are the following:
 - `bottomN%`        (cell is in the bottom n% (= `value`) values of the range)
 
 Default keyowrds are `operator="TopN"` and `value="10"`.
+    
+Multiple conditional formats may be applied to the smae or overlapping cell ranges. 
+If `stopIfTrue=true` the first condition that is met will be applied but all subsequent 
+conditional formats for that cell will be skipped. If `stopIfTrue=false` (default) all 
+relevant conditional formats will be applied to the cell in turn.
+
+For example usage of the `stopIfTrue` keyword, refer to [Overlaying conditional formats](@ref) 
+in the Formatting Guide.
 
 The remaining keywords are defined as above for `type = :cellIs`.
 
@@ -739,7 +730,7 @@ julia> XLSX.setConditionalFormat(s, "A1:J10", :top10;
 0
 
 ```
-![image|320x500](./images/topN.png)
+![image|320x500](../images/topN.png)
 
 # type = :aboveAverage
 
@@ -929,7 +920,7 @@ julia> XLSX.setConditionalFormat(s, "A1:A4", :endsWith ;
 0
 
 ```
-![image|320x500](./images/containsText.png)
+![image|320x500](../images/containsText.png)
 
 # type = :timePeriod
 
@@ -994,7 +985,7 @@ julia> XLSX.setConditionalFormat(s, "A1:A13", :timePeriod;
 0
 
 ```
-![image|320x500](./images/timePeriod-9thMay2025.png)
+![image|320x500](../images/timePeriod-9thMay2025.png)
 
 
 # type = :containsErrors, :notContainsErrors, :containsBlanks, :notContainsBlanks, :uniqueValues or :duplicateValues
@@ -1039,7 +1030,7 @@ julia> XLSX.setConditionalFormat(s, "A1:A7", :duplicateValues;
 0
 
 ```
-![image|320x500](./images/errorBlank.png)
+![image|320x500](../images/errorBlank.png)
 
 # type = :expressiom
 

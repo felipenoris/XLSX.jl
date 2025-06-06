@@ -1499,7 +1499,7 @@ end
         @test col_names == [:H2, :H3]
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
-        @test XLSX.deletesheet!(f, 1) === nothing
+        @test XLSX.deletesheet!(f, 1) === f
         @test XLSX.sheetnames(f) == ["table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "this_now"]
         XLSX.writexlsx(new_filename, f, overwrite=true)
         dtable = XLSX.readtable(new_filename, "table4", "F:G")

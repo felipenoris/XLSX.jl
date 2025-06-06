@@ -317,7 +317,7 @@ by the iterator. The `length(eachrow(sheet))` function therefore
 defines the number of rows that are not entirely empty and will, 
 in any case, only succeed if the worksheet cache is in use.
 """
-function Base.eachrow(ws::Worksheet) :: SheetRowIterator
+function eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
         if ws.cache === nothing
             ws.cache = WorksheetCache(ws)

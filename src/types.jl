@@ -353,7 +353,7 @@ struct DefinedNameValue
 end
 
 # Workbook is the result of parsing file `xl/workbook.xml`.
-# The `xl/workbook.xml` wi9ll need to be updated using the Workbook_names and 
+# The `xl/workbook.xml` will need to be updated using the Workbook_names and 
 # worksheet_names from here when a workbook is saved in case any new defined 
 # names have been created.
 mutable struct Workbook

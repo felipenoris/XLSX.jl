@@ -1,4 +1,4 @@
-# Migration Guides
+# Migration Guide
 
 !!! note
 
