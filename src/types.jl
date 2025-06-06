@@ -293,7 +293,13 @@ mutable struct SheetRowStreamIteratorState
     ht::Union{Float64, Nothing} # row height
 end
 
+mutable struct WorksheetCacheIteratorState
+    row_from_last_iteration::Int
+    full_cache::Bool # is the cache full (true) or does it need filling (false)
+end
+
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
+    is_empty::Bool # true before first read from file, then flase
     cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
     rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
     row_ht::Dict{Int, Union{Float64, Nothing}} # Maps a row number to a row height

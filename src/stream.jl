@@ -51,7 +51,7 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
     if !(xf.source isa IO || isfile(xf.source))
-        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.filepath) was not found."))
+        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.source) was not found."))
     end
 
     XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
@@ -170,8 +170,6 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     state.ht = current_row_ht
     state.itr_state = lzstate
 
-
-
     return sheet_row, state
 end
 
@@ -205,35 +203,53 @@ end
 #
 function WorksheetCache(ws::Worksheet)
     itr = SheetRowStreamIterator(ws)
-    return WorksheetCache(CellCache(), Vector{Int}(), Dict{Int, Union{Float64, Nothing}}(), Dict{Int, Int}(), itr, nothing, true)
+    return WorksheetCache(true, CellCache(), Vector{Int}(), Dict{Int, Union{Float64, Nothing}}(), Dict{Int, Int}(), itr, nothing, true)
 end
 
 @inline get_worksheet(r::SheetRow) = r.sheet
 @inline get_worksheet(itr::WorksheetCache) = get_worksheet(itr.stream_iterator)
 
-# In the WorksheetCache iterator, the element is a SheetRow, the state is the row number
-function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
+# In the WorksheetCache iterator, the element is a SheetRow, the state is the row number and a flag on whether the cache is already full or not
+#function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
+function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetCacheIteratorState}=nothing)
 
-    #the sorting operation is very costly when adding row and only needed if we use the row iterator
+    # If first iteration, check if cache is full
+    if isnothing(state)
+        if is_cache_enabled(ws_cache.stream_iterator.sheet) && ws_cache.is_empty
+            state=WorksheetCacheIteratorState(0, false)
+            ws_cache.is_empty = false
+        else
+            state=WorksheetCacheIteratorState(0, true)
+        end
+    end
+
+    # the sorting operation is very costly when adding row and only needed if we use the row iterator
     if ws_cache.dirty
         sort!(ws_cache.rows_in_cache)
         ws_cache.row_index = Dict{Int, Int}(ws_cache.rows_in_cache[i] => i for i in 1:length(ws_cache.rows_in_cache))
         ws_cache.dirty = false
-       end
+    end
 
-    if row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
-        # the next row is in cache, and it's the first one
-        current_row_number = ws_cache.rows_in_cache[1]
-        current_row_ht = ws_cache.row_ht[current_row_number]
-        sheet_row_cells = ws_cache.cells[current_row_number]
-        return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), current_row_number
 
-    elseif row_from_last_iteration != 0 && ws_cache.row_index[row_from_last_iteration] < length(ws_cache.rows_in_cache)
-        # the next row is in cache
-        current_row_number = ws_cache.rows_in_cache[ws_cache.row_index[row_from_last_iteration] + 1]
-        current_row_ht = ws_cache.row_ht[current_row_number]
-        sheet_row_cells = ws_cache.cells[current_row_number]
-        return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), current_row_number
+    if state.full_cache
+        if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
+            # the next row is in cache, and it's the first one
+            current_row_number = ws_cache.rows_in_cache[1]
+            current_row_ht = ws_cache.row_ht[current_row_number]
+            sheet_row_cells = ws_cache.cells[current_row_number]
+            state.row_from_last_iteration=current_row_number
+            return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
+
+        elseif state.row_from_last_iteration != 0 && ws_cache.row_index[state.row_from_last_iteration] < length(ws_cache.rows_in_cache)
+            # the next row is in cache
+            current_row_number = ws_cache.rows_in_cache[ws_cache.row_index[state.row_from_last_iteration] + 1]
+            current_row_ht = ws_cache.row_ht[current_row_number]
+            sheet_row_cells = ws_cache.cells[current_row_number]
+            state.row_from_last_iteration=current_row_number
+            return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
+        else
+            return nothing
+        end
 
     else
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
@@ -249,7 +265,9 @@ function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
         # update stream state
         ws_cache.stream_state = next_stream_state
 
-        return sheet_row, row_number(sheet_row)
+        state.row_from_last_iteration=row_number(sheet_row)
+
+        return sheet_row, state
     end
 end
 
@@ -318,6 +336,7 @@ defines the number of rows that are not entirely empty and will,
 in any case, only succeed if the worksheet cache is in use.
 """
 function eachrow(ws::Worksheet) :: SheetRowIterator
+ 
     if is_cache_enabled(ws)
         if ws.cache === nothing
             ws.cache = WorksheetCache(ws)

@@ -135,7 +135,7 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
         if !(source isa IO || isfile(source))
             throw(XLSXError("File $source not found."))
         end
-        xf = open_or_read_xlsx(source, _write, enable_cache, _write) # Why _write, _write here???
+        xf = open_or_read_xlsx(source, _read, enable_cache, _write) # Why _write, _write here???
     else
         xf = open_empty_template()
     end
@@ -168,7 +168,7 @@ function openxlsx(source::Union{AbstractString, IO};
         if !(source isa IO || isfile(source))
             throw(XLSXError("File $source not found."))
         end
-        return open_or_read_xlsx(source, _write, enable_cache, _write) # Why _write, _write here???
+        return open_or_read_xlsx(source, _read, enable_cache, _write)
     else
         return open_empty_template()
     end
@@ -193,6 +193,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     end
 
     xf = XLSXFile(source, enable_cache, read_as_template)
+ 
 
     for f in ZipArchives.zip_names(xf.io)
 
@@ -227,11 +228,11 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     parse_workbook!(xf)
 
     # read data from Worksheet streams
-    if read_files
+    if enable_cache
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
 
-            # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
+             # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
             for _ in eachrow(sheet)
                 nothing
             end

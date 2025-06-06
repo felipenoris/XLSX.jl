@@ -1387,14 +1387,32 @@ end
     rm(new_filename)
 end
 
-@testset "addsheet!" begin
+@testset "add/copy sheet!" begin
 
-    new_filename = "template_with_new_sheet.xlsx"
-    f = XLSX.open_empty_template()
-    s = XLSX.addsheet!(f, "new_sheet")
-    s["A1"] = 10
+    @testset "addsheet!" begin
 
-    @testset "check invalid sheet names" begin
+        new_filename = "template_with_new_sheet.xlsx"
+        f = XLSX.open_empty_template()
+        s = XLSX.addsheet!(f, "new_sheet")
+        s["A1"] = 10
+        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet"]
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+
+
+        big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
+        s2 = XLSX.addsheet!(f, big_sheetname)
+
+        XLSX.writexlsx(new_filename, f, overwrite=true)
+        fx = XLSX.opentemplate(new_filename)
+        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet", big_sheetname]
+
+    end
+
+    @testset "invalid sheet names" begin
+
+        f = XLSX.open_empty_template()
+        s = XLSX.addsheet!(f, "new_sheet")
+        s["A1"] = 10
         invalid_names = [
             "aaaaaaaaaabbbbbbbbbbccccccccccd1",
             "abc:def",
@@ -1409,12 +1427,6 @@ end
             @test_throws XLSX.XLSXError XLSX.addsheet!(f, invalid_name)
         end
 
-        big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
-        s2 = XLSX.addsheet!(f, big_sheetname)
-
-        XLSX.writexlsx(new_filename, f, overwrite=true)
-        fx = XLSX.opentemplate(new_filename)
-        @test XLSX.sheetnames(f) == ["Sheet1", "new_sheet", big_sheetname]
     end
 
     @testset "copysheet!" begin
@@ -1470,6 +1482,7 @@ end
 
     @testset "deletesheet!" begin
 
+        new_filename = "template_with_new_sheet.xlsx"
         big_sheetname = "aaaaaaaaaabbbbbbbbbbccccccccccd"
         fx = XLSX.opentemplate(new_filename)
         XLSX.deletesheet!(fx, big_sheetname)

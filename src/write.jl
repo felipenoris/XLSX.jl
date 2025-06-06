@@ -49,11 +49,12 @@ function open_empty_template(
     empty_excel_template = joinpath(path, "blank.xlsx")
     !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
     xf = open_xlsx_template(empty_excel_template)
+    xf[1].cache.is_empty = false
 
     if sheetname != ""
         rename!(xf[1], sheetname)
     end
-
+    xf.source=joinpath(pwd(), "blank.xlsx")
     return xf
 end
 
@@ -922,19 +923,14 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     !isfile(file_sheet_template) && throw(XLSXError("Couldn't find template file $file_sheet_template."))
     xdoc = XML.read(file_sheet_template, XML.Node)
     new_ws = insertsheet!(wb, xdoc, name)
-    # creates a mock WorksheetCache
-    # because we can't write to sheet with empty cache (see setdata!(ws::Worksheet, cell::Cell))
-    # and the stream should be closed
-    # to indicate that no more rows will be fetched from SheetRowStreamIterator in Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int)
-    reader = open_internal_file_stream(get_xlsxfile(wb), "xl/worksheets/sheet1.xml") # could be any file
-    state = SheetRowStreamIteratorState(reader, nothing, 0, nothing)
     new_ws.cache = XLSX.WorksheetCache(
+        false,
         Dict{Int64,Dict{Int64,XLSX.Cell}}(),
         Int64[],
         Dict{Int,Union{Float64,Nothing}}(),
         Dict{Int64,Int64}(),
         SheetRowStreamIterator(new_ws),
-        state,
+        nothing,
         false
     )
     return new_ws
@@ -1022,20 +1018,18 @@ function copysheet!(ws::Worksheet, name::AbstractString="")::Worksheet
     new_ws = insertsheet!(wb, xdoc, name, dim=dim)
 
     # copy the original worksheet cache to the new worksheet
-    reader = open_internal_file_stream(xl, "xl/worksheets/sheet1.xml") # could be any file
-    state = SheetRowStreamIteratorState(reader, nothing, 0, nothing)
     new_ws.cache = XLSX.WorksheetCache(
+        false,
         ws.cache.cells,
         ws.cache.rows_in_cache,
         ws.cache.row_ht,
         ws.cache.row_index,
         SheetRowStreamIterator(new_ws),
-        state,
+        nothing,
         ws.cache.dirty,
     )
 
     # copy defined names from the original worksheet to the new worksheet
-#    ws_keys=[x for x in keys(wb.worksheet_names) if first(x) == parse(Int, ws.relationship_id[4:end])]
     ws_keys=[x for x in keys(wb.worksheet_names) if first(x) == ws.sheetId]
     for k in ws_keys
         val=wb.worksheet_names[k].value
