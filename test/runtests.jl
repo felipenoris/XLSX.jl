@@ -777,6 +777,17 @@ end
     Dim = XLSX.readxlsx(joinpath(data_directory, "customXml.xlsx"))
     @test noDim[1].dimension == Dim[1].dimension
     @test noDim[2].dimension == Dim[2].dimension
+
+    f = XLSX.newxlsx()
+    s=f[1]
+    for i=10:20, j=10:20
+        s[i, j] = i+j
+    end
+    XLSX.set_dimension!(s,XLSX.CellRange(XLSX.CellRef("J10"), XLSX.CellRef("T20")))
+    @test XLSX.get_dimension(s) == XLSX.CellRange(XLSX.CellRef("J10"), XLSX.CellRef("T20"))
+    s["A1"]=2
+    @test XLSX.get_dimension(s) == XLSX.CellRange(XLSX.CellRef("A1"), XLSX.CellRef("T20"))
+
 end
 
 @testset "Column Range" begin
