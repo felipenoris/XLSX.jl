@@ -31,6 +31,67 @@ function check_for_xlsx_file_format(filepath::AbstractString)
     end
 end
 
+
+"""
+    opentemplate(source::Union{AbstractString, IO}) :: XLSXFile
+
+Read an existing Excel (`.xlsx`) file as a template and return as a writable `XLSXFile` for editing 
+and saving to another file with [XLSX.writexlsx](@ref).
+
+A convenience function equivalent to `openxlsx(source; mode="rw", enable_cache=true)`
+
+!!! note
+    XLSX.jl only works with `.xlsx` files and cannot work with Excel `.xltx` template files. 
+    Reading as a template in this package merely means opening a `.xlsx` file to edit, update 
+    and then write as an updated `.xlsx` file (e.g. using `XLSX.writexlsx()`). Doing so retains 
+    the formatting and layout of the opened file, but this is not the same as using a `.xltx` file.
+
+# Examples
+```julia
+julia> xf = opentemplate("myExcelFile.xlsx")
+```
+
+"""
+opentemplate(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, true)
+
+@inline open_xlsx_template(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, true)
+
+function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
+    return path
+end
+
+"""
+    newxlsx() :: XLSXFile
+
+Return an empty, writable `XLSXFile` with 1 worksheet for editing and 
+subsequent saving to a file with [XLSX.writexlsx](@ref).
+By default, the worksheet is `Sheet1`. Specify `sheetname` to give the worksheet a different name.
+
+# Examples
+```julia
+julia> xf = XLSX.newxlsx()
+```
+
+"""
+newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path())::XLSXFile = open_empty_template(sheetname; path)
+
+function open_empty_template(
+    sheetname::AbstractString="";
+    path::AbstractString=_relocatable_data_path()
+)::XLSXFile
+
+    empty_excel_template = joinpath(path, "blank.xlsx")
+    !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
+    xf = open_xlsx_template(empty_excel_template)
+    xf[1].cache.is_empty = false
+
+    if sheetname != ""
+        rename!(xf[1], sheetname)
+    end
+    xf.source=joinpath(pwd(), "blank.xlsx")
+    return xf
+end
+
 """
     readxlsx(source::Union{AbstractString, IO}) :: XLSXFile
 
@@ -135,7 +196,7 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
         if !(source isa IO || isfile(source))
             throw(XLSXError("File $source not found."))
         end
-        xf = open_or_read_xlsx(source, _read, enable_cache, _write) # Why _write, _write here???
+        xf = open_or_read_xlsx(source, _read, enable_cache, _write)
     else
         xf = open_empty_template()
     end

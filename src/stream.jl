@@ -199,7 +199,7 @@ end
 #
 # WorksheetCache iterator
 #
-# The state is the row number. The element is a SheetRow.
+# The state is the row number and a flag for if the cache is full or being filled. The element is a SheetRow.
 #
 function WorksheetCache(ws::Worksheet)
     itr = SheetRowStreamIterator(ws)
@@ -210,7 +210,6 @@ end
 @inline get_worksheet(itr::WorksheetCache) = get_worksheet(itr.stream_iterator)
 
 # In the WorksheetCache iterator, the element is a SheetRow, the state is the row number and a flag on whether the cache is already full or not
-#function Base.iterate(ws_cache::WorksheetCache, row_from_last_iteration::Int=0)
 function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetCacheIteratorState}=nothing)
 
     # If first iteration, check if cache is full

@@ -228,8 +228,6 @@ end
 @inline is_workbook_defined_name(xl::XLSXFile, name::AbstractString)::Bool = is_workbook_defined_name(get_workbook(xl), name)
 @inline is_worksheet_defined_name(ws::Worksheet, name::AbstractString)::Bool = is_worksheet_defined_name(get_workbook(ws), ws.sheetId, name)
 @inline is_worksheet_defined_name(wb::Workbook, sheet_name::AbstractString, name::AbstractString)::Bool = is_worksheet_defined_name(wb, getsheet(wb, sheet_name).sheetId, name)
-#@inline is_workbook_defined_name(wb::Workbook, name::AbstractString)::Bool = haskey(wb.workbook_names, name)
-#@inline is_worksheet_defined_name(wb::Workbook, sheetId::Int, name::AbstractString)::Bool = haskey(wb.worksheet_names, (sheetId, name))
 
 @inline get_defined_name_value(wb::Workbook, name::AbstractString)::DefinedNameValueTypes = wb.workbook_names[name].value
 

@@ -1,64 +1,5 @@
 
 """
-    opentemplate(source::Union{AbstractString, IO}) :: XLSXFile
-
-Read an existing Excel (`.xlsx`) file as a template and return as a writable `XLSXFile` for editing 
-and saving to another file with [XLSX.writexlsx](@ref).
-
-A convenience function equivalent to `openxlsx(source; mode="rw", enable_cache=true)`
-
-!!! note
-    XLSX.jl only works with `.xlsx` files and cannot work with Excel `.xltx` template files. 
-    Reading as a template in this package merely means opening a `.xlsx` file to edit, update 
-    and then write as an updated `.xlsx` file (e.g. using `XLSX.writexlsx()`). Doing so retains 
-    the formatting and layout of the opened file, but this is not the same as using a `.xltx` file.
-
-# Examples
-```julia
-julia> xf = opentemplate("myExcelFile.xlsx")
-```
-
-"""
-opentemplate(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, true)
-
-@inline open_xlsx_template(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, true)
-
-function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_relocatable_data")
-    return path
-end
-
-"""
-    newxlsx() :: XLSXFile
-
-Return an empty, writable `XLSXFile` with 1 worksheet (`Sheet1`) for editing and 
-subsequent saving to a file with [XLSX.writexlsx](@ref).
-
-# Examples
-```julia
-julia> xf = XLSX.newxlsx()
-```
-
-"""
-newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path())::XLSXFile = open_empty_template(sheetname; path)
-
-function open_empty_template(
-    sheetname::AbstractString="";
-    path::AbstractString=_relocatable_data_path()
-)::XLSXFile
-
-    empty_excel_template = joinpath(path, "blank.xlsx")
-    !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
-    xf = open_xlsx_template(empty_excel_template)
-    xf[1].cache.is_empty = false
-
-    if sheetname != ""
-        rename!(xf[1], sheetname)
-    end
-    xf.source=joinpath(pwd(), "blank.xlsx")
-    return xf
-end
-
-"""
     writexlsx(output_source, xlsx_file; [overwrite=false])
 
 Write an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
@@ -288,10 +229,7 @@ function update_worksheets_xml!(xl::XLSXFile)
 
         # Every row has the `spans=1:<n_cols>` property. Set it to the whole range of columns by default
         d = get_dimension(sheet)
-        #if !isnothing(get_dimension(sheet))
-        #    spans_str = string(column_number(get_dimension(sheet).start), ":", column_number(get_dimension(sheet).stop))
         spans_str = string(column_number(d.start), ":", column_number(d.stop))
-        #end
 
         # iterates over WorksheetCache cells and write the XML
         for r in eachrow(sheet)
@@ -440,11 +378,6 @@ end
 function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)
     # update worksheet dimension
     ws_dimension = get_dimension(ws)
-
-    #    if ws_dimension === nothing
-    #        set_dimension!(ws, CellRange(cell.ref, cell.ref))
-    #        return
-    #    end
 
     top = row_number(ws_dimension.start)
     left = column_number(ws_dimension.start)
@@ -1056,18 +989,12 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, name::AbstractString=""; dim
     current_sheet_names = sheetnames(wb)
     while new_name ∈ current_sheet_names || new_name == ""
         new_name = (name=="" ? "Sheet" : name * " ") * string(i)
-#        if !in(name, current_sheet_names)
-            # found a unique name
-#            break
-#        end
         i += 1
     end
 
     new_name == "" && throw(XLSXError("Something wrong here!"))
 
     # checks if name is a unique sheet name
-#    name ∈ sheetnames(wb) && throw(XLSXError("A sheet named `$name` already exists in this workbook."))
-
     function check_valid_sheetname(n::AbstractString)
         max_length = 31
         if length(n) > max_length
