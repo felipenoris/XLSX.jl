@@ -177,23 +177,38 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    for sheetrow in eachrow(ws)
-        if top <= sheetrow.row && sheetrow.row <= bottom
-            for column in left:right
-                cell = getcell(sheetrow, column)
-                if !isempty(cell)
-                    (r, c) = relative_cell_position(cell, rng)
-                    result[r, c] = getdata(ws, cell)
+    # if cache is in use, look-up data direct rather than iterating
+    if is_cache_enabled(ws) && ws.cache !== nothing && !ws.cache.is_empty
+        for row in top:bottom
+            if haskey(ws.cache.cells, row)
+                for column in left:right
+                    if haskey(ws.cache.cells, row) && haskey(ws.cache.cells[row], column)
+                        cell = ws.cache.cells[row][column]
+                        (r, c) = relative_cell_position(cell, rng)
+                        result[r, c] = getdata(ws, cell)
+                    end
                 end
             end
         end
 
-        # don't need to read new rows
-        if sheetrow.row > bottom
-            break
+    else # no cache, need to iterate rows
+        for sheetrow in eachrow(ws)
+            if top <= sheetrow.row && sheetrow.row <= bottom
+                for column in left:right
+                    cell = getcell(sheetrow, column)
+                    if !isempty(cell)
+                        (r, c) = relative_cell_position(cell, rng)
+                        result[r, c] = getdata(ws, cell)
+                    end
+                end
+            end
+
+            # don't need to read new rows
+            if sheetrow.row > bottom
+                break
+            end
         end
     end
-
     return result
 end
 
@@ -323,16 +338,13 @@ Other examples are as [`getdata()`](@ref).
 function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     # Access cache directly if it exists and if file `isread` - much faster!
-    if is_cache_enabled(ws) && ws.cache !== nothing
-        if haskey(get_xlsxfile(ws).files, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") && get_xlsxfile(ws).files["xl/worksheets/sheet"*string(ws.sheetId)*".xml"] == true
-
-            if haskey(ws.cache.cells, single.row_number)
-                if haskey(ws.cache.cells[single.row_number], single.column_number)
-                    return ws.cache.cells[single.row_number][single.column_number]
-                end
+    if is_cache_enabled(ws) && ws.cache !== nothing && !ws.cache.is_empty
+        if haskey(ws.cache.cells, single.row_number)
+            if haskey(ws.cache.cells[single.row_number], single.column_number)
+                return ws.cache.cells[single.row_number][single.column_number]
             end
-            return EmptyCell(single)
         end
+        return EmptyCell(single)
     end
 
     # If can't use cache then iterate sheetrows
