@@ -156,6 +156,20 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         @test_throws XLSX.XLSXError XLSX.openxlsx(joinpath(data_directory, "Book1.xlsx"); mode="tg")
     end
 
+    @testset "write-only mode" begin
+        XLSX.openxlsx("mytest.xlsx", mode="w") do f
+            f[1]["A1"]=1
+            @test f.source == "mytest.xlsx"
+        end
+        ef = XLSX.readxlsx("mytest.xlsx")
+        @test ef["Sheet1"]["A1"] == 1
+        f=XLSX.openxlsx("mytest.xlsx", mode="w")
+        @test f.source == "mytest.xlsx"
+        f=XLSX.newxlsx()
+        @test f.source == "blank.xlsx"
+        isfile("mytest.xlsx") && rm("mytest.xlsx")
+    end
+
 end
 
 @testset "Cell names" begin

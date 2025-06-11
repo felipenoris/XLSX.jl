@@ -88,7 +88,7 @@ function open_empty_template(
     if sheetname != ""
         rename!(xf[1], sheetname)
     end
-    xf.source=joinpath(pwd(), "blank.xlsx")
+    xf.source="blank.xlsx"
     return xf
 end
 
@@ -199,6 +199,7 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
         xf = open_or_read_xlsx(source, _read, enable_cache, _write)
     else
         xf = open_empty_template()
+        xf.source = source
     end
 
     try
@@ -231,7 +232,9 @@ function openxlsx(source::Union{AbstractString, IO};
         end
         return open_or_read_xlsx(source, _read, enable_cache, _write)
     else
-        return open_empty_template()
+        xf = open_empty_template()
+        xf.source = source
+        return xf
     end
 end
 
