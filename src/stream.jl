@@ -54,7 +54,14 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
         throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.source) was not found."))
     end
 
-    XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+#    if xf.use_cache_for_sheet_data
+        lznode=XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+#    else
+#        lznode=ZipArchives.zip_openentry(xf.io, filename) do io
+#            XML.LazyNode(XML.Raw(read(io)))
+#        end
+#    end
+    return lznode
 end
 
 # Creates a reader for row elements in the Worksheet's XML.

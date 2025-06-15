@@ -198,8 +198,10 @@ The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cell
 Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk
 in the second time.
 
-If `enable_cache=false`, worksheet cells will always be read from disk.
-This is useful when you want to read a spreadsheet that doesn't fit into memory.
+If `enable_cache=false`, worksheet cells will always be read from disk. In addition, if `enable_cache=false` 
+and `openxlsx` is used with do-syntax, the xlsx file itself will be opened usning `Mmap.mmap` so that the 
+zip archives themselves are not read into memory. This is useful when you want to read a spreadsheet that 
+doesn't fit into memory.
 
 The following example shows how you would read worksheet cells, one row at a time,
 where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
@@ -207,7 +209,7 @@ where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
 ```julia
 julia> XLSX.openxlsx("myfile.xlsx", enable_cache=false) do f
            sheet = f["mysheet"]
-           for r in eachrow(sheet)
+           for r in XLSX.eachrow(sheet)
               # r is a `SheetRow`, values are read using column references
               rn = XLSX.row_number(r) # `SheetRow` row number
               v1 = r[1]    # will read value at column 1

@@ -394,6 +394,7 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 mutable struct XLSXFile <: MSOfficePackage
     source::Union{AbstractString, IO}
     use_cache_for_sheet_data::Bool # indicates whether Worksheet.cache will be fed while reading worksheet cells.
+    stream::Union{Nothing, IOStream} # mmap stream for reading XLSX file
     io::ZipArchives.ZipReader
     files::Dict{String, Bool} # maps filename => isread bool
     data::Dict{String, XML.Node} # maps filename => XMLDocument
@@ -402,10 +403,16 @@ mutable struct XLSXFile <: MSOfficePackage
     relationships::Vector{Relationship} # contains package level relationships
     is_writable::Bool # indicates whether this XLSX file can be edited
 
-    function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
+    function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool; use_stream::Bool = false)
         check_for_xlsx_file_format(source)
-        io = ZipArchives.ZipReader(read(source))
-        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+        if !use_stream && use_cache || (source isa IOBuffer)
+            stream = nothing
+            io = ZipArchives.ZipReader(read(source))
+        else
+            stream = open(source)
+            io = ZipArchives.ZipReader(Mmap.mmap(stream))
+        end
+        xl = new(source, use_cache, stream, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         return xl
     end

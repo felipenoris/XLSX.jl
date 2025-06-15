@@ -165,8 +165,16 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         @test ef["Sheet1"]["A1"] == 1
         f=XLSX.openxlsx("mytest.xlsx", mode="w")
         @test f.source == "mytest.xlsx"
+        f[1]["A1"]=1
+        XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+        ef = XLSX.readxlsx("mytest.xlsx")
+        @test ef["Sheet1"]["A1"] == 1
         f=XLSX.newxlsx()
         @test f.source == "blank.xlsx"
+        f[1]["A1"]=1
+        XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+        ef = XLSX.readxlsx("mytest.xlsx")
+        @test ef["Sheet1"]["A1"] == 1
         isfile("mytest.xlsx") && rm("mytest.xlsx")
     end
 
@@ -1526,6 +1534,7 @@ end
         s2 = XLSX.addsheet!(f, "this_now")
         @test XLSX.sheetnames(f) == ["general", "table3", "table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "named_ranges", "this_now"]
         XLSX.writexlsx(new_filename, f, overwrite=true)
+
         f = XLSX.opentemplate(new_filename)
         @test XLSX.sheetnames(f) == ["general", "table3", "table4", "table", "table2", "table5", "table6", "table7", "lookup", "header_error", "named_ranges_2", "named_ranges", "this_now"]
         XLSX.deletesheet!(f, "named_ranges")
@@ -1655,7 +1664,6 @@ end
         @test labels[1] == :COLUMN_A
         @test labels[2] == :COLUMN_B
         check_test_data(data, report_2_data)
-
         XLSX.writetable("output_tables.xlsx", [("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names)], overwrite=true)
 
         dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
@@ -1672,7 +1680,6 @@ end
 
         report_1_column_names = [:HEADER_A, :HEADER_B]
         report_2_column_names = [:COLUMN_A, :COLUMN_B]
-
         XLSX.writetable("output_tables.xlsx", [("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names)], overwrite=true)
 
         dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")
@@ -1694,7 +1701,6 @@ end
         report_2_data = Vector{Any}(undef, 2)
         report_2_data[1] = [Date(2017, 2, 1), Date(2018, 2, 1)]
         report_2_data[2] = [10.2, 10.3]
-
         XLSX.writetable("output_tables.xlsx", [("REPORT_A", report_1_data, report_1_column_names), ("REPORT_B", report_2_data, report_2_column_names)], overwrite=true)
 
         dtable = XLSX.readtable("output_tables.xlsx", "REPORT_A")

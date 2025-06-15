@@ -11,6 +11,10 @@ import Unicode
 import Colors
 import Base.convert
 import UUIDs
+import Mmap
+
+import PrecompileTools as PCT    # this is a small dependency. PCT avoids namespace conflict with ZipArchives (I think)
+
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 const EXCEL_MAX_COLS = 16_384     # total columns supported by Excel per sheet
@@ -34,5 +38,28 @@ include("cellformats.jl")
 include("conditional-format-helpers.jl") # must load before conditional-formats.jl
 include("conditional-formats.jl")
 include("write.jl")
+
+PCT.@setup_workload begin
+    # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
+    # precompile file and potentially make loading faster.
+    s=IOBuffer()
+    t=IOBuffer()
+    PCT.@compile_workload begin
+        # all calls in this block will be precompiled, regardless of whether
+        # they belong to your package or not (on Julia 1.8 and higher)
+        f=openxlsx(joinpath(_relocatable_data_path(), "blank.xlsx"), mode="rw")
+        f[1]["A1:Z26"] = "hello World"
+        openxlsx(s, mode="w") do xf
+            xf[1][1:26, 1:26] = pi
+        end
+        _ = XLSX.readtable(seekstart(s), 1, "A:Z")
+        f= openxlsx(seekstart(s), mode="rw")
+        setConditionalFormat(f[1], :, :cellIs)
+        setConditionalFormat(f[1], "A1:Z26", :colorScale)
+        setBorder(f[1], collect(1:26), 1:26, allsides=["style"=>"thin", "color"=>"black"])
+        _ = getdata(f[1], "A1:A20")
+        writexlsx(t, f)
+    end
+end
 
 end # module XLSX

@@ -189,6 +189,15 @@ See also [`XLSX.readxlsx`](@ref).
 """
 function openxlsx(f::F, source::Union{AbstractString, IO};
                   mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
+    xf = _openxlsx(f, source; mode, enable_cache)
+    if !enable_cache
+        GC.gc()         # GC to clean-up after mmap
+    end
+    return xf
+end
+
+function _openxlsx(f::F, source::Union{AbstractString, IO};
+                  mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
     _read, _write = parse_file_mode(mode)
 
@@ -196,7 +205,7 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
         if !(source isa IO || isfile(source))
             throw(XLSXError("File $source not found."))
         end
-        xf = open_or_read_xlsx(source, _read, enable_cache, _write)
+        xf = open_or_read_xlsx(source, _read, enable_cache, _write; use_stream=!enable_cache)
     else
         xf = open_empty_template()
         xf.source = source
@@ -204,12 +213,15 @@ function openxlsx(f::F, source::Union{AbstractString, IO};
 
     try
         f(xf)
-    finally
 
+    finally
+        if !isnothing(xf.stream) # close the mmap stream if it was opened
+            close(xf.stream)
+            xf.stream = nothing
+        end
         if _write
             writexlsx(source, xf, overwrite=true)
         end
-
     end
 end
 
@@ -250,13 +262,12 @@ function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
     end
 end
 
-function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, enable_cache::Bool, read_as_template::Bool) :: XLSXFile
+function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, enable_cache::Bool, read_as_template::Bool; use_stream::Bool=false) :: XLSXFile
     # sanity check
     if read_as_template
         !(read_files && enable_cache) && throw(XLSXError("Cache must be enabled for files in `write` mode."))
     end
-
-    xf = XLSXFile(source, enable_cache, read_as_template)
+    xf = XLSXFile(source, enable_cache, read_as_template; use_stream)
  
 
     for f in ZipArchives.zip_names(xf.io)
@@ -361,7 +372,8 @@ function check_minimum_requirements(xf::XLSXFile)
         content_types = XML.write(xf.data[f])
     else
         content_types = ZipArchives.zip_readentry(xf.io, f, String)
-    end   
+    end
+
     if occursin("spreadsheetml.sheet", content_types)
         return nothing
     elseif occursin("spreadsheetml.template", content_types)
@@ -549,7 +561,14 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
     if !internal_xml_file_isread(xf, filename)
 
         try
-            xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+#            if xf.use_cache_for_sheet_data
+                xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))          
+#            else
+                # read from zip entry
+#                ZipArchives.zip_openentry(xf.io, filename) do io 
+#                    xf.data[filename] = XML.Node(XML.Raw(read(io)))
+#                end
+#            end
             xf.files[filename] = true # set file as read
         catch err
             throw(XLSXError("Failed to parse internal XML file `$filename`"))
@@ -621,6 +640,7 @@ function readdata(source::Union{AbstractString, IO}, sheet::Union{AbstractString
     c = openxlsx(source, enable_cache=false) do xf
         getdata(getsheet(xf, sheet), ref)
     end
+#    GC.gc()
     return c
 end
 
@@ -628,6 +648,7 @@ function readdata(source::Union{AbstractString, IO}, sheetref::AbstractString)
     c = openxlsx(source, enable_cache=false) do xf
         getdata(xf, sheetref)
     end
+#    GC.gc()
     return c
 end
 
@@ -712,22 +733,25 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 See also: [`XLSX.gettable`](@ref).
 """
 function readtable(source::Union{AbstractString, IO}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    c = openxlsx(source, enable_cache=enable_cache) do xf
+    c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, 1); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
-    return c
+#    !enable_cache && GC.gc()
+   return c
 end
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    c = openxlsx(source, enable_cache=enable_cache) do xf
+    c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
+#    !enable_cache && GC.gc()
     return c
 end
 
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::ColumnRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
-    c = openxlsx(source, enable_cache=enable_cache) do xf
+    c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
+#    !enable_cache && GC.gc()
     return c
 end
 
