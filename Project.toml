@@ -21,7 +21,7 @@ ZipArchives = "49080126-0e18-4c2a-b176-c102e4b3760c"
 [compat]
 Colors = "0.13.0"
 Distributions = "0.25.0"
-Mmap = "1.11.0"
+Mmap = "1"
 PrecompileTools = "1"
 Random = "1.10.0"
 Tables = "1"
