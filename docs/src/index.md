@@ -10,7 +10,7 @@ Internally, an Excel XLSX file is just a
 [Zip](https://en.wikipedia.org/wiki/Zip_(file_format)) file with a set of
 [XML](https://en.wikipedia.org/wiki/XML) files inside.
 The formats for these XML files are described in
-the [Standard ECMA-376](https://www.ecma-international.org/publications/standards/Ecma-376.htm).
+the [Standard ECMA-376](https://ecma-international.org/publications-and-standards/standards/ecma-376/).
 
 This package follows the EMCA-376 to parse and generate XLSX files.
 
