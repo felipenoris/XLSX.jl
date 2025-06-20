@@ -409,7 +409,7 @@ mutable struct XLSXFile <: MSOfficePackage
             stream = nothing
             io = ZipArchives.ZipReader(read(source))
         else
-            stream = open(source)
+            stream = open(source, "r")
             io = ZipArchives.ZipReader(Mmap.mmap(stream))
         end
         xl = new(source, use_cache, stream, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)

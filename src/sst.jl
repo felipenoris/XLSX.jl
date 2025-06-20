@@ -68,7 +68,11 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
 end
 
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString) :: Int
-    str_formatted = string("<si><t>", str_unformatted, "</t></si>")
+    if startswith(str_unformatted, " ") || endswith(str_unformatted, " ")
+        str_formatted = string("<si><t xml:space=\"preserve\">", str_unformatted, "</t></si>")
+    else
+        str_formatted = string("<si><t>", str_unformatted, "</t></si>")
+    end
     return add_shared_string!(wb, str_unformatted, str_formatted)
 end
 
@@ -130,8 +134,15 @@ function unformatted_text(el::XML.Node) :: String
 
     v_string = Vector{String}()
     gather_strings!(v_string, el)
-#    println("sst131 : ",join(v_string))
-    return join(v_string)
+
+    gatheredstrings=join(v_string)
+
+    # work around issue 43 in XML.jl (https://github.com/JuliaComputing/XML.jl/issues/43)
+    if gatheredstrings == "<t xml:space=\"preserve\"/>" # Happens if a cell consists only of spaces
+        return " "
+    end
+
+    return gatheredstrings
 end
 
 # Looks for a string inside the Shared Strings Table (sst).
