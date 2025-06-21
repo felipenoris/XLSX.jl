@@ -561,14 +561,7 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
     if !internal_xml_file_isread(xf, filename)
 
         try
-#            if xf.use_cache_for_sheet_data
-                xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))          
-#            else
-                # read from zip entry
-#                ZipArchives.zip_openentry(xf.io, filename) do io 
-#                    xf.data[filename] = XML.Node(XML.Raw(read(io)))
-#                end
-#            end
+            xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))          
             xf.files[filename] = true # set file as read
         catch err
             throw(XLSXError("Failed to parse internal XML file `$filename`"))

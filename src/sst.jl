@@ -108,6 +108,13 @@ function has_sst(workbook::Workbook) :: Bool
     return has_relationship_by_type(workbook, relationship_type)
 end
 
+
+# work around issue 43 in XML.jl (https://github.com/JuliaComputing/XML.jl/issues/43)
+# Can now write cells containing only whitespage characters or with leading or training whitespace.
+# Cannot see these things in cells read in from existing Excel files - XML removes leading whitespace 
+# even if `xml:space="preserve"` is specified.
+# Thus a cell containing "    " will be read in as missing. A cell containing "  hello" will become "hello". 
+
 # Helper function to gather unformatted text from Excel data files.
 # It looks at all children of `el` for tag name `t` and returns
 # a join of all the strings found.
@@ -118,8 +125,11 @@ function unformatted_text(el::XML.Node) :: String
             c = XML.children(e)
             if length(c) == 1
                 push!(v, XML.value(c[1]))
+            elseif length(c) == 0
+                push!(v, isnothing(XML.value(e)) ? "" : XML.value(e))
             else
-                push!(v, XML.write(e))
+                println([i, " => ", XML.write(x) for (i, x) in enumerate(c)])
+                throw(XLSXError("Unexpected number of children in <t> node: $(length(c)). Expected 0 or 1."))
             end
         end
 
@@ -136,11 +146,6 @@ function unformatted_text(el::XML.Node) :: String
     gather_strings!(v_string, el)
 
     gatheredstrings=join(v_string)
-
-    # work around issue 43 in XML.jl (https://github.com/JuliaComputing/XML.jl/issues/43)
-    if gatheredstrings == "<t xml:space=\"preserve\"/>" # Happens if a cell consists only of spaces
-        return " "
-    end
 
     return gatheredstrings
 end
