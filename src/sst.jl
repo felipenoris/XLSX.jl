@@ -110,7 +110,7 @@ end
 
 
 # work around issue 43 in XML.jl (https://github.com/JuliaComputing/XML.jl/issues/43)
-# Can now write cells containing only whitespage characters or with leading or training whitespace.
+# Can now write cells containing only whitespage characters or with leading or trailing whitespace.
 # Cannot see these things in cells read in from existing Excel files - XML removes leading whitespace 
 # even if `xml:space="preserve"` is specified.
 # Thus a cell containing "    " will be read in as missing. A cell containing "  hello" will become "hello". 
@@ -128,7 +128,7 @@ function unformatted_text(el::XML.Node) :: String
             elseif length(c) == 0
                 push!(v, isnothing(XML.value(e)) ? "" : XML.value(e))
             else
-                println([i, " => ", XML.write(x) for (i, x) in enumerate(c)])
+#                println([i, " => ", XML.write(x) for (i, x) in enumerate(c)])
                 throw(XLSXError("Unexpected number of children in <t> node: $(length(c)). Expected 0 or 1."))
             end
         end
