@@ -110,7 +110,7 @@ end
 
 
 # work around issue 43 in XML.jl (https://github.com/JuliaComputing/XML.jl/issues/43)
-# Can now write cells containing only whitespage characters or with leading or trailing whitespace.
+# Can now write cells containing only whitespace characters or with leading or trailing whitespace.
 # Cannot see these things in cells read in from existing Excel files - XML removes leading whitespace 
 # even if `xml:space="preserve"` is specified.
 # Thus a cell containing "    " will be read in as missing. A cell containing "  hello" will become "hello". 
