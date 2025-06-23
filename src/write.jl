@@ -1,8 +1,30 @@
 
 """
+    savexlsx(f::XLSXFile)
+
+Save an `XLSXFile` instance back to the file from which it was opened, overwriting original content.
+
+A new `XLSXFile` created with `XLSX.newxlsx` (or using `openxlsx` without specifying a filename) will 
+have `source` set to `"blank.xlsx"` and cannot be saved with this function. Use `writexlsx` instead to 
+specify a file name for the saved file.
+
+Returns the filepath of the written file if a filename is supplied, or `nothing` if writing to an `IO`.
+
+"""
+function savexlsx(f::XLSXFile)
+    f.source == "blank.xlsx" && throw(XLSXError("Can't save a blank `XLSXFile` instance. Use `writexlsx` instead to specify a file name."))
+    return writexlsx(f.source, f; overwrite=true)
+end
+
+
+"""
     writexlsx(output_source, xlsx_file; [overwrite=false])
 
 Write an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
+
+The source attribute of the `XLSXFile` will be updated to the `output_source` if it is a filepath.
+
+Returns the filepath of the written file if a filename is supplied, or `nothing` if writing to an `IO`.
 
 If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it exists.
 """
@@ -43,7 +65,14 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
             print(xlsx, generate_sst_xml_string(get_sst(xf)))
         end
     end
-    nothing
+
+    if !(output_source isa IO)
+        (xf.source = output_source) # update source if output_source is a file path
+        return isabspath(xf.source) ? xf.source : abspath(xf.source)
+    else
+        return nothing
+    end
+
 end
 
 get_worksheet_internal_file(ws::Worksheet) = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
@@ -452,7 +481,7 @@ function xlsx_encode(ws::Worksheet, val::AbstractString)
         return ("", "")
     end
 
-    sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(XML.escape(val)))
+    sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(val))
 
     return ("s", string(sst_ind))
 end
@@ -1237,6 +1266,8 @@ end
 - `overwrite` is a `Bool` to control if `filename` should be overwritten if already exists.
 - `sheetname` is the name for the worksheet.
 
+Returns the filepath of the written file if a filename is supplied, or `nothing` if writing to an `IO`.
+
 # Example
 
 ```julia
@@ -1265,7 +1296,6 @@ function writetable(filename::Union{AbstractString,IO}, data, columnnames; overw
 
     # write output file
     writexlsx(filename, xf, overwrite=overwrite)
-    nothing
 end
 
 """
@@ -1276,6 +1306,8 @@ Write multiple tables.
 
 `kw` is a variable keyword argument list. Each element should be in this format: `sheetname=( data, column_names )`,
 where `data` is a vector of columns and `column_names` is a vector of column labels.
+
+Returns the filepath of the written file if a filename is supplied, or `nothing` if writing to an `IO`.
 
 Example:
 
@@ -1314,7 +1346,7 @@ function writetable(filename::Union{AbstractString,IO}; overwrite::Bool=false, k
 
     # write output file
     writexlsx(filename, xf, overwrite=overwrite)
-    nothing
+
 end
 
 function writetable(filename::Union{AbstractString,IO}, tables::Vector{Tuple{String,S,Vector{T}}}; overwrite::Bool=false) where {S<:Vector{U} where {U},T<:Union{String,Symbol}}

@@ -1380,6 +1380,25 @@ end
     isfile(filename_copy) && rm(filename_copy)
 end
 
+@testset "Save" begin
+    f=XLSX.openxlsx("saveable.xlsx", mode="w")
+    XLSX.rename!(f["Sheet1"], "new_name")
+    s=f[1]
+    s[1:10, 1:10] = "hello world"
+    @test XLSX.savexlsx(f) == abspath("saveable.xlsx")
+    f2 = XLSX.openxlsx("saveable.xlsx", mode="rw")
+    @test XLSX.hassheet(f2, "new_name")
+    @test f2["new_name"][1, 1] == "hello world"
+    @test f2["new_name"][10, 10] == "hello world"
+    f2["new_name"][1:5, 1:5] = "goodbye world"
+    XLSX.savexlsx(f2)
+    f3 = XLSX.openxlsx("saveable.xlsx", mode="r")
+    @test f3["new_name"][1, 1] == "goodbye world"
+    @test f3["new_name"][5, 5] == "goodbye world"
+    @test f3["new_name"][10, 10] == "hello world"
+    isfile("saveable.xlsx") && rm("saveable.xlsx")
+end
+
 @testset "CustomXml" begin
     # issue #210
     # None of the example .xlsx files in the test suite include custoimXml internal files
@@ -1393,7 +1412,7 @@ end
         sheet["Q3"] = "this"
         sheet["Q4"] = "template"
     end
-    @test XLSX.writexlsx(filename_copy, template, overwrite=true) === nothing # This is where the bug will throw if customXml internal files present.
+    @test XLSX.writexlsx(filename_copy, template, overwrite=true) == abspath(filename_copy) # This is where the bug will throw if customXml internal files present.
     @test isfile(filename_copy)
     f_copy = XLSX.readxlsx(filename_copy) # Don't really think this second part is necessary.
     test_Xmlread = [["Cant", "write", "this", "template"]]

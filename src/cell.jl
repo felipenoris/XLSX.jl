@@ -190,7 +190,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         if isempty(cell.value)
             return missing
         else
-            return XML.unescape(cell.value)
+            return cell.value
         end
 
     end
@@ -207,7 +207,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         if isempty(str)
             return missing
         else
-            return XML.unescape(str)
+            return str
         end
 
     elseif (isempty(cell.datatype) || cell.datatype == "n")
@@ -247,7 +247,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         if isempty(cell.value)
             return missing
         else
-            return XML.unescape(cell.value)
+            return cell.value
         end
     end
 

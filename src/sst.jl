@@ -69,9 +69,9 @@ end
 
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString) :: Int
     if startswith(str_unformatted, " ") || endswith(str_unformatted, " ")
-        str_formatted = string("<si><t xml:space=\"preserve\">", str_unformatted, "</t></si>")
+        str_formatted = string("<si><t xml:space=\"preserve\">", XML.escape(str_unformatted), "</t></si>")
     else
-        str_formatted = string("<si><t>", str_unformatted, "</t></si>")
+        str_formatted = string("<si><t>", XML.escape(str_unformatted), "</t></si>")
     end
     return add_shared_string!(wb, str_unformatted, str_formatted)
 end
@@ -124,9 +124,9 @@ function unformatted_text(el::XML.Node) :: String
         if XML.tag(e) == "t"
             c = XML.children(e)
             if length(c) == 1
-                push!(v, XML.value(c[1]))
+                push!(v, XML.is_simple(c[1]) ? XML.simple_value(c[1]) : XML.value(c[1]))
             elseif length(c) == 0
-                push!(v, isnothing(XML.value(e)) ? "" : XML.value(e))
+                push!(v, isnothing(XML.value(e)) ? "" : XML.is_simple(e) ? XML.simple_value(e) : XML.value(e))
             else
 #                println([i, " => ", XML.write(x) for (i, x) in enumerate(c)])
                 throw(XLSXError("Unexpected number of children in <t> node: $(length(c)). Expected 0 or 1."))
@@ -145,7 +145,7 @@ function unformatted_text(el::XML.Node) :: String
     v_string = Vector{String}()
     gather_strings!(v_string, el)
 
-    gatheredstrings=join(v_string)
+    gatheredstrings=XML.unescape(join(v_string))
 
     return gatheredstrings
 end

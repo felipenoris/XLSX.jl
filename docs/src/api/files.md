@@ -9,6 +9,7 @@ XLSX.openxlsx
 XLSX.opentemplate
 XLSX.newxlsx
 XLSX.writexlsx
+XLSX.savexlsx
 ```
 
 ## Worksheets
