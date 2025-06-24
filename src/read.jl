@@ -555,25 +555,30 @@ function internal_xml_file_add!(xl::XLSXFile, filename::String)
     nothing
 end
 
+function strip_bom_and_lf!(bytes::Vector{UInt8})
+    # Issue 243 - Need to remove BOM characters that precede the XML declaration.
+    bom = UInt8[0xEF, 0xBB, 0xBF]
+    l=length(bytes)
+    if l >= 3 && bytes[1:3] == bom
+        if l > 3 && bytes[4] == 0x0A
+            deleteat!(bytes, 1:4)
+        else
+            deleteat!(bytes, 1:3)
+        end
+    end
+end
 function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
         !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
     if !internal_xml_file_isread(xf, filename)
 
         try
-            xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
-
-            # Issue 243 - Need to remove characters that precede the XML declaration.
-            fd=XML.write(xf.data[filename])
-            dec=findfirst("<?xml", fd)
-            if !isnothing(dec) && first(dec) !== 1
-                xf.data[filename]=parse(XML.Node,fd[first(dec):end])
-            end
-
+            bytes = ZipArchives.zip_readentry(xf.io, filename)
+            strip_bom_and_lf!(bytes)
+            xf.data[filename] = XML.Node(XML.Raw(bytes))
             xf.files[filename] = true # set file as read
         catch err
             throw(XLSXError("Failed to parse internal XML file `$filename`"))
-
         end
 
     end
