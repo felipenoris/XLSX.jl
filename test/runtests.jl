@@ -5739,21 +5739,21 @@ end
     isfile(esc_filename) && rm(esc_filename)
 
     esc_col_names = ["&' & \" < > '", "I❤Julia", "\"<'&O-O&'>\"", "<&>"]
-    esc_sheetname = XML.escape("& & \" > < ")
+    esc_sheetname = "& & \" > < "
     esc_data = Vector{Any}(undef, 4)
     esc_data[1] = ["11&&", "12\"&", "13<&", "14>&", "15'&"]
     esc_data[2] = ["21&&&&", "22&\"&&", "23&<&&", "24&>&&", "25&'&&"]
     esc_data[3] = ["31&&&&&&", "32&&\"&&&", "33&&<&&&", "34&&>&&&", "35&&'&&&"]
     esc_data[4] = ["41& &; &&", "42\" \"; \"\"", "43< <; <<", "44> >; >>", "45' '; ''"]
-    XLSX.writetable(esc_filename, esc_data, XML.escape.(esc_col_names), overwrite=true, sheetname=esc_sheetname)
+    XLSX.writetable(esc_filename, esc_data, esc_col_names, overwrite=true, sheetname=esc_sheetname)
 
     dtable = XLSX.readtable(esc_filename, esc_sheetname)
     r1_data, r1_col_names = dtable.data, dtable.column_labels
     check_test_data(r1_data, esc_data)
-    @test XML.unescape(string(r1_col_names[4])) == esc_col_names[4]
-    @test XML.unescape(string(r1_col_names[3])) == esc_col_names[3]
-    @test XML.unescape(string(r1_col_names[2])) == esc_col_names[2]
-    @test XML.unescape(string(r1_col_names[1])) == esc_col_names[1]
+    @test r1_col_names[4] == Symbol(esc_col_names[4])
+    @test r1_col_names[3] == Symbol(esc_col_names[3])
+    @test r1_col_names[2] == Symbol(esc_col_names[2])
+    @test r1_col_names[1] == Symbol(esc_col_names[1])
     rm(esc_filename)
 
     # compare to the backup version: escape.xlsx
@@ -5761,10 +5761,10 @@ end
     r2_data, r2_col_names = [[x isa String ? XML.unescape(x) : x for x in y] for y in dtable.data], dtable.column_labels
     check_test_data(r2_data, esc_data)
     check_test_data(r2_data, r1_data)
-    @test XML.unescape(string(r2_col_names[4])) == esc_col_names[4]
-    @test XML.unescape(string(r2_col_names[3])) == esc_col_names[3]
-    @test XML.unescape(string(r2_col_names[2])) == esc_col_names[2]
-    @test XML.unescape(string(r2_col_names[1])) == esc_col_names[1]
+    @test string(r2_col_names[4]) == esc_col_names[4]
+    @test string(r2_col_names[3]) == esc_col_names[3]
+    @test string(r2_col_names[2]) == esc_col_names[2]
+    @test string(r2_col_names[1]) == esc_col_names[1]
 end
 
 # issue #67

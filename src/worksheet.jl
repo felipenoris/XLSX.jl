@@ -4,7 +4,7 @@ function Worksheet(xf::XLSXFile, sheet_element::XML.Node)
     a = XML.attributes(sheet_element)
     sheetId = parse(Int, a["sheetId"])
     relationship_id = a["r:id"]
-    name = a["name"]
+    name = XML.unescape(a["name"])
     is_hidden = haskey(a, "state") && a["state"] in ["hidden", "veryHidden"]
     dim = read_worksheet_dimension(xf, relationship_id, name)
 
@@ -31,7 +31,7 @@ function read_worksheet_dimension(xf::XLSXFile, relationship_id, name)::Union{No
     if xf.is_writable # read from cached file
         !haskey(xf.files, target_file) && throw(XLSXError("Worksheet \"$name\" not found in the XLSX file."))
         i, j = get_idces(xf.data[target_file], "worksheet", "dimension")
-        if i == 0 || j == 0
+        if isnothing(i) || isnothing(j)
             # No dimension element found, return nothing
             return nothing
         end

@@ -394,7 +394,7 @@ function update_workbook_xml!(xl::XLSXFile) # Need to update <sheets> and <defin
     unlink(doc[i][j], ("sheets", "sheet"))
     sheets_element = XML.Element("sheets")
     for s in wb.sheets
-        sheet_element = XML.Element("sheet"; name=s.name)
+        sheet_element = XML.Element("sheet"; name=XML.escape(s.name))
         sheet_element["sheetId"] = s.sheetId
         sheet_element["r:id"] = s.relationship_id
         push!(sheets_element, sheet_element)

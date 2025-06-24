@@ -561,7 +561,15 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
     if !internal_xml_file_isread(xf, filename)
 
         try
-            xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))          
+            xf.data[filename] = XML.Node(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+
+            # Issue 243 - Need to remove characters that precede the XML declaration.
+            fd=XML.write(xf.data[filename])
+            dec=findfirst("<?xml", fd)
+            if !isnothing(dec) && first(dec) !== 1
+                xf.data[filename]=parse(XML.Node,fd[first(dec):end])
+            end
+
             xf.files[filename] = true # set file as read
         catch err
             throw(XLSXError("Failed to parse internal XML file `$filename`"))
@@ -569,6 +577,7 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
         end
 
     end
+
     return xf.data[filename]
 end
 
