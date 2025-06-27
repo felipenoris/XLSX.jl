@@ -102,7 +102,7 @@ that implements [`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
-There are also two helper methods [`XLSX.readtable`](@ref) and [`XLSX.readdf`](@ref) to read from file 
+There are also two helper methods [`XLSX.readtable`](@ref) and [`XLSX.readto`](@ref) to read from file 
 directly, as shown in the following examples.
 
 ```julia
@@ -117,7 +117,7 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")) # Returns a `Tab
    2 │       2  second
    3 │       3  third
 
-julia> df = XLSX.readdf("myfile.xlsx", "mysheet", DataFrame) # Returns a `DataFrame` directly.
+julia> df = XLSX.readto("myfile.xlsx", "mysheet", DataFrame) # Returns a `DataFrame` directly.
 3×2 DataFrame
  Row │ HeaderA  HeaderB 
      │ Int64    String  
