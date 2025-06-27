@@ -419,9 +419,7 @@ function Base.iterate(itr::TableRowIterator, state::TableRowIteratorState)
 
     # if the `is_empty_table_row` check above was successful, we can't get empty sheet_row here
     @assert !is_empty_table_row(sheet_row) || itr.keep_empty_rows "Something wrong here!"
-#    if is_empty_table_row(sheet_row) && !itr.keep_empty_rows
-#        throw(XLSXError("Something wrong here!"))
-#    end
+
     table_row = TableRow(table_row_index, itr.index, sheet_row)
 
     # user asked to stop (or end of row range)
@@ -497,7 +495,6 @@ function check_table_data_dimension(data::Vector)
     nothing
 end
 
-#function gettable(itr::TableRowIterator; infer_eltypes::Bool=true, normalizenames::Bool=false) :: DataTable
 function gettable(itr::TableRowIterator; infer_eltypes::Bool=true) :: DataTable
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)

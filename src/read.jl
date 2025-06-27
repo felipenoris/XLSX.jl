@@ -568,7 +568,8 @@ function strip_bom_and_lf!(bytes::Vector{UInt8})
     end
 end
 function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
-        !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
+    
+    !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
     if !internal_xml_file_isread(xf, filename)
 
@@ -743,14 +744,12 @@ function readtable(source::Union{AbstractString, IO}; first_row::Union{Nothing, 
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, 1); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
-#    !enable_cache && GC.gc()
    return c
 end
 function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
-#    !enable_cache && GC.gc()
     return c
 end
 
@@ -758,7 +757,6 @@ function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractStrin
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
-#    !enable_cache && GC.gc()
     return c
 end
 
@@ -772,7 +770,7 @@ function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractStrin
 end
 
 """
-    readdf(
+    readto(
         source,
         [sheet,
         [columns]],
@@ -785,42 +783,44 @@ end
         [stop_in_row_function],
         [keep_empty_rows],
         [normalizenames]
-    ) -> DataFrame
+    ) -> sink
 
 Read and parse an Excel worksheet, materializing directly using 
-the `sink` function (e.g. `DataFrame`).
+the `sink` function (e.g. `DataFrame` or `StructArray`).
 
 Takes the same keyword arguments as [`XLSX.readtable`](@ref) 
 
 # Example
 
 ```julia
-julia> using DataFrames, XLSX
+julia> using DataFrames, StructArrays, XLSX
 
-julia> df = XLSX.readdf("myfile.xlsx", DataFrame)
+julia> df = XLSX.readto("myfile.xlsx", DataFrame)
 
-julia> df = XLSX.readdf("myfile.xlsx", "mysheet", DataFrame)
+julia> df = XLSX.readto("myfile.xlsx", StructArray)
 
-julia> df = XLSX.readdf("myfile.xlsx", "mysheet", "A:C", DataFrame)
+julia> df = XLSX.readto("myfile.xlsx", "mysheet", DataFrame)
+
+julia> df = XLSX.readto("myfile.xlsx", "mysheet", "A:C", DataFrame)
 ```
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readdf(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString, sink=nothing; kw...)
+function readto(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString, sink=nothing; kw...)
     if sink === nothing
         throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, columns, DataFrame)`"))
     end
-    return readtable(source, sheet, range; kw...) |> sink
+    return Tables.CopiedColumns(readtable(source, sheet, range; kw...)) |> sink
 end
-function readdf(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, sink=nothing; kw...)
+function readto(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, sink=nothing; kw...)
     if sink === nothing
         throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
     end
-    return readtable(source, sheet; kw...) |> sink
+    return Tables.CopiedColumns(readtable(source, sheet; kw...)) |> sink
 end
-function readdf(source::Union{AbstractString, IO}, sink=nothing; kw...)
+function readto(source::Union{AbstractString, IO}, sink=nothing; kw...)
     if sink === nothing
         throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
     end
-    return readtable(source; kw...) |> sink
+    return Tables.CopiedColumns(readtable(source; kw...)) |> sink
 end
