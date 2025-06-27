@@ -1308,7 +1308,7 @@ end
 
     @testset "Read DataFrame" begin
 
-        df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), "table4", "F:G", DataFrames.DataFrame)
+        df = XLSX.readto(joinpath(data_directory, "general.xlsx"), "table4", "F:G", DataFrames.DataFrame)
         @test names(df) == ["H2", "H3"]
         @test size(df) == (2, 2)
         @test df[1, :H2] == "C3"
@@ -1316,7 +1316,7 @@ end
         @test ismissing(df[1, 2])
         @test ismissing(df[2, 1])
 
-        df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), "table4", DataFrames.DataFrame)
+        df = XLSX.readto(joinpath(data_directory, "general.xlsx"), "table4", DataFrames.DataFrame)
         @test names(df) == ["H1", "H2", "H3"]
         @test size(df) == (3, 3)
         @test df[1, :H2] == "C3"
@@ -1324,7 +1324,7 @@ end
         @test ismissing(df[1, :H1])
         @test ismissing(df[2, :H2])
 
-        df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), DataFrames.DataFrame)
+        df = XLSX.readto(joinpath(data_directory, "general.xlsx"), DataFrames.DataFrame)
         @test names(df) == ["text", "regular text"]
         @test size(df) == (9, 2)
         @test df[1, "text"] == "integer"
@@ -1332,9 +1332,9 @@ end
         @test df[3, 2] == Dates.Date(1983, 04, 16)
         @test df[5, 2] == Dates.DateTime(2018, 04, 16, 19, 19, 51)
 
-        @test_throws XLSX.XLSXError df = XLSX.readdf(joinpath(data_directory, "general.xlsx"))           # No sink
-        @test_throws XLSX.XLSXError df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), 3)        # No sink
-        @test_throws XLSX.XLSXError df = XLSX.readdf(joinpath(data_directory, "general.xlsx"), 3, "F:G") # No sink
+        @test_throws XLSX.XLSXError df = XLSX.readto(joinpath(data_directory, "general.xlsx"))           # No sink
+        @test_throws XLSX.XLSXError df = XLSX.readto(joinpath(data_directory, "general.xlsx"), 3)        # No sink
+        @test_throws XLSX.XLSXError df = XLSX.readto(joinpath(data_directory, "general.xlsx"), 3, "F:G") # No sink
 
     end
 
