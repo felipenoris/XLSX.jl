@@ -19,7 +19,7 @@ XLSX.getcell
 XLSX.getcellrange
 XLSX.gettable
 XLSX.readtable
-XLSX.readdf
+XLSX.readto
 XLSX.writetable
 XLSX.writetable!
 ```
