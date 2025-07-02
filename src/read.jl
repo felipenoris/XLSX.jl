@@ -83,7 +83,7 @@ function open_empty_template(
     empty_excel_template = joinpath(path, "blank.xlsx")
     !isfile(empty_excel_template) && throw(XLSXError("Couldn't find template file $empty_excel_template."))
     xf = open_xlsx_template(empty_excel_template)
-    xf[1].cache.is_empty = false
+    xf[1].cache.is_full = true
 
     if sheetname != ""
         rename!(xf[1], sheetname)
@@ -237,7 +237,7 @@ function openxlsx(source::Union{AbstractString, IO};
                   enable_cache::Bool=true) :: XLSXFile
 
     _read, _write = parse_file_mode(mode)
-
+    
     if _read
         if !(source isa IO || isfile(source))
             throw(XLSXError("File $source not found."))
@@ -268,7 +268,6 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
         !(read_files && enable_cache) && throw(XLSXError("Cache must be enabled for files in `write` mode."))
     end
     xf = XLSXFile(source, enable_cache, read_as_template; use_stream)
- 
 
     for f in ZipArchives.zip_names(xf.io)
 
@@ -291,6 +290,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
 
                 internal_xml_file_read(xf, f)
             end
+
         elseif read_as_template
             # Binary and customXML files
             # we only read these files to save the Excel file later
@@ -303,7 +303,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     parse_workbook!(xf)
 
     # read data from Worksheet streams
-    if enable_cache
+    if read_files#enable_cache
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
 

@@ -1457,7 +1457,6 @@ function setCfCellIs(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=())
         cfx["stopIfTrue"] = "1"
     end
     cfx["operator"] = operator
-
     push!(cfx, XML.Element("formula", XML.Text(XML.escape(value))))
     if !isnothing(value2) && operator ∈ ["between", "notBetween"]
 

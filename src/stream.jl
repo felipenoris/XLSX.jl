@@ -50,13 +50,11 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
 
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
-    if !(xf.source isa IO || isfile(xf.source))
-        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.source) was not found."))
-    end
+#    if !(xf.source isa IO || isfile(xf.source))
+#        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.source) was not found."))
+#    end
 
-        lznode=XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
-
-        return lznode
+    return XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
 end
 
 # Creates a reader for row elements in the Worksheet's XML.
@@ -81,10 +79,16 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
             length(reader) <= 0 && throw(XLSXError("Couldn't open reader for Worksheet $(ws.name)."))
             XML.tag(reader[end]) != "worksheet" && throw(XLSXError("Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."))
+            next_element=XML.next(reader)
+            while XML.tag(next_element) != "sheetData"
+                next_element = XML.next(next_element)
+            end
+            println(next_element)
             ws_elements = XML.children(reader[end])
             idx = findfirst(y -> y=="sheetData", [XML.tag(x) for x in ws_elements])
             next_element= idx===nothing ? "" : (ws_elements[idx+1])
-            
+            println(next_element)
+            error()
             next = iterate(reader)
             while next !== nothing
                 (lznode, lzstate) = next
@@ -205,7 +209,7 @@ end
 #
 function WorksheetCache(ws::Worksheet)
     itr = SheetRowStreamIterator(ws)
-    return WorksheetCache(true, CellCache(), Vector{Int}(), Dict{Int, Union{Float64, Nothing}}(), Dict{Int, Int}(), itr, nothing, true)
+    return WorksheetCache(false, CellCache(), Vector{Int}(), Dict{Int, Union{Float64, Nothing}}(), Dict{Int, Int}(), itr, nothing, true)
 end
 
 @inline get_worksheet(r::SheetRow) = r.sheet
@@ -216,9 +220,8 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
 
     # If first iteration, check if cache is full
     if isnothing(state)
-        if is_cache_enabled(ws_cache.stream_iterator.sheet) && ws_cache.is_empty
+        if is_cache_enabled(ws_cache.stream_iterator.sheet) && ws_cache.is_full
             state=WorksheetCacheIteratorState(0, false)
-            ws_cache.is_empty = false
         else
             state=WorksheetCacheIteratorState(0, true)
         end
@@ -232,7 +235,7 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
     end
 
 
-    if state.full_cache
+#    if state.full_cache
         if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
             # the next row is in cache, and it's the first one
             current_row_number = ws_cache.rows_in_cache[1]
@@ -248,14 +251,16 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
             sheet_row_cells = ws_cache.cells[current_row_number]
             state.row_from_last_iteration=current_row_number
             return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
-        else
+
+        elseif ws_cache.is_full
             return nothing
         end
 
-    else
+#    else
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
 
        if next === nothing
+            ws_cache.is_full = true
             return nothing
         end
         sheet_row, next_stream_state = next
@@ -269,7 +274,7 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
         state.row_from_last_iteration=row_number(sheet_row)
 
         return sheet_row, state
-    end
+#    end
 end
 
 function find_row(itr::SheetRowIterator, row::Int) :: SheetRow
@@ -337,7 +342,6 @@ defines the number of rows that are not entirely empty and will,
 in any case, only succeed if the worksheet cache is in use.
 """
 function eachrow(ws::Worksheet) :: SheetRowIterator
- 
     if is_cache_enabled(ws)
         if ws.cache === nothing
             ws.cache = WorksheetCache(ws)

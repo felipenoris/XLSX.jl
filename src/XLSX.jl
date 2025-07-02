@@ -54,6 +54,7 @@ PCT.@setup_workload begin
         end
         _ = XLSX.readtable(seekstart(s), 1, "A:Z")
         f= openxlsx(seekstart(s), mode="rw")
+        f[1][1:26, 1:26] = pi
         setConditionalFormat(f[1], :, :cellIs)
         setConditionalFormat(f[1], "A1:Z26", :colorScale)
         setBorder(f[1], collect(1:26), 1:26, allsides=["style"=>"thin", "color"=>"black"])

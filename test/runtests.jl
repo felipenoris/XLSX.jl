@@ -163,11 +163,11 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         end
         ef = XLSX.readxlsx("mytest.xlsx")
         @test ef["Sheet1"]["A1"] == 1
-        f=XLSX.openxlsx("mytest.xlsx", mode="w")
-        @test f.source == "mytest.xlsx"
+        f=XLSX.openxlsx("mytest2.xlsx", mode="w")
+        @test f.source == "mytest2.xlsx"
         f[1]["A1"]=1
-        XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
-        ef = XLSX.readxlsx("mytest.xlsx")
+        XLSX.writexlsx("mytest3.xlsx", f, overwrite=true)
+        ef = XLSX.readxlsx("mytest3.xlsx")
         @test ef["Sheet1"]["A1"] == 1
         f=XLSX.newxlsx()
         @test f.source == "blank.xlsx"
@@ -176,6 +176,8 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         ef = XLSX.readxlsx("mytest.xlsx")
         @test ef["Sheet1"]["A1"] == 1
         isfile("mytest.xlsx") && rm("mytest.xlsx")
+        isfile("mytest2.xlsx") && rm("mytest2.xlsx")
+        isfile("mytest2.xlsx") && rm("mytest2.xlsx")
     end
 
 end
@@ -1393,6 +1395,7 @@ end
     f2["new_name"][1:5, 1:5] = "goodbye world"
     XLSX.savexlsx(f2)
     f3 = XLSX.openxlsx("saveable.xlsx", mode="r")
+    #f3["new_name"][:]
     @test f3["new_name"][1, 1] == "goodbye world"
     @test f3["new_name"][5, 5] == "goodbye world"
     @test f3["new_name"][10, 10] == "hello world"

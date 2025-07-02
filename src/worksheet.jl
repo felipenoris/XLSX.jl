@@ -178,7 +178,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
     right = column_number(rng.stop)
 
     # if cache is in use, look-up data direct rather than iterating
-    if is_cache_enabled(ws) && ws.cache !== nothing && !ws.cache.is_empty
+    if is_cache_enabled(ws) && ws.cache !== nothing && ws.cache.is_full
         for row in top:bottom
             if haskey(ws.cache.cells, row)
                 for column in left:right
@@ -338,7 +338,7 @@ Other examples are as [`getdata()`](@ref).
 function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     # Access cache directly if it exists and if file `isread` - much faster!
-    if is_cache_enabled(ws) && ws.cache !== nothing && !ws.cache.is_empty
+    if is_cache_enabled(ws) && ws.cache !== nothing && ws.cache.is_full
         if haskey(ws.cache.cells, single.row_number)
             if haskey(ws.cache.cells[single.row_number], single.column_number)
                 return ws.cache.cells[single.row_number][single.column_number]

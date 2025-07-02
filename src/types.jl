@@ -299,7 +299,7 @@ mutable struct WorksheetCacheIteratorState
 end
 
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator
-    is_empty::Bool # true before first read from file, then false
+    is_full::Bool # false until iterator runs to completion
     cells::CellCache # SheetRowNumber -> Dict{column_number, Cell}
     rows_in_cache::Vector{Int} # ordered vector with row numbers that are stored in cache
     row_ht::Dict{Int, Union{Float64, Nothing}} # Maps a row number to a row height

@@ -884,17 +884,18 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     file_sheet_template = joinpath(relocatable_data_path, "sheet_template.xml")
     !isfile(file_sheet_template) && throw(XLSXError("Couldn't find template file $file_sheet_template."))
     xdoc = XML.read(file_sheet_template, XML.Node)
-    new_ws = insertsheet!(wb, xdoc, name)
-    new_ws.cache = XLSX.WorksheetCache(
+
+    new_cache = XLSX.WorksheetCache(
         false,
         Dict{Int64,Dict{Int64,XLSX.Cell}}(),
         Int64[],
         Dict{Int,Union{Float64,Nothing}}(),
         Dict{Int64,Int64}(),
-        SheetRowStreamIterator(new_ws),
+        SheetRowStreamIterator(get_xlsxfile(wb)[1]), # Dummy for now ...
         nothing,
         false
     )
+    new_ws = insertsheet!(wb, xdoc, new_cache, name)
     return new_ws
 end
 
@@ -976,20 +977,21 @@ function copysheet!(ws::Worksheet, name::AbstractString="")::Worksheet
     # generate a new name for the copied sheet
     name = name=="" ? ws.name * " (copy)" : name
 
-    # insert the copied sheet into the workbook
-    new_ws = insertsheet!(wb, xdoc, name, dim=dim)
-
     # copy the original worksheet cache to the new worksheet
-    new_ws.cache = XLSX.WorksheetCache(
+    new_cache = XLSX.WorksheetCache(
         false,
         ws.cache.cells,
         ws.cache.rows_in_cache,
         ws.cache.row_ht,
         ws.cache.row_index,
-        SheetRowStreamIterator(new_ws),
+        SheetRowStreamIterator(ws), # Dummy for now ...
         nothing,
         ws.cache.dirty,
     )
+
+    # insert the copied sheet into the workbook
+    new_ws = insertsheet!(wb, xdoc, new_cache, name; dim)
+
 
     # copy defined names from the original worksheet to the new worksheet
     ws_keys=[x for x in keys(wb.worksheet_names) if first(x) == ws.sheetId]
@@ -1004,7 +1006,7 @@ function copysheet!(ws::Worksheet, name::AbstractString="")::Worksheet
     return new_ws
 end
 
-function insertsheet!(wb::Workbook, xdoc::XML.Node, name::AbstractString=""; dim=CellRange("A1:A1"))::Worksheet
+function insertsheet!(wb::Workbook, xdoc::XML.Node, new_cache, name::AbstractString=""; dim=CellRange("A1:A1"))::Worksheet
     xf = get_xlsxfile(wb)
     !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
 
@@ -1066,6 +1068,7 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, name::AbstractString=""; dim
 
     # creates Worksheet instance
     ws = Worksheet(xf, sheetId, rId, new_name, dim, false)
+    ws.cache=new_cache # Replace dummy placeholder
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)
