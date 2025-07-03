@@ -67,6 +67,7 @@ function Cell(c::XML.LazyNode)
     local found_f::Bool = false
 
     for c_child_element in XML.children(c)
+
         if t == "inlineStr"
             if XML.tag(c_child_element) == "is"
                 t_node = find_t_node_recursively(c_child_element)
@@ -84,25 +85,19 @@ function Cell(c::XML.LazyNode)
 
         else
             if XML.tag(c_child_element) == "v"
-
-                # we should have only one v element
-                if found_v
+                if found_v # we should have only one v element
                     throw(XLSXError("Unsupported: cell $(ref) has more than 1 `v` elements."))
                 else
                     found_v = true
-                end
-                
-                v = length(c_child_element)==0 ? "" : XML.unescape(XML.simple_value(c_child_element))
-
+                end              
+                # v = length(c_child_element)==0 ? "" : XML.unescape(XML.simple_value(c_child_element))
+                v = length(c_child_element)==0 ? "" : XML.unescape(XML.value(c_child_element[1])) # saves a little time!
             elseif XML.tag(c_child_element) == "f"
-
-                # we should have only one f element
-                if found_f
+                if found_f # we should have only one f element
                     throw(XLSXError("Unsupported: cell $(ref) has more than 1 `f` elements."))
                 else
                     found_f = true
                 end
-
                 f = parse_formula_from_element(c_child_element)
             end
         end
@@ -128,32 +123,25 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
     end
 
     a = XML.attributes(c_child_element)
-
     if !isnothing(a)
-
-        if haskey(a, "ref") && haskey(a, "t") && a["t"] == "shared"
-
+        if haskey(a, "t") && a["t"] == "shared"
             haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
-
-            return ReferencedFormula(
-                formula_string,
-                parse(Int, a["si"]),
-                a["ref"],
-            )
-
-        elseif haskey(a, "t") && a["t"] == "shared"
-
-            haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
-
-            return FormulaReference(
-                parse(Int, a["si"]),
-            )
+            if haskey(a, "ref")
+                return ReferencedFormula(
+                    formula_string,
+                    parse(Int, a["si"]),
+                    a["ref"],
+                )
+            else
+                return FormulaReference(
+                    parse(Int, a["si"]),
+                )
+            end
         end
     end
 
     return Formula(formula_string)
 end
-
 
 # Constructor with simple formula string for backward compatibility
 function Cell(ref::CellRef, datatype::String, style::String, value::String, formula::String)

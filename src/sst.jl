@@ -67,6 +67,7 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
     return add_shared_string!(sst, str_unformatted, str_formatted)
 end
 
+# allow to write cells containing only whitespace characters or with leading or trailing whitespace.
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString) :: Int
     if startswith(str_unformatted, " ") || endswith(str_unformatted, " ")
         str_formatted = string("<si><t xml:space=\"preserve\">", XML.escape(str_unformatted), "</t></si>")
@@ -107,13 +108,6 @@ function has_sst(workbook::Workbook) :: Bool
     relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
     return has_relationship_by_type(workbook, relationship_type)
 end
-
-
-# work around issue 43 in XML.jl (https://github.com/JuliaComputing/XML.jl/issues/43)
-# Can now write cells containing only whitespace characters or with leading or trailing whitespace.
-# Cannot see these things in cells read in from existing Excel files - XML removes leading whitespace 
-# even if `xml:space="preserve"` is specified.
-# Thus a cell containing "    " will be read in as missing. A cell containing "  hello" will become "hello". 
 
 # Helper function to gather unformatted text from Excel data files.
 # It looks at all children of `el` for tag name `t` and returns
