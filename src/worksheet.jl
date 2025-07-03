@@ -75,14 +75,10 @@ end
 
 # Returns the dimension of this worksheet as a CellRange.
 # If the dimension is unknown, computes a dimension from cells in cache.
-# If the cache is empty, set dimension to A1:A1.
-# If cache is not being used, throw an error.
+# If the cache is empty or is not being used, set dimension to A1:A1.
 function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
     !isnothing(ws.dimension) && return ws.dimension
-    #    if (isnothing(ws.cache) || length(ws.cache.cells) < 1)
-    if isnothing(ws.cache)
-        throw(XLSXError("No worksheet dimension found for $(ws.name)."))
-    elseif length(ws.cache.cells) < 1
+    if isnothing(ws.cache) || length(ws.cache.cells) < 1
         set_dimension!(ws, CellRange(CellRef(1, 1), CellRef(1, 1)))
     else
         row_extr = extrema(keys(ws.cache.cells))
@@ -178,7 +174,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
     right = column_number(rng.stop)
 
     # if cache is in use, look-up data direct rather than iterating
-    if is_cache_enabled(ws) && ws.cache !== nothing && ws.cache.is_full
+    if is_cache_enabled(ws) && ws.cache.is_full
         for row in top:bottom
             if haskey(ws.cache.cells, row)
                 for column in left:right
@@ -192,7 +188,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
         end
 
     else # no cache, need to iterate rows
-        for sheetrow in eachrow(ws)
+         for sheetrow in eachrow(ws)
             if top <= sheetrow.row && sheetrow.row <= bottom
                 for column in left:right
                     cell = getcell(sheetrow, column)
@@ -203,7 +199,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
                 end
             end
 
-            # don't need to read new rows
+            # don't need to read any more rows
             if sheetrow.row > bottom
                 break
             end
@@ -337,8 +333,8 @@ Other examples are as [`getdata()`](@ref).
 """
 function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
-    # Access cache directly if it exists and if file `isread` - much faster!
-    if is_cache_enabled(ws) && ws.cache !== nothing && ws.cache.is_full
+    # if cache is in use, look-up cell direct rather than iterating
+    if is_cache_enabled(ws) && ws.cache.is_full
         if haskey(ws.cache.cells, single.row_number)
             if haskey(ws.cache.cells[single.row_number], single.column_number)
                 return ws.cache.cells[single.row_number][single.column_number]
@@ -433,14 +429,58 @@ For example usage, see [`getdata()`](@ref).
 
 """
 function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
-    result = Array{AbstractCell,2}(undef, size(rng))
-    for cellref in rng
-        (r, c) = relative_cell_position(cellref, rng)
-        cell = getcell(ws, cellref)
-        result[r, c] = isempty(cell) ? EmptyCell(cellref) : cell
+    result = Array{Any,2}(undef, size(rng))
+
+    for cell in rng # initialise with empty cells
+        (r, c) = relative_cell_position(cell, rng)
+        result[r, c] = EmptyCell(cell)
+    end
+
+    top = row_number(rng.start)
+    bottom = row_number(rng.stop)
+    left = column_number(rng.start)
+    right = column_number(rng.stop)
+
+    # if cache is in use, look-up data direct rather than iterating
+    if is_cache_enabled(ws) && ws.cache.is_full
+        for row in top:bottom
+            if haskey(ws.cache.cells, row)
+                for column in left:right
+                    if haskey(ws.cache.cells, row) && haskey(ws.cache.cells[row], column)
+                        cell = ws.cache.cells[row][column]
+                        (r, c) = relative_cell_position(cell, rng)
+                        result[r, c] = cell
+                    end
+                end
+            end
+        end
+
+    else # no cache, need to iterate rows
+         for sheetrow in eachrow(ws)
+            if top <= sheetrow.row && sheetrow.row <= bottom
+                for column in left:right
+                    cell = getcell(sheetrow, column)
+                    (r, c) = relative_cell_position(cell, rng)
+                    result[r, c] = cell
+                end
+            end
+
+            # don't need to read any more rows
+            if sheetrow.row > bottom
+                break
+            end
+        end
     end
     return result
 end
+#    result = Array{AbstractCell,2}(undef, size(rng))
+#    for cellref in rng
+#        (r, c) = relative_cell_position(cellref, rng)
+#        cell = getcell(ws, cellref)
+#        result[r, c] = isempty(cell) ? EmptyCell(cellref) : cell
+#    end
+#    return result
+#end
 
 getcellrange(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rng)
 getcellrange(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.colrng)

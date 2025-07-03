@@ -189,15 +189,6 @@ See also [`XLSX.readxlsx`](@ref).
 """
 function openxlsx(f::F, source::Union{AbstractString, IO};
                   mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
-    xf = _openxlsx(f, source; mode, enable_cache)
-    if !enable_cache
-        GC.gc()         # GC to clean-up after mmap
-    end
-    return xf
-end
-
-function _openxlsx(f::F, source::Union{AbstractString, IO};
-                  mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
     _read, _write = parse_file_mode(mode)
 
@@ -215,10 +206,6 @@ function _openxlsx(f::F, source::Union{AbstractString, IO};
         f(xf)
 
     finally
-        if !isnothing(xf.stream) # close the mmap stream if it was opened
-            close(xf.stream)
-            xf.stream = nothing
-        end
         if _write
             writexlsx(source, xf, overwrite=true)
         end
@@ -262,12 +249,12 @@ function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
     end
 end
 
-function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, enable_cache::Bool, read_as_template::Bool; use_stream::Bool=false) :: XLSXFile
+function open_or_read_xlsx(source::Union{IO, AbstractString}, _read::Bool, enable_cache::Bool, _write::Bool; use_stream::Bool=false) :: XLSXFile
     # sanity check
-    if read_as_template
-        !(read_files && enable_cache) && throw(XLSXError("Cache must be enabled for files in `write` mode."))
+    if _write
+        !(_read && enable_cache) && throw(XLSXError("Cache must be enabled for files in `write` mode."))
     end
-    xf = XLSXFile(source, enable_cache, read_as_template; use_stream)
+    xf = XLSXFile(source, enable_cache, _write; use_stream)
 
     for f in ZipArchives.zip_names(xf.io)
 
@@ -279,19 +266,14 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
         # let customXML files get passed through to write like binaries are (below).
         if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
             
-            # XML file
+            # Identify usable xml files in XLSXFile
             internal_xml_file_add!(xf, f)
-            if read_files
-                # ignore worksheet files because they'll be read thru streaming
-                # If reading as template, it will be loaded in two places: here and WorksheetCache.
-                if !read_as_template && startswith(f, "xl/worksheets") && endswith(f, ".xml")
-                    continue
-                end
 
-                internal_xml_file_read(xf, f)
+            if _write # Read files for processing and writing out later
+                 internal_xml_file_read(xf, f)
             end
 
-        elseif read_as_template
+        elseif _write
             # Binary and customXML files
             # we only read these files to save the Excel file later
             xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)
@@ -302,8 +284,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
     parse_relationships!(xf)
     parse_workbook!(xf)
 
-    # read data from Worksheet streams
-    if read_files#enable_cache
+    if enable_cache # read data from Worksheet streams into cache
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
 
@@ -314,7 +295,8 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, read_files::Bool, 
             isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
         end
     end
-    if read_as_template
+
+    if _write
         wb = get_workbook(xf)
         if has_sst(wb)
             sst_load!(wb)
@@ -648,7 +630,6 @@ function readdata(source::Union{AbstractString, IO}, sheet::Union{AbstractString
     c = openxlsx(source, enable_cache=false) do xf
         getdata(getsheet(xf, sheet), ref)
     end
-#    GC.gc()
     return c
 end
 
@@ -656,7 +637,6 @@ function readdata(source::Union{AbstractString, IO}, sheetref::AbstractString)
     c = openxlsx(source, enable_cache=false) do xf
         getdata(xf, sheetref)
     end
-#    GC.gc()
     return c
 end
 

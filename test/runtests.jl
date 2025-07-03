@@ -175,9 +175,9 @@ data_directory = joinpath(dirname(pathof(XLSX)), "..", "data")
         XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
         ef = XLSX.readxlsx("mytest.xlsx")
         @test ef["Sheet1"]["A1"] == 1
-        isfile("mytest.xlsx") && rm("mytest.xlsx")
-        isfile("mytest2.xlsx") && rm("mytest2.xlsx")
-        isfile("mytest2.xlsx") && rm("mytest2.xlsx")
+        for f in ["mytest.xlsx", "mytest2.xlsx", "mytest3.xlsx"]
+            isfile(f) && rm(f)
+        end
     end
 
 end

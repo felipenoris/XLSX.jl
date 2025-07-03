@@ -394,7 +394,6 @@ sh = xf["mysheet"] # get a reference to a Worksheet
 mutable struct XLSXFile <: MSOfficePackage
     source::Union{AbstractString, IO}
     use_cache_for_sheet_data::Bool # indicates whether Worksheet.cache will be fed while reading worksheet cells.
-    stream::Union{Nothing, IOStream} # mmap stream for reading XLSX file
     io::ZipArchives.ZipReader
     files::Dict{String, Bool} # maps filename => isread bool
     data::Dict{String, XML.Node} # maps filename => XMLDocument
@@ -406,13 +405,11 @@ mutable struct XLSXFile <: MSOfficePackage
     function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool; use_stream::Bool = false)
         check_for_xlsx_file_format(source)
         if !use_stream && use_cache || (source isa IOBuffer)
-            stream = nothing
             io = ZipArchives.ZipReader(read(source))
         else
-            stream = open(source, "r")
-            io = ZipArchives.ZipReader(Mmap.mmap(stream))
+            io = ZipArchives.ZipReader(FileArray(source))
         end
-        xl = new(source, use_cache, stream, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         return xl
     end
@@ -514,3 +511,9 @@ struct XLSXError <: Exception
     msg::String
 end
 Base.showerror(io::IO, e::XLSXError) = print(io, "XLSXError: ",e.msg)
+
+struct FileArray <: AbstractVector{UInt8}
+    filename::String
+    offset::Int64
+    len::Int64
+end

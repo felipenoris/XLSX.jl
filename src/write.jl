@@ -886,7 +886,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
     xdoc = XML.read(file_sheet_template, XML.Node)
 
     new_cache = XLSX.WorksheetCache(
-        false,
+        true,
         Dict{Int64,Dict{Int64,XLSX.Cell}}(),
         Int64[],
         Dict{Int,Union{Float64,Nothing}}(),
@@ -977,9 +977,12 @@ function copysheet!(ws::Worksheet, name::AbstractString="")::Worksheet
     # generate a new name for the copied sheet
     name = name=="" ? ws.name * " (copy)" : name
 
+    # cache of copied sheet must be full
+    ws.cache.is_full == true || throw(XLSXError("Cannot copy worksheet that does not have a full cache"))
+
     # copy the original worksheet cache to the new worksheet
     new_cache = XLSX.WorksheetCache(
-        false,
+        true,
         ws.cache.cells,
         ws.cache.rows_in_cache,
         ws.cache.row_ht,

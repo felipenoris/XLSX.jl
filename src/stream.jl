@@ -50,9 +50,6 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 @inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
 
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
-#    if !(xf.source isa IO || isfile(xf.source))
-#        throw(XLSXError("Can't open internal file $filename for streaming because the XLSX file $(xf.source) was not found."))
-#    end
 
     return XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
 end
@@ -64,7 +61,6 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     local current_row
     local current_row_ht
     local sheet_row
-    local next_element = ""
     local nc = 0
     local cell_no=0
 
@@ -80,26 +76,25 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             length(reader) <= 0 && throw(XLSXError("Couldn't open reader for Worksheet $(ws.name)."))
             XML.tag(reader[end]) != "worksheet" && throw(XLSXError("Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."))
             next_element=XML.next(reader)
-            while XML.tag(next_element) != "sheetData"
+
+            while XML.tag(next_element) != "sheetData" # Check for `sheetData`
                 next_element = XML.next(next_element)
+                next_element === nothing && throw(XLSXError("No `sheetData` node found in worksheet"))
             end
-            println(next_element)
-            ws_elements = XML.children(reader[end])
-            idx = findfirst(y -> y=="sheetData", [XML.tag(x) for x in ws_elements])
-            next_element= idx===nothing ? "" : (ws_elements[idx+1])
-            println(next_element)
-            error()
+
             next = iterate(reader)
+
             while next !== nothing
                 (lznode, lzstate) = next
 
                 if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "sheetData"
-                    nrows = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "row", XML.children(lznode)))
-                    if nrows == 0
-                        return nothing
-                    end
 
                     XML.depth(lznode) != 2 && throw(XLSXError("Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."))
+
+                    while XML.tag(lznode) != "row" # Check for at least one `row`
+                        lznode = XML.next(lznode)
+                        lznode === nothing && return nothing # no rows found
+                    end
 
                     break
                 end
@@ -141,15 +136,19 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
     isnothing(lzstate) && return nothing
     next = iterate(reader, lzstate) # iterate through row cells
     while next !== nothing
+
         (lznode, lzstate) = next
-        if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == next_element # This is the end of sheetData
+
+        if XML.nodetype(lznode) == XML.Element && XML.depth(lznode) == 2 # This is the end of sheetData
             return nothing
+
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row" # This is the next row
             a = XML.attributes(lzstate)
             current_row = parse(Int, a["r"])
             current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
             nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
             cell_no = 0
+
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
             cell_no += 1
             cell = Cell(lznode)
@@ -158,16 +157,18 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             end
             rowcells[column_number(cell)] = cell
             if cell_no == nc # when all cells found
-
                 sheet_row = SheetRow(get_worksheet(itr), current_row, current_row_ht, rowcells) # put them together in a sheet_row
-
                 break
             end
+
         end
+
         next = iterate(reader, lzstate)
+
         if next === nothing
             return nothing
         end
+
     end
 
     # update state
@@ -221,9 +222,9 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
     # If first iteration, check if cache is full
     if isnothing(state)
         if is_cache_enabled(ws_cache.stream_iterator.sheet) && ws_cache.is_full
-            state=WorksheetCacheIteratorState(0, false)
-        else
             state=WorksheetCacheIteratorState(0, true)
+        else
+            state=WorksheetCacheIteratorState(0, false)
         end
     end
 
@@ -235,7 +236,7 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
     end
 
 
-#    if state.full_cache
+    if state.full_cache
         if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
             # the next row is in cache, and it's the first one
             current_row_number = ws_cache.rows_in_cache[1]
@@ -256,10 +257,10 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
             return nothing
         end
 
-#    else
+    else
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
 
-       if next === nothing
+        if next === nothing
             ws_cache.is_full = true
             return nothing
         end
@@ -274,7 +275,7 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
         state.row_from_last_iteration=row_number(sheet_row)
 
         return sheet_row, state
-#    end
+    end
 end
 
 function find_row(itr::SheetRowIterator, row::Int) :: SheetRow
@@ -342,7 +343,7 @@ defines the number of rows that are not entirely empty and will,
 in any case, only succeed if the worksheet cache is in use.
 """
 function eachrow(ws::Worksheet) :: SheetRowIterator
-    if is_cache_enabled(ws)
+   if is_cache_enabled(ws)
         if ws.cache === nothing
             ws.cache = WorksheetCache(ws)
         end
