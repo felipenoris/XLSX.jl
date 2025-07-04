@@ -5878,11 +5878,15 @@ end
     @test ismissing(sheet["J2"])
 end
 
-# issue #299
+# issue #299 & 301
 @testset "empty_v" begin
-    xf = XLSX.readxlsx(joinpath(data_directory, "empty_v.xlsx"))
+    xf = XLSX.openxlsx(joinpath(data_directory, "empty_v.xlsx"), mode="rw")
     sheet1 = xf["Sheet1"]
     @test XLSX.getcell(sheet1, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", XLSX.Formula("\"\""))
+    XLSX.writexlsx("mytest.xlsx", xf, overwrite=true)
+    xf2 = XLSX.readxlsx(joinpath(data_directory, "empty_v.xlsx"))
+    @test XLSX.getcell(xf2[1], "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", XLSX.Formula("\"\""))
+    isfile("mytest.xlsx") && rm("mytest.xlsx")
 end
 
 @testset "Tables.jl integration" begin

@@ -264,7 +264,7 @@ end
 
 function addDefName(xf::XLSXFile, name::AbstractString, value::DefinedNameValueTypes; absolute=true)
     if !is_valid_defined_name(name)
-        throw(XLSXError("Invalid defined name: `$name`."))
+        throw(XLSXError("Invalid defined name: `$name`. May only contain letters, numbers, `_` or `\\` and must start with a letter or `_`."))
     end
     if is_workbook_defined_name(xf, name)
         throw(XLSXError("Workbook already has a defined name called `$name`."))
@@ -279,7 +279,7 @@ end
 function addDefName(ws::Worksheet, name::AbstractString, value::DefinedNameValueTypes; absolute=true)
     wb = get_workbook(ws)
     if !is_valid_defined_name(name)
-        throw(XLSXError("Invalid defined name: `$name`."))
+        throw(XLSXError("Invalid defined name: `$name`. May only contain letters, numbers, `_` or `\\` and must start with a letter or `_`."))
     end
     if is_worksheet_defined_name(ws, name)
         throw(XLSXError("Worksheet `$(ws.name)` already has a defined name called `$name`."))

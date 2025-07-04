@@ -125,7 +125,7 @@ The `mode` argument controls how the file is opened. The following modes are all
 
 * `r` : read mode. The existing data in `source` will be accessible for reading. This is the **default** mode.
 
-* `w` : write mode. Opens an empty file that will be written to `source`.
+* `w` : write mode. Opens an empty file that will be written to `source`. If source already exists it will be overwritten.
 
 * `rw` : edit mode. Opens `source` for editing. The file will be saved to disk when the function ends.
 
@@ -216,6 +216,9 @@ end
     openxlsx(source::Union{AbstractString, IO}; mode="r", enable_cache=true) :: XLSXFile
 
 Supports opening a XLSX file without using do-syntax.
+
+If opened with mode="rw" then use [`savexlsx`](@ref) to save the XLSX, overwriting the `source` file.
+Alternatively, use [`writexlsx`](@ref) to save to a different filename.
 
 See also [`XLSX.writexlsx`](@ref).
 """

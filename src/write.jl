@@ -2,37 +2,40 @@
 """
     savexlsx(f::XLSXFile)
 
-Save an `XLSXFile` instance back to the file from which it was opened, overwriting original content.
+Save an `XLSXFile` instance back to the file from which it was opened (given in `f.source`), 
+overwriting original content.
 
 A new `XLSXFile` created with `XLSX.newxlsx` (or using `openxlsx` without specifying a filename) will 
-have `source` set to `"blank.xlsx"` and cannot be saved with this function. Use `writexlsx` instead to 
-specify a file name for the saved file.
+have `source` set to `"blank.xlsx"` and cannot be saved with this function. Use [`writexlsx`](@ref) instead 
+to specify a file name for the saved file.
 
 Returns the filepath of the written file if a filename is supplied, or `nothing` if writing to an `IO`.
 
 """
 function savexlsx(f::XLSXFile)
-    f.source == "blank.xlsx" && throw(XLSXError("Can't save a blank `XLSXFile` instance. Use `writexlsx` instead to specify a file name."))
+    f.source == "blank.xlsx" && throw(XLSXError("Can't save to a blank `XLSXFile` instance. Use `writexlsx` instead to specify a file name."))
     return writexlsx(f.source, f; overwrite=true)
 end
 
 
 """
-    writexlsx(output_source, xlsx_file; [overwrite=false])
+    writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; [overwrite=false])
 
-Write an Excel file given by `xlsx_file::XLSXFile` to IO or filepath `output_source`.
+Write an XLSXFile given by `xf` to the IO or filepath `output_source`.
 
 The source attribute of the `XLSXFile` will be updated to the `output_source` if it is a filepath.
 
 Returns the filepath of the written file if a filename is supplied, or `nothing` if writing to an `IO`.
 
 If `overwrite=true`, `output_source` (when a filepath) will be overwritten if it exists.
+
+See also [`savexlsx`](@ref).
 """
 function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwrite::Bool=false)
 
     !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
     if !all(values(xf.files))
-        throw(XLSXError("Some internal files were not loaded into memory. Did you use `XLSX.open_xlsx_template` to open this file?"))
+        throw(XLSXError("Some internal files were not loaded into memory for unknown reason."))
     end
     if output_source isa AbstractString && !overwrite
         isfile(output_source) && throw(XLSXError("Output file $output_source already exists."))
@@ -40,7 +43,6 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
 
     update_worksheets_xml!(xf)
     update_workbook_xml!(xf)
-    #    update_relationships(xf)
 
     ZipArchives.ZipWriter(output_source) do xlsx
         # write XML files
@@ -68,7 +70,7 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
 
     if !(output_source isa IO)
         (xf.source = output_source) # update source if output_source is a file path
-        return isabspath(xf.source) ? xf.source : abspath(xf.source)
+        return abspath(xf.source)
     else
         return nothing
     end
@@ -90,7 +92,7 @@ function generate_sst_xml_string(sst::SharedStringTable)::String
     !sst.is_loaded && throw(XLSXError("Can't generate XML string from a Shared String Table that is not loaded."))
     buff = IOBuffer()
 
-    # TODO: <sst count="89"
+    # TODO: <sst count="89" (TimG: I don't know what this means!)
     print(
         buff,
         """
@@ -107,7 +109,7 @@ function generate_sst_xml_string(sst::SharedStringTable)::String
 end
 
 function add_node_formula!(node, f::Formula)
-    f_node = XML.Element("f", Text(f.formula))
+    f_node = XML.Element("f", XML.Text(XML.escape(f.formula)))
     push!(node, f_node)
 end
 
@@ -117,7 +119,7 @@ function add_node_formula!(node, f::FormulaReference)
 end
 
 function add_node_formula!(node, f::ReferencedFormula)
-    f_node = XML.Element("f", Text(f.formula); t="shared", si=string(f.id), ref=f.ref)
+    f_node = XML.Element("f", XML.Text(XML.escape(f.formula)); t="shared", si=string(f.id), ref=f.ref)
     push!(node, f_node)
 end
 
@@ -298,7 +300,7 @@ function update_worksheets_xml!(xl::XLSXFile)
                 end
 
                 if cell.value != ""
-                    v_node = XML.Element("v", Text(cell.value))
+                    v_node = XML.Element("v", XML.Text(XML.escape(cell.value)))
                     push!(c_element, v_node)
                 end
                 push!(row_node, c_element)
