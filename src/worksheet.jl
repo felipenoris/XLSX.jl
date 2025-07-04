@@ -103,6 +103,12 @@ end
 
 Returns a scalar, vector or a matrix with values from a spreadsheet.
 `ref` can be a cell reference or a range or a valid defined name.
+If `ref` is a single cell, a scalar is returned.
+Most ranges are rectangular and will return a 2-D matrix.
+For row and column ranges, the extent of the range in the other 
+dimension is determined by the worksheet's dimension.
+A non-contiguous range (which may not be rectangular) will return 
+a vector in the same order as the cells are specified in the range.
 
 Indexing in a `Worksheet` will dispatch to `getdata` method.
 
@@ -129,7 +135,8 @@ julia> vector = sheet["A1:A4,C1:C4,G5"] # Non-contiguous range
 
 julia> vector = sheet["Location"] # Non-contiguous named range
 
-julia> single_value = sheet[2, 2] # Cell "B2"
+julia> scalar = sheet[2, 2] # Cell "B2"
+
 ```
 
 See also [`XLSX.readdata`](@ref).
@@ -173,36 +180,20 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    # if cache is in use, look-up data direct rather than iterating rows from file
-    if is_cache_enabled(ws) && ws.cache.is_full
-        for row in top:bottom
-            if haskey(ws.cache.cells, row)
-                for column in left:right
-                    if haskey(ws.cache.cells, row) && haskey(ws.cache.cells[row], column)
-                        cell = ws.cache.cells[row][column]
-                        (r, c) = relative_cell_position(cell, rng)
-                        result[r, c] = getdata(ws, cell)
-                    end
+    for sheetrow in eachrow(ws)
+        if top <= sheetrow.row && sheetrow.row <= bottom
+            for column in left:right
+                cell = getcell(sheetrow, column)
+                if !isempty(cell)
+                    (r, c) = relative_cell_position(cell, rng)
+                    result[r, c] = getdata(ws, cell)
                 end
             end
         end
 
-    else # no cache, need to iterate rows from file
-        for sheetrow in eachrow(ws)
-            if top <= sheetrow.row && sheetrow.row <= bottom
-                for column in left:right
-                    cell = getcell(sheetrow, column)
-                    if !isempty(cell)
-                        (r, c) = relative_cell_position(cell, rng)
-                        result[r, c] = getdata(ws, cell)
-                    end
-                end
-            end
-
-            # don't need to read any more rows
-            if sheetrow.row > bottom
-                break
-            end
+        # don't need to read any more rows
+        if sheetrow.row > bottom
+            break
         end
     end
 
@@ -311,10 +302,14 @@ end
     getcell(sheet, row, col)
 
 Return an `AbstractCell` that represents a cell in the spreadsheet.
-Return a matrix with cells as `Array{AbstractCell, 2}` if called 
-with a reference tomore than one cell.
+Return a 2-D matrix as `Array{AbstractCell, 2}` if `ref` is a 
+rectangular range.
+For row and column ranges, the extent of the range in the other 
+dimension is determined by the worksheet's dimension.
+A non-contiguous range (which may not be rectangular) will return 
+a vector in the same order as the cells are specified in the range.
 
-If `ref` is a range, `getcell` dispatches to `getcellrange`.
+If `ref` is a range, `getcell` dispatches to [`getcellrange`](@ref).
 
 Example:
 
@@ -424,9 +419,25 @@ Return a matrix with cells as `Array{AbstractCell, 2}`.
 as in `"A1:B2"`, `"A:B"` or `"1:2"`, or a non-contiguous range.
 For row and column ranges, the extent of the range in the other 
 dimension is determined by the worksheet's dimension.
-A non-contiguous range (which is not rectangular) will return a vector.
+A non-contiguous range (which may not be rectangular) will return 
+a vector in the same order as the cells are specified in the range.
 
-For example usage, see [`getdata()`](@ref).
+Example:
+
+```julia
+julia> ncr = "B3,A1,C2" # non-contiguous range, "out of order".
+"B3,A1,C2"
+
+julia>  XLSX.getcellrange(f[1], ncr)
+3-element Vector{XLSX.AbstractCell}:
+ XLSX.Cell(B3, "s", "", "29", XLSX.Formula(""))
+ XLSX.Cell(A1, "s", "", "0", XLSX.Formula(""))
+ XLSX.Cell(C2, "s", "", "18", XLSX.Formula(""))
+
+
+```
+
+For other examples, see [`getcell()`](@ref) and [`getdata()`](@ref).
 
 """
 function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
@@ -442,46 +453,23 @@ function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    # if cache is in use, look-up data direct rather than iterating
-    if is_cache_enabled(ws) && ws.cache.is_full
-        for row in top:bottom
-            if haskey(ws.cache.cells, row)
-                for column in left:right
-                    if haskey(ws.cache.cells, row) && haskey(ws.cache.cells[row], column)
-                        cell = ws.cache.cells[row][column]
-                        (r, c) = relative_cell_position(cell, rng)
-                        result[r, c] = cell
-                    end
-                end
+    for sheetrow in eachrow(ws)
+        if top <= sheetrow.row && sheetrow.row <= bottom
+            for column in left:right
+                cell = getcell(sheetrow, column)
+                (r, c) = relative_cell_position(cell, rng)
+                result[r, c] = cell
             end
         end
 
-    else # no cache, need to iterate rows
-         for sheetrow in eachrow(ws)
-            if top <= sheetrow.row && sheetrow.row <= bottom
-                for column in left:right
-                    cell = getcell(sheetrow, column)
-                    (r, c) = relative_cell_position(cell, rng)
-                    result[r, c] = cell
-                end
-            end
-
-            # don't need to read any more rows
-            if sheetrow.row > bottom
-                break
-            end
+        # don't need to read any more rows
+        if sheetrow.row > bottom
+            break
         end
     end
+
     return result
 end
-#    result = Array{AbstractCell,2}(undef, size(rng))
-#    for cellref in rng
-#        (r, c) = relative_cell_position(cellref, rng)
-#        cell = getcell(ws, cellref)
-#        result[r, c] = isempty(cell) ? EmptyCell(cellref) : cell
-#    end
-#    return result
-#end
 
 getcellrange(ws::Worksheet, s::SheetCellRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.rng)
 getcellrange(ws::Worksheet, s::SheetColumnRange) = do_sheet_names_match(ws, s) && getcellrange(ws, s.colrng)
@@ -508,6 +496,7 @@ function getcellrange(ws::Worksheet, rng::RowRange)::Array{AbstractCell,2}
 end
 
 function getcellrange(ws::Worksheet, rng::NonContiguousRange)::Vector{AbstractCell}
+    # returns a simple vector because non contiguous ranges aren't rectangular
     results = Vector{AbstractCell}()
     for r in rng.rng
         if r isa CellRef
