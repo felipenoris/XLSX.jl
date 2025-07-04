@@ -173,7 +173,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    # if cache is in use, look-up data direct rather than iterating
+    # if cache is in use, look-up data direct rather than iterating rows from file
     if is_cache_enabled(ws) && ws.cache.is_full
         for row in top:bottom
             if haskey(ws.cache.cells, row)
@@ -187,7 +187,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
             end
         end
 
-    else # no cache, need to iterate rows
+    else # no cache, need to iterate rows from file
         for sheetrow in eachrow(ws)
             if top <= sheetrow.row && sheetrow.row <= bottom
                 for column in left:right
@@ -205,7 +205,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
             end
         end
     end
-    
+
     return result
 end
 
