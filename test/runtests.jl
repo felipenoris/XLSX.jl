@@ -5835,6 +5835,24 @@ end
     @test xf["DATA"]["E7"] ≈ 12.6215
 end
 
+# issue 303
+#= Awaiting update of XML.jl to fix
+@testset "xml:space" begin
+    f = XLSX.openxlsx(joinpath(data_directory,"sstTest.xlsx"), mode="rw")
+    s=f[1]
+    @test XLSX.getdata(s, :) ==  ["  hello" "    "; "  hello  " "    "; " hello\">" "    "; "hello\">" "    "; "  hello" "    "]
+    s["C1"]=" "
+    s["C2"]=" hello"
+    s["C3"]="hello "
+    s["C4"]=" hello "
+    s["C5"]=" \"hello\" "
+    @test XLSX.getdata(s, "C1:C5") ==  Any[" "; " hello"; "hello "; " hello "; " \"hello\" ";;]
+    XLSX.writexlsx("mydata.xlsx", f, overwrite=true)
+    @test XLSX.readdata("mydata.xlsx", 1, :) == ["  hello" "    " " "; "  hello  " "    " " hello"; " hello\">" "    " "hello "; "hello\">" "    " " hello "; "  hello" "    " " \"hello\" "]
+    isfile("mydata.xlsx") && rm("mydata.xlsx")
+end
+=#
+
 @testset "inlineStr" begin
     xf = XLSX.readxlsx(joinpath(data_directory, "inlinestr.xlsx"))
     sheet = xf["Requirements"]
