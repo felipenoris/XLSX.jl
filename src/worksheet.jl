@@ -188,7 +188,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
         end
 
     else # no cache, need to iterate rows
-         for sheetrow in eachrow(ws)
+        for sheetrow in eachrow(ws)
             if top <= sheetrow.row && sheetrow.row <= bottom
                 for column in left:right
                     cell = getcell(sheetrow, column)
@@ -205,6 +205,7 @@ function getdata(ws::Worksheet, rng::CellRange)::Array{Any,2}
             end
         end
     end
+    
     return result
 end
 

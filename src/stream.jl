@@ -221,7 +221,7 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
 
     # If first iteration, check if cache is full
     if isnothing(state)
-        if is_cache_enabled(ws_cache.stream_iterator.sheet) && ws_cache.is_full
+        if ws_cache.is_full
             state=WorksheetCacheIteratorState(0, true)
         else
             state=WorksheetCacheIteratorState(0, false)
@@ -237,6 +237,7 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
 
 
     if state.full_cache
+        # read from cache
         if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
             # the next row is in cache, and it's the first one
             current_row_number = ws_cache.rows_in_cache[1]
@@ -253,11 +254,13 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
             state.row_from_last_iteration=current_row_number
             return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
 
-        elseif ws_cache.is_full
+        else
+            # no more cache rows
             return nothing
         end
 
     else
+        # no cache, read from file. Fill cache for the first time if enabled.
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
 
         if next === nothing

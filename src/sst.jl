@@ -139,9 +139,7 @@ function unformatted_text(el::XML.Node) :: String
     v_string = Vector{String}()
     gather_strings!(v_string, el)
 
-    gatheredstrings=XML.unescape(join(v_string))
-
-    return gatheredstrings
+    return XML.unescape(join(v_string))
 end
 
 # Looks for a string inside the Shared Strings Table (sst).

@@ -91,7 +91,8 @@ function Cell(c::XML.LazyNode)
                     found_v = true
                 end              
                 # v = length(c_child_element)==0 ? "" : XML.unescape(XML.simple_value(c_child_element))
-                v = length(c_child_element)==0 ? "" : XML.unescape(XML.value(c_child_element[1])) # saves a little time!
+                ch=XML.children(c_child_element)
+                v = length(ch)==0 ? "" : XML.unescape(XML.value(ch[1])) # saves a little time!
             elseif XML.tag(c_child_element) == "f"
                 if found_f # we should have only one f element
                     throw(XLSXError("Unsupported: cell $(ref) has more than 1 `f` elements."))
@@ -173,9 +174,13 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         return missing
     end
 
+    ecv=isempty(cell.value)
+    ecd=isempty(cell.datatype)
+    ecs=isempty(cell.style)
+
     if cell.datatype == "inlineStr"
 
-        if isempty(cell.value)
+        if ecv
             return missing
         else
             return cell.value
@@ -185,7 +190,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
 
     if cell.datatype == "s"
 
-        if isempty(cell.value)
+        if ecv
             return missing
         end
 
@@ -198,17 +203,17 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
             return str
         end
 
-    elseif (isempty(cell.datatype) || cell.datatype == "n")
+    elseif (ecd || cell.datatype == "n")
 
-        if isempty(cell.value)
+        if ecv
             return missing
         end
 
-        if !isempty(cell.style) && styles_is_datetime(ws, cell.style)
+        if !ecs && styles_is_datetime(ws, cell.style)
             # datetime
             return _celldata_datetime(cell.value, isdate1904(ws))
 
-        elseif !isempty(cell.style) && styles_is_float(ws, cell.style)
+        elseif !ecs && styles_is_float(ws, cell.style)
             # float
             return parse(Float64, cell.value)
 
@@ -232,7 +237,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
         end
     elseif cell.datatype == "str"
         # plain string
-        if isempty(cell.value)
+        if ecv
             return missing
         else
             return cell.value
