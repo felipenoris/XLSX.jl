@@ -518,6 +518,12 @@ function Base.setindex!(ws::Worksheet, v, row::Union{Vector{Int},StepRange{<:Int
     end
 end
 
+function setdata!(ws::Worksheet, ref::CellRef, val::CellFormula)
+    v=""
+    t=""
+    cell = Cell(ref, t, id(val.styleid), v, Formula(val.value.formula))
+    setdata!(ws, cell)
+end
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
     cell = Cell(ref, t, id(val.styleid), v, Formula(""))
@@ -537,10 +543,14 @@ setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(w
 setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, v) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
 
 
-function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existing cell format if it exists
+function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellValueType}) # use existing cell format if it exists
     c = getcell(ws, ref)
     if c isa EmptyCell || c.style == ""
-        return setdata!(ws, ref, CellValue(ws, val))
+        if val isa AbstractFormula
+            return setdata!(ws, ref, CellFormula(ws, val))
+        else
+            return setdata!(ws, ref, CellValue(ws, val))
+        end
     else
         existing_style = CellDataFormat(parse(Int, c.style))
         isa_dt = styles_is_datetime(ws.package.workbook, existing_style)
@@ -565,10 +575,17 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellValueType) # use existin
             c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_BOOL_numFmtId)]).id)
         end
 
-        return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
+        if val isa AbstractFormula
+            return setdata!(ws, ref, CellFormula(val, CellDataFormat(parse(Int, c.style))))
+        else
+            return setdata!(ws, ref, CellValue(val, CellDataFormat(parse(Int, c.style))))
+        end
     end
 end
 function setdata!(ws::Worksheet, ref::AbstractString, value)
+    if first(lstrip(value))=='=' # it's a formula!
+        value=Formula(last(split(value, '=')))
+    end
     if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
         if is_defined_name_value_a_reference(v)

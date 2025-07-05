@@ -42,6 +42,15 @@ struct CellRef
     column_number::Int
 end
 
+abstract type AbstractCellDataFormat end
+
+struct EmptyCellDataFormat <: AbstractCellDataFormat end
+
+# Keeps track of formatting information.
+struct CellDataFormat <: AbstractCellDataFormat
+    id::UInt
+end
+
 abstract type AbstractFormula end
 
 """
@@ -66,6 +75,12 @@ struct ReferencedFormula <: AbstractFormula
     id::Int
     ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae
 end
+
+struct CellFormula <: AbstractFormula
+    value::Formula
+    styleid::AbstractCellDataFormat
+end
+
 
 mutable struct CellFont
     fontId::Int
@@ -136,15 +151,6 @@ end
 
 struct EmptyCell <: AbstractCell
     ref::CellRef
-end
-
-abstract type AbstractCellDataFormat end
-
-struct EmptyCellDataFormat <: AbstractCellDataFormat end
-
-# Keeps track of formatting information.
-struct CellDataFormat <: AbstractCellDataFormat
-    id::UInt
 end
 
 # Keeps track of conditional formatting information.

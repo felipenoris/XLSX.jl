@@ -13,6 +13,9 @@
 # 18.8.10 cellXfs (Cell Formats)
 import Base: isempty
 
+function CellFormula(ws::Worksheet, val::AbstractFormula)
+    CellFormula(val, default_cell_format(ws, val))
+end
 function CellValue(ws::Worksheet, val::CellValueType)
     CellValue(val, default_cell_format(ws, val))
 end
@@ -34,7 +37,8 @@ const DEFAULT_NUMBER_numFmtId = 0 # General - seems like an OK default for now
 const DEFAULT_BOOL_numFmtId = 0 # General - seems like an OK default for now
 
 # Returns the default `CellDataFormat` for a type
-default_cell_format(::Worksheet, ::CellValueType) = EmptyCellDataFormat()
+default_cell_format(ws::Worksheet, ::AbstractFormula) = EmptyCellDataFormat()
+default_cell_format(ws::Worksheet, ::CellValueType) = EmptyCellDataFormat()
 default_cell_format(ws::Worksheet, ::Dates.Date) = get_num_style_index(ws, DEFAULT_DATE_numFmtId)
 default_cell_format(ws::Worksheet, ::Dates.Time) = get_num_style_index(ws, DEFAULT_TIME_numFmtId)
 default_cell_format(ws::Worksheet, ::Dates.DateTime) = get_num_style_index(ws, DEFAULT_DATETIME_numFmtId)
