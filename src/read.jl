@@ -383,7 +383,8 @@ function parse_workbook!(xf::XLSXFile)
                     elseif is_valid_fixed_sheet_cellrange(defined_value_string) || is_valid_sheet_cellrange(defined_value_string)
                         defined_value = SheetCellRange(defined_value_string)
                     elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
-                        defined_value = defined_value_string[2:end-1] # remove enclosing quotes
+                        local valid_indices = collect(eachindex(defined_value_string))
+                        defined_value = defined_value_string[valid_indices[2:length(valid_indices)-1]] # remove enclosing quotes
                         if isempty(defined_value)
                             defined_value = missing
                         end
