@@ -330,7 +330,7 @@ Other examples are as [`getdata()`](@ref).
 function getcell(ws::Worksheet, single::CellRef)::AbstractCell
 
     # if cache is in use, look-up cell direct rather than iterating
-    if is_cache_enabled(ws) && ws.cache.is_full
+    if !isnothing(ws.cache) && is_cache_enabled(ws) && ws.cache.is_full
         if haskey(ws.cache.cells, single.row_number)
             if haskey(ws.cache.cells[single.row_number], single.column_number)
                 return ws.cache.cells[single.row_number][single.column_number]

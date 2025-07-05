@@ -893,7 +893,7 @@ function addsheet!(wb::Workbook, name::AbstractString=""; relocatable_data_path:
         Int64[],
         Dict{Int,Union{Float64,Nothing}}(),
         Dict{Int64,Int64}(),
-        SheetRowStreamIterator(get_xlsxfile(wb)[1]), # Dummy for now ...
+        SheetRowStreamIterator(get_xlsxfile(wb)[1]), # Dummy - not needed because using full cache.
         nothing,
         false
     )
@@ -989,7 +989,7 @@ function copysheet!(ws::Worksheet, name::AbstractString="")::Worksheet
         ws.cache.rows_in_cache,
         ws.cache.row_ht,
         ws.cache.row_index,
-        SheetRowStreamIterator(ws), # Dummy for now ...
+        SheetRowStreamIterator(ws), # Dummy - not needed because using full cache.
         nothing,
         ws.cache.dirty,
     )
@@ -1073,7 +1073,7 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, new_cache, name::AbstractStr
 
     # creates Worksheet instance
     ws = Worksheet(xf, sheetId, rId, new_name, dim, false)
-    ws.cache=new_cache # Replace dummy placeholder
+    ws.cache=new_cache 
 
     # adds the new sheet to the list of sheets in the workbook
     push!(wb.sheets, ws)

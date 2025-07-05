@@ -281,29 +281,6 @@ end
         @test XLSX.decode_column_number(v_column_names[i]) == v_column_numbers[i]
     end
 
-    @testset "ColumnRange" begin
-        @testset "Single Column" begin
-            c = XLSX.ColumnRange("C")
-            @test c.start == 3
-            @test c.stop == 3
-            show(IOBuffer(), c)
-
-            c = XLSX.ColumnRange("AA")
-            @test c.start == 27
-            @test c.stop == 27
-        end
-
-        @testset "Multiple Columns" begin
-            c = XLSX.ColumnRange("A:Z")
-            @test c.start == 1
-            @test c.stop == 26
-
-            c = XLSX.ColumnRange("A:AA")
-            @test c.start == 1
-            @test c.stop == 27
-        end
-    end
-
     @testset "CellRef" begin
         ref = XLSX.CellRef(12, 2)
         @test ref.name == "B12"
@@ -414,13 +391,20 @@ end
     @test sheet1["B8"] == "palavra1"
 
     @test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+    XLSX.getcell(sheet1, "B:C")
+    XLSX.getcell(sheet1, "1:2")
+    XLSX.getcell(sheet1, 1:2, 1:2)
     XLSX.getcellrange(sheet1, "B2:C3")
     XLSX.getcellrange(f, "Sheet1!B2:C3")
+    XLSX.getcellrange(f, "Sheet1!B:C")
+    XLSX.getcellrange(f, "Sheet1!2:3")
+    XLSX.getcellrange(f, "Sheet1!B2,Sheet1!C3")
     XLSX.getcellrange(sheet1, 2, 2)
     XLSX.getcellrange(sheet1, 2, :)
     XLSX.getcellrange(sheet1, :, 3)
     XLSX.getcellrange(sheet1, 3, :)
     XLSX.getcellrange(sheet1, "B2:C3")
+    XLSX.getcellrange(sheet1, "B2,C3:C4")
     @test_throws XLSX.XLSXError XLSX.getcellrange(f, "B2:C3")
 
     # a cell can be put in a dict
@@ -814,17 +798,50 @@ end
 
 end
 
+@testset "Range intersect" begin
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("A3"), XLSX.CellRef("E4")),XLSX.CellRange(XLSX.CellRef("C1"), XLSX.CellRef("D6")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("C1"), XLSX.CellRef("D6")),XLSX.CellRange(XLSX.CellRef("A3"), XLSX.CellRef("E4")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("A3"), XLSX.CellRef("D4")),XLSX.CellRange(XLSX.CellRef("C1"), XLSX.CellRef("E6")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("C1"), XLSX.CellRef("E6")),XLSX.CellRange(XLSX.CellRef("A3"), XLSX.CellRef("D4")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("C3"), XLSX.CellRef("E4")),XLSX.CellRange(XLSX.CellRef("C1"), XLSX.CellRef("G6")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("C1"), XLSX.CellRef("G6")),XLSX.CellRange(XLSX.CellRef("C3"), XLSX.CellRef("E4")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("A1"), XLSX.CellRef("E4")),XLSX.CellRange(XLSX.CellRef("C3"), XLSX.CellRef("G6")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("C3"), XLSX.CellRef("G6")),XLSX.CellRange(XLSX.CellRef("A1"), XLSX.CellRef("E4")))
+    @test XLSX.intersects(XLSX.CellRange(XLSX.CellRef("C3"), XLSX.CellRef("D4")),XLSX.CellRange(XLSX.CellRef("A1"), XLSX.CellRef("E6")))
+end
+
 @testset "Column Range" begin
-    cr = XLSX.ColumnRange("B:D")
-    @test string(cr) == "B:D"
-    @test cr.start == 2
-    @test cr.stop == 4
-    @test length(cr) == 3
-    @test_throws XLSX.XLSXError XLSX.ColumnRange("B1:D3")
-    @test_throws XLSX.XLSXError XLSX.ColumnRange("D:A")
-    @test collect(cr) == ["B", "C", "D"]
-    @test XLSX.ColumnRange("B:D") == XLSX.ColumnRange("B:D")
-    @test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
+    
+    @testset "Single Column" begin
+        c = XLSX.ColumnRange("C")
+        @test c.start == 3
+        @test c.stop == 3
+        show(IOBuffer(), c)
+
+        c = XLSX.ColumnRange("AA")
+        @test c.start == 27
+        @test c.stop == 27
+    end
+
+    @testset "Multiple Columns" begin
+        c = XLSX.ColumnRange("A:Z")
+        @test c.start == 1
+        @test c.stop == 26
+
+        c = XLSX.ColumnRange("A:AA")
+        @test c.start == 1
+        @test c.stop == 27
+        cr = XLSX.ColumnRange("B:D")
+        @test string(cr) == "B:D"
+        @test cr.start == 2
+        @test cr.stop == 4
+        @test length(cr) == 3
+        @test_throws XLSX.XLSXError XLSX.ColumnRange("B1:D3")
+        @test_throws XLSX.XLSXError XLSX.ColumnRange("D:A")
+        @test collect(cr) == ["B", "C", "D"]
+        @test XLSX.ColumnRange("B:D") == XLSX.ColumnRange("B:D")
+        @test hash(XLSX.ColumnRange("B:D")) == hash(XLSX.ColumnRange("B:D"))
+    end
 end
 
 @testset "Row Range" begin # Issue #150

@@ -236,7 +236,6 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
     end
 
 
-    if state.full_cache
         # read from cache
         if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
             # the next row is in cache, and it's the first one
@@ -254,13 +253,10 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
             state.row_from_last_iteration=current_row_number
             return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
 
-        else
-            # no more cache rows
-            return nothing
         end
 
-    else
-        # no cache, read from file. Fill cache for the first time if enabled.
+    if !state.full_cache
+        # cache not yet full, read from file.
         next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
 
         if next === nothing

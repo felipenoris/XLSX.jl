@@ -2235,10 +2235,14 @@ function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}
         return 0
     end
 
+    if isnothing(ws.cache) || !haskey(ws.cache.row_ht, rng.stop.row_number)
+        _ = ws[rng.stop] # Ensure cache filled at least to include the last row in `rng`.
+    end
+
     first = true
 
     for r in top:bottom
-        if haskey(ws.cache.row_ht, r)
+        if haskey(ws.cache.row_ht, r) # may still be missing if row is entirely empty.
             ws.cache.row_ht[r] = padded_height
             first=false
         end
@@ -2294,7 +2298,11 @@ function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
         throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
     end
 
-    if haskey(ws.cache.row_ht, cellref.row_number)
+    if isnothing(ws.cache) || !haskey(ws.cache.row_ht, cellref.row_number)
+        _ = ws[cellref] # Ensure cache filled at least to include the last row in `rng`.
+    end
+
+    if haskey(ws.cache.row_ht, cellref.row_number) # Row might still be empty
         return ws.cache.row_ht[cellref.row_number]
     end
 

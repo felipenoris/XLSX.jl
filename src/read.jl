@@ -123,11 +123,11 @@ end
 
 The `mode` argument controls how the file is opened. The following modes are allowed:
 
-* `r` : read mode. The existing data in `source` will be accessible for reading. This is the **default** mode.
+* `r` : read-only mode. The existing data in `source` will be accessible for reading. This is the **default** mode.
 
 * `w` : write mode. Opens an empty file that will be written to `source`. If source already exists it will be overwritten.
 
-* `rw` : edit mode. Opens `source` for editing. The file will be saved to disk when the function ends.
+* `rw` : edit mode. Opens `source` for editing. The file will be saved (overwritten) to disk when the function ends.
 
 !!! warning
 
@@ -143,9 +143,12 @@ The `mode` argument controls how the file is opened. The following modes are all
 
 * `enable_cache`:
 
-If `enable_cache=true`, all read worksheet cells will be cached.
-If you read a worksheet cell twice it will use the cached value instead of reading from disk
-the second time.
+If `enable_cache=true` and the file is opened in read-only mode, all worksheet cells 
+will be cached as they are read the first time. When you read a worksheet cell for the 
+second (or subsequent) time it will use the cached value instead of reading from disk.
+If `enable_cache=true` and the file is opened in write mode, all cells are eagerly read 
+into the cache as the file is opened (they will be needed at write anyway). For very 
+large files, this can be slow.
 
 If `enable_cache=false`, worksheet cells will always be read from disk.
 This is useful when you want to read a spreadsheet that doesn't fit into memory.
@@ -217,10 +220,21 @@ end
 
 Supports opening a XLSX file without using do-syntax.
 
-If opened with mode="rw" then use [`savexlsx`](@ref) to save the XLSX, overwriting the `source` file.
+If opened with mode="rw" then use [`savexlsx`](@ref) to save the XLSX back to `source`, 
+overwriting the original file.
 Alternatively, use [`writexlsx`](@ref) to save to a different filename.
 
-See also [`XLSX.writexlsx`](@ref).
+These two invocations of `openxlsx` are functionally equivalent:
+```
+XLSX.openxlsx("myfile.xlsx", mode="rw") do xf
+    # Do some processing on the content
+end
+
+xf = openxlsx("myfile.xlsx", mode="rw")
+# Do some processing on the content
+XLSX.savexlsx(xf)
+
+```
 """
 function openxlsx(source::Union{AbstractString, IO};
                   mode::AbstractString="r",
@@ -287,13 +301,13 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, _read::Bool, enabl
     parse_relationships!(xf)
     parse_workbook!(xf)
 
-    if enable_cache # read data from Worksheet streams into cache
+    if enable_cache 
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
-
-        # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
-            for _ in eachrow(sheet)
-                nothing
+            if _write # fill cache eagerly during open if in write mode
+                for _ in eachrow(sheet) # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
+                    nothing
+                end
             end
             isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
         end
