@@ -22,7 +22,7 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     Dynamic conditional formatting, using the native Excel conditional format functionality, is possible 
     using the `setConditionalFormat()` function, giving access to all of Excel's options. 
 
-### Static conditional formats
+## Static conditional formats
 
 As an example, a simple function to set true values in a range to use a bold green font color and 
 false values to use a bold red color a could be defined as follows:
@@ -64,7 +64,7 @@ This can then be applied to a range of cells to conditionally apply the format:
 blankmissing(sheet, XLSX.CellRange("B3:L6"))
 ```
 
-### Dynamic conditional formats
+## Dynamic conditional formats
 
 XLSX.jl provides a function to create native Excel conditional formats that will be saved 
 as part of an `XLSXFile` and which will update dynamically if the values in the cell range 
@@ -97,7 +97,7 @@ Use of these different `:type`s is illustrated in the following sections.
 For more details on the range of `:type` values and their associated keyword 
 options, refer to [XLSX.setConditionalFormat()](@ref).
 
-#### Cell Value
+### Cell Value
 
 It is possible to format each cell in a range when the cell's value meets a specified condition using one 
 of a number of built-in cell format options or using custom formatting. This group of formatting options 
@@ -264,7 +264,7 @@ julia> XLSX.getConditionalFormats(s)
 Each of the conditional format `type`s in the cell value group take similar keyword options but 
 the specific details vary for each. For more details, refer to [XLSX.setConditionalFormat()](@ref).
 
-#### Expressions
+### Expressions
 
 It is possible to use an Excel formula directly to determine whether to apply a conditional format. 
 Any expression that evaluates to true or false can be used.
@@ -394,7 +394,7 @@ julia> XLSX.setConditionalFormat(s, "C1:C3", :expression; formula = "exact(\"Hel
 ```
 ![image|320x500](../images/caseSensitiveComparison.png)
 
-#### Data Bar
+### Data Bar
 
 A `:dataBar` conditional format can be applied to a range of cells.
 In Excel there are twelve built-in data bars available, but it is possible 
@@ -549,7 +549,7 @@ julia> XLSX.setConditionalFormat(s, "E1:E10", :dataBar; direction="leftToRight",
 ```
 ![image|320x500](../images/axisOptions.png)
 
-#### Color Scale
+### Color Scale
 
 It is possible to apply a `:colorScale` formatting type to a range of cells.
 In Excel there are twelve built-in color scales available, but it is possible to create 
@@ -609,7 +609,7 @@ julia> XLSX.setConditionalFormat(f["Sheet1"], "A13:F22", :colorScale;
 ```
 ![image|320x500](../images/custom-colorscale.png)
 
-#### Icon Set
+### Icon Set
 
 It is possible to apply an `:iconSet` formatting type to a range of cells.
 In Excel there are twenty built-in icon sets available, but it is possible to 
@@ -767,9 +767,9 @@ XLSX.writexlsx("iconKey.xlsx", f, overwrite=true)
 
 Specifying too few icons in `icon_list` throws an error while any extra will simply be ignored.
 
-#### Specifying cell references in Conditional Formats
+## Cell references in conditional formats
 
-##### Cell Ranges
+### Cell Ranges
 
 Cell ranges for conditional formats are always absolute refences. The specified range to which a 
 conditional format is to be applied is always treated as an absolute cell references so that, 
@@ -780,7 +780,7 @@ julia> XLSX.setConditionalFormat(s, "A2:C5", :colorScale; colorscale="greenyello
 will be converted automatically to the range "\$A\$2:\$C\$5" by Excel itself. There is therefore no need to specify 
 absolute cell ranges when calling `setCondtionalFormat()`
 
-##### Relative and absolute cell references
+### Relative and absolute cell references
 
 Cell references used to specify `value` or `value2` or in any `formula` (for `:expression` type 
 conditional formats only) may be either absolute or relative. As in Excel, an absolute reference 
@@ -858,7 +858,7 @@ julia> XLSX.setConditionalFormat(s, "B2:B6", :cellIs; operator="greaterThan", va
     (e.g. "OtherSheet!A1"), but this is handled differently internally than references within the 
     same sheet. This functionality is not universally implemented in XLSX.jl yet. 
 
-#### Overlaying conditional formats
+### Overlaying conditional formats
 
 It is possible to overlay multiple conditional formats over each other in a 
 cell range or even in different, overlapping cell ranges. Starting with a table of 
@@ -975,465 +975,3 @@ julia> XLSX.setFormat(s, "A2:G11"; format="#0.00")
 ``` 
 ![image|320x500](../images/moreMixed.png)
 
-## Working with merged cells
-
-Worksheets may contain merged cells. XLSX.jl provides functions to identify the merged cells in a worksheet, 
-to determine if a cell is part of a merged range and to determine the value of a merged cell range from any 
-cell in that range.
-
-```julia
-
-julia> using XLSX
-
-julia> f=XLSX.opentemplate("customXml.xlsx")
-XLSXFile("customXml.xlsx") containing 2 Worksheets
-            sheetname size          range        
--------------------------------------------------
-              Mock-up 116x11        A1:K116
-     Document History 17x3          A1:C17
-
-julia> XLSX.getMergedCells(f[1])
-25-element Vector{XLSX.CellRange}:
- D49:H49
- D72:J72
- F94:J94
- F96:J96
- F84:J84
- F86:J86
- D62:J63
- D51:J53
- D55:J60
- D92:J92
- D82:J82
- D74:J74
- D67:J68
- D47:H47
- D9:H9
- D11:G11
- D12:G12
- D14:E14
- D16:E16
- D32:F32
- D38:J38
- D34:J34
- D18:E18
- D20:E20
- D13:G13
-
-julia> XLSX.isMergedCell(f[1], "D13")
-true
-
-julia> XLSX.isMergedCell(f[1], "H13")
-false
-
-julia> XLSX.getMergedBaseCell(f[1], "E18") # E18 is a merged cell. The base cell in the merged range is D18.
-(baseCell = D18, baseValue = "Here") # The base cell in the merged range is D18 and it's value is "Here".
-```
-
-It is also possible to create new merged cells:
-
-```julia
-
-julia> XLSX.isMergedCell(f[1], "F5")
-false
-
-julia> XLSX.isMergedCell(f[1], "J8")
-false
-
-julia> XLSX.mergeCells(s, "F5:J8")
-
-julia> s["F5"] = pi
-π = 3.1415926535897...
-
-julia> XLSX.isMergedCell(f[1], "J8")
-true
-
-julia> XLSX.isMergedCell(f[1], "F5")
-true
-
-julia> XLSX.getMergedBaseCell(f[1], "J8")
-(baseCell = F5, baseValue = 3.141592653589793)
-```
-
-It is not allowed to create new merged cells that overlap at all with any existing merged cells.
-
-!!! warning
-
-    It is possible to write into any merged cell using `XLSX.jl`, even those that are not the 
-    base cell of the merged range. This is illustrated below:
-
-    ```julia
-
-    julia> using XLSX
-
-    julia> f=XLSX.newxlsx()
-    XLSXFile("C:\...\blank.xlsx") containing 1 Worksheet
-                sheetname size          range        
-    -------------------------------------------------
-                Sheet1 1x1           A1:A1        
-
-
-    julia> s=f[1]
-    1×1 XLSX.Worksheet: ["Sheet1"](A1:A1) 
-
-    julia> s["A1:A3"]=5
-    5
-    ```
-
-    This produces the simple sheet shown.
-
-    ![image|320x500](../images/simple-unmerged.png)
-
-    Merging the three cells `A1:A3` sets the cells `A2` and `A3` to missing just as Excel does.
-
-    ```
-    julia> s["A1"]
-    5
-
-    julia> s["A2"]
-    5
-
-    julia> s["A3"]
-    5
-
-    julia> XLSX.mergeCells(s, "A1:A3")
-    0
-
-    julia> s["A1"]
-    5
-
-    julia> s["A2"]
-    missing
-
-    julia> s["A3"]
-    missing
-    ```
-
-    ![image|320x500](../images/after-merge.png)
-
-    However, even after the merge, it is possible to explicitly write into the merged cells. 
-    These written values will not be visible in Excel but can still be accessed by reference.
-
-    ```
-    julia> s["A2"]="text here now"
-    "text here now"
-
-    julia> s["A1"]
-    5
-
-    julia> s["A2"]
-    "text here now"
-
-    julia> s["A3"]
-    missing
-
-    julia> XLSX.getMergedBaseCell(s, "A2")
-    (baseCell = A1, baseValue = 5)
-
-    ```
-
-    The cell `A2` remains merged, and this is how Excel displays it. The assigned cell value 
-    won't be visible in Excel, but it can be referenced in a formula as shown here, where 
-    cell `B2` references cell `A2` in its formula ("=A2"):
-
-    ![image|320x500](../images/Written-to-merged-cell.png)
-    
-    Assigning values to cells in a merged range like this is prevented in Excel itself by the UI 
-    although it is possible using VBA. There is currently no check to prevent this in `XLSX.jl`.
-    See [#241](https://github.com/felipenoris/XLSX.jl/issues/241)
-
-## Examples
-
-### Applying formatting to an existing table
-
-Consider a simple table, created from scratch, like this:
-
-```julia
-using XLSX
-using Dates
-
-# First create some data in an empty XLSXfile
-xf = XLSX.newxlsx()
-sheet = xf["Sheet1"]
-
-col_names = ["Integers", "Strings", "Floats", "Booleans", "Dates", "Times", "DateTimes", "AbstractStrings", "Rational", "Irrationals", "MixedStringNothingMissing"]
-data = Vector{Any}(undef, 11)
-data[1] = [1, 2, missing, UInt8(4)]
-data[2] = ["Hey", "You", "Out", "There"]
-data[3] = [101.5, 102.5, missing, 104.5]
-data[4] = [true, false, missing, true]
-data[5] = [Date(2018, 2, 1), Date(2018, 3, 1), Date(2018, 5, 20), Date(2018, 6, 2)]
-data[6] = [Dates.Time(19, 10), Dates.Time(19, 20), Dates.Time(19, 30), Dates.Time(0, 0)]
-data[7] = [Dates.DateTime(2018, 5, 20, 19, 10), Dates.DateTime(2018, 5, 20, 19, 20), Dates.DateTime(2018, 5, 20, 19, 30), Dates.DateTime(2018, 5, 20, 19, 40)]
-data[8] = SubString.(["Hey", "You", "Out", "There"], 1, 2)
-data[9] = [1 // 2, 1 // 3, missing, 22 // 3]
-data[10] = [pi, sqrt(2), missing, sqrt(5)]
-data[11] = [nothing, "middle", missing, "rotated"]
-
-XLSX.writetable!(
-    sheet,
-    data,
-    col_names;
-    anchor_cell=XLSX.CellRef("B2"),
-    write_columnnames=true,
-)
-
-XLSX.writexlsx("mytable_unformatted.xlsx", xf, overwrite=true)
-```
-
-By default, this table will look like this in Excel:
-
-![image|320x500](../images/unformatted-table.png)
-
-We can apply some formatting choices to change the table's appearance:
-
-![image|320x500](../images/formatted-table.png)
-
-This is achieved with the following code:
-
-```julia
-# Cell borders
-XLSX.setUniformBorder(sheet, "B2:L6";
-    top    = ["style" => "hair", "color" => "FF000000"],
-    bottom = ["style" => "hair", "color" => "FF000000"],
-    left   = ["style" => "thin", "color" => "FF000000"],
-    right  = ["style" => "thin", "color" => "FF000000"]
-)
-XLSX.setBorder(sheet, "B2:L2"; bottom = ["style" => "medium", "color" => "FF000000"]) 
-XLSX.setBorder(sheet, "B6:L6"; top = ["style" => "double", "color" => "FF000000"])
-XLSX.setOutsideBorder(sheet, "B2:L6"; outside = ["style" => "thick", "color" => "FF000000"])
-
-# Cell fill
-XLSX.setFill(sheet, "B2:L2"; pattern = "solid", fgColor = "FF444444")
-
-# Cell fonts
-XLSX.setFont(sheet, "B2:L2"; bold=true, color = "FFFFFFFF")
-XLSX.setFont(sheet, "B3:L6"; color = "FF444444")
-XLSX.setFont(sheet, "C3"; name = "Times New Roman")
-XLSX.setFont(sheet, "C6"; name = "Wingdings", color = "FF2F75B5")
-
-# Cell alignment
-XLSX.setAlignment(sheet, "L2"; wrapText = true)
-XLSX.setAlignment(sheet, "I4"; horizontal="right")
-XLSX.setAlignment(sheet, "I6"; horizontal="right")
-XLSX.setAlignment(sheet, "C4"; indent=2)
-XLSX.setAlignment(sheet, "F4"; vertical="top")
-XLSX.setAlignment(sheet, "G4"; vertical="center")
-XLSX.setAlignment(sheet, "L4"; horizontal="center", vertical="center")
-XLSX.setAlignment(sheet, "G3:G6"; horizontal = "center")
-XLSX.setAlignment(sheet, "H3:H6"; shrink = true)
-XLSX.setAlignment(sheet, "L6"; horizontal = "center", rotation = 90, wrapText=true)
-
-# Row height and column width
-XLSX.setRowHeight(sheet, "B4"; height=50)
-XLSX.setRowHeight(sheet, "B6"; height=15)
-XLSX.setColumnWidth(sheet, "I"; width = 20.5)
-
-# Conditional formatting
-function blankmissing(sheet, rng) # Fill with grey and apply both diagonal borders on cells
-    for c in rng                  # with missing values
-        if ismissing(sheet[c])
-            XLSX.setFill(sheet, c; pattern = "solid", fgColor = "grey")
-            XLSX.setBorder(sheet, c; diagonal = ["style" => "thin", "color" => "black"])
-           end
-    end
-end
-function trueorfalse(sheet, rng) # Use green or red font for true or false respectively
-    for c in rng
-        if !ismissing(sheet[c]) && sheet[c] isa Bool
-            XLSX.setFont(sheet, c, bold=true, color = sheet[c] ? "FF548235" : "FFC00000")
-        end
-    end
-end
-function redgreenminmax(sheet, rng) # Fill light green / light red the cell with maximum / minimum value
-    mn, mx = extrema(x for x in sheet[rng] if !ismissing(x))
-    for c in rng
-        if !ismissing(sheet[c])
-            if sheet[c] == mx
-               XLSX.setFill(sheet, c; pattern = "solid", fgColor = "FFC6EFCE")
-            elseif sheet[c] == mn
-                XLSX.setFill(sheet, c; pattern = "solid", fgColor = "FFFFC7CE")
-            end
-        end
-    end
-end
-
-blankmissing(sheet, XLSX.CellRange("B3:L6"))
-trueorfalse(sheet, XLSX.CellRange("B2:L6"))
-redgreenminmax(sheet, XLSX.CellRange("D3:D6"))
-redgreenminmax(sheet, XLSX.CellRange("J3:J6"))
-redgreenminmax(sheet, XLSX.CellRange("K3:K6"))
-
-# Number formats
-XLSX.setFormat(sheet, "J3"; format = "Percentage")
-XLSX.setFormat(sheet, "J4"; format = "Currency")
-XLSX.setFormat(sheet, "J6"; format = "Number")
-XLSX.setFormat(sheet, "K3"; format = "0.0")
-XLSX.setFormat(sheet, "K4"; format = "0.000")
-XLSX.setFormat(sheet, "K6"; format = "0.0000")
-
-# Save to an actual XLSX file
-XLSX.writexlsx("mytable_formatted.xlsx", xf, overwrite=true)
-```
-
-### Creating a formatted form
-
-There is a file, customXml.xlsx, in the \data folder of this project that looks like a template 
-file - a form to be filled in. The code below creates this form from scratch and makes 
-extensive use of vector indexing for rows and columns and of non-contiguous ranges:
-
-```julia
-using XLSX
-
-f = XLSX.newxlsx()
-s = f[1]
-s["A1:K116"] = ""
-
-s["B2"] = "Catalogue Entry Form"
-
-s["B5"] = "User Data"
-s["B7"] = "Recipient ID"
-s["B9"] = "Recipient Name"
-s["B11"] = "Address 1"
-s["B12"] = "Address 2"
-s["B13"] = "Address 3"
-s["B14"] = "Town"
-s["B16"] = "Postcode"
-s["B18"] = "Ward"
-s["B20"] = "Region"
-s["H18"] = "Local Authority"
-s["H20"] = "UK Constituency"
-s["B22"] = "GrantID"
-s["D22"] = "Grant Date"
-s["F22"] = "Grant Amount"
-s["H22"] = "Grant Title"
-s["J22"] = "Distributor"
-s["B32"] = "Distributor"
-
-s["B30"] = "Creator"
-s["B34"] = "Created by"
-s["D36"] = "Email"
-s["H36"] = "Phone"
-s["B38"] = "Grant Manager"
-s["D40"] = "Email"
-s["H40"] = "Phone number"
-
-s["B43"] = "Summary"
-s["B45"] = "Summary ID"
-s["H45"] = "Date Created"
-s["B47"] = "Summary Name"
-s["B49"] = "Headline"
-s["B51"] = "Short Description"
-s["B55"] = "Long Description"
-s["B62"] = "Quote 1"
-s["D65"] = "Quote Attribution"
-s["H65"] = "Quote Date"
-s["B67"] = "Quote 2"
-s["D70"] = "Quote Attribution"
-s["H70"] = "Quote Date"
-s["B72"] = "Keywords"
-s["B74"] = "Website"
-s["B76"] = "Social media handles"
-s["D76"] = "Twitter"
-s["D78"] = "Facebook"
-s["D80"] = "Instagram"
-s["H76"] = "LinkedIn"
-s["H78"] = "TikTok"
-s["H80"] = "YouTube"
-s["B82"] = "Image 1 filename"
-s["D84"] = "Alt-Text"
-s["D86"] = "Image Attribution"
-s["D88"] = "Image Date"
-s["D90"] = "Confirm permission to use image"
-s["B92"] = "Image 2 filename"
-s["D94"] = "Alt-Text"
-s["D96"] = "Image Attribution"
-s["D98"] = "Image Date"
-s["D100"] = "Confirm permission to use image"
-
-s["B103"] = "Penultimate category"
-s["B105"] = "Competition Details"
-s["D105"] = "Last year of entry"
-s["D107"] = "Year of last win"
-s["H105"] = "Categories of entry"
-s["H107"] = "Categories of win"
-
-s["B110"] = "Last category"
-s["B112"] = "Use for Comms"
-s["D112"] = "Comms Priority"
-s["F112"] = "Comms End Date"
-
-XLSX.setColumnWidth(s, 1:2:11; width=1.3)
-XLSX.setColumnWidth(s, 2:2:10; width=18)
-XLSX.setRowHeight(s, :; height=15)
-XLSX.setRowHeight(s, [3, 4, 19, 28, 29, 35, 39, 41, 42, 64, 69, 77, 79, 83, 85, 87, 89, 93, 95, 97, 99, 101, 102, 106, 108, 109, 116]; height=5.5)
-XLSX.setRowHeight(s, [5, 30, 43, 103, 110]; height=18)
-XLSX.setRowHeight(s, 2; height=23)
-
-XLSX.setFont(s, "B2"; size=18, bold=true)
-XLSX.setUniformFont(s, [5, 30, 43, 103, 110], 2; size=14, bold=true)
-
-XLSX.setUniformFill(s, [1, 2, 3, 4, 5, 6, 8, 10, 15, 17, 19, 21, 28, 29, 30, 31, 33, 35, 37, 39, 41, 42, 43, 44, 46, 48, 50, 52, 53, 54, 56, 57, 58, 59, 60, 61, 63, 64, 66, 68, 69, 71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95, 97, 99, 101, 102, 103, 104, 106, 108, 109, 110, 111, 115, 116], :; pattern="solid", fgColor="lightgrey")
-XLSX.setUniformFill(s, :, [1, 3, 5, 7, 9, 11]; pattern="solid", fgColor="lightgrey")
-XLSX.setFill(s, "F7,H7,J7,J9,H11:J16,F14,F16:F20,H32:J32,B36,B40,F45,J47:J49,B65,B70,B78:B80,B84:B90,B94:B100,H88:J90,H98:J100,B107,F114,H112:J115"; pattern="solid", fgColor="lightgrey")
-XLSX.setFill(s, "D18,D20,J18,J20,D45"; pattern="solid", fgColor="darkgrey")
-XLSX.setFill(s, "B112:B114,D112:D115"; pattern="solid", fgColor="white")
-XLSX.setFill(s, "E90,E100,D115"; pattern="none")
-
-XLSX.mergeCells(s, "D9:H9")
-XLSX.mergeCells(s, "D11:G11,D12:G12,D13:G13")
-XLSX.mergeCells(s, "D32:F32,D34:J34,D38:J38")
-XLSX.mergeCells(s, "D47:H47,D49:H49")
-XLSX.mergeCells(s, "D51:J53,D55:J60")
-XLSX.mergeCells(s, "D62:J63,D67:J68")
-XLSX.mergeCells(s, "D72:J72,D74:J74")
-XLSX.mergeCells(s, "D82:J82,F84:J84,F86:J86")
-XLSX.mergeCells(s, "D92:J92,F94:J94,F96:J96")
-
-XLSX.setAlignment(s, "D51:J53,D55:J60,D62:J63,D67:J68"; vertical="top", wrapText=true)
-
-XLSX.setBorder(s, "A1:K3"; outside = ["style" => "medium", "color" => "black"])
-XLSX.setBorder(s, "A4:K28"; outside = ["style" => "medium", "color" => "black"])
-XLSX.setBorder(s, "A29:K41"; outside = ["style" => "medium", "color" => "black"])
-XLSX.setBorder(s, "A42:K101"; outside = ["style" => "medium", "color" => "black"])
-XLSX.setBorder(s, "A102:K108"; outside = ["style" => "medium", "color" => "black"])
-XLSX.setBorder(s, "A109:K116"; outside = ["style" => "medium", "color" => "black"])
-
-XLSX.setBorder(s, "B7:D7,B9:H9"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B11:G13,B14:D14,B16:D16"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B18:D18,B20:D20,H18:J18,H20:J20"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setUniformBorder(s, "B22:J27"; allsides = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B32:F32"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B34:C34,D34:J34,D36:F36,H36:J36"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B38:C38,D38:J38,D40:F40,H40:J40"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D34:J36,D38:J40"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B45:D45,H45:J45"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B47:H47,B49:H49"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B51:C51,B55:C55"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D51:J53,D55:J60"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B62:C62,D65:F65,H65:J65"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B67:C67,D70:F70,H70:J70"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D62:J63,D67:J68"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D62:J65,D67:J70"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B72:J72,B74:J74"; allsides = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B76:F76,H76:J76,D78:F78,H78:J78,D80:F80,H80:J80"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D76:J80"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B82:J82,D84:J84,D86:J86,D88:F88,D90:F90"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D82:J90"; outside = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B92:J92,D94:J94,D96:J96,D98:F98,D100:F100"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D92:J100"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "B105:F105,H105:J105,D107:F107,H107:J107"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "D105:J107"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.setBorder(s, "F112,F113"; allsides = ["style" => "thin", "color" => "black"])
-XLSX.setBorder(s, "B112:B114,D112:D115"; outside = ["style" => "thin", "color" => "black"])
-
-XLSX.writexlsx("myNewTemplate.xlsx", f, overwrite=true)
-```

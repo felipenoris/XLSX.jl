@@ -583,7 +583,7 @@ function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellVa
     end
 end
 function setdata!(ws::Worksheet, ref::AbstractString, value)
-    if first(lstrip(value))=='=' # it's a formula!
+    if value isa String && length(value) > 1 && first(lstrip(value))=='=' # it's a formula!
         value=Formula(last(split(value, '=')))
     end
     if is_worksheet_defined_name(ws, ref)

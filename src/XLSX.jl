@@ -15,7 +15,21 @@ import Mmap
 
 import PrecompileTools as PCT    # this is a small dependency. PCT avoids namespace conflict with ZipArchives (I think)
 
-
+export
+    # Files and worksheets
+    XLSXFile, readxlsx, openxlsx, opentemplate, newxlsx, writexlsx, savexlsx,
+    Worksheet, sheetnames, sheetcount, hassheet, rename!, addsheet!, copysheet!, deletesheet!, 
+    # Cells & data
+    CellRef, row_number, column_number, eachrow, eachtablerow,
+    readdata, getdata, gettable, readtable, readto, writetable, writetable!,
+    addDefinedName,
+    # Formats
+    setFormat, setFont, setBorder, setFill, setAlignment,
+    setUniformFormat, setUniformFont, setUniformBorder, setUniformFill, setUniformAlignment, setUniformStyle,
+    setConditionalFormat,
+    setColumnWidth, setRowHeight,
+    getMergedCells, isMergedCell, getMergedBaseCell, mergeCells
+    
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 const EXCEL_MAX_COLS = 16_384     # total columns supported by Excel per sheet
 const EXCEL_MAX_ROWS = 1_048_576  # total rows supported by Excel per sheet (including headers)

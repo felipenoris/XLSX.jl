@@ -165,4 +165,3 @@ It is not allowed to create new merged cells that overlap at all with any existi
     Assigning values to cells in a merged range like this is prevented in Excel itself by the UI 
     although it is possible using VBA. There is currently no check to prevent this in `XLSX.jl`.
     See [#241](https://github.com/felipenoris/XLSX.jl/issues/241)
-
