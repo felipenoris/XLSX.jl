@@ -126,16 +126,24 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
     a = XML.attributes(c_child_element)
     if !isnothing(a)
         if haskey(a, "t") && a["t"] == "shared"
+            unhandled_attributes=Dict{String,String}()
+            for (k, v) in a
+                if k ∉ ["t", "si", "ref"]
+                    push!(unhandled_attributes, k => v)
+                end
+            end
             haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
             if haskey(a, "ref")
                 return ReferencedFormula(
                     formula_string,
                     parse(Int, a["si"]),
                     a["ref"],
+                    length(unhandled_attributes) > 0 ? unhandled_attributes : Nothing,
                 )
             else
                 return FormulaReference(
                     parse(Int, a["si"]),
+                    length(unhandled_attributes) > 0 ? unhandled_attributes : Nothing,
                 )
             end
         end

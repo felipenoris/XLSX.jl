@@ -65,6 +65,7 @@ The formula in this cell was defined somewhere else; we simply reference its ID.
 """
 struct FormulaReference <: AbstractFormula
     id::Int
+    unhandled::Union{Dict{String,String},Nothing}
 end
 
 """
@@ -74,6 +75,7 @@ struct ReferencedFormula <: AbstractFormula
     formula::String
     id::Int
     ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae
+    unhandled::Union{Dict{String,String},Nothing}
 end
 
 struct CellFormula <: AbstractFormula

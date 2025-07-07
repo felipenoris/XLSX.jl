@@ -114,12 +114,24 @@ function add_node_formula!(node, f::Formula)
 end
 
 function add_node_formula!(node, f::FormulaReference)
-    f_node = XML.Element("f"; t="shared", si=string(f.id))
+    f_node = XML.Element("f"; t="shared")
+    if !isnothing(f.unhandled)
+        for (k, v) in f.unhandled
+            f_node[k]=v
+        end
+    end
+    f_node["si"]=string(f.id)
     push!(node, f_node)
 end
 
 function add_node_formula!(node, f::ReferencedFormula)
-    f_node = XML.Element("f", XML.Text(XML.escape(f.formula)); t="shared", si=string(f.id), ref=f.ref)
+    f_node = XML.Element("f", XML.Text(XML.escape(f.formula)); t="shared",ref=f.ref)
+    if !isnothing(f.unhandled)
+        for (k, v) in f.unhandled
+            f_node[k]=v
+        end
+    end
+    f_node["si"]=string(f.id)
     push!(node, f_node)
 end
 
@@ -433,7 +445,7 @@ function add_cell_to_worksheet_dimension!(ws::Worksheet, cell::Cell)
 end
 
 function setdata!(ws::Worksheet, cell::Cell)
-    !is_writable(get_xlsxfile(ws)) && throw(XLSXError("XLSXFile instance is not writable."))
+    !is_writable(get_xlsxfile(ws)) && throw(XLSXError("XLSXFile instance is not writable. Open Excel file with `mode=\"rw\"` instead"))
     ws.cache === nothing && throw(XLSXError("Can't write data to a Worksheet with empty cache."))
     cache = ws.cache
 
@@ -542,6 +554,69 @@ setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(w
 
 setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, v) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
 
+# shift the relative cell references ina formula when shifting a ReferencedFormula
+function shift_excel_references(formula::String, row_shift::Int, col_shift::Int)
+    # Regex to match Excel-style cell references (e.g., A1, $A$1, A$1, $A1)
+    pattern = r"\$?[A-Z]{1,3}\$?[1-9][0-9]*"
+
+    initial=[string(x.match) for x in eachmatch(pattern, formula)]
+    result=Vector{String}()
+    for ref in eachmatch(pattern, formula)
+        # Extract parts using regex
+        println(ref)
+        m = match(r"(\$?)([A-Z]{1,3})(\$?)([1-9][0-9]*)", ref.match)
+        println(m)
+        col_abs, col_letters, row_abs, row_digits = m.captures
+
+        col_num = decode_column_number(col_letters)
+        row_num = parse(Int, row_digits)
+
+        # Apply shifts only if not absolute
+        new_col = col_abs == "\$" ? col_letters : encode_column_number(col_num + col_shift)
+        new_row = row_abs == "\$" ? row_digits : string(row_num + row_shift)
+
+        push!(result, col_abs * new_col * row_abs * new_row)
+    end
+    println(formula)
+    pairs = Dict(zip(initial, result))
+    if !isempty(pairs)
+        for (from, to) in pairs
+            println(from, " => ", to)
+            formula = replace(formula, from => to)
+            println(formula)
+        end
+    end
+    return formula
+end
+
+# if overwriting a cell containing a referenced formula, need to re-reference all referring cells
+function rereference_formulae(ws::Worksheet, cell::Cell)
+    oldid=cell.formula.id
+    oldref=CellRange(cell.formula.ref)
+    oldform=cell.formula.formula
+    oldunhandled=cell.formula.unhandled
+    newrow=CellRef(cell.ref.row_number+1,cell.ref.column_number)
+    newcol=CellRef(cell.ref.row_number,cell.ref.column_number+1)
+    newid = length([z.formula for x in [values(last(x)) for x in (ws.cache.cells)] for z in x if z.formula isa ReferencedFormula])
+    do_col=false
+    if newcol ∈ CellRange(cell.formula.ref)
+        newref=CellRange(newcol,oldref.stop)
+        newform=ReferencedFormula(shift_excel_references(oldform, 0, 1), oldid, string(newref), oldunhandled)
+        setdata!(ws,Cell(newref.start,cell.datatype, cell.style, cell.value, newform))
+        do_col=true
+    end
+    if newrow ∈ CellRange(cell.formula.ref)
+        newref=CellRange(newrow,CellRef(oldref.stop.row_number, newrow.column_number))
+        newform=ReferencedFormula(shift_excel_references(oldform, 1, 0), do_col ? newid : oldid, string(newref), oldunhandled)
+        for fr in newref
+            if fr != newref.start
+                newfr=getcell(ws, fr)
+                setdata!(ws,Cell(fr, newfr.datatype, newfr.style, newfr.value, FormulaReference(newid, oldunhandled)))
+            end
+            setdata!(ws,Cell(newref.start, cell.datatype, cell.style, cell.value, newform))
+        end
+    end
+end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellValueType}) # use existing cell format if it exists
     c = getcell(ws, ref)
@@ -574,7 +649,7 @@ function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellVa
             # Change any style to General (0) and retain other formatting.
             c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_BOOL_numFmtId)]).id)
         end
-
+        c.formula isa ReferencedFormula && rereference_formulae(ws, c)
         if val isa AbstractFormula
             return setdata!(ws, ref, CellFormula(val, CellDataFormat(parse(Int, c.style))))
         else
@@ -583,7 +658,9 @@ function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellVa
     end
 end
 function setdata!(ws::Worksheet, ref::AbstractString, value)
-    if value isa String && length(value) > 1 && first(lstrip(value))=='=' # it's a formula!
+    if value isa String
+        i=findfirst(!isspace, value)
+        !isnothing(i) && value[i]=='=' && length(value[i:end]) > 1 && value[i]=='=' # it's a formula!
         value=Formula(last(split(value, '=')))
     end
     if is_worksheet_defined_name(ws, ref)
