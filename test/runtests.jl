@@ -504,6 +504,34 @@ end
 
 end
 
+@testset "ReferencedFormulae" begin
+    f=XLSX.openxlsx(joinpath(data_directory, "reftest.xlsx"), mode="rw")
+    s=f[1]
+    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "20", XLSX.ReferencedFormula("SUM(O2:S2)", 0, "A2:A10", nothing))
+    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "25", XLSX.FormulaReference(0, nothing))
+    s["A2"]=3
+    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
+    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "20", XLSX.ReferencedFormula("SUM(O3:S3)", 0, "A3:A10", nothing))
+    s2=f[2]
+    @test XLSX.getcell(s2, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "54", XLSX.Formula("SECOND(NOW())", Dict("ca" => "1")))
+    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A2:A5", Dict("ca" => "1")))
+    s2["A2"]=3
+    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
+    @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
+    @test XLSX.getcell(s2, "A3").formula.id == 1
+    @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
+    @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
+
+
+    @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1"))
+    @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1")))
+    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "B1:C5", Dict("ca" => "1")))
+    s2["B1"]=3
+    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing))
+    @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 2, "B2:B5", Dict("ca" => "1")))
+    @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "C1:C5", Dict("ca" => "1")))
+end
+
 @testset "getcell" begin
     f = XLSX.newxlsx()
     s = f[1]
@@ -781,7 +809,7 @@ end
 end
 
 @testset "No Dimension" begin
-    noDim = XLSX.readxlsx(joinpath(data_directory, "NoDim.xlsx")) # These two files are the same except the `NoDim` file has the dimension nodes removed.
+    noDim = XLSX.openxlsx(joinpath(data_directory, "NoDim.xlsx"), mode="rw") # These two files are the same except the `NoDim` file has the dimension nodes removed.
     Dim = XLSX.readxlsx(joinpath(data_directory, "customXml.xlsx"))
     @test noDim[1].dimension == Dim[1].dimension
     @test noDim[2].dimension == Dim[2].dimension
@@ -4607,7 +4635,7 @@ end
             border=["style" => "thick", "color" => "coral"]
         ) == 0
 
-        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type="top10", priority=4), XLSX.CellRange("E1:E5") => (type="top10", priority=3), XLSX.CellRange("B1:B5") => (type="top10", priority=2), XLSX.CellRange("A1:A5") => (type="top10", priority=1)]
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type="top10", priority=4), XLSX.CellRange("E1:E10") => (type="top10", priority=3), XLSX.CellRange("B1:B10") => (type="top10", priority=2), XLSX.CellRange("A1:A5") => (type="top10", priority=1)]
 
         f = XLSX.newxlsx()
         s = f[1]
@@ -4813,7 +4841,7 @@ end
             border=["style" => "thick", "color" => "coral"]
         ) == 0
 
-        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type="aboveAverage", priority=4), XLSX.CellRange("E1:E5") => (type="aboveAverage", priority=3), XLSX.CellRange("B1:B5") => (type="aboveAverage", priority=2), XLSX.CellRange("A1:A5") => (type="aboveAverage", priority=1)]
+        @test XLSX.getConditionalFormats(s) == [XLSX.CellRange("C1:D5") => (type="aboveAverage", priority=4), XLSX.CellRange("E1:E10") => (type="aboveAverage", priority=3), XLSX.CellRange("B1:B10") => (type="aboveAverage", priority=2), XLSX.CellRange("A1:A5") => (type="aboveAverage", priority=1)]
 
         f = XLSX.newxlsx()
         s = f[1]

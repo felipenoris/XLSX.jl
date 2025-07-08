@@ -62,6 +62,23 @@ Base.:(==)(c1::CellRef, c2::CellRef) = c1.name == c2.name
 Base.hash(c::CellRef) = hash(c.name)
 Base.isless(c1::CellRef, c2::CellRef) = Base.isless(string(c1), string(c2))
 
+Base.:(==)(rf1::ReferencedFormula, rf2::ReferencedFormula) = (
+    rf1.formula == rf2.formula &&
+    rf1.id == rf2.id &&
+    rf1.ref == rf2.ref &&
+    rf1.unhandled == rf2.unhandled
+)
+
+Base.:(==)(rf1::FormulaReference, rf2::FormulaReference) = (
+    rf1.id == rf2.id &&
+    rf1.unhandled == rf2.unhandled
+)
+
+Base.:(==)(rf1::Formula, rf2::Formula) = (
+    rf1.formula == rf2.formula &&
+    rf1.unhandled == rf2.unhandled
+)
+
 const RGX_COLUMN_NAME = r"^[A-Z]?[A-Z]?[A-Z]$"
 const RGX_ROW_NAME = r"^[1-9][0-9]*$"
 const RGX_CELLNAME = r"^[A-Z]+[0-9]+$"

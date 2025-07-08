@@ -78,7 +78,7 @@ end
 # If the cache is empty or is not being used, set dimension to A1:A1.
 function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
     !isnothing(ws.dimension) && return ws.dimension
-    if isnothing(ws.cache) || length(ws.cache.cells) < 1
+    if isnothing(ws.cache) || !ws.cache.is_full
         set_dimension!(ws, CellRange(CellRef(1, 1), CellRef(1, 1)))
     else
         row_extr = extrema(keys(ws.cache.cells))
@@ -370,6 +370,9 @@ function getcell(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}
     dim = get_dimension(ws)
     getcellrange(ws, CellRange(CellRef(dim.start.row_number, first(col)), CellRef(dim.stop.row_number, last(col))))
 end
+function getcell(ws::Worksheet, ::Colon)
+    getcellrange(ws, get_dimension(ws))
+end
 
 function getcell(ws::Worksheet, ref::AbstractString)
     if is_worksheet_defined_name(ws, ref)
@@ -430,9 +433,9 @@ julia> ncr = "B3,A1,C2" # non-contiguous range, "out of order".
 
 julia>  XLSX.getcellrange(f[1], ncr)
 3-element Vector{XLSX.AbstractCell}:
- XLSX.Cell(B3, "s", "", "29", XLSX.Formula(""))
- XLSX.Cell(A1, "s", "", "0", XLSX.Formula(""))
- XLSX.Cell(C2, "s", "", "18", XLSX.Formula(""))
+ XLSX.Cell(B3, "s", "", "29", XLSX.Formula("", nothing))
+ XLSX.Cell(A1, "s", "", "0", XLSX.Formula("", nothing))
+ XLSX.Cell(C2, "s", "", "18", XLSX.Formula("", nothing))
 
 
 ```
@@ -481,6 +484,7 @@ getcellrange(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::U
 getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = getcell(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 getcellrange(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = getcell(ws, row, :)
 getcellrange(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = getcell(ws, :, col)
+getcellrange(ws::Worksheet, ::Colon) = getcellrange(ws, get_dimension(ws))
 
 function getcellrange(ws::Worksheet, rng::ColumnRange)::Array{AbstractCell,2}
     dim = get_dimension(ws)

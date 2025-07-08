@@ -58,7 +58,15 @@ A default formula simply storing the formula string.
 """
 struct Formula <: AbstractFormula
     formula::String
+    unhandled::Union{Dict{String,String},Nothing}
 end
+function Formula()
+    return Formula("", nothing)
+end
+function Formula(s::String)
+    return Formula(s, nothing)
+end
+
 
 """
 The formula in this cell was defined somewhere else; we simply reference its ID.
@@ -79,7 +87,7 @@ struct ReferencedFormula <: AbstractFormula
 end
 
 struct CellFormula <: AbstractFormula
-    value::Formula
+    value::T where T<:AbstractFormula
     styleid::AbstractCellDataFormat
 end
 

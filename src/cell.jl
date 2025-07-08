@@ -62,7 +62,7 @@ function Cell(c::XML.LazyNode)
 
     # iterate v and f elements
     local v::String = ""
-    local f::AbstractFormula = Formula("")
+    local f::AbstractFormula = Formula()
     local found_v::Bool = false
     local found_f::Bool = false
 
@@ -124,14 +124,16 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
     end
 
     a = XML.attributes(c_child_element)
+    unhandled_attributes=Dict{String,String}()
+    if !isnothing(a)
+        for (k, v) in a
+            if k ∉ ["t", "si", "ref"]
+                push!(unhandled_attributes, k => v)
+            end
+        end
+    end
     if !isnothing(a)
         if haskey(a, "t") && a["t"] == "shared"
-            unhandled_attributes=Dict{String,String}()
-            for (k, v) in a
-                if k ∉ ["t", "si", "ref"]
-                    push!(unhandled_attributes, k => v)
-                end
-            end
             haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
             if haskey(a, "ref")
                 return ReferencedFormula(
@@ -149,7 +151,7 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
         end
     end
 
-    return Formula(formula_string)
+    return Formula(formula_string, length(unhandled_attributes) > 0 ? unhandled_attributes : nothing)
 end
 
 # Constructor with simple formula string for backward compatibility

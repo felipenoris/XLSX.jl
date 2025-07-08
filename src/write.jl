@@ -110,6 +110,11 @@ end
 
 function add_node_formula!(node, f::Formula)
     f_node = XML.Element("f", XML.Text(XML.escape(f.formula)))
+    if !isnothing(f.unhandled)
+        for (k, v) in f.unhandled
+            f_node[k]=v
+        end
+    end
     push!(node, f_node)
 end
 
@@ -538,7 +543,7 @@ function setdata!(ws::Worksheet, ref::CellRef, val::CellFormula)
 end
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
-    cell = Cell(ref, t, id(val.styleid), v, Formula(""))
+    cell = Cell(ref, t, id(val.styleid), v, Formula())
     setdata!(ws, cell)
 end
 
@@ -562,11 +567,10 @@ function shift_excel_references(formula::String, offset::Tuple{Int64,Int64})
 
     initial=[string(x.match) for x in eachmatch(pattern, formula)]
     result=Vector{String}()
+
     for ref in eachmatch(pattern, formula)
         # Extract parts using regex
-        println(ref)
         m = match(r"(\$?)([A-Z]{1,3})(\$?)([1-9][0-9]*)", ref.match)
-        println(m)
         col_abs, col_letters, row_abs, row_digits = m.captures
 
         col_num = decode_column_number(col_letters)
@@ -578,7 +582,7 @@ function shift_excel_references(formula::String, offset::Tuple{Int64,Int64})
 
         push!(result, col_abs * new_col * row_abs * new_row)
     end
-#    println(formula)
+
     pairs = Dict(zip(initial, result))
     if !isempty(pairs)
         for (from, to) in pairs
@@ -615,19 +619,22 @@ end
 function rereference_formulae(ws::Worksheet, cell::Cell, newref::CellRange, offset::Tuple{Int64,Int64}, newid::Int64)::CellRange
     oldform=cell.formula.formula
     oldunhandled=cell.formula.unhandled
+    newform=ReferencedFormula(shift_excel_references(oldform, offset), newid, string(newref), oldunhandled)
     for fr in newref
         if fr != newref.start
             newfr=getcell(ws, fr)
             setdata!(ws,Cell(fr, newfr.datatype, newfr.style, newfr.value, FormulaReference(newid, oldunhandled)))
         end
     end
-    newform=ReferencedFormula(shift_excel_references(oldform, offset), newid, string(newref), oldunhandled)
     setdata!(ws,Cell(newref.start, cell.datatype, cell.style, cell.value, newform))
     return newref
 end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellValueType}) # use existing cell format if it exists
     c = getcell(ws, ref)
+    if !(c isa EmptyCell) && c.formula isa ReferencedFormula
+        rereference_formulae(ws, c)
+    end
     if c isa EmptyCell || c.style == ""
         if val isa AbstractFormula
             return setdata!(ws, ref, CellFormula(ws, val))
@@ -657,7 +664,6 @@ function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellVa
             # Change any style to General (0) and retain other formatting.
             c.style = string(update_template_xf(ws, existing_style, ["numFmtId"], [string(DEFAULT_BOOL_numFmtId)]).id)
         end
-        c.formula isa ReferencedFormula && rereference_formulae(ws, c)
         if val isa AbstractFormula
             return setdata!(ws, ref, CellFormula(val, CellDataFormat(parse(Int, c.style))))
         else
