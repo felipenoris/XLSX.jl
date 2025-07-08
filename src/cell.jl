@@ -138,12 +138,12 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
                     formula_string,
                     parse(Int, a["si"]),
                     a["ref"],
-                    length(unhandled_attributes) > 0 ? unhandled_attributes : Nothing,
+                    length(unhandled_attributes) > 0 ? unhandled_attributes : nothing,
                 )
             else
                 return FormulaReference(
                     parse(Int, a["si"]),
-                    length(unhandled_attributes) > 0 ? unhandled_attributes : Nothing,
+                    length(unhandled_attributes) > 0 ? unhandled_attributes : nothing,
                 )
             end
         end

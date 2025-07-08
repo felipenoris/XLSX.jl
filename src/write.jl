@@ -354,7 +354,7 @@ function make_absolute(dn::DefinedNameValue)
                 v *= string(cr) * ","
             end
         end
-        return v[1:end-1]
+        return v[begin:prevind(v, end)]
     else
         return dn.isabs ? quoteit(dn.value.sheet) * "!" * mkabs(dn.value) : string(dn.value)
     end
@@ -555,9 +555,10 @@ setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(w
 setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, v) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
 
 # shift the relative cell references ina formula when shifting a ReferencedFormula
-function shift_excel_references(formula::String, row_shift::Int, col_shift::Int)
+function shift_excel_references(formula::String, offset::Tuple{Int64,Int64})
     # Regex to match Excel-style cell references (e.g., A1, $A$1, A$1, $A1)
     pattern = r"\$?[A-Z]{1,3}\$?[1-9][0-9]*"
+    row_shift, col_shift = offset
 
     initial=[string(x.match) for x in eachmatch(pattern, formula)]
     result=Vector{String}()
@@ -577,13 +578,11 @@ function shift_excel_references(formula::String, row_shift::Int, col_shift::Int)
 
         push!(result, col_abs * new_col * row_abs * new_row)
     end
-    println(formula)
+#    println(formula)
     pairs = Dict(zip(initial, result))
     if !isempty(pairs)
         for (from, to) in pairs
-            println(from, " => ", to)
             formula = replace(formula, from => to)
-            println(formula)
         end
     end
     return formula
@@ -591,31 +590,40 @@ end
 
 # if overwriting a cell containing a referenced formula, need to re-reference all referring cells
 function rereference_formulae(ws::Worksheet, cell::Cell)
-    oldid=cell.formula.id
-    oldref=CellRange(cell.formula.ref)
-    oldform=cell.formula.formula
-    oldunhandled=cell.formula.unhandled
-    newrow=CellRef(cell.ref.row_number+1,cell.ref.column_number)
-    newcol=CellRef(cell.ref.row_number,cell.ref.column_number+1)
-    newid = length([z.formula for x in [values(last(x)) for x in (ws.cache.cells)] for z in x if z.formula isa ReferencedFormula])
-    do_col=false
-    if newcol ∈ CellRange(cell.formula.ref)
-        newref=CellRange(newcol,oldref.stop)
-        newform=ReferencedFormula(shift_excel_references(oldform, 0, 1), oldid, string(newref), oldunhandled)
-        setdata!(ws,Cell(newref.start,cell.datatype, cell.style, cell.value, newform))
-        do_col=true
-    end
-    if newrow ∈ CellRange(cell.formula.ref)
-        newref=CellRange(newrow,CellRef(oldref.stop.row_number, newrow.column_number))
-        newform=ReferencedFormula(shift_excel_references(oldform, 1, 0), do_col ? newid : oldid, string(newref), oldunhandled)
-        for fr in newref
-            if fr != newref.start
-                newfr=getcell(ws, fr)
-                setdata!(ws,Cell(fr, newfr.datatype, newfr.style, newfr.value, FormulaReference(newid, oldunhandled)))
+    process_range = CellRange(cell.formula.ref)
+    done = CellRange("A1:A1")
+    first_range=true
+    while done != process_range
+        for c in process_range
+            newcell=getcell(ws, c)
+            if newcell.formula isa FormulaReference
+                newid = first_range ? cell.formula.id : length(unique([z.formula.id for x in [values(last(x)) for x in (ws.cache.cells)] for z in x if z.formula isa ReferencedFormula]))
+                newref = CellRange(CellRef(newcell.ref.row_number, process_range.stop.column_number),process_range.stop)
+                offset=(newcell.ref.row_number-cell.ref.row_number, newcell.ref.column_number-cell.ref.column_number)
+                done = rereference_formulae(ws, cell, newref, offset, newid)
+                if done.start.row_number+1>process_range.stop.row_number || done.start.column_number-1<process_range.start.column_number
+                    process_range = done
+                    break
+                end
+                process_range = CellRange(CellRef(done.start.row_number+1, process_range.start.column_number), CellRef(process_range.stop.row_number, done.start.column_number-1))
+                first_range=false
+                break
             end
-            setdata!(ws,Cell(newref.start, cell.datatype, cell.style, cell.value, newform))
         end
     end
+end
+function rereference_formulae(ws::Worksheet, cell::Cell, newref::CellRange, offset::Tuple{Int64,Int64}, newid::Int64)::CellRange
+    oldform=cell.formula.formula
+    oldunhandled=cell.formula.unhandled
+    for fr in newref
+        if fr != newref.start
+            newfr=getcell(ws, fr)
+            setdata!(ws,Cell(fr, newfr.datatype, newfr.style, newfr.value, FormulaReference(newid, oldunhandled)))
+        end
+    end
+    newform=ReferencedFormula(shift_excel_references(oldform, offset), newid, string(newref), oldunhandled)
+    setdata!(ws,Cell(newref.start, cell.datatype, cell.style, cell.value, newform))
+    return newref
 end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellValueType}) # use existing cell format if it exists
@@ -660,8 +668,9 @@ end
 function setdata!(ws::Worksheet, ref::AbstractString, value)
     if value isa String
         i=findfirst(!isspace, value)
-        !isnothing(i) && value[i]=='=' && length(value[i:end]) > 1 && value[i]=='=' # it's a formula!
-        value=Formula(last(split(value, '=')))
+        if !isnothing(i) && length(value[i:end]) > 1 && value[i]=='=' # it's a formula!
+            value=Formula(last(split(value, '=')))
+        end
     end
     if is_worksheet_defined_name(ws, ref)
         v = get_defined_name_value(ws, ref)
@@ -763,10 +772,10 @@ function setdata!(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Int
         end
     end
 end
-setdata!(ws::Worksheet, ref::SheetCellRef, value) = setdata!(ws, ref.cellref, value)
-setdata!(ws::Worksheet, rng::SheetCellRange, value) = setdata!(ws, rng.rng, value)
-setdata!(ws::Worksheet, rng::SheetColumnRange, value) = setdata!(ws, rng.colrng, value)
-setdata!(ws::Worksheet, rng::SheetRowRange, value) = setdata!(ws, rng.rowrng, value)
+setdata!(ws::Worksheet, ref::SheetCellRef, value) = do_sheet_names_match(ws, ref) && setdata!(ws, ref.cellref, value)
+setdata!(ws::Worksheet, rng::SheetCellRange, value) = do_sheet_names_match(ws, rng) && setdata!(ws, rng.rng, value)
+setdata!(ws::Worksheet, rng::SheetColumnRange, value) = do_sheet_names_match(ws, rng) && setdata!(ws, rng.colrng, value)
+setdata!(ws::Worksheet, rng::SheetRowRange, value) = do_sheet_names_match(ws, rng) && setdata!(ws, rng.rowrng, value)
 setdata!(ws::Worksheet, ref_str::AbstractString, value::Vector, dim::Integer) = setdata!(ws, CellRef(ref_str), value, dim)
 setdata!(ws::Worksheet, row::Integer, col::Integer, data) = setdata!(ws, CellRef(row, col), data)
 setdata!(ws::Worksheet, ref::CellRef, value) = throw(XLSXError("Unsupported datatype $(typeof(value)) for writing data to Excel file. Supported data types are $(CellValueType) or $(CellValue)."))

@@ -11,9 +11,9 @@ end
 
 function parse_relationship_target(prefix::String, target::String)::String
     isempty(prefix) || isempty(target) && throw(XLSXError("Something wrong here!"))
-    if target[1] == '/'
+    if target[begin] == '/'
         sizeof(target) <= 1 && throw(XLSXError("Incomplete target path $target."))
-        return target[2:end]
+        return target[nextind(target, begin):end]
     else
         return prefix * '/' * target
     end

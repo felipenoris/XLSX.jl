@@ -190,7 +190,7 @@ CellRange(start_row::Integer, start_column::Integer, stop_row::Integer, stop_col
 
 Base.string(cr::CellRange) = string(cr.start)*":"*string(cr.stop)
 Base.show(io::IO, cr::CellRange) = print(io, string(cr))
-Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr2.stop == cr2.stop
+Base.:(==)(cr1::CellRange, cr2::CellRange) = cr1.start == cr2.start && cr1.stop == cr2.stop
 Base.hash(cr::CellRange) = hash(cr.start) + hash(cr.stop)
 Base.isless(cr1::CellRange, cr2::CellRange) = Base.isless(string(cr1), string(cr2)) # needed for tests
 

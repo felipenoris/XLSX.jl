@@ -490,7 +490,7 @@ function parse_workbook!(xf::XLSXFile)
                         defined_value = SheetCellRange(unquoteit(defined_value_string))
                         isabs=false
                     elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
-                        defined_value = defined_value_string[2:end-1] # remove enclosing quotes
+                        defined_value = defined_value_string[nextind(defined_value_string, begin):prevind(defined_value_string, end)] # remove enclosing quotes
                         if isempty(defined_value)
                             defined_value = missing
                         end
