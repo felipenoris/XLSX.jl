@@ -1200,6 +1200,69 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, new_cache, name::AbstractStr
 
     return ws
 end
+function update_formulas_missing_sheet!(wb::Workbook, name::String)
+    pattern=(name*"!" => "#REF!", r"\$?[A-Z]{1,3}\$?[1-9][0-9]*"=>"")
+    for i=1:sheetcount(wb)
+        s=getsheet(wb, i)
+        for r in eachrow(s)
+            for (_, cell) in r.rowcells
+                cell.formula isa FormulaReference && continue
+                oldform=cell.formula.formula
+                if occursin(name*"!", cell.formula.formula)
+                    for (pat, r) in pattern
+                        cell.formula.formula=replace(cell.formula.formula, pat=>r)
+                    end
+                    if oldform != cell.formula.formula
+                        cell.datatype="e"
+                        cell.value = "#REF!"
+                    end
+                end
+            end
+        end
+    end
+end
+function renumber_files!(xf::XLSXFile, rId::String)
+    wb=get_workbook(xf)
+    id=parse(Int64, rId[4:end])
+#= UNNECESSARY!
+    for s in wb.sheets
+        r=parse(Int64, s.relationship_id[4:end])
+        if r > id
+            newId=string(r-1)
+            oldId=string(r)
+#            s.relationship_id = "rId"*newId
+            new_filename = "xl/worksheets/sheet" * newId * ".xml"
+            old_filename = "xl/worksheets/sheet" * oldId * ".xml"
+            if haskey(xf.files, old_filename)
+                xf.files[new_filename]=xf.files[old_filename]
+                delete!(xf.files, old_filename)
+            end
+            if haskey(xf.data, old_filename)
+                xf.data[new_filename]=xf.data[old_filename]
+                delete!(xf.data, old_filename)
+            end
+        end
+    end
+=#
+    # update active tab
+    wbdoc = xmlroot(xf, "xl/workbook.xml")
+    i, j = get_idces(wbdoc, "workbook", "bookViews")
+    w=XML.children(wbdoc[i][j])
+    if length(w) > 0
+        for c in w
+            if XML.tag(c) == "workbookView"
+                a = XML.attributes(c)
+                if haskey(a, "activeTab")
+                    at=parse(Int64, a["activeTab"])
+                    if at>=id
+                        c["activeTab"]=string(at-1)
+                    end
+                end
+            end
+        end
+    end
+end
+
 
 """
     deletesheet!(ws::Worksheet) -> ::XLSXFile
@@ -1209,6 +1272,11 @@ end
 
 Delete the given worksheet, the worksheet with the given name or the worksheet with the given `sheetId` from its `XLSXFile` 
 (`sheetId` is a 1-based integer representing the order in which worksheet tabs are displayed in Excel).
+
+# note "Caution"
+    Cells in the other sheets that have references to the deleted sheet will fail when the sheet is deleted.
+    The formulae are updated to contain a `#Ref!` error in place of each sheetcell reference.
+    
 
 See also [addsheet!](@ref), [copysheet!](@ref)
 
@@ -1293,11 +1361,15 @@ function deletesheet!(wb::Workbook, name::AbstractString)::XLSXFile
     hassheet(wb, name) || throw(XLSXError("Worksheet `$name` not found in workbook."))
     sheetcount(wb) > 1 || throw(XLSXError("`$name` is this workbook's only sheet. Cannot delete the only sheet!"))
 
+    xf=get_xlsxfile(wb)
+    
     # Worksheets and relationships
     s = (findfirst(s -> s.name == name, wb.sheets))
     sId = wb.sheets[s].sheetId
     rId = wb.sheets[s].relationship_id
     r = findfirst(y -> occursin("worksheet", y.Type) && y.Id == rId, wb.relationships)
+    delete_relationships!(xf, wb.relationships[r])
+    deleteat!(wb.relationships, r)
     deleteat!(wb.sheets, s)
 
     # Defined Names
@@ -1312,7 +1384,6 @@ function deletesheet!(wb::Workbook, name::AbstractString)::XLSXFile
     end
     found_wsnames = Vector{Tuple{Int64,String}}()
     for (k, v) in wb.worksheet_names
-        wbn = v.value
         if first(k) == sId
             push!(found_wsnames, k)
         end
@@ -1325,7 +1396,6 @@ function deletesheet!(wb::Workbook, name::AbstractString)::XLSXFile
     end
     renumber_keys = Vector{Pair{Tuple{Int64,String},Tuple{Int64,String}}}()
     for (k, v) in wb.worksheet_names
-        wbn = v.value
         first(k) == sId && throw(XLSXError("Something wrong here!"))
         if first(k) > sId
             push!(renumber_keys, k => (sId, last(k)))
@@ -1335,8 +1405,6 @@ function deletesheet!(wb::Workbook, name::AbstractString)::XLSXFile
         wb.worksheet_names[newkey] = wb.worksheet_names[oldkey]
         delete!(wb.worksheet_names, oldkey)
     end
-
-    xf = get_xlsxfile(wb)
 
     # Files
     xml_filename = "xl/worksheets/sheet" * rId[4:end] * ".xml"
@@ -1366,6 +1434,8 @@ function deletesheet!(wb::Workbook, name::AbstractString)::XLSXFile
         end
     end
 
+    update_formulas_missing_sheet!(wb, name)
+    renumber_files!(xf, rId)
     update_workbook_xml!(xf)
 
     return xf

@@ -56,7 +56,7 @@ abstract type AbstractFormula end
 """
 A default formula simply storing the formula string.
 """
-struct Formula <: AbstractFormula
+mutable struct Formula <: AbstractFormula
     formula::String
     unhandled::Union{Dict{String,String},Nothing}
 end
@@ -71,15 +71,15 @@ end
 """
 The formula in this cell was defined somewhere else; we simply reference its ID.
 """
-struct FormulaReference <: AbstractFormula
+mutable struct FormulaReference <: AbstractFormula
     id::Int
     unhandled::Union{Dict{String,String},Nothing}
 end
 
 """
-Formula that is defined once and referenced in all cells given by the cell range given in `ref`.
+Formula that is defined once and referenced in all cells given by the cell range given in `ref` and using the same `id`.
 """
-struct ReferencedFormula <: AbstractFormula
+mutable struct ReferencedFormula <: AbstractFormula
     formula::String
     id::Int
     ref::String # actually a CellRange, but defined later --> change if at some point we want to actively change formulae

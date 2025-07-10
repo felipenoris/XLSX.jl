@@ -98,3 +98,26 @@ function add_relationship!(wb::Workbook, target::String, _type::String)::String
 
     return rId
 end
+
+function delete_relationships!(xf::XLSXFile, rel::Relationship)
+    #TODO renumber worksheet files in relationships
+#    println(rel)
+    xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
+#    println(rel)
+#    println(XML.write(xroot))
+
+    c=XML.children(xroot[end])
+    d = findfirst(r -> r["Target"] == rel.Target, c)
+    deleteat!(c, d)
+    new_rels=XML.Element("Relationships",  xmlns="http://schemas.openxmlformats.org/package/2006/relationships")
+    for child in c
+        push!(new_rels, child)
+    end
+#    println(XML.write(xroot))
+#    println(XML.write(new_rels))
+    xroot[end]=new_rels
+#    println(XML.write(xroot))
+    xf.data["xl/_rels/workbook.xml.rels"]=xroot
+#    println(get_workbook_relationship_root(xf))
+
+end
