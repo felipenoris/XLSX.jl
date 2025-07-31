@@ -486,6 +486,8 @@ struct TableRowIteratorState{S}
     table_row_index::Int
     sheet_row_index::Int
     sheet_row_iterator_state::S
+    missing_rows::Int # number of completely empty rows between the last row and the current row
+    row_pending::Union{Nothing, SheetRow} # if the last row was empty, this is the row that was pending to be returned
 end
 
 struct DataTable

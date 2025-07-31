@@ -505,13 +505,16 @@ end
 end
 
 @testset "ReferencedFormulae" begin
+
     f=XLSX.openxlsx(joinpath(data_directory, "reftest.xlsx"), mode="rw")
+
     s=f[1]
     @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "20", XLSX.ReferencedFormula("SUM(O2:S2)", 0, "A2:A10", nothing))
     @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "25", XLSX.FormulaReference(0, nothing))
     s["A2"]=3
     @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
     @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "20", XLSX.ReferencedFormula("SUM(O3:S3)", 0, "A3:A10", nothing))
+
     s2=f[2]
     @test XLSX.getcell(s2, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "54", XLSX.Formula("SECOND(NOW())", Dict("ca" => "1")))
     @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A2:A5", Dict("ca" => "1")))
@@ -521,8 +524,6 @@ end
     @test XLSX.getcell(s2, "A3").formula.id == 1
     @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
     @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
-
-
     @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1"))
     @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1")))
     @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "B1:C5", Dict("ca" => "1")))
@@ -530,6 +531,26 @@ end
     @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing))
     @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 2, "B2:B5", Dict("ca" => "1")))
     @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "C1:C5", Dict("ca" => "1")))
+
+    XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+    f2=XLSX.openxlsx("mytest.xlsx", mode="rw")
+
+    s=f2[1]
+    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
+    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "20", XLSX.ReferencedFormula("SUM(O3:S3)", 0, "A3:A10", nothing))
+
+    s2=f[2]
+    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
+    @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
+    @test XLSX.getcell(s2, "A3").formula.id == 1
+    @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
+    @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
+    @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1"))
+    @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1")))
+    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing))
+    @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 2, "B2:B5", Dict("ca" => "1")))
+    @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "C1:C5", Dict("ca" => "1")))
+
 end
 
 @testset "getcell" begin
@@ -571,14 +592,26 @@ end
     @test_throws XLSX.XLSXError XLSX.getcell(s, "garbage")
     @test_throws XLSX.XLSXError XLSX.getcell(s, "garbage1:garbage2")
 
+    @test XLSX.getcellrange(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
+    @test XLSX.getcellrange(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
+    @test XLSX.getcellrange(s, XLSX.SheetColumnRange("Sheet1!B:B")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
+    @test XLSX.getcellrange(s, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
+    @test XLSX.getcellrange(f, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
+    @test XLSX.getcellrange(s, XLSX.SheetRowRange("Sheet1!2:2")) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
+
     XLSX.addDefinedName(f, "MyName1", "Sheet1!A1")
     XLSX.addDefinedName(s, "MyName2", "Sheet1!A2:A3")
+    XLSX.addDefinedName(f, "MyName3", "Sheet1!A2,Sheet1!A3")
     s["MyName1"] = 12.9
     @test s["MyName1"] == 12.9
     s["MyName2"] = 42
     @test s["MyName2"] == [42; 42;;]
     @test XLSX.getcell(s, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "")
     @test XLSX.getcell(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
+    @test XLSX.getcell(f, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "")
+    @test XLSX.getcellrange(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
+    @test XLSX.getcellrange(s, "MyName3") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "")]
+    @test XLSX.getcellrange(f, "MyName3") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "")]
 
 end
 
@@ -1091,7 +1124,7 @@ end
     # test keep_empty_rows
     for (stop_in_empty_row, keep_empty_rows, n_rows) in [
         (false, false, 9),
-        (false, true, 10),
+        (false, true, 11),
         (true, false, 8),
         (true, true, 8)
     ]
@@ -1135,6 +1168,13 @@ end
     @test ismissing(d[12, 1])
     @test ismissing(d[12, 2])
     @test ismissing(d[12, 3])
+
+    d1 = XLSX.getdata(s, "2:3")
+    @test size(d1) == (2, 8)
+    @test d1[1, 2] == "Column B"
+    @test d1[1, 4] == "Column D"
+    @test d1[2, 2] == 1
+    @test d1[2, 4] == Date(2018, 4, 21)
 
     d2 = f["table!B:D"]
     @test size(d) == size(d2)
@@ -1351,6 +1391,56 @@ end
         @test col_names == [:H2, :H3]
         test_data = Any[Any["C3", missing], Any[missing, "D4"]]
         check_test_data(data, test_data)
+    end
+
+    @testset "readtable empty rows" begin
+        t=XLSX.readtable(joinpath(data_directory, "EmptyTableRows.xlsx"), "EmptyRow", "B:C"; first_row=2, stop_in_empty_row=false, keep_empty_rows=true)
+        test_data = Vector{Any}(undef, 2)
+        test_data[1] = [1, 2, missing, missing, 3, 4, 5]
+        test_data[2] = ["a", "b", missing, missing, "c", "d", "e"]
+        check_test_data(t.data, test_data)
+        @test t.column_labels == [Symbol("Col A"), Symbol("Col B")]
+        @test t.column_label_index == Dict(Symbol("Col A") => 1, Symbol("Col B") => 2)
+
+        t=XLSX.readtable(joinpath(data_directory, "EmptyTableRows.xlsx"), "EmptyCols", "B:C"; first_row=2, stop_in_empty_row=false, keep_empty_rows=true)
+        test_data = Vector{Any}(undef, 2)
+        test_data[1] = [1, 2, missing, missing, 3, 4, 5]
+        test_data[2] = ["a", "b", missing, missing, "c", "d", "e"]
+        check_test_data(t.data, test_data)
+        @test t.column_labels == [Symbol("Col A"), Symbol("Col B")]
+        @test t.column_label_index == Dict(Symbol("Col A") => 1, Symbol("Col B") => 2)
+
+        t=XLSX.readtable(joinpath(data_directory, "EmptyTableRows.xlsx"), "MixedEmpty", "B:C"; first_row=2, stop_in_empty_row=false, keep_empty_rows=true)
+        test_data = Vector{Any}(undef, 2)
+        test_data[1] = [1, 2, missing, missing, 3, 4, 5, missing, missing, missing, missing, missing, 6, 7, 8, missing, missing, missing, missing, missing, missing, missing, 9, 10, 11, 12, 13, 14, 15, 16]
+        test_data[2] = ["a", "b", missing, missing, "c", "d", "e", missing, missing, missing, missing, missing, "c", "d", "e", missing, missing, missing, missing, missing, missing, missing, "c", "d", "e", "c", "d", "e", "c", "d"]
+        check_test_data(t.data, test_data)
+        @test t.column_labels == [Symbol("Col A"), Symbol("Col B")]
+        @test t.column_label_index == Dict(Symbol("Col A") => 1, Symbol("Col B") => 2)
+
+        t=XLSX.readtable(joinpath(data_directory, "EmptyTableRows.xlsx"), "EmptyRow", "B:C"; first_row=2, stop_in_empty_row=false, keep_empty_rows=false)
+        test_data = Vector{Any}(undef, 2)
+        test_data[1] = [1, 2, 3, 4, 5]
+        test_data[2] = ["a", "b", "c", "d", "e"]
+        check_test_data(t.data, test_data)
+        @test t.column_labels == [Symbol("Col A"), Symbol("Col B")]
+        @test t.column_label_index == Dict(Symbol("Col A") => 1, Symbol("Col B") => 2)
+
+        t=XLSX.readtable(joinpath(data_directory, "EmptyTableRows.xlsx"), "EmptyCols", "B:C"; first_row=2, stop_in_empty_row=false, keep_empty_rows=false)
+        test_data = Vector{Any}(undef, 2)
+        test_data[1] = [1, 2, 3, 4, 5]
+        test_data[2] = ["a", "b", "c", "d", "e"]
+        check_test_data(t.data, test_data)
+        @test t.column_labels == [Symbol("Col A"), Symbol("Col B")]
+        @test t.column_label_index == Dict(Symbol("Col A") => 1, Symbol("Col B") => 2)
+
+        t=XLSX.readtable(joinpath(data_directory, "EmptyTableRows.xlsx"), "MixedEmpty", "B:C"; first_row=2, stop_in_empty_row=false, keep_empty_rows=false)
+        test_data = Vector{Any}(undef, 2)
+        test_data[1] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        test_data[2] = ["a", "b", "c", "d", "e", "c", "d", "e", "c", "d", "e", "c", "d", "e", "c", "d"]
+        check_test_data(t.data, test_data)
+        @test t.column_labels == [Symbol("Col A"), Symbol("Col B")]
+        @test t.column_label_index == Dict(Symbol("Col A") => 1, Symbol("Col B") => 2)
     end
 
     @testset "Read DataFrame" begin
@@ -1628,6 +1718,9 @@ end
         @test_throws XLSX.XLSXError XLSX.deletesheet!(s)
         @test_throws XLSX.XLSXError XLSX.deletesheet!(f, "Sheet1")
 
+        f=XLSX.openxlsx(joinpath(data_directory,"deletesheet.xlsx"), mode="rw")
+        XLSX.deletesheet!(f[1])
+        @test XLSX.getcell(f[1], "A1") == XLSX.Cell(XLSX.CellRef("A1"), "e", "", "#REF!", XLSX.Formula("#REF!+#REF!", nothing))
     end
 
     isfile("template_with_new_sheet.xlsx") && rm("template_with_new_sheet.xlsx")
@@ -5880,8 +5973,7 @@ end
     @test xf["DATA"]["E7"] ≈ 12.6215
 end
 
-# issue 303
-#= Awaiting update of XML.jl to fix
+# issue #303
 @testset "xml:space" begin
     f = XLSX.openxlsx(joinpath(data_directory,"sstTest.xlsx"), mode="rw")
     s=f[1]
@@ -5894,9 +5986,18 @@ end
     @test XLSX.getdata(s, "C1:C5") ==  Any[" "; " hello"; "hello "; " hello "; " \"hello\" ";;]
     XLSX.writexlsx("mydata.xlsx", f, overwrite=true)
     @test XLSX.readdata("mydata.xlsx", 1, :) == ["  hello" "    " " "; "  hello  " "    " " hello"; " hello\">" "    " "hello "; "hello\">" "    " " hello "; "  hello" "    " " \"hello\" "]
+    XLSX.writetable("mydata.xlsx", [["  hello", "  hello  ", " hello\">", "hello\">", "  hello"], ["    ", "    ", "    ", "    ", "    "],[" ", " hello", "hello ", " hello ", " \"hello\" "]], ["Col_A", "Col_B", "Col_C"]; overwrite=true)
+    @test XLSX.readdata("mydata.xlsx", 1, :) == ["Col_A" "Col_B" "Col_C"; "  hello" "    " " "; "  hello  " "    " " hello"; " hello\">" "    " "hello "; "hello\">" "    " " hello "; "  hello" "    " " \"hello\" "]
     isfile("mydata.xlsx") && rm("mydata.xlsx")
 end
-=#
+
+# issue #243
+@testset "xml bom" begin
+    xf = XLSX.readxlsx(joinpath(data_directory, "Bom - issue243.xlsx"))
+    @test XLSX.sheetnames(xf) == ["QMJ Factors", "Definition", "Data Sources", "--> Additional Global Factors", "MKT", "SMB", "HML FF", "HML Devil", "UMD", "ME(t-1)", "RF", "Sources and Definitions", "Disclosures"]
+    @test XLSX.sheetcount(xf) == 13
+    @test XLSX.hassheet(xf, "QMJ Factors") == true
+end
 
 @testset "inlineStr" begin
     xf = XLSX.readxlsx(joinpath(data_directory, "inlinestr.xlsx"))

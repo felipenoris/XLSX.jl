@@ -26,7 +26,7 @@ PrecompileTools = "1"
 Random = "1.10.0"
 Tables = "1"
 UUIDs = "1.8"
-XML = "0.3.5"
+XML = "0.3.6"
 ZipArchives = "2.5"
 julia = "1.8"
 
