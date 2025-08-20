@@ -5997,6 +5997,7 @@ end
     @test XLSX.sheetnames(xf) == ["QMJ Factors", "Definition", "Data Sources", "--> Additional Global Factors", "MKT", "SMB", "HML FF", "HML Devil", "UMD", "ME(t-1)", "RF", "Sources and Definitions", "Disclosures"]
     @test XLSX.sheetcount(xf) == 13
     @test XLSX.hassheet(xf, "QMJ Factors") == true
+    @test xf["QMJ Factors"]["H833"] ≈ -0.0686846616503713
 end
 
 @testset "inlineStr" begin

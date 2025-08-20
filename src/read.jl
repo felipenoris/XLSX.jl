@@ -1,11 +1,11 @@
 
-@inline get_xlsxfile(wb::Workbook) :: XLSXFile = wb.package
-@inline get_xlsxfile(ws::Worksheet) :: XLSXFile = ws.package
-@inline get_workbook(ws::Worksheet) :: Workbook = get_xlsxfile(ws).workbook
-@inline get_workbook(xl::XLSXFile) :: Workbook = xl.workbook
+@inline get_xlsxfile(wb::Workbook)::XLSXFile = wb.package
+@inline get_xlsxfile(ws::Worksheet)::XLSXFile = ws.package
+@inline get_workbook(ws::Worksheet)::Workbook = get_xlsxfile(ws).workbook
+@inline get_workbook(xl::XLSXFile)::Workbook = xl.workbook
 
-const ZIP_FILE_HEADER = [ 0x50, 0x4b, 0x03, 0x04 ]
-const XLS_FILE_HEADER = [ 0xd0, 0xcf, 0x11, 0xe0 ]
+const ZIP_FILE_HEADER = [0x50, 0x4b, 0x03, 0x04]
+const XLS_FILE_HEADER = [0xd0, 0xcf, 0x11, 0xe0]
 
 function check_for_xlsx_file_format(source::IO, label::AbstractString="input")
     local header::Vector{UInt8}
@@ -88,7 +88,7 @@ function open_empty_template(
     if sheetname != ""
         rename!(xf[1], sheetname)
     end
-    xf.source="blank.xlsx"
+    xf.source = "blank.xlsx"
     return xf
 end
 
@@ -101,7 +101,7 @@ and return a closed XLSXFile.
 
 Consider using [`XLSX.openxlsx`](@ref) for lazy loading of Excel file contents.
 """
-@inline readxlsx(source::Union{AbstractString, IO}) :: XLSXFile = open_or_read_xlsx(source, true, true, false)
+@inline readxlsx(source::Union{AbstractString,IO})::XLSXFile = open_or_read_xlsx(source, true, true, false)
 
 """
     openxlsx(f::F, source::Union{AbstractString, IO}; mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
@@ -190,8 +190,8 @@ end
 
 See also [`XLSX.readxlsx`](@ref).
 """
-function openxlsx(f::F, source::Union{AbstractString, IO};
-                  mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
+function openxlsx(f::F, source::Union{AbstractString,IO};
+    mode::AbstractString="r", enable_cache::Bool=true) where {F<:Function}
 
     _read, _write = parse_file_mode(mode)
 
@@ -236,12 +236,12 @@ XLSX.savexlsx(xf)
 
 ```
 """
-function openxlsx(source::Union{AbstractString, IO};
-                  mode::AbstractString="r",
-                  enable_cache::Bool=true) :: XLSXFile
+function openxlsx(source::Union{AbstractString,IO};
+    mode::AbstractString="r",
+    enable_cache::Bool=true)::XLSXFile
 
     _read, _write = parse_file_mode(mode)
-    
+
     if _read
         if !(source isa IO || isfile(source))
             throw(XLSXError("File $source not found."))
@@ -254,7 +254,7 @@ function openxlsx(source::Union{AbstractString, IO};
     end
 end
 
-function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
+function parse_file_mode(mode::AbstractString)::Tuple{Bool,Bool}
     if mode == "r"
         return (true, false)
     elseif mode == "w"
@@ -266,7 +266,7 @@ function parse_file_mode(mode::AbstractString) :: Tuple{Bool, Bool}
     end
 end
 
-function open_or_read_xlsx(source::Union{IO, AbstractString}, _read::Bool, enable_cache::Bool, _write::Bool) :: XLSXFile
+function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable_cache::Bool, _write::Bool)::XLSXFile
     # sanity check
     if _write
         !(_read && enable_cache) && throw(XLSXError("Cache must be enabled for files in `write` mode."))
@@ -282,12 +282,12 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, _read::Bool, enabl
 
         # let customXML files get passed through to write like binaries are (below).
         if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
-            
+
             # Identify usable xml files in XLSXFile
             internal_xml_file_add!(xf, f)
 
-            if _write # Read files for processing and writing out later
-                 internal_xml_file_read(xf, f)
+            if _write || f == "xl/sharedStrings.xml" # Read files for processing and writing out later
+                internal_xml_file_read(xf, f)
             end
 
         elseif _write
@@ -301,7 +301,7 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, _read::Bool, enabl
     parse_relationships!(xf)
     parse_workbook!(xf)
 
-    if enable_cache 
+    if enable_cache
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
             if _write # fill cache eagerly during open if in write mode
@@ -322,8 +322,8 @@ function open_or_read_xlsx(source::Union{IO, AbstractString}, _read::Bool, enabl
 
     return xf
 end
-function get_namespaces(r::XML.Node) :: Dict{String, String}
-    nss = Dict{String, String}()
+function get_namespaces(r::XML.Node)::Dict{String,String}
+    nss = Dict{String,String}()
     for (key, value) in XML.attributes(r)
         if startswith(key, "xmlns")
             prefix = split(key, ':')
@@ -336,13 +336,13 @@ function get_namespaces(r::XML.Node) :: Dict{String, String}
     end
     return nss
 end
-function get_default_namespace(r::XML.Node) :: String
+function get_default_namespace(r::XML.Node)::String
     nss = get_namespaces(r)
 
     # in case that only one namespace is defined, assume that it is the default one
     # even if it has a prefix
     length(nss) == 1 && return first(values(nss))
-    
+
     # otherwise, look for the default namespace (without prefix)
     for (prefix, ns) in nss
         if prefix == ""
@@ -356,10 +356,10 @@ end
 # See section 12.2 - Package Structure
 function check_minimum_requirements(xf::XLSXFile)
     mandatory_files = ["_rels/.rels",
-                       "xl/workbook.xml",
-                       "[Content_Types].xml",
-                       "xl/_rels/workbook.xml.rels"
-                       ]
+        "xl/workbook.xml",
+        "[Content_Types].xml",
+        "xl/_rels/workbook.xml.rels"
+    ]
 
     for f in mandatory_files
         !in(f, filenames(xf)) && throw(XLSXError("Malformed XLSX File. Couldn't find file $f in the package."))
@@ -409,7 +409,7 @@ end
 # Updates xf.workbook from xf.data[\"xl/workbook.xml\"]
 function parse_workbook!(xf::XLSXFile)
     xroot = xmlroot(xf, "xl/workbook.xml")[end]
-    chn=XML.children(xroot)
+    chn = XML.children(xroot)
     XML.tag(xroot) != "workbook" && throw(XLSXError("Malformed xl/workbook.xml. Root node name should be 'workbook'. Got '$(XML.tag(xroot))'."))
 
     # workbook to be parsed
@@ -436,7 +436,7 @@ function parse_workbook!(xf::XLSXFile)
                         throw(XLSXError("Could not parse xl/workbook -> workbookPr -> date1904 = $(attribute_value_date1904)."))
                     end
                 end
-             end
+            end
 
 
             break
@@ -448,7 +448,7 @@ function parse_workbook!(xf::XLSXFile)
     for node in chn
         if XML.tag(node) == "sheets"
 
-           for sheet_node in XML.children(node)
+            for sheet_node in XML.children(node)
                 XML.tag(sheet_node) != "sheet" && throw(XLSXError("Unsupported node $(XML.tag(sheet_node)) in node $(XML.tag(node)) in 'xl/workbook.xml'."))
                 worksheet = Worksheet(xf, sheet_node)
                 push!(sheets, worksheet)
@@ -465,64 +465,64 @@ function parse_workbook!(xf::XLSXFile)
             for defined_name_node in XML.children(node)
 
                 if XML.tag(defined_name_node) == "definedName"
-                     
+
                     defined_value_string = XML.value(defined_name_node[1])
                     name = XML.attributes(defined_name_node)["name"]
 
                     local defined_value::DefinedNameValueTypes
                     if is_valid_non_contiguous_range(defined_value_string)
-                        defined_value = NonContiguousRange(unquoteit(defined_value_string)) 
-                        isabs=Vector{Bool}(undef,length(defined_value.rng))
+                        defined_value = NonContiguousRange(unquoteit(defined_value_string))
+                        isabs = Vector{Bool}(undef, length(defined_value.rng))
                         for (i, d) in enumerate(split(defined_value_string, ","))
-                            isabs[i]=is_valid_fixed_sheet_cellname(d) || is_valid_fixed_sheet_cellrange(d)
+                            isabs[i] = is_valid_fixed_sheet_cellname(d) || is_valid_fixed_sheet_cellrange(d)
                         end
                         length(isabs) != length(defined_value.rng) && throw(XLSXError("Error parsing absolute references in non-contiguous range."))
                     elseif is_valid_fixed_sheet_cellname(defined_value_string)
                         defined_value = SheetCellRef(unquoteit(defined_value_string))
-                        isabs=true
+                        isabs = true
                     elseif is_valid_sheet_cellname(defined_value_string)
                         defined_value = SheetCellRef(unquoteit(defined_value_string))
-                        isabs=false
+                        isabs = false
                     elseif is_valid_fixed_sheet_cellrange(defined_value_string)
                         defined_value = SheetCellRange(unquoteit(defined_value_string))
-                        isabs=true
+                        isabs = true
                     elseif is_valid_sheet_cellrange(defined_value_string)
                         defined_value = SheetCellRange(unquoteit(defined_value_string))
-                        isabs=false
+                        isabs = false
                     elseif occursin(r"^\".*\"$", defined_value_string) # is enclosed by quotes
                         defined_value = defined_value_string[nextind(defined_value_string, begin):prevind(defined_value_string, end)] # remove enclosing quotes
                         if isempty(defined_value)
                             defined_value = missing
                         end
-                        isabs=false
+                        isabs = false
                     elseif tryparse(Int, defined_value_string) !== nothing
                         defined_value = parse(Int, defined_value_string)
-                        isabs=false
+                        isabs = false
                     elseif tryparse(Float64, defined_value_string) !== nothing
                         defined_value = parse(Float64, defined_value_string)
-                        isabs=false
+                        isabs = false
                     elseif isempty(defined_value_string)
                         defined_value = missing
-                        isabs=false
+                        isabs = false
                     else
 
                         # Couldn't parse definedName. Will silently ignore it, since this is not a critical feature.
                         # Actually is just interpreted as a string anyway and added to the defined names (is this true?).
                         defined_value = string(defined_value_string)
-                        isabs=false
+                        isabs = false
                         #continue
 
                         # debug - Now more important since we are writing updated defined names to back to output file.
                         # throw(XLSXError("Could not parse value $(defined_value_string) for definedName $name."))
                     end
                     a = XML.attributes(defined_name_node)
-                    if haskey(a,"localSheetId")
+                    if haskey(a, "localSheetId")
                         # is a Worksheet level name
 
                         # localSheetId is the 0-based index of the Worksheet in the order
                         # that it is displayed on screen.
                         # Which is the order of the elements under <sheets> element in workbook.xml .
-                        localSheetId = parse(Int, a["localSheetId"])+1
+                        localSheetId = parse(Int, a["localSheetId"]) + 1
                         sheetId = workbook.sheets[localSheetId].sheetId
                         workbook.worksheet_names[(sheetId, name)] = DefinedNameValue(defined_value, isabs)
                     else
@@ -543,10 +543,10 @@ end
 @inline filenames(xl::XLSXFile) = keys(xl.files)
 
 # Returns true if the file data was read into xl.data.
-@inline function internal_xml_file_isread(xl::XLSXFile, filename::String) :: Bool
+@inline function internal_xml_file_isread(xl::XLSXFile, filename::String)::Bool
     return xl.files[filename]
 end
-@inline internal_xml_file_exists(xl::XLSXFile, filename::String) :: Bool = haskey(xl.files, filename)
+@inline internal_xml_file_exists(xl::XLSXFile, filename::String)::Bool = haskey(xl.files, filename)
 
 function internal_xml_file_add!(xl::XLSXFile, filename::String)
     !(endswith(filename, ".xml") || endswith(filename, ".rels")) && throw(XLSXError("Something wrong here!"))
@@ -557,7 +557,7 @@ end
 function strip_bom_and_lf!(bytes::Vector{UInt8})
     # Issue 243 - Need to remove BOM characters that precede the XML declaration.
     bom = UInt8[0xEF, 0xBB, 0xBF]
-    l=length(bytes)
+    l = length(bytes)
     if l >= 3 && bytes[1:3] == bom
         if l > 3 && bytes[4] == 0x0A
             deleteat!(bytes, 1:4)
@@ -566,8 +566,46 @@ function strip_bom_and_lf!(bytes::Vector{UInt8})
         end
     end
 end
-function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
-    
+function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed up reading of large files
+    new = Vector{UInt8}()
+    skipped = Vector{UInt8}()
+    n = XML.next(r)
+    append!(new, n.data[n.pos:n.pos+n.len])
+    while first(XML.get_name(n.data, n.pos)) != skipnode
+        n = XML.next(n)
+        append!(new, n.data[n.pos:n.pos+n.len])
+    end
+    append!(new, Vector{UInt8}("<dummy/>")) # add dummy child to prevent formation of self-closing <sheetdata/> element
+    if skipnode == "sheetData"
+        append!(skipped, Vector{UInt8}("<worksheet>"))
+        append!(skipped, Vector{UInt8}("<sheetData>"))
+    elseif skipnode == "sst"
+        append!(skipped, Vector{UInt8}("<sst>"))
+    else
+        throw(XLSXError("Unknown skipnode $skipnode."))
+    end
+    sdepth = n.depth
+    n = XML.next(n)
+    while n !== nothing && n.depth > sdepth
+        append!(skipped, n.data[n.pos:n.pos+n.len])
+        n = XML.next(n)
+    end
+    while n !== nothing
+        append!(new, n.data[n.pos:n.pos+n.len])
+        n = XML.next(n)
+    end
+    if skipnode == "sheetData"
+        append!(skipped, Vector{UInt8}("</sheetData>"))
+        append!(skipped, Vector{UInt8}("<dummy2/>")) # add dummy2 to support SheetRowIterator, which expects subsequent siblings after sheetData
+        append!(skipped, Vector{UInt8}("</workshet>"))
+    else skipnode == "sst"
+        append!(skipped, Vector{UInt8}("</sst>"))
+    end
+    return new, skipped
+end
+
+function internal_xml_file_read(xf::XLSXFile, filename::String)
+
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
     if !internal_xml_file_isread(xf, filename)
@@ -575,7 +613,15 @@ function internal_xml_file_read(xf::XLSXFile, filename::String) :: XML.Node
         try
             bytes = ZipArchives.zip_readentry(xf.io, filename)
             strip_bom_and_lf!(bytes)
-            xf.data[filename] = XML.Node(XML.Raw(bytes))
+            if occursin(r"xl/worksheets/sheet\d+.xml|xl/sharedStrings.xml", filename)
+                skipnode = filename == "xl/sharedStrings.xml" ? "sst" : "sheetData"
+                f, s = skipNode(XML.Raw(bytes), skipnode) # <row> and <sst> elements can be very numerous in large files, so split out and keep as Raw XML data for speed
+
+                xf.data[filename] = XML.Node(XML.Raw(f))
+                xf.sstrow[filename] = XML.Raw(s)
+            else
+                xf.data[filename] = XML.Node(XML.Raw(bytes))
+            end
             xf.files[filename] = true # set file as read
         catch err
             throw(XLSXError("Failed to parse internal XML file `$filename`"))
@@ -588,10 +634,10 @@ end
 
 # Utility method to find the XMLDocument associated with a given package filename.
 # Returns xl.data[filename] if it exists. Throws an error if it doesn't.
-@inline xmldocument(xl::XLSXFile, filename::String) :: XML.Node = internal_xml_file_read(xl, filename)
+@inline xmldocument(xl::XLSXFile, filename::String)::XML.Node = internal_xml_file_read(xl, filename)
 
 # Utility method to return the root element of a given XMLDocument from the package.
-@inline xmlroot(xl::XLSXFile, filename::String) :: XML.Node = xmldocument(xl, filename)
+@inline xmlroot(xl::XLSXFile, filename::String)::XML.Node = xmldocument(xl, filename)
 
 #
 # Helper Functions
@@ -643,14 +689,14 @@ julia> XLSX.readdata("customXml.xlsx", "Mock-up", "Location") # `Location` is a 
  missing
 ```
 """
-function readdata(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, ref)
+function readdata(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, ref)
     c = openxlsx(source, enable_cache=false) do xf
         getdata(getsheet(xf, sheet), ref)
     end
     return c
 end
 
-function readdata(source::Union{AbstractString, IO}, sheetref::AbstractString)
+function readdata(source::Union{AbstractString,IO}, sheetref::AbstractString)
     c = openxlsx(source, enable_cache=false) do xf
         getdata(xf, sheetref)
     end
@@ -737,27 +783,27 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readtable(source::Union{AbstractString, IO}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, 1); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
-   return c
+    return c
 end
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, columns::ColumnRange; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, columns::ColumnRange; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString; first_row::Union{Nothing, Int} = nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing, Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, range::AbstractString; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     if is_valid_column_range(range)
         range = ColumnRange(range)
     else
@@ -803,19 +849,19 @@ julia> df = XLSX.readto("myfile.xlsx", "mysheet", "A:C", DataFrame)
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readto(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, range::AbstractString, sink=nothing; kw...)
+function readto(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, range::AbstractString, sink=nothing; kw...)
     if sink === nothing
         throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, columns, DataFrame)`"))
     end
     return Tables.CopiedColumns(readtable(source, sheet, range; kw...)) |> sink
 end
-function readto(source::Union{AbstractString, IO}, sheet::Union{AbstractString, Int}, sink=nothing; kw...)
+function readto(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, sink=nothing; kw...)
     if sink === nothing
         throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
     end
     return Tables.CopiedColumns(readtable(source, sheet; kw...)) |> sink
 end
-function readto(source::Union{AbstractString, IO}, sink=nothing; kw...)
+function readto(source::Union{AbstractString,IO}, sink=nothing; kw...)
     if sink === nothing
         throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
     end

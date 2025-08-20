@@ -47,11 +47,18 @@ end
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( itr = $(state.itr), itr_state = $(state.itr_state), row = $(state.row) )")
 
 # Opens a file for streaming.
-@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
+@inline function open_internal_file_stream(xf::XLSXFile, filename::String)# :: XML.LazyNode
 
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
-    return XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+    if haskey(xf.sstrow, filename)
+        # this is a file that was already read and stored in the `sstrow` dictionary
+        # so we can just return it
+        return XML.LazyNode(xf.sstrow[filename])
+    else
+        return XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+
+    end
 end
 
 # Creates a reader for row elements in the Worksheet's XML.

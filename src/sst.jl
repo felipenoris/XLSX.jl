@@ -84,7 +84,7 @@ function sst_load!(workbook::Workbook)
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            sst_root = xmlroot(get_xlsxfile(workbook), get_relationship_target_by_type("xl", workbook, relationship_type))[end]
+            sst_root = XML.LazyNode(get_xlsxfile(workbook).sstrow["xl/sharedStrings.xml"][end])
             XML.tag(sst_root) != "sst" && throw(XLSXError("Something wrong here!"))
 
             for el in XML.children(sst_root)
@@ -112,9 +112,9 @@ end
 # Helper function to gather unformatted text from Excel data files.
 # It looks at all children of `el` for tag name `t` and returns
 # a join of all the strings found.
-function unformatted_text(el::XML.Node) :: String
+function unformatted_text(el::XML.LazyNode) :: String
 
-    function gather_strings!(v::Vector{String}, e::XML.Node)
+    function gather_strings!(v::Vector{String}, e)
         if XML.tag(e) == "t"
             c = XML.children(e)
             if length(c) == 1
@@ -122,7 +122,6 @@ function unformatted_text(el::XML.Node) :: String
             elseif length(c) == 0
                 push!(v, isnothing(XML.value(e)) ? "" : XML.is_simple(e) ? XML.simple_value(e) : XML.value(e))
             else
-#                println([i, " => ", XML.write(x) for (i, x) in enumerate(c)])
                 throw(XLSXError("Unexpected number of children in <t> node: $(length(c)). Expected 0 or 1."))
             end
         end
