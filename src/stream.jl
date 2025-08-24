@@ -120,7 +120,11 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
                     a = XML.attributes(lzstate)
                     current_row = parse(Int, a["r"])
                     current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
-                    nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
+                    nc = 0
+                    for child in XML.children(lzstate)
+                        XML.nodetype(child) == XML.Element && XML.tag(child) == "c" && (nc += 1)
+                    end
+                    #nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
                     cell_no = 0
                     break
                 end
@@ -153,7 +157,11 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             a = XML.attributes(lzstate)
             current_row = parse(Int, a["r"])
             current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
-            nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
+            nc = 0
+            for child in XML.children(lzstate)
+                XML.nodetype(child) == XML.Element && XML.tag(child) == "c" && (nc += 1)
+            end
+            #nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
             cell_no = 0
 
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell

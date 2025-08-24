@@ -567,16 +567,17 @@ function strip_bom_and_lf!(bytes::Vector{UInt8})
     end
 end
 function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed up reading of large files
-    new = Vector{UInt8}()
-    skipped = Vector{UInt8}()
+    new = Vector{UInt8}() # original data with <sheetData> or <sst> node removed
+    skipped = Vector{UInt8}() # just the <sheetData> or <sst> node and its children
     n = XML.next(r)
     append!(new, n.data[n.pos:n.pos+n.len])
-    while first(XML.get_name(n.data, n.pos)) != skipnode
+    while first(XML.get_name(n.data, n.pos)) != skipnode # Retain everything before the <sheetData> or <sst> node
         n = XML.next(n)
         append!(new, n.data[n.pos:n.pos+n.len])
     end
     append!(new, Vector{UInt8}("<dummy/>")) # add dummy child to prevent formation of self-closing <sheetdata/> element
-    if skipnode == "sheetData"
+
+    if skipnode == "sheetData" # Add parents for <row> or <sst> elements to the excerpted data
         append!(skipped, Vector{UInt8}("<worksheet>"))
         append!(skipped, Vector{UInt8}("<sheetData>"))
     elseif skipnode == "sst"
@@ -586,15 +587,15 @@ function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed
     end
     sdepth = n.depth
     n = XML.next(n)
-    while n !== nothing && n.depth > sdepth
+    while n !== nothing && n.depth > sdepth # Put all children of <sheetData> or <sst> into the excerpted data
         append!(skipped, n.data[n.pos:n.pos+n.len])
         n = XML.next(n)
     end
-    while n !== nothing
+    while n !== nothing # Retain everything after the <sheetData> or <sst> node
         append!(new, n.data[n.pos:n.pos+n.len])
         n = XML.next(n)
     end
-    if skipnode == "sheetData"
+    if skipnode == "sheetData"  # close parents for <row> or <sst> elements in the excerpted data
         append!(skipped, Vector{UInt8}("</sheetData>"))
         append!(skipped, Vector{UInt8}("<dummy2/>")) # add dummy2 to support SheetRowIterator, which expects subsequent siblings after sheetData
         append!(skipped, Vector{UInt8}("</workshet>"))
@@ -616,7 +617,6 @@ function internal_xml_file_read(xf::XLSXFile, filename::String)
             if occursin(r"xl/worksheets/sheet\d+.xml|xl/sharedStrings.xml", filename)
                 skipnode = filename == "xl/sharedStrings.xml" ? "sst" : "sheetData"
                 f, s = skipNode(XML.Raw(bytes), skipnode) # <row> and <sst> elements can be very numerous in large files, so split out and keep as Raw XML data for speed
-
                 xf.data[filename] = XML.Node(XML.Raw(f))
                 xf.sstrow[filename] = XML.Raw(s)
             else

@@ -114,9 +114,9 @@ end
 # a join of all the strings found.
 function unformatted_text(el::XML.LazyNode) :: String
 
-    function gather_strings!(v::Vector{String}, e)
+    function gather_strings!(v::Vector{String}, e::XML.LazyNode)
         if XML.tag(e) == "t"
-            c = XML.children(e)
+            c=XML.children(e)
             if length(c) == 1
                 push!(v, XML.is_simple(c[1]) ? XML.simple_value(c[1]) : XML.value(c[1]))
             elseif length(c) == 0
@@ -126,8 +126,9 @@ function unformatted_text(el::XML.LazyNode) :: String
             end
         end
 
-        for ch in XML.children(e)
-            if XML.tag(e) != "rPh"
+        if XML.tag(e) != "rPh"
+            for ch in XML.children(e)
+                # recursively gather strings from children
                 gather_strings!(v, ch)
             end 
         end
