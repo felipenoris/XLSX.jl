@@ -84,23 +84,94 @@ function sst_load!(workbook::Workbook)
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            sst_root = XML.LazyNode(get_xlsxfile(workbook).sstrow["xl/sharedStrings.xml"][end])
-            XML.tag(sst_root) != "sst" && throw(XLSXError("Something wrong here!"))
+            
+            sst_chan = stream_ssts(open_internal_file_stream(get_xlsxfile(workbook), "xl/sharedStrings.xml")[end])
+            load_sst_table!(workbook, sst_chan, min(4,Threads.nthreads()))
+            
+#            sst_root=open_internal_file_stream(get_xlsxfile(workbook), "xl/sharedStrings.xml")[end]
+#            XML.tag(sst_root) != "sst" && throw(XLSXError("Something wrong here!"))
 
-            for el in XML.children(sst_root)
-                XML.nodetype(el) == XML.Text && continue
-                XML.tag(el) != "si" && throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
-                push!(sst.unformatted_strings, unformatted_text(el))
-                push!(sst.formatted_strings, XML.write(el))
-            end
+#            for el in XML.children(sst_root)
+#                XML.nodetype(el) == XML.Text && continue
+#                XML.tag(el) != "si" && throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
+#                push!(sst.unformatted_strings, unformatted_text(el))
+#                push!(sst.formatted_strings, XML.write(el))
+#            end
 
             init_sst_index(sst)
             sst.is_loaded=true
+            
             return
         end
 
         throw(XLSXError("Shared Strings Table not found for this workbook."))
     end
+end
+function stream_ssts(io::XML.LazyNode; channel_size::Int=1 << 20)
+    n = XML.next(io)
+    i=0
+    Channel{SstToken}(channel_size) do out
+        while !isnothing(n)
+            if n.tag == "si"
+                i += 1
+                put!(out, SstToken(n, i))
+            end
+            n = XML.next(n)
+        end
+    end
+end
+
+function process_sst(sst::SstToken)
+    el = sst.n
+    i = sst.idx
+
+    if XML.nodetype(el) != XML.Text
+        XML.tag(el) != "si" && throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
+        sst = Sst(unformatted_text(el), XML.write(el), i)
+        return sst
+
+    end
+
+end
+
+function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
+    sst_table = get_sst(wb)
+
+    sst_results = Channel{Sst}(1 << 24)
+
+    all_ssts = Vector{Tuple{Int,Sst}}()
+    consumer = @async begin        
+        for sst in sst_results
+            push!(all_ssts, (sst.idx, sst))
+        end    
+
+        sort!(all_ssts, by = x -> x[1])
+    
+        for sst in all_ssts
+            push!(sst_table.unformatted_strings, sst[end].unformatted)
+            push!(sst_table.formatted_strings, sst[end].formatted)
+        end
+    
+    end
+
+    # Producer tasks
+    @sync begin
+        for _ in 1:nthreads
+            Threads.@spawn begin
+                for tok in chan
+                    result = process_sst(tok)
+                    put!(sst_results, result)
+                end
+            end
+        end
+    end
+    close(sst_results)
+
+    wait(consumer)  # ensure consumer is done
+
+    XLSX.init_sst_index(sst_table)
+    sst_table.is_loaded=true
+    
 end
 
 # Checks whether this workbook has a Shared String Table.

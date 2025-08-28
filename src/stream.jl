@@ -356,9 +356,11 @@ defines the number of rows that are not entirely empty and will,
 in any case, only succeed if the worksheet cache is in use.
 """
 function Base.eachrow(ws::Worksheet) :: SheetRowIterator
-   if is_cache_enabled(ws)
+    if is_cache_enabled(ws)
         if ws.cache === nothing
-            ws.cache = WorksheetCache(ws)
+            target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
+            lznode = open_internal_file_stream(get_xlsxfile(ws), target_file)
+            first_cache_fill!(ws, lznode, Threads.nthreads()) # fill cache if enabled but empty on first use of eachrow iterator
         end
         return ws.cache
     else
@@ -418,9 +420,22 @@ end
 
 function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
 
-    rows = stream_rows(lznode)
+    if ws.cache === nothing
+        ws.cache = WorksheetCache(ws)
+    else
+        throw(XLSXError("Expecting empty cache but cache not empty!"))
+    end
 
     sheet_rows = Channel{SheetRow}(1 << 20)
+
+    consumer = @async begin
+        for sheet_row in sheet_rows
+            push_sheetrow!(ws.cache, sheet_row)
+        end
+    end
+
+    rows = stream_rows(lznode)
+
     # Producer tasks
     @sync for _ in 1:nthreads
         Threads.@spawn begin
@@ -432,15 +447,8 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     end
     close(sheet_rows)
 
-    if ws.cache === nothing
-        ws.cache = WorksheetCache(ws)
-    else
-        throw(XLSXError("Expecting empty cache but cache not empty!"))
-    end
+    wait(consumer)
 
-    for sheet_row in sheet_rows
-        push_sheetrow!(ws.cache, sheet_row)
-    end
     ws.cache.is_full=true
 
 end

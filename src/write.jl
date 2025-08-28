@@ -267,9 +267,6 @@ function update_worksheets_xml!(xl::XLSXFile; full=false)
                 i, j = get_idces(sstrows, "worksheet", "sheetData")
                 child_nodes = XML.children(sstrows[i][j])
 
-                i, j = get_idces(doc, "worksheet", "sheetData")
-                parent = doc[i][j]
-
                 for c in child_nodes # all elements under sheetData should be <row> elements
 
                     if XML.tag(c) == "row"
@@ -287,12 +284,12 @@ function update_worksheets_xml!(xl::XLSXFile; full=false)
                     end
                 end
 
-                doc[i][j] = unlink(parent, ("sheetData", "row"))
             end
 
             # updates sheetData
             i, j = get_idces(doc, "worksheet", "sheetData")
             sheetData_node = doc[i][j]
+            doc[i][j] = unlink(sheetData_node, ("sheetData", "row"))
             if isnothing(sheetData_node.children)
                 a = XML.attributes(sheetData_node)
                 sheetData_node = XML.Element(XML.tag(sheetData_node))

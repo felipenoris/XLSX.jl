@@ -536,3 +536,14 @@ struct FileArray <: AbstractVector{UInt8}
     offset::Int64
     len::Int64
 end
+
+#------------------------------------------------------------------------------ for multi-threaded sst loading
+struct SstToken
+    n::XML.LazyNode
+    idx::Int
+end
+struct Sst
+    unformatted::String
+    formatted::String
+    idx::Int
+end

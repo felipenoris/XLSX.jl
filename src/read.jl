@@ -286,7 +286,7 @@ function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable
             # Identify usable xml files in XLSXFile
             internal_xml_file_add!(xf, f)
 
-            if _write || f == "xl/sharedStrings.xml" # Read files for processing and writing out later
+            if _write # Read files for processing and writing out later
                 internal_xml_file_read(xf, f)
             end
 
@@ -304,14 +304,11 @@ function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable
     if enable_cache
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
-#            if _write # fill cache eagerly during open if in write mode
+            if _write # fill cache eagerly during open if in write mode
                 target_file = get_relationship_target_by_id("xl", get_workbook(sheet), sheet.relationship_id)
                 lznode = open_internal_file_stream(xf, target_file)
-                first_cache_fill!(sheet, lznode, min(4, Threads.nthreads()))
-#                for _ in eachrow(sheet) # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
-#                    nothing
-#                end
-#            end
+                first_cache_fill!(sheet, lznode, Threads.nthreads())
+            end
             isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
         end
     end
