@@ -304,11 +304,14 @@ function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable
     if enable_cache
         for sheet_name in sheetnames(xf)
             sheet = getsheet(xf, sheet_name)
-            if _write # fill cache eagerly during open if in write mode
-                for _ in eachrow(sheet) # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
-                    nothing
-                end
-            end
+#            if _write # fill cache eagerly during open if in write mode
+                target_file = get_relationship_target_by_id("xl", get_workbook(sheet), sheet.relationship_id)
+                lznode = open_internal_file_stream(xf, target_file)
+                first_cache_fill!(sheet, lznode, min(4, Threads.nthreads()))
+#                for _ in eachrow(sheet) # to read sheet content, we just need to iterate a SheetRowIterator and the data will be stored in cache
+#                    nothing
+#                end
+#            end
             isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
         end
     end

@@ -47,7 +47,7 @@ end
 Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStreamIteratorState( itr = $(state.itr), itr_state = $(state.itr_state), row = $(state.row) )")
 
 # Opens a file for streaming.
-@inline function open_internal_file_stream(xf::XLSXFile, filename::String)# :: XML.LazyNode
+@inline function open_internal_file_stream(xf::XLSXFile, filename::String) :: XML.LazyNode
 
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
@@ -161,7 +161,6 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
             for child in XML.children(lzstate)
                 XML.nodetype(child) == XML.Element && XML.tag(child) == "c" && (nc += 1)
             end
-            #nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
             cell_no = 0
 
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
@@ -371,4 +370,77 @@ function Base.isempty(sr::SheetRow)
     return isempty(sr.rowcells)
 end
 
-Base.length(r::XLSX.WorksheetCache)=length(r.cells)
+Base.length(r::WorksheetCache)=length(r.cells)
+
+#--------------------------------------------------------------------- Fill cache on first read (multi-threaded)
+function stream_rows(n::XML.LazyNode; channel_size::Int=1 << 20)
+    n = XML.next(n)
+    Channel{XML.LazyNode}(channel_size) do out
+        while !isnothing(n)
+            if n.tag == "row"
+                put!(out, n)
+            end
+            n = XML.next(n)
+        end
+    end
+end
+
+function process_row(row::XML.LazyNode, ws)
+
+    # Get row height if present
+    atts = XML.attributes(row)
+    current_row_ht = haskey(atts, "ht") ? parse(Float64, atts["ht"]) : nothing
+
+    # Get row number from attributes if present
+    row_num = haskey(atts, "r") ? parse(Int, atts["r"]) : nothing
+
+    # Process cells
+    rowcells = Dict{Int,Cell}()
+    cells = XML.children(row)
+
+    for c in cells
+        if c.tag == "c"
+            cell = Cell(c)
+            col_num = column_number(cell)
+
+            # Verify row consistency
+            if row_number(cell) != row_num
+                @warn "Row number mismatch: expected $row_num, got $(row_number(cell))"
+            end
+
+            rowcells[col_num] = cell
+        end
+    end
+
+    return SheetRow(ws, row_num, current_row_ht, rowcells)
+
+end
+
+function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
+
+    rows = stream_rows(lznode)
+
+    sheet_rows = Channel{SheetRow}(1 << 20)
+    # Producer tasks
+    @sync for _ in 1:nthreads
+        Threads.@spawn begin
+            for row in rows
+                sheetrow = process_row(row, ws) # process <row> LazyNodes into SheetRows
+                put!(sheet_rows, sheetrow)
+            end
+        end
+    end
+    close(sheet_rows)
+
+    if ws.cache === nothing
+        ws.cache = WorksheetCache(ws)
+    else
+        throw(XLSXError("Expecting empty cache but cache not empty!"))
+    end
+
+    for sheet_row in sheet_rows
+        push_sheetrow!(ws.cache, sheet_row)
+    end
+    ws.cache.is_full=true
+
+end

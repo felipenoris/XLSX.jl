@@ -842,10 +842,10 @@ end
 end
 
 @testset "No Dimension" begin
-    noDim = XLSX.openxlsx(joinpath(data_directory, "NoDim.xlsx"), mode="rw") # This file has the dimension nodes removed.
-#    Dim = XLSX.readxlsx(joinpath(data_directory, "customXml.xlsx"))
-    @test noDim[1].dimension == XLSX.CellRange(XLSX.CellRef("A1"), XLSX.CellRef("K116"))
-    @test noDim[2].dimension == XLSX.CellRange(XLSX.CellRef("A1"), XLSX.CellRef("C5"))
+    noDim = XLSX.openxlsx(joinpath(data_directory, "NoDim.xlsx"), mode="rw") # This file is the same as customXml but has the dimension nodes removed.
+    Dim = XLSX.readxlsx(joinpath(data_directory, "customXml.xlsx"))
+    @test noDim[1].dimension == Dim[1].dimension
+    @test noDim[2].dimension == Dim[2].dimension
 
     f = XLSX.newxlsx()
     s=f[1]

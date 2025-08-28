@@ -191,7 +191,31 @@ function unlink(node::XML.Node, att::Tuple{String,String})
     end
     return new_node
 end
-function get_idces(doc, t, b)
+function get_idces(doc::XML.LazyNode, t, b)
+    i = 1
+    j = 1
+    n=XML.next(doc)
+    while XML.tag(n) != t
+        n=XML.next(n)
+        if isnothing(n)
+            return nothing, nothing
+        end
+        i += 1
+    end
+    n=XML.next(n)
+    d=n.depth
+    while XML.tag(n) != b
+        n=XML.next(n)
+        if isnothing(n)
+            return i, nothing
+        end
+        if n.depth == d
+            j += 1
+        end
+    end
+    return i, j
+end
+function get_idces(doc::XML.Node, t, b)
     i = 1
     j = 1
     chn=XML.children(doc)
@@ -201,7 +225,6 @@ function get_idces(doc, t, b)
         if i > l
             return nothing, nothing
         end
-
     end
     chn=XML.children(chn[i])
     l=length(chn)

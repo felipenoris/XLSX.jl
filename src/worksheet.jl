@@ -78,13 +78,13 @@ end
 # If the cache is empty or is not being used, set dimension to A1:A1.
 function get_dimension(ws::Worksheet)::Union{Nothing,CellRange}
     !isnothing(ws.dimension) && return ws.dimension
-    if isnothing(ws.cache) || !ws.cache.is_full
+    if isnothing(ws.cache) || isempty(ws.cache) || !ws.cache.is_full
         set_dimension!(ws, CellRange(CellRef(1, 1), CellRef(1, 1)))
     else
         row_extr = extrema(keys(ws.cache.cells))
         row_min = first(row_extr)
         row_max = last(row_extr)
-        col_extr = [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)]]
+        col_extr = [extrema(y) for y in [keys(x) for x in values(ws.cache.cells)] if !isempty(y)]
         col_min = minimum([x for x in first.(col_extr)])
         col_max = maximum([x for x in last.(col_extr)])
         set_dimension!(ws, CellRange(CellRef(row_min, col_min), CellRef(row_max, col_max)))
