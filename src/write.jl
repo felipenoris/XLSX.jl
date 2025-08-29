@@ -35,7 +35,7 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
 
     !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
     if !all(values(xf.files))
-        throw(XLSXError("Some internal files were not loaded into memory for unknown reason."))
+        throw(XLSXError("Some internal files were not loaded into memory for unknown reasons."))
     end
     if output_source isa AbstractString && !overwrite
         isfile(output_source) && throw(XLSXError("Output file $output_source already exists."))
@@ -61,10 +61,10 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
             ZipArchives.zip_newfile(xlsx, f; compress=true)
             write(xlsx, xf.binary_data[f])
         end
-
-        if !isempty(get_sst(xf))
+        wb=get_workbook(xf)
+        if !isempty(get_sst(wb))
             ZipArchives.zip_newfile(xlsx, "xl/sharedStrings.xml"; compress=true)
-            print(xlsx, generate_sst_xml_string(get_sst(xf)))
+            print(xlsx, generate_sst_xml_string(wb))
         end
     end
 
@@ -88,15 +88,20 @@ function set_worksheet_xml_document!(ws::Worksheet, xdoc::XML.Node)
     xf.data[filename] = xdoc
 end
 
-function generate_sst_xml_string(sst::SharedStringTable)::String
+function generate_sst_xml_string(wb::Workbook)::String
+    sst=wb.sst
     !sst.is_loaded && throw(XLSXError("Can't generate XML string from a Shared String Table that is not loaded."))
     buff = IOBuffer()
 
-    # TODO: <sst count="89" (TimG: I don't know what this means!)
+    # TODO - Done! : <sst count="89" (TimG: I don't know what this means! UPDATE: Aha! Got it!)
+    sst_total = 0
+    for sheet in wb.sheets
+        sst_total += sheet.sst_count
+    end
     print(
         buff,
         """
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst uniqueCount="$(length(sst))" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst count="$sst_total" uniqueCount="$(length(sst))" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 """
     )
 
@@ -526,8 +531,8 @@ function xlsx_encode(ws::Worksheet, val::AbstractString)
     if isempty(val)
         return ("", "")
     end
-
     sst_ind = add_shared_string!(get_workbook(ws), strip_illegal_chars(val))
+    ws.sst_count+=1
 
     return ("s", string(sst_ind))
 end

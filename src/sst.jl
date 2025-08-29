@@ -147,9 +147,11 @@ function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
 
         sort!(all_ssts, by = x -> x[1])
     
+        empty!(sst_table.index)
         for sst in all_ssts
             push!(sst_table.unformatted_strings, sst[end].unformatted)
             push!(sst_table.formatted_strings, sst[end].formatted)
+            sst_table.index[sst[end].formatted] = sst[begin]
         end
     
     end
@@ -169,7 +171,6 @@ function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
 
     wait(consumer)  # ensure consumer is done
 
-    XLSX.init_sst_index(sst_table)
     sst_table.is_loaded=true
     
 end

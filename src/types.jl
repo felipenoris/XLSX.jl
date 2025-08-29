@@ -349,9 +349,10 @@ mutable struct Worksheet
     dimension::Union{Nothing, CellRange}
     is_hidden::Bool
     cache::Union{WorksheetCache, Nothing}
+    sst_count::Int # number of cells containing a shared string
 
     function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::Union{Nothing, CellRange}, is_hidden::Bool)
-        return new(package, sheetId, relationship_id, name, dimension, is_hidden, nothing)
+        return new(package, sheetId, relationship_id, name, dimension, is_hidden, nothing, 0)
     end
 end
 
@@ -359,13 +360,22 @@ struct SheetRowStreamIterator <: SheetRowIterator
     sheet::Worksheet
 end
 
+#------------------------------------------------------------------------------ sharedStrings
 mutable struct SharedStringTable
     unformatted_strings::Vector{String}
     formatted_strings::Vector{String}
     index::Dict{String, Int64} # for unformatted_strings search optimisation
     is_loaded::Bool # for lazy-loading of sst XML file (implies that this struct must be mutable)
 end
-
+struct SstToken
+    n::XML.LazyNode
+    idx::Int
+end
+struct Sst
+    unformatted::String
+    formatted::String
+    idx::Int
+end
 const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, Int, Float64, String, Missing}
 const DefinedNameRangeTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange}
 
@@ -430,6 +440,13 @@ mutable struct XLSXFile <: MSOfficePackage
         xl.workbook.package = xl
         return xl
     end
+end
+
+struct ReadFile
+    node::Union{Nothing,XML.Node}
+    raw::Union{Nothing,XML.Raw}
+    bin::Union{Nothing,Vector{UInt8}}
+    name::String
 end
 
 #
@@ -535,15 +552,4 @@ struct FileArray <: AbstractVector{UInt8}
     filename::String
     offset::Int64
     len::Int64
-end
-
-#------------------------------------------------------------------------------ for multi-threaded sst loading
-struct SstToken
-    n::XML.LazyNode
-    idx::Int
-end
-struct Sst
-    unformatted::String
-    formatted::String
-    idx::Int
 end

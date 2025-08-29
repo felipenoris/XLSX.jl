@@ -273,29 +273,7 @@ function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable
     end
     xf = XLSXFile(source, enable_cache, _write)
 
-    for f in ZipArchives.zip_names(xf.io)
-
-        # ignore xl/calcChain.xml in any case (#31)
-        if f == "xl/calcChain.xml"
-            continue
-        end
-
-        # let customXML files get passed through to write like binaries are (below).
-        if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
-
-            # Identify usable xml files in XLSXFile
-            internal_xml_file_add!(xf, f)
-
-            if _write # Read files for processing and writing out later
-                internal_xml_file_read(xf, f)
-            end
-
-        elseif _write
-            # Binary and customXML files
-            # we only read these files to save the Excel file later
-            xf.binary_data[f] = ZipArchives.zip_readentry(xf.io, f)
-        end
-    end
+    load_files!(xf) # multi-threaded file load
 
     check_minimum_requirements(xf)
     parse_relationships!(xf)
@@ -603,6 +581,89 @@ function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed
         append!(skipped, Vector{UInt8}("</sst>"))
     end
     return new, skipped
+end
+
+function stream_files(xf::XLSXFile; channel_size::Int=1 << 10)
+    Channel{String}(channel_size) do out
+        for f in ZipArchives.zip_names(xf.io)
+
+            # ignore xl/calcChain.xml in any case (#31)
+            if f != "xl/calcChain.xml"
+
+                if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
+                    # Identify usable xml files in XLSXFile
+                    internal_xml_file_add!(xf, f)
+                end
+
+                if xf.is_writable # Read files for processing and writing out later
+                    put!(out, f)
+                end
+            end
+        end
+    end
+end
+
+function load_files!(xf::XLSXFile)
+
+    read_files = Channel{ReadFile}(1 << 20)
+    files = stream_files(xf)
+
+    consumer = @async begin
+        for file in read_files
+            if !isnothing(file.node)
+                xf.data[file.name] = file.node
+                xf.files[file.name] = true # set file as read
+            end
+            if !isnothing(file.raw)
+                xf.sstrow[file.name] = file.raw
+            end
+            if !isnothing(file.bin)
+                xf.binary_data[file.name] = file.bin
+            end
+        end
+    end
+
+    @sync for _ in 1:Threads.nthreads()
+        Threads.@spawn begin
+            for file in files
+                readfile = process_file(xf, file) # process <row> LazyNodes into SheetRows
+                put!(read_files, readfile)
+            end
+        end
+    end
+    close(read_files)
+
+    wait(consumer)
+
+end
+
+function process_file(xf::XLSXFile, filename::String)
+
+        node=nothing
+        raw=nothing
+        bin=nothing
+
+        try
+            bytes = ZipArchives.zip_readentry(xf.io, filename)
+            if !startswith(filename, "customXml") && (endswith(filename, ".xml") || endswith(filename, ".rels"))
+                if occursin(r"xl/worksheets/sheet\d+.xml|xl/sharedStrings.xml", filename)
+                    strip_bom_and_lf!(bytes)
+                    skipnode = filename == "xl/sharedStrings.xml" ? "sst" : "sheetData"
+                    f, s = skipNode(XML.Raw(bytes), skipnode) # <row> and <sst> elements can be very numerous in large files, so split out and keep as Raw XML data for speed
+                    node = XML.Node(XML.Raw(f))
+                    raw = XML.Raw(s)
+                else
+                    strip_bom_and_lf!(bytes)
+                    node = XML.Node(XML.Raw(bytes))
+                end
+            else
+                bin = bytes                
+            end
+        catch err
+            throw(XLSXError("Failed to parse internal XML file `$filename`"))
+        end
+
+        return ReadFile(node, raw, bin, filename)
 end
 
 function internal_xml_file_read(xf::XLSXFile, filename::String)

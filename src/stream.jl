@@ -399,11 +399,14 @@ function process_row(row::XML.LazyNode, ws)
     # Process cells
     rowcells = Dict{Int,Cell}()
     cells = XML.children(row)
-
+    sst_count=0
     for c in cells
         if c.tag == "c"
             cell = Cell(c)
             col_num = column_number(cell)
+            if cell.datatype=="s"
+                sst_count += 1
+            end
 
             # Verify row consistency
             if row_number(cell) != row_num
@@ -414,7 +417,7 @@ function process_row(row::XML.LazyNode, ws)
         end
     end
 
-    return SheetRow(ws, row_num, current_row_ht, rowcells)
+    return sst_count, SheetRow(ws, row_num, current_row_ht, rowcells)
 
 end
 
@@ -426,12 +429,15 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
         throw(XLSXError("Expecting empty cache but cache not empty!"))
     end
 
-    sheet_rows = Channel{SheetRow}(1 << 20)
+    sheet_rows = Channel{Tuple{Int, SheetRow}}(1 << 20)
 
     consumer = @async begin
-        for sheet_row in sheet_rows
+        sst_total=0
+        for (row_sst_count, sheet_row) in sheet_rows
             push_sheetrow!(ws.cache, sheet_row)
+            sst_total += row_sst_count
         end
+        ws.sst_count = sst_total
     end
 
     rows = stream_rows(lznode)
