@@ -51,14 +51,8 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
     !internal_xml_file_exists(xf, filename) && throw(XLSXError("Couldn't find $filename in $(xf.source)."))
 
-    if haskey(xf.sstrow, filename)
-        # this is a file that was already read and stored in the `sstrow` dictionary
-        # so we can just return it
-        return XML.LazyNode(xf.sstrow[filename])
-    else
-        return XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
+    return XML.LazyNode(XML.Raw(ZipArchives.zip_readentry(xf.io, filename)))
 
-    end
 end
 
 # Creates a reader for row elements in the Worksheet's XML.
@@ -250,44 +244,45 @@ function Base.iterate(ws_cache::WorksheetCache, state::Union{Nothing, WorksheetC
     end
 
 
-        # read from cache
-        if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
-            # the next row is in cache, and it's the first one
-            current_row_number = ws_cache.rows_in_cache[1]
-            current_row_ht = ws_cache.row_ht[current_row_number]
-            sheet_row_cells = ws_cache.cells[current_row_number]
-            state.row_from_last_iteration=current_row_number
-            return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
+    # read from cache
+    if state.row_from_last_iteration == 0 && !isempty(ws_cache.rows_in_cache)
+        # the next row is in cache, and it's the first one
+        current_row_number = ws_cache.rows_in_cache[1]
+        current_row_ht = ws_cache.row_ht[current_row_number]
+        sheet_row_cells = ws_cache.cells[current_row_number]
+        state.row_from_last_iteration=current_row_number
+        return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
 
-        elseif state.row_from_last_iteration != 0 && ws_cache.row_index[state.row_from_last_iteration] < length(ws_cache.rows_in_cache)
-            # the next row is in cache
-            current_row_number = ws_cache.rows_in_cache[ws_cache.row_index[state.row_from_last_iteration] + 1]
-            current_row_ht = ws_cache.row_ht[current_row_number]
-            sheet_row_cells = ws_cache.cells[current_row_number]
-            state.row_from_last_iteration=current_row_number
-            return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
+    elseif state.row_from_last_iteration != 0 && ws_cache.row_index[state.row_from_last_iteration] < length(ws_cache.rows_in_cache)
+        # the next row is in cache
+        current_row_number = ws_cache.rows_in_cache[ws_cache.row_index[state.row_from_last_iteration] + 1]
+        current_row_ht = ws_cache.row_ht[current_row_number]
+        sheet_row_cells = ws_cache.cells[current_row_number]
+        state.row_from_last_iteration=current_row_number
+        return SheetRow(get_worksheet(ws_cache), current_row_number, current_row_ht, sheet_row_cells), state
 
-        end
+    end
 
     if !state.full_cache
         # cache not yet full, read from file.
-        next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
+        # NOTE: cache is always full here now 
+#        next = iterate(ws_cache.stream_iterator, ws_cache.stream_state)
 
-        if next === nothing
-            ws_cache.is_full = true
-            return nothing
-        end
-        sheet_row, next_stream_state = next
+#        if next === nothing
+#            ws_cache.is_full = true
+#            return nothing
+#        end
+#        sheet_row, next_stream_state = next
 
         # add new row to WorkSheetCache
-        push_sheetrow!(ws_cache, sheet_row)
+#        push_sheetrow!(ws_cache, sheet_row)
 
         # update stream state
-        ws_cache.stream_state = next_stream_state
+#        ws_cache.stream_state = next_stream_state
 
-        state.row_from_last_iteration=row_number(sheet_row)
+#        state.row_from_last_iteration=row_number(sheet_row)
 
-        return sheet_row, state
+#        return sheet_row, state
     end
 end
 
@@ -358,6 +353,7 @@ in any case, only succeed if the worksheet cache is in use.
 function Base.eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
         if ws.cache === nothing
+#            ws.cache = WorksheetCache(ws) # the old way - fill cache incrementally only as far as needed using iterator
             target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             lznode = open_internal_file_stream(get_xlsxfile(ws), target_file)
             first_cache_fill!(ws, lznode, Threads.nthreads()) # fill cache if enabled but empty on first use of eachrow iterator
@@ -375,26 +371,27 @@ end
 Base.length(r::WorksheetCache)=length(r.cells)
 
 #--------------------------------------------------------------------- Fill cache on first read (multi-threaded)
-function stream_rows(n::XML.LazyNode; channel_size::Int=1 << 20)
+function stream_rows(n::XML.LazyNode, handled_attributes::Set{String}; channel_size::Int=1 << 20)
     n = XML.next(n)
-    Channel{XML.LazyNode}(channel_size) do out
+    Channel{Tuple{XML.LazyNode, Set{String}}}(channel_size) do out
         while !isnothing(n)
             if n.tag == "row"
-                put!(out, n)
+                put!(out, (n, handled_attributes))
             end
             n = XML.next(n)
         end
     end
 end
 
-function process_row(row::XML.LazyNode, ws)
+function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Worksheet)
+    unhandled_attributes = Dict{String,String}()
 
-    # Get row height if present
     atts = XML.attributes(row)
-    current_row_ht = haskey(atts, "ht") ? parse(Float64, atts["ht"]) : nothing
-
-    # Get row number from attributes if present
-    row_num = haskey(atts, "r") ? parse(Int, atts["r"]) : nothing
+    if !isnothing(atts)
+        current_row_ht = haskey(atts, "ht") ? parse(Float64, atts["ht"]) : nothing
+        row_num = haskey(atts, "r") ? parse(Int, atts["r"]) : nothing
+        unhandled_attributes = Dict(filter(attr -> !in(first(attr), handled_attributes), atts))
+    end
 
     # Process cells
     rowcells = Dict{Int,Cell}()
@@ -417,11 +414,17 @@ function process_row(row::XML.LazyNode, ws)
         end
     end
 
-    return sst_count, SheetRow(ws, row_num, current_row_ht, rowcells)
+    return sst_count, SheetRow(ws, row_num, current_row_ht, rowcells), unhandled_attributes
 
 end
 
 function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
+    handled_attributes = Set{String}([
+        "r",     # the row number
+        "spans", # the columns the row spans
+        "ht",    # the row height
+    ])
+    unhandled_attributes = Dict{Int,Dict{String,String}}() # Row number => (name, value)
 
     if ws.cache === nothing
         ws.cache = WorksheetCache(ws)
@@ -429,24 +432,28 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
         throw(XLSXError("Expecting empty cache but cache not empty!"))
     end
 
-    sheet_rows = Channel{Tuple{Int, SheetRow}}(1 << 20)
+    sheet_rows = Channel{Tuple{Int, SheetRow, Dict{String,String}}}(1 << 20)
 
     consumer = @async begin
         sst_total=0
-        for (row_sst_count, sheet_row) in sheet_rows
+        for (row_sst_count, sheet_row, unatt) in sheet_rows
+            if !isempty(unatt)
+                unhandled_attributes[row_number(sheet_row)] = unatt
+            end
             push_sheetrow!(ws.cache, sheet_row)
             sst_total += row_sst_count
         end
         ws.sst_count = sst_total
+        ws.unhandled_attributes = isempty(unhandled_attributes) ? nothing : unhandled_attributes
     end
 
-    rows = stream_rows(lznode)
+    rows = stream_rows(lznode, handled_attributes)
 
     # Producer tasks
     @sync for _ in 1:nthreads
         Threads.@spawn begin
-            for row in rows
-                sheetrow = process_row(row, ws) # process <row> LazyNodes into SheetRows
+            for (row, handled_attributes) in rows
+                sheetrow = process_row(row, handled_attributes, ws) # process <row> LazyNodes into SheetRows
                 put!(sheet_rows, sheetrow)
             end
         end
@@ -456,5 +463,51 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     wait(consumer)
 
     ws.cache.is_full=true
+end
 
+function match_rows(ws::Worksheet, rows_to_match::Vector{Int})::Vector{SheetRow}
+    matched_rows=Vector{SheetRow}()
+
+    sort!(rows_to_match)
+    i=1
+
+    target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
+    lznode = open_internal_file_stream(get_xlsxfile(ws), target_file)
+    n = XML.next(lznode)
+    while !isnothing(n)
+        if n.tag == "row" # find each row
+            atts = XML.attributes(n)
+            if !isnothing(atts)
+                row_num = haskey(atts, "r") ? parse(Int, atts["r"]) : nothing
+            end
+            if !isnothing(row_num) && row_num == rows_to_match[i] # process matching rows into SheetRows
+                current_row_ht = haskey(atts, "ht") ? parse(Float64, atts["ht"]) : nothing
+
+                # Process cells
+                rowcells = Dict{Int,Cell}()
+                cells = XML.children(n)
+                for c in cells
+                    if c.tag == "c"
+                        cell = Cell(c)
+                        col_num = column_number(cell)
+
+                        # Verify row consistency
+                        if row_number(cell) != row_num
+                            @warn "Row number mismatch: expected $row_num, got $(row_number(cell))"
+                        end
+
+                        rowcells[col_num] = cell
+                    end
+                end
+
+                sheetrow = SheetRow(ws, row_num, current_row_ht, rowcells)
+                push!(matched_rows, sheetrow)
+                i+=1
+                i>length(rows_to_match) && break # stop once all rows matched
+            end
+        end
+        n = XML.next(n)
+    end
+
+    return matched_rows
 end

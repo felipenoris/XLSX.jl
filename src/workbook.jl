@@ -231,6 +231,21 @@ end
 
 @inline get_defined_name_value(wb::Workbook, name::AbstractString)::DefinedNameValueTypes = wb.workbook_names[name].value
 
+#=
+function get_defined_names(f::XLSXFile, type::Symbol)
+    if type == :Workbook
+        names=keys(XLSX.get_workbook(f).workbook_names)
+        vals = values(XLSX.get_workbook(f).workbook_names)
+        list1 = ["\"Workbook\" $k =>  $(v.value)" for (k, v) in collect(zip(names, vals))]
+    elseif type == :Worksheet 
+        names=keys(XLSX.get_workbook(f).worksheet_names)
+        vals = values(XLSX.get_workbook(f).worksheet_names)
+        list2 = ["$(get_workbook(f).sheets[k[1]].name) $(k[2]) =>  $(v.value)" for (k, v) in collect(zip(names, vals))]
+        return list2
+    end
+end
+=#
+
 function get_defined_name_value(ws::Worksheet, name::AbstractString)::DefinedNameValueTypes
     wb = get_workbook(ws)
     sheetId = ws.sheetId

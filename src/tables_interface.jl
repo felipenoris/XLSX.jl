@@ -25,7 +25,10 @@ end
 """
     writetable(filename, table; [overwrite], [sheetname])
 
-Write Tables.jl `table` to the specified filename.
+Write a Tables.jl compatible `table` as an Excel file with the specified file name (and sheet name, if specified).
+
+If a file with the given name already exists, writing will fail unless `overwrite=true` is specified, in which 
+case the existing file will be overwritten.
 """
 writetable(filename::Union{AbstractString, IO}, x; kw...) = writetable(filename, _table_to_arrays(x)...; kw...)
 
@@ -43,7 +46,8 @@ writetable(filename::Union{AbstractString, IO}, tables::Pair{<:String, <:Any}...
 """
     writetable!(sheet::Worksheet, table; anchor_cell::CellRef=CellRef("A1")))
 
-Write Tables.jl `table` to the specified sheet.
+Write a Tables.jl compatible `table` to the specified sheet starting with the 
+anchor cell (if given) in the top left.
 """
 writetable!(sheet::Worksheet, x; kw...) = writetable!(sheet, _table_to_arrays(x)...; kw...)
 

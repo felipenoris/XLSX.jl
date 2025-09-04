@@ -6,9 +6,9 @@ function Worksheet(xf::XLSXFile, sheet_element::XML.Node)
     relationship_id = a["r:id"]
     name = XML.unescape(a["name"])
     is_hidden = haskey(a, "state") && a["state"] in ["hidden", "veryHidden"]
-    dim = read_worksheet_dimension(xf, relationship_id, name)
+#    dim = read_worksheet_dimension(xf, relationship_id, name)
 
-    return Worksheet(xf, sheetId, relationship_id, name, dim, is_hidden)
+    return Worksheet(xf, sheetId, relationship_id, name, nothing, is_hidden)
 end
 
 function Base.axes(ws::Worksheet, d)
@@ -26,49 +26,43 @@ end
 function read_worksheet_dimension(xf::XLSXFile, relationship_id, name)::Union{Nothing,CellRange}
 
     wb = get_workbook(xf)
-    target_file = get_relationship_target_by_id("xl", wb, relationship_id)
-
-    if xf.is_writable # read from cached file
-        !haskey(xf.files, target_file) && throw(XLSXError("Worksheet \"$name\" not found in the XLSX file."))
-        i, j = get_idces(xf.data[target_file], "worksheet", "dimension")
-        if isnothing(i) || isnothing(j)
-            # No dimension element found, return nothing
-            return nothing
-        end
-        ref= xf.data[target_file][i][j]["ref"]
-        if is_valid_cellname(ref)
-            return CellRange(ref*":"*ref)
-        elseif is_valid_cellrange(ref)
-            return CellRange(ref)
-        else
-            throw(XLSXError("Malformed Worksheet \"$name\": unexpected dimension reference: $ref."))
-        end
-
-    else #read from xlsx file
-        local result::Union{Nothing,CellRange} = nothing
-        doc = open_internal_file_stream(xf, target_file)
-        reader = iterate(doc)
-        # Now let's look for a row element, if it exists
-        while reader !== nothing # go next node
-            (sheet_row, state) = reader
-            if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
-
-                XML.depth(sheet_row) != 2 && throw(XLSXError("Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."))
-
-                ref_str = XML.attributes(sheet_row)["ref"]
-                if is_valid_cellname(ref_str)
-                    result = CellRange("$(ref_str):$(ref_str)")
-                else
-                    result = CellRange(ref_str)
+    if hassheet(wb, name) # use worksheet cache if possible
+        let ws = first(wb.sheets)
+            for s in wb.sheets
+                if s.name == unquoteit(name)
+                    ws=s
                 end
-
-                break
             end
-            reader = iterate(doc, state)
+            if !isnothing(ws.cache) && !isempty(ws.cache) && ws.cache.is_full
+                return get_dimension(ws::Worksheet)
+            end
         end
-
-        return result
     end
+
+    local result::Union{Nothing,CellRange} = nothing
+    target_file = get_relationship_target_by_id("xl", wb, relationship_id)
+    doc = open_internal_file_stream(xf, target_file)
+    reader = iterate(doc)
+    # Now let's look for a row element, if it exists
+    while reader !== nothing # go next node
+        (sheet_row, state) = reader
+        if XML.nodetype(sheet_row) == XML.Element && XML.tag(sheet_row) == "dimension"
+
+            XML.depth(sheet_row) != 2 && throw(XLSXError("Malformed Worksheet \"$name\": unexpected node depth for dimension node: $(XML.depth(sheet_row))."))
+
+            ref_str = XML.attributes(sheet_row)["ref"]
+            if is_valid_cellname(ref_str)
+                result = CellRange("$(ref_str):$(ref_str)")
+            else
+                result = CellRange(ref_str)
+            end
+
+            break
+        end
+        reader = iterate(doc, state)
+    end
+
+    return result
 end
 
 @inline isdate1904(ws::Worksheet) = isdate1904(get_workbook(ws))
@@ -101,14 +95,21 @@ end
     getdata(sheet, ref)
     getdata(sheet, row, column)
 
-Returns a scalar, vector or a matrix with values from a spreadsheet.
+Returns a scalar, matrix or a vector of matrices with values from 
+a spreadsheet.
+
 `ref` can be a cell reference or a range or a valid defined name.
+
 If `ref` is a single cell, a scalar is returned.
-Most ranges are rectangular and will return a 2-D matrix.
-For row and column ranges, the extent of the range in the other 
-dimension is determined by the worksheet's dimension.
+
+Most ranges are rectangular and will return a 2-D matrix 
+(`Array{AbstractCell, 2}`). For row and column ranges, the 
+extent of the range in the other dimension is determined by 
+the worksheet's dimension.
+
 A non-contiguous range (which may not be rectangular) will return 
-a vector in the same order as the cells are specified in the range.
+a vector of `Array{AbstractCell, 2}` matrices with one element for 
+each non-contiguous (comma separated) element in the range.
 
 Indexing in a `Worksheet` will dispatch to `getdata` method.
 
@@ -213,16 +214,14 @@ function getdata(ws::Worksheet, rng::RowRange)::Array{Any,2}
     return getdata(ws, CellRange(start, stop))
 end
 
-function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Any}
+function getdata(ws::Worksheet, rng::NonContiguousRange)::Vector{Array{Any,2}}
     do_sheet_names_match(ws, rng)
-    results = Vector{Any}()
+    results = Vector{Array{Any,2}}()
     for r in rng.rng
         if r isa CellRef
-            push!(results, getdata(ws, r))
+            push!(results, getdata(ws, CellRange(r, r)))
         else
-            for cell in r
-                push!(results, getdata(ws, cell))
-            end
+            push!(results, getdata(ws, r))
         end
     end
     return results
@@ -307,7 +306,8 @@ rectangular range.
 For row and column ranges, the extent of the range in the other 
 dimension is determined by the worksheet's dimension.
 A non-contiguous range (which may not be rectangular) will return 
-a vector in the same order as the cells are specified in the range.
+a vector of `Array{AbstractCell, 2}` with one element for each 
+non-contiguous (comma separated) element in the range.
 
 If `ref` is a range, `getcell` dispatches to [`getcellrange`](@ref).
 
@@ -340,13 +340,21 @@ function getcell(ws::Worksheet, single::CellRef)::AbstractCell
     end
 
     # If can't use cache then iterate sheetrows
-    for sheetrow in eachrow(ws)
-        if row_number(sheetrow) == row_number(single)
-            return getcell(sheetrow, column_number(single))
+
+    if get_xlsxfile(ws).use_cache_for_sheet_data # fill cache if active
+        for sheetrow in eachrow(ws)
+            if row_number(sheetrow) == row_number(single)
+                return getcell(sheetrow, column_number(single))
+            end
+        end
+    
+    else
+        sheetrow=match_rows(ws, [row_number(single)])
+        if length(sheetrow)==1
+            return getcell(sheetrow[1], column_number(single))
         end
     end
-
-    return EmptyCell(single)
+        return EmptyCell(single)
 end
 
 getcell(ws::Worksheet, s::SheetCellRef) = do_sheet_names_match(ws, s) && getcell(ws, s.cellref)
@@ -423,7 +431,8 @@ as in `"A1:B2"`, `"A:B"` or `"1:2"`, or a non-contiguous range.
 For row and column ranges, the extent of the range in the other 
 dimension is determined by the worksheet's dimension.
 A non-contiguous range (which may not be rectangular) will return 
-a vector in the same order as the cells are specified in the range.
+a vector of `Array{AbstractCell, 2}` with one element for each 
+non-contiguous (comma separated) element in the range.
 
 Example:
 
@@ -432,11 +441,10 @@ julia> ncr = "B3,A1,C2" # non-contiguous range, "out of order".
 "B3,A1,C2"
 
 julia>  XLSX.getcellrange(f[1], ncr)
-3-element Vector{XLSX.AbstractCell}:
- XLSX.Cell(B3, "s", "", "29", XLSX.Formula("", nothing))
- XLSX.Cell(A1, "s", "", "0", XLSX.Formula("", nothing))
- XLSX.Cell(C2, "s", "", "18", XLSX.Formula("", nothing))
-
+3-element Vector{Matrix{XLSX.AbstractCell}}:
+ [XLSX.Cell(B3, "", "", "5", XLSX.Formula("", nothing));;]
+ [XLSX.Cell(A1, "", "", "2", XLSX.Formula("", nothing));;]
+ [XLSX.Cell(C2, "", "", "5", XLSX.Formula("", nothing));;]
 
 ```
 
@@ -445,7 +453,6 @@ For other examples, see [`getcell()`](@ref) and [`getdata()`](@ref).
 """
 function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
     result = Array{Any,2}(undef, size(rng))
-
     for cell in rng # initialise with empty cells
         (r, c) = relative_cell_position(cell, rng)
         result[r, c] = EmptyCell(cell)
@@ -456,18 +463,43 @@ function getcellrange(ws::Worksheet, rng::CellRange)::Array{AbstractCell,2}
     left = column_number(rng.start)
     right = column_number(rng.stop)
 
-    for sheetrow in eachrow(ws)
-        if top <= sheetrow.row && sheetrow.row <= bottom
+    if is_cache_enabled(ws)
+        # use cache if possible
+        if !isnothing(ws.cache)
+            for single in rng
+                if haskey(ws.cache.cells, single.row_number)
+                    if haskey(ws.cache.cells[single.row_number], single.column_number)
+                        cell = ws.cache.cells[single.row_number][single.column_number]
+                        (r, c) = relative_cell_position(cell, rng)
+                        result[r, c] = cell
+                    end
+                end
+            end
+        else
+            # If cache empty then iterate sheetrows to fill
+            for sheetrow in eachrow(ws)
+                if top <= sheetrow.row && sheetrow.row <= bottom
+                    for column in left:right
+                        cell = getcell(sheetrow, column)
+                        (r, c) = relative_cell_position(cell, rng)
+                        result[r, c] = cell
+                    end
+                end
+                # don't need to read any more rows
+                if sheetrow.row > bottom
+                    break
+                end
+            end
+        end
+    else
+        # no cache to fill - just look in file
+        sheetrows = match_rows(ws, collect(top:bottom))
+        for sheetrow in sheetrows
             for column in left:right
                 cell = getcell(sheetrow, column)
                 (r, c) = relative_cell_position(cell, rng)
                 result[r, c] = cell
             end
-        end
-
-        # don't need to read any more rows
-        if sheetrow.row > bottom
-            break
         end
     end
 
@@ -499,16 +531,14 @@ function getcellrange(ws::Worksheet, rng::RowRange)::Array{AbstractCell,2}
     return getcellrange(ws, CellRange(start, stop))
 end
 
-function getcellrange(ws::Worksheet, rng::NonContiguousRange)::Vector{AbstractCell}
+function getcellrange(ws::Worksheet, rng::NonContiguousRange)::Vector{Array{AbstractCell,2}}
     # returns a simple vector because non contiguous ranges aren't rectangular
-    results = Vector{AbstractCell}()
+    results = Vector{Array{AbstractCell,2}}()
     for r in rng.rng
         if r isa CellRef
-            push!(results, getcell(ws, r))
+            push!(results, getcellrange(ws, CellRange(r, r)))
         else
-            for cell in r
-                push!(results, getcell(ws, cell))
-            end
+            push!(results, getcellrange(ws, r))
         end
     end
     return results

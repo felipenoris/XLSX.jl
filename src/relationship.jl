@@ -28,6 +28,17 @@ function get_relationship_target_by_id(prefix::String, wb::Workbook, Id::String)
     throw(XLSXError("Relationship Id=$(Id) not found"))
 end
 
+function get_relationship_id_by_target(wb::Workbook, target::String)::String
+    for r in wb.relationships
+        if r.Type == "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
+            if endswith(target, r.Target)
+                return r.Id
+            end
+        end
+    end
+    throw(XLSXError("Target=$(target) not found"))
+end
+
 function get_relationship_target_by_type(prefix::String, wb::Workbook, _type_::String)::String
     for r in wb.relationships
         if _type_ == r.Type
@@ -100,11 +111,9 @@ function add_relationship!(wb::Workbook, target::String, _type::String)::String
 end
 
 function delete_relationships!(xf::XLSXFile, rel::Relationship)
-    #TODO renumber worksheet files in relationships
-#    println(rel)
+    #TODO renumber worksheet files in relationships - if necessary.
+
     xroot = xmlroot(xf, "xl/_rels/workbook.xml.rels")
-#    println(rel)
-#    println(XML.write(xroot))
 
     c=XML.children(xroot[end])
     d = findfirst(r -> r["Target"] == rel.Target, c)
@@ -113,11 +122,7 @@ function delete_relationships!(xf::XLSXFile, rel::Relationship)
     for child in c
         push!(new_rels, child)
     end
-#    println(XML.write(xroot))
-#    println(XML.write(new_rels))
     xroot[end]=new_rels
-#    println(XML.write(xroot))
     xf.data["xl/_rels/workbook.xml.rels"]=xroot
-#    println(get_workbook_relationship_root(xf))
 
 end

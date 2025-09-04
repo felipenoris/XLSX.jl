@@ -446,7 +446,7 @@ end
     @test s[1:2:3, :] == Any[1 1 1; 1 1 1]
     @test s[1:2:3, 1] == Any[1, 1]
     s["A1,B2,C3"] = "non-contiguous"
-    @test s["Sheet1!A1,Sheet1!B2,Sheet1!C3"] == Any["non-contiguous", "non-contiguous", "non-contiguous"]
+    @test s["Sheet1!A1,Sheet1!B2,Sheet1!C3"] == [["non-contiguous";;], ["non-contiguous";;], ["non-contiguous";;]]
 
     f = XLSX.newxlsx()
     s = f[1]
@@ -459,11 +459,11 @@ end
     s["Sheet1!A1:A3"] = "Goodbye cruel world"
     @test s["Sheet1!A1:A3"] == ["Goodbye cruel world"; "Goodbye cruel world"; "Goodbye cruel world";;]
     s["Sheet1!1:2"] = "Bright Lights"
-    @test s["A1,B2,C3"] == ["Bright Lights", "Bright Lights", true]
+    @test s["A1,B2,C3"] == [["Bright Lights";;], ["Bright Lights";;], [true;;]]
     s["Sheet1!C:D"] = "Beat my Retreat"
-    @test s["B1,C2,D3"] == ["Bright Lights", "Beat my Retreat", "Beat my Retreat"]
+    @test s["B1,C2,D3"] == [["Bright Lights";;], ["Beat my Retreat";;], ["Beat my Retreat";;]]
     s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] = "Night Comes In"
-    @test s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] == ["Night Comes In", "Night Comes In", "Night Comes In"]
+    @test s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] == [["Night Comes In";;], ["Night Comes In";;], ["Night Comes In";;]]
 
     f = XLSX.newxlsx()
     s = f[1]
@@ -476,11 +476,11 @@ end
     s["Sheet1!A1:A3"] = "Goodbye cruel world"
     @test s["Sheet1!A1:A3"] == ["Goodbye cruel world"; "Goodbye cruel world"; "Goodbye cruel world";;]
     s["Sheet1!1:2"] = "Bright Lights"
-    @test s["A1,B2,C3"] == ["Bright Lights", "Bright Lights", true]
+    @test s["A1,B2,C3"] == [["Bright Lights";;], ["Bright Lights";;], [true;;]]
     s["Sheet1!C:D"] = "Beat my Retreat"
-    @test s["B1,C2,D3"] == ["Bright Lights", "Beat my Retreat", "Beat my Retreat"]
+    @test s["B1,C2,D3"] == [["Bright Lights";;], ["Beat my Retreat";;], ["Beat my Retreat";;]]
     s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] = "Night Comes In"
-    @test s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] == ["Night Comes In", "Night Comes In", "Night Comes In"]
+    @test s["Sheet1!B1,Sheet1!C2,Sheet1!D3"] == [["Night Comes In";;], ["Night Comes In";;], ["Night Comes In";;]]
     @test_throws XLSX.XLSXError s["Sheet1!garbage"] = 1
     @test_throws XLSX.XLSXError s["garbage"] = 1
     @test_throws XLSX.XLSXError s["garbage1:garbage2"] = 1
@@ -570,9 +570,9 @@ end
     @test XLSX.getcell(s, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
     @test XLSX.getcell(f, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
     @test XLSX.getcell(s, XLSX.SheetCellRange("Sheet1!B1:B3")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, "B1,B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "")]
-    @test XLSX.getcell(s, "Sheet1!B1,Sheet1!B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "")]
-    @test XLSX.getcell(f, "Sheet1!B1,Sheet1!B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "")]
+    @test XLSX.getcell(s, "B1,B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", XLSX.Formula("", nothing));;]]
+    @test XLSX.getcell(s, "Sheet1!B1,Sheet1!B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", XLSX.Formula("", nothing));;]]
+    @test XLSX.getcell(f, "Sheet1!B1,Sheet1!B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", XLSX.Formula("", nothing));;]]
     @test XLSX.getcell(s, "B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
     @test XLSX.getcell(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
     @test XLSX.getcell(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
@@ -610,8 +610,8 @@ end
     @test XLSX.getcell(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
     @test XLSX.getcell(f, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "")
     @test XLSX.getcellrange(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
-    @test XLSX.getcellrange(s, "MyName3") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "")]
-    @test XLSX.getcellrange(f, "MyName3") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "")]
+    @test XLSX.getcellrange(s, "MyName3") == [[XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", XLSX.Formula("", nothing));;]]
+    @test XLSX.getcellrange(f, "MyName3") == [[XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", XLSX.Formula("", nothing));;]]
 
 end
 
@@ -685,7 +685,7 @@ end
     @test f["lookup"]["FirstName"] == "Hello World"
     @test f["lookup"]["single"] == "NAME"
     @test f["lookup"]["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
-    @test f["lookup"]["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+    @test f["lookup"]["NonContig"] == [["name1"; "name2"; "name3";;], [100; 200; 300;;]] # NonContiguousRanges return a vector of matrices
 
     XLSX.addDefinedName(f, "Life_the_Universe_and_Everything", 42)
     XLSX.addDefinedName(f, "FirstName", "Hello World")
@@ -696,7 +696,7 @@ end
     @test f["FirstName"] == "Hello World"
     @test f["single"] == "NAME"
     @test f["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
-    @test f["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+    @test f["NonContig"] == [["name1"; "name2"; "name3";;], [100; 200; 300;;]] # NonContiguousRanges return a vector of matrices
 
     XLSX.setFont(f["lookup"], "NonContig"; name="Arial", size=12, color="FF0000FF", bold=true, italic=true, under="single", strike=true)
     @test XLSX.getFont(f["lookup"], "C3").font == Dict("i" => nothing, "b" => nothing, "u" => nothing, "strike" => nothing, "sz" => Dict("val" => "12"), "name" => Dict("val" => "Arial"), "color" => Dict("rgb" => "FF0000FF"))
@@ -715,7 +715,7 @@ end
     @test f["FirstName"] == "Hello World"
     @test f["single"] == "NAME"
     @test f["range"] == Any["name1"; "name2"; "name3";;] # A 2D Array, size (3, 1)
-    @test f["NonContig"] == Any["name1", "name2", "name3", 100, 200, 300] # NonContiguousRanges return a vector
+    @test f["NonContig"] == [["name1"; "name2"; "name3";;], [100; 200; 300;;]] # NonContiguousRanges return a vector of matrices
     isfile("mytest.xlsx") && rm("mytest.xlsx")
 
     @test XLSX.readdata(joinpath(data_directory, "general.xlsx"), "SINGLE_CELL") == "single cell A2"
@@ -5526,37 +5526,36 @@ end
     XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx")) do f
         @test_throws XLSX.XLSXError XLSX.getMergedCells(f["Mock-up"]) # File isn't writeable
     end
-    XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="rw") do f
-        mc = sort(XLSX.getMergedCells(f["Mock-up"]))
-        @test length(mc) == 25
-        @test mc == sort(XLSX.CellRange[XLSX.CellRange("D49:H49"), XLSX.CellRange("D72:J72"), XLSX.CellRange("F94:J94"), XLSX.CellRange("F96:J96"), XLSX.CellRange("F84:J84"), XLSX.CellRange("F86:J86"), XLSX.CellRange("D62:J63"), XLSX.CellRange("D51:J53"), XLSX.CellRange("D55:J60"), XLSX.CellRange("D92:J92"), XLSX.CellRange("D82:J82"), XLSX.CellRange("D74:J74"), XLSX.CellRange("D67:J68"), XLSX.CellRange("D47:H47"), XLSX.CellRange("D9:H9"), XLSX.CellRange("D11:G11"), XLSX.CellRange("D12:G12"), XLSX.CellRange("D14:E14"), XLSX.CellRange("D16:E16"), XLSX.CellRange("D32:F32"), XLSX.CellRange("D38:J38"), XLSX.CellRange("D34:J34"), XLSX.CellRange("D18:E18"), XLSX.CellRange("D20:E20"), XLSX.CellRange("D13:G13")])
-        s = f["Mock-up"]
-        @test XLSX.isMergedCell(f, "Mock-up!D47")
-        @test XLSX.isMergedCell(f, "Mock-up!D49"; mergedCells=mc)
-        @test XLSX.isMergedCell(s, "H84")
-        @test XLSX.isMergedCell(s, "G84"; mergedCells=mc)
-        @test XLSX.isMergedCell(s, "Short_Description")
-        @test !XLSX.isMergedCell(f, "Mock-up!B2")
-        @test !XLSX.isMergedCell(s, "H40"; mergedCells=mc)
-        @test !XLSX.isMergedCell(s, "ID"; mergedCells=mc)
-        @test_throws XLSX.XLSXError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
-        @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location")
+    f=XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="rw")
+    mc = sort(XLSX.getMergedCells(f["Mock-up"]))
+    @test length(mc) == 25
+    @test mc == sort(XLSX.CellRange[XLSX.CellRange("D49:H49"), XLSX.CellRange("D72:J72"), XLSX.CellRange("F94:J94"), XLSX.CellRange("F96:J96"), XLSX.CellRange("F84:J84"), XLSX.CellRange("F86:J86"), XLSX.CellRange("D62:J63"), XLSX.CellRange("D51:J53"), XLSX.CellRange("D55:J60"), XLSX.CellRange("D92:J92"), XLSX.CellRange("D82:J82"), XLSX.CellRange("D74:J74"), XLSX.CellRange("D67:J68"), XLSX.CellRange("D47:H47"), XLSX.CellRange("D9:H9"), XLSX.CellRange("D11:G11"), XLSX.CellRange("D12:G12"), XLSX.CellRange("D14:E14"), XLSX.CellRange("D16:E16"), XLSX.CellRange("D32:F32"), XLSX.CellRange("D38:J38"), XLSX.CellRange("D34:J34"), XLSX.CellRange("D18:E18"), XLSX.CellRange("D20:E20"), XLSX.CellRange("D13:G13")])
+    s = f["Mock-up"]
+    @test XLSX.isMergedCell(f, "Mock-up!D47")
+    @test XLSX.isMergedCell(f, "Mock-up!D49"; mergedCells=mc)
+    @test XLSX.isMergedCell(s, "H84")
+    @test XLSX.isMergedCell(s, "G84"; mergedCells=mc)
+    @test XLSX.isMergedCell(s, "Short_Description")
+    @test !XLSX.isMergedCell(f, "Mock-up!B2")
+    @test !XLSX.isMergedCell(s, "H40"; mergedCells=mc)
+    @test !XLSX.isMergedCell(s, "ID"; mergedCells=mc)
+    @test_throws XLSX.XLSXError XLSX.isMergedCell(s, "Contiguous"; mergedCells=mc) # Can't test a range
+    @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location")
 
-        @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell=XLSX.CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
-        @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell=XLSX.CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
-        @test XLSX.getMergedBaseCell(s, "H53") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
-        @test XLSX.getMergedBaseCell(s, "G52") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
-        @test XLSX.getMergedBaseCell(s, 53, 8) == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
-        @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
-        @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
-        @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
-        @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
+    @test XLSX.getMergedBaseCell(f[1], "F72") == (baseCell=XLSX.CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
+    @test XLSX.getMergedBaseCell(f, "Mock-up!G72") == (baseCell=XLSX.CellRef("D72"), baseValue=Dates.Date("2025-03-24"))
+    @test XLSX.getMergedBaseCell(s, "H53") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
+    @test XLSX.getMergedBaseCell(s, "G52") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
+    @test XLSX.getMergedBaseCell(s, 53, 8) == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
+    @test XLSX.getMergedBaseCell(s, "Short_Description") == (baseCell=XLSX.CellRef("D51"), baseValue="Hello World")
+    @test isnothing(XLSX.getMergedBaseCell(s, "F73"))
+    @test isnothing(XLSX.getMergedBaseCell(f, "Mock-up!H73"))
+    @test_throws XLSX.XLSXError XLSX.getMergedBaseCell(s, "Location") # Can't get base cell for a range
 
-        @test isnothing(XLSX.getMergedCells(f["Document History"]))
-        s = f["Document History"]
-        @test !XLSX.isMergedCell(f, "Document History!B2")
-        @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
-    end
+    @test isnothing(XLSX.getMergedCells(f["Document History"]))
+    s = f["Document History"]
+    @test !XLSX.isMergedCell(f, "Document History!B2")
+    @test !XLSX.isMergedCell(s, "C5"; mergedCells=XLSX.getMergedCells(f["Document History"]))
 
     f = XLSX.opentemplate(joinpath(data_directory, "testmerge.xlsx"))
     @test XLSX.mergeCells(f, "Sheet1!A1:B2") == 0

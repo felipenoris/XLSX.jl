@@ -1207,7 +1207,7 @@ instead using the following keywords:
 
 The keywords `min_val`, `mid_val`, and `max_val` can be a number or cell reference (e.g. `"\$A\$1"`) for any value 
 of the related type keyword or, if the related type keyword is set to `formula`, may be a valid Excel formula that 
-calculates a number. Cell references is used in a formula must be specified as absolute references.
+calculates a number. Cell references used in a formula must be specified as absolute references.
 
 Colors can be specified using an 8-digit hex string (e.g. `FF0000FF` for blue) or any named 
 color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).

@@ -61,7 +61,7 @@ function _relocatable_data_path(; path::AbstractString=Artifacts.artifact"XLSX_r
 end
 
 """
-    newxlsx() :: XLSXFile
+    newxlsx([sheetname::AbstractString]) :: XLSXFile
 
 Return an empty, writable `XLSXFile` with 1 worksheet for editing and 
 subsequent saving to a file with [XLSX.writexlsx](@ref).
@@ -70,10 +70,12 @@ By default, the worksheet is `Sheet1`. Specify `sheetname` to give the worksheet
 # Examples
 ```julia
 julia> xf = XLSX.newxlsx()
+
+julia> xf = XLSX.newxlsx("MySheet")
 ```
 
 """
-newxlsx(sheetname::AbstractString=""; path::AbstractString=_relocatable_data_path())::XLSXFile = open_empty_template(sheetname; path)
+newxlsx(sheetname::AbstractString="")::XLSXFile = open_empty_template(sheetname)
 
 function open_empty_template(
     sheetname::AbstractString="";
@@ -131,9 +133,9 @@ The `mode` argument controls how the file is opened. The following modes are all
 
 !!! warning
 
-    The `rw` mode is known to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159).
+    The `rw` mode is known occasionally to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159). (Now fixed!)
 
-    Simple data should work fine. Users are advised to use this feature with caution when working with formulas and charts.
+    Simple data should work fine. Users are advised to use this feature with caution when working with charts.
 
 # Arguments
 
@@ -148,7 +150,7 @@ will be cached as they are read the first time. When you read a worksheet cell f
 second (or subsequent) time it will use the cached value instead of reading from disk.
 If `enable_cache=true` and the file is opened in write mode, all cells are eagerly read 
 into the cache as the file is opened (they will be needed at write anyway). For very 
-large files, this can be slow.
+large files, this can take a few seconds.
 
 If `enable_cache=false`, worksheet cells will always be read from disk.
 This is useful when you want to read a spreadsheet that doesn't fit into memory.
@@ -273,28 +275,17 @@ function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable
     end
     xf = XLSXFile(source, enable_cache, _write)
 
-    load_files!(xf) # multi-threaded file load
+    load_files!(xf; pass=1) # multi-threaded file load
 
     check_minimum_requirements(xf)
     parse_relationships!(xf)
     parse_workbook!(xf)
 
-    if enable_cache
-        for sheet_name in sheetnames(xf)
-            sheet = getsheet(xf, sheet_name)
-            if _write # fill cache eagerly during open if in write mode
-                target_file = get_relationship_target_by_id("xl", get_workbook(sheet), sheet.relationship_id)
-                lznode = open_internal_file_stream(xf, target_file)
-                first_cache_fill!(sheet, lznode, Threads.nthreads())
-            end
-            isnothing(sheet.dimension) && get_dimension(sheet) # Get sheet dimension from the cell cache if not specified in the `xlsx` file.
-        end
-    end
+    load_files!(xf; pass=2) # multi-threaded file load
 
-    if _write
-        wb = get_workbook(xf)
-        if has_sst(wb)
-            sst_load!(wb)
+    for sheet in get_workbook(xf).sheets
+        if isnothing(sheet.dimension)
+            sheet.dimension = read_worksheet_dimension(xf, sheet.relationship_id, sheet.name)
         end
     end
 
@@ -549,11 +540,11 @@ function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed
     skipped = Vector{UInt8}() # just the <sheetData> or <sst> node and its children
     n = XML.next(r)
     append!(new, n.data[n.pos:n.pos+n.len])
+
     while first(XML.get_name(n.data, n.pos)) != skipnode # Retain everything before the <sheetData> or <sst> node
         n = XML.next(n)
         append!(new, n.data[n.pos:n.pos+n.len])
     end
-    append!(new, Vector{UInt8}("<dummy/>")) # add dummy child to prevent formation of self-closing <sheetdata/> element
 
     if skipnode == "sheetData" # Add parents for <row> or <sst> elements to the excerpted data
         append!(skipped, Vector{UInt8}("<worksheet>"))
@@ -575,22 +566,22 @@ function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed
     end
     if skipnode == "sheetData"  # close parents for <row> or <sst> elements in the excerpted data
         append!(skipped, Vector{UInt8}("</sheetData>"))
-        append!(skipped, Vector{UInt8}("<dummy2/>")) # add dummy2 to support SheetRowIterator, which expects subsequent siblings after sheetData
+        append!(skipped, Vector{UInt8}("<dummy/>")) # add dummy to support SheetRowIterator, which expects subsequent siblings after sheetData
         append!(skipped, Vector{UInt8}("</workshet>"))
-    else skipnode == "sst"
+    elseif skipnode == "sst"
         append!(skipped, Vector{UInt8}("</sst>"))
     end
     return new, skipped
 end
 
-function stream_files(xf::XLSXFile; channel_size::Int=1 << 10)
+function stream_files(xf::XLSXFile; pass::Int, channel_size::Int=1 << 10)
     Channel{String}(channel_size) do out
         for f in ZipArchives.zip_names(xf.io)
 
             # ignore xl/calcChain.xml in any case (#31)
             if f != "xl/calcChain.xml"
 
-                if !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
+                if pass==1 && !startswith(f, "customXml") && (endswith(f, ".xml") || endswith(f, ".rels"))
                     # Identify usable xml files in XLSXFile
                     internal_xml_file_add!(xf, f)
                 end
@@ -603,19 +594,38 @@ function stream_files(xf::XLSXFile; channel_size::Int=1 << 10)
     end
 end
 
-function load_files!(xf::XLSXFile)
+# Read xml files in two passes
+# pass 1 - read all but worksheets and sharedStrings
+# pass 2 - only read worksheets and sharedStrings
+function load_files!(xf::XLSXFile; pass::Int)
+    (pass < 1 || pass > 2) && throw(XLSXError("Unknown pass to read files."))
+    wb=get_workbook(xf)
 
     read_files = Channel{ReadFile}(1 << 20)
-    files = stream_files(xf)
+    files = stream_files(xf; pass)
 
     consumer = @async begin
+
         for file in read_files
             if !isnothing(file.node)
                 xf.data[file.name] = file.node
                 xf.files[file.name] = true # set file as read
             end
             if !isnothing(file.raw)
-                xf.sstrow[file.name] = file.raw
+                if xf.is_writable
+                    if occursin("xl/sharedStrings.xml", file.name)
+                        if has_sst(wb)
+                            sst_load!(wb)
+                        end
+                    elseif xf.use_cache_for_sheet_data && !occursin("xl/sharedStrings.xml", file.name)
+                        rid=get_relationship_id_by_target(wb, file.name)
+                        for sheet in wb.sheets
+                            if sheet.relationship_id == rid
+                                first_cache_fill!(sheet, XML.LazyNode(file.raw), Threads.nthreads())
+                            end
+                        end
+                    end
+                end
             end
             if !isnothing(file.bin)
                 xf.binary_data[file.name] = file.bin
@@ -626,8 +636,13 @@ function load_files!(xf::XLSXFile)
     @sync for _ in 1:Threads.nthreads()
         Threads.@spawn begin
             for file in files
-                readfile = process_file(xf, file) # process <row> LazyNodes into SheetRows
-                put!(read_files, readfile)
+                if pass==1 && !occursin(r"xl/worksheets/sheet\d+\.xml|xl/sharedStrings\.xml", file)
+                    readfile = process_file(xf, file) # Pass 1: process all files except sheets and sharedStrings
+                    put!(read_files, readfile)
+                elseif pass==2 && occursin(r"xl/worksheets/sheet\d+\.xml|xl/sharedStrings\.xml", file)
+                    readfile = process_file(xf, file) # Pass 2: now process sheets and sharedStrings
+                    put!(read_files, readfile)
+                end
             end
         end
     end
@@ -646,7 +661,7 @@ function process_file(xf::XLSXFile, filename::String)
         try
             bytes = ZipArchives.zip_readentry(xf.io, filename)
             if !startswith(filename, "customXml") && (endswith(filename, ".xml") || endswith(filename, ".rels"))
-                if occursin(r"xl/worksheets/sheet\d+.xml|xl/sharedStrings.xml", filename)
+                if occursin(r"xl/worksheets/sheet\d+\.xml|xl/sharedStrings\.xml", filename)
                     strip_bom_and_lf!(bytes)
                     skipnode = filename == "xl/sharedStrings.xml" ? "sst" : "sheetData"
                     f, s = skipNode(XML.Raw(bytes), skipnode) # <row> and <sst> elements can be very numerous in large files, so split out and keep as Raw XML data for speed
@@ -675,11 +690,10 @@ function internal_xml_file_read(xf::XLSXFile, filename::String)
         try
             bytes = ZipArchives.zip_readentry(xf.io, filename)
             strip_bom_and_lf!(bytes)
-            if occursin(r"xl/worksheets/sheet\d+.xml|xl/sharedStrings.xml", filename)
+            if occursin(r"xl/worksheets/sheet\d+\.xml|xl/sharedStrings\.xml", filename)
                 skipnode = filename == "xl/sharedStrings.xml" ? "sst" : "sheetData"
-                f, s = skipNode(XML.Raw(bytes), skipnode) # <row> and <sst> elements can be very numerous in large files, so split out and keep as Raw XML data for speed
+                f, _ = skipNode(XML.Raw(bytes), skipnode) # <row> and <sst> elements can be very numerous in large files, so split out and keep as Raw XML data for speed
                 xf.data[filename] = XML.Node(XML.Raw(f))
-                xf.sstrow[filename] = XML.Raw(s)
             else
                 xf.data[filename] = XML.Node(XML.Raw(bytes))
             end
@@ -739,26 +753,27 @@ julia> XLSX.readdata("myfile.xlsx", "mysheet!A2:B4")
  3  "third"
 ```
 
-Non-contiguous ranges return vectors.
+Non-contiguous ranges return vectors of Array{Any, 2} with an entry for every non-contiguous (comma-separated) 
+element in the range.
 
 ```julia
 julia> XLSX.readdata("customXml.xlsx", "Mock-up", "Location") # `Location` is a `definedName` for a non-contiguous range
-4-element Vector{Any}:
- "Here"
- missing
- missing
- missing
+4-element Vector{Matrix{Any}}:
+ ["Here";;]
+ [missing;;]
+ [missing;;]
+ [missing;;]
 ```
 """
 function readdata(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, ref)
-    c = openxlsx(source, enable_cache=false) do xf
+    c = openxlsx(source, enable_cache=true) do xf
         getdata(getsheet(xf, sheet), ref)
     end
     return c
 end
 
 function readdata(source::Union{AbstractString,IO}, sheetref::AbstractString)
-    c = openxlsx(source, enable_cache=false) do xf
+    c = openxlsx(source, enable_cache=true) do xf
         getdata(xf, sheetref)
     end
     return c
@@ -775,12 +790,14 @@ end
         [infer_eltypes],
         [stop_in_empty_row],
         [stop_in_row_function],
+        [enable_cache],
         [keep_empty_rows],
         [normalizenames]
     ) -> DataTable
 
 Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
-Use this function to create a `DataFrame` from package `DataFrames.jl`.
+Use this function to create a `DataFrame` from package `DataFrames.jl` 
+(or other `Tables.jl`` compatible object).
 
 If `sheet` is not given, the first sheet in the `XLSXFile` will be used.
 
@@ -790,7 +807,7 @@ If `columns` is not given, the algorithm will find the first sequence
 of consecutive non-empty cells. A valid `sheet` must be specified 
 when specifying `columns`.
 
-Use `first_row` to indicate the first row from the table.
+Use `first_row` to indicate the first row of the table.
 `first_row=5` will look for a table starting at sheet row `5`.
 If `first_row` is not given, the algorithm will look for the first
 non-empty row in the spreadsheet.
@@ -825,6 +842,10 @@ function stop_function(r)
 end
 ```
 
+`enable_cache` is a boolean that determines whether cell data are loaded 
+into the worksheet cache on reading.
+The default behavior is `enable_cache=true`.
+
 `keep_empty_rows` determines whether rows where all column values are equal 
 to `missing` are kept (`true`) or dropped (`false`) from the resulting table. 
 `keep_empty_rows` never affects the *bounds* of the table; the number of 
@@ -833,6 +854,7 @@ and `stop_in_row_function` (if specified).
 `keep_empty_rows` is only checked once the first and last row of the table 
 have been determined, to see whether to keep or drop empty rows between the 
 first and the last row.
+The default behavior is ``keep_empty_rows=false`.
 
 # Example
 
@@ -844,27 +866,27 @@ julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 
 See also: [`XLSX.gettable`](@ref).
 """
-function readtable(source::Union{AbstractString,IO}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, 1); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
-function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet); first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, columns::ColumnRange; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, columns::ColumnRange; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
         gettable(getsheet(xf, sheet), columns; first_row, column_labels, header, infer_eltypes, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)
     end
     return c
 end
 
-function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, range::AbstractString; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=false, keep_empty_rows::Bool=false, normalizenames::Bool=false)
+function readtable(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, range::AbstractString; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     if is_valid_column_range(range)
         range = ColumnRange(range)
     else
@@ -885,6 +907,7 @@ end
         [infer_eltypes],
         [stop_in_empty_row],
         [stop_in_row_function],
+        [enable_cache],
         [keep_empty_rows],
         [normalizenames]
     ) -> sink

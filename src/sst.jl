@@ -79,25 +79,12 @@ end
 
 function sst_load!(workbook::Workbook)
     sst = get_sst(workbook)
-
     if !sst.is_loaded
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            
             sst_chan = stream_ssts(open_internal_file_stream(get_xlsxfile(workbook), "xl/sharedStrings.xml")[end])
-            load_sst_table!(workbook, sst_chan, min(4,Threads.nthreads()))
-            
-#            sst_root=open_internal_file_stream(get_xlsxfile(workbook), "xl/sharedStrings.xml")[end]
-#            XML.tag(sst_root) != "sst" && throw(XLSXError("Something wrong here!"))
-
-#            for el in XML.children(sst_root)
-#                XML.nodetype(el) == XML.Text && continue
-#                XML.tag(el) != "si" && throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
-#                push!(sst.unformatted_strings, unformatted_text(el))
-#                push!(sst.formatted_strings, XML.write(el))
-#            end
-
+            load_sst_table!(workbook, sst_chan, Threads.nthreads())
             init_sst_index(sst)
             sst.is_loaded=true
             

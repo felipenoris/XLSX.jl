@@ -166,7 +166,7 @@ first cell in the range and apply it uniformly to each cell in the range. This e
 of font, fill, border, format, and alignment are all completely consistent across the range:
 
 ```julia
-julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be uniformly tha same as cell A1.
+julia> XLSX.setUniformStyle(s, "A1:CV100") # set all formatting attributes to be uniformly the same as cell A1.
 7    # this is the `styleId` that has now been applied to all cells in the range
 ```
 
@@ -304,9 +304,9 @@ Two functions offer the ability to set the column width and row height within a 
 all of the indexing options described above. For example:
 
 ```julia
-julia> XLSX.setRowHeight(s, "A2:A5"; height=25)  # Rows 1 to 5 (columns ignored)
+julia> XLSX.setRowHeight(s, "A2:A5"; height=25)  # Rows 2 to 5 (columns ignored)
 
-julia> XLSX.setColumnWidth(s, 5:5:100; width=50) # Every 5th column.
+julia> XLSX.setColumnWidth(s, 5:5:100; width=50) # Every 5th column up to column 100.
 ```
 
 Excel applies some padding to user specified widths and heights. The two functions described here attempt 

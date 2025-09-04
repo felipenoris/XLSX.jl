@@ -14,7 +14,7 @@ import UUIDs
 import Mmap
 import Base.Threads
 
-import PrecompileTools as PCT    # this is a small dependency. PCT avoids namespace conflict with ZipArchives (I think)
+import PrecompileTools as PCT    # this is a small dependency.
 
 export
     # Files and worksheets

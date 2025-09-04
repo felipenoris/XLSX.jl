@@ -44,7 +44,7 @@ true or false respectively:
 trueorfalse(sheet, XLSX.CellRange("E3:L6"))
 ```
 
-Similarly, a function can be defined to fill any cells containing missing values to be filled with a grey 
+Similarly, a function can be defined that fills any cells containing missing values with a grey 
 color and have diagonal borders applied:
 
 ```julia
@@ -101,8 +101,8 @@ options, refer to [XLSX.setConditionalFormat()](@ref).
 
 It is possible to format each cell in a range when the cell's value meets a specified condition using one 
 of a number of built-in cell format options or using custom formatting. This group of formatting options 
-represents the greatest range of conditional formatting options available in Excel and the most often 
-used. All the functions of `Highlight Cells Rules` and `Top/Bottom Rules` are provided.
+represents the greatest range of conditional formatting options available in Excel and are probably the most 
+often used. All the functions of `Highlight Cells Rules` and `Top/Bottom Rules` are provided.
 
 ![image|320x500](../images/cell1.png) ![image|100x500](../images/blank.png) ![image|320x500](../images/cell2.png)
 
@@ -124,7 +124,7 @@ The following `:type` values are used to set conditional formats by making direc
 
 Each of these formatting types needs a set of keyword options to fully define its operation. 
 This can be exemplified by considering the `:cellIs` type. Like the other conditional formats 
-in this group, `:cellIs` needs an `operator` keyword to define the test to make to determine 
+in this group, `:cellIs` needs an `operator` keyword to define the test to use to determine 
 whether or not to apply the formatting. Valid `operator` values for `:cellIs` are:
 
 - `greaterThan`     (cell >  `value`)
@@ -772,8 +772,8 @@ Specifying too few icons in `icon_list` throws an error while any extra will sim
 ### Cell Ranges
 
 Cell ranges for conditional formats are always absolute refences. The specified range to which a 
-conditional format is to be applied is always treated as an absolute cell references so that, 
-for example
+conditional format is to be applied is always treated as being based upon absolute cell references 
+so that, for example
 ```julia
 julia> XLSX.setConditionalFormat(s, "A2:C5", :colorScale; colorscale="greenyellow")
 ```

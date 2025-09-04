@@ -349,10 +349,11 @@ mutable struct Worksheet
     dimension::Union{Nothing, CellRange}
     is_hidden::Bool
     cache::Union{WorksheetCache, Nothing}
+    unhandled_attributes::Union{Nothing,Dict{Int,Dict{String,String}}}
     sst_count::Int # number of cells containing a shared string
 
     function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::Union{Nothing, CellRange}, is_hidden::Bool)
-        return new(package, sheetId, relationship_id, name, dimension, is_hidden, nothing, 0)
+        return new(package, sheetId, relationship_id, name, dimension, is_hidden, nothing, nothing, 0)
     end
 end
 
@@ -423,7 +424,6 @@ mutable struct XLSXFile <: MSOfficePackage
     io::ZipArchives.ZipReader
     files::Dict{String, Bool} # maps filename => isread bool
     data::Dict{String, XML.Node} # maps filename => XMLDocument (with row/sst elements removed)
-    sstrow::Dict{String, XML.Raw} # maps filename => XML.Raw of row or sst elements
     binary_data::Dict{String, Vector{UInt8}} # maps filename => file content in bytes
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
@@ -436,7 +436,7 @@ mutable struct XLSXFile <: MSOfficePackage
         else
             io = ZipArchives.ZipReader(FileArray(abspath(source)))
         end
-        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, XML.Raw}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
         xl.workbook.package = xl
         return xl
     end

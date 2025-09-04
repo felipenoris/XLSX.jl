@@ -545,7 +545,7 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=true) :: DataTable
     for r in itr # r is a TableRow
         is_empty_row = true
         for (ci, cv) in enumerate(r) # iterate a TableRow to get column data
-            cv = cv isa String ? XML.unescape(cv) : cv
+#            cv = cv isa String ? XML.unescape(cv) : cv
             push!(data[ci], cv)
             if !ismissing(cv)
                 is_empty_row = false
