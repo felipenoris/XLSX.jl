@@ -279,8 +279,6 @@ function update_single_sheet!(wb::Workbook, sheet_no::Int, full::Bool)::XML.Node
 
         # update sheetData from cache
         i, j = get_idces(doc, "worksheet", "sheetData")
-#        sheetData_node = unlink(doc[i][j], ("sheetData", "dummy")) # remove placeholder
-#        if isnothing(sheetData_node.children) # keep any attributes
             sheetData_node = XML.Element(XML.tag(doc[i][j]))
             a = XML.attributes(doc[i][j])
             if !isnothing(a)
@@ -288,7 +286,6 @@ function update_single_sheet!(wb::Workbook, sheet_no::Int, full::Bool)::XML.Node
                     sheetData_node[k] = v
                 end
             end
-#        end
 
         # iterates over WorksheetCache cells and writes the XML
         rows = get_cache_rows(sheet)

@@ -566,7 +566,6 @@ function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed
     end
     if skipnode == "sheetData"  # close parents for <row> or <sst> elements in the excerpted data
         append!(skipped, Vector{UInt8}("</sheetData>"))
-        append!(skipped, Vector{UInt8}("<dummy/>")) # add dummy to support SheetRowIterator, which expects subsequent siblings after sheetData
         append!(skipped, Vector{UInt8}("</workshet>"))
     elseif skipnode == "sst"
         append!(skipped, Vector{UInt8}("</sst>"))
