@@ -6142,3 +6142,19 @@ end
         end
     end
 end
+
+@testset "stream iterator" begin
+    f = XLSX.openxlsx(joinpath(data_directory, "general.xlsx"), enable_cache=false)
+    s=f["table"]
+    for sheetrow in XLSX.eachrow(s)
+        for column in 2:4
+            cell = XLSX.getcell(sheetrow, column)
+            if XLSX.row_number(cell)==2 && XLSX.column_number(cell) == 2
+                @test XLSX.getdata(s, cell) == "Column B"
+            end
+            if XLSX.row_number(cell)==12 && XLSX.column_number(cell) == 2
+                @test XLSX.getdata(s, cell) == "trash"
+            end
+        end
+    end
+end
