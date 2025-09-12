@@ -1,6 +1,9 @@
 
 # API Reference
 
+```@index
+```
+
 ```@docs
 XLSX.XLSXFile
 XLSX.readxlsx
@@ -14,6 +17,8 @@ XLSX.hassheet
 XLSX.Worksheet
 XLSX.rename!
 XLSX.addsheet!
+XLSX.copysheet!
+XLSX.deletesheet!
 XLSX.readdata
 XLSX.getdata
 XLSX.getcell
@@ -23,17 +28,18 @@ XLSX.row_number
 XLSX.column_number
 XLSX.eachrow
 XLSX.readtable
+XLSX.readdf
 XLSX.gettable
 XLSX.eachtablerow
 XLSX.writetable
 XLSX.writetable!
+XLSX.setConditionalFormat
 XLSX.setFormat
 XLSX.setUniformFormat
 XLSX.setFont
 XLSX.setUniformFont
 XLSX.setBorder
 XLSX.setUniformBorder
-XLSX.setOutsideBorder
 XLSX.setFill
 XLSX.setUniformFill
 XLSX.setAlignment
@@ -41,4 +47,9 @@ XLSX.setUniformAlignment
 XLSX.setUniformStyle
 XLSX.setColumnWidth
 XLSX.setRowHeight
+XLSX.getMergedCells
+XLSX.isMergedCell
+XLSX.getMergedBaseCell
+XLSX.mergeCells
+XLSX.addDefinedName
 ```

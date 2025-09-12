@@ -1,4 +1,11 @@
-# Migration Guides
+# Migration Guide
+
+!!! note
+
+    This migration guide was introduced to describe migrating from a pre v0.8 version 
+    of XLSX.jl to v0.8. 
+    
+    It is a largely historic document now.
 
 ## Migrating Legacy Code to v0.8
 

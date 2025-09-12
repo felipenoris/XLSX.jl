@@ -1,401 +1,4 @@
 
-const font_tags = ["b", "i", "u", "strike", "outline", "shadow", "condense", "extend", "sz", "color", "name", "scheme"]
-const border_tags = ["left", "right", "top", "bottom", "diagonal"]
-const fill_tags = ["patternFill"]
-const builtinFormats = Dict(
-        "0"  => "General",
-        "1"  => "0",
-        "2"  => "0.00",
-        "3"  => "#,##0",
-        "4"  => "#,##0.00",
-        "5"  => "\$#,##0_);(\$#,##0)",
-        "6"  => "\$#,##0_);Red",
-        "7"  => "\$#,##0.00_);(\$#,##0.00)",
-        "8"  => "\$#,##0.00_);Red",
-        "9"  => "0%",
-        "10" => "0.00%",
-        "11" => "0.00E+00",
-        "12" => "# ?/?",
-        "13" => "# ??/??",
-        "14" => "m/d/yyyy",
-        "15" => "d-mmm-yy",
-        "16" => "d-mmm",
-        "17" => "mmm-yy",
-        "18" => "h:mm AM/PM",
-        "19" => "h:mm:ss AM/PM",
-        "20" => "h:mm",
-        "21" => "h:mm:ss",
-        "22" => "m/d/yyyy h:mm",
-        "37" => "#,##0_);(#,##0)",
-        "38" => "#,##0_);Red",
-        "39" => "#,##0.00_);(#,##0.00)",
-        "40" => "#,##0.00_);Red",
-        "45" => "mm:ss",
-        "46" => "[h]:mm:ss",
-        "47" => "mmss.0",
-        "48" => "##0.0E+0",
-        "49" => "@"
-    )
-    const builtinFormatNames = Dict(
-        "General"     =>  0,
-        "Number"      =>  2,
-        "Currency"    =>  7,
-        "Percentage"  =>  9,
-        "ShortDate"   => 14,
-        "LongDate"    => 15,
-        "Time"        => 21,
-        "Scientific"  => 48
-    )
-const floatformats = r"""
-\.[0#?]|
-[0#?]e[+-]?[0#?]|
-[0#?]/[0#?]|
-%
-"""ix  
-
-#
-# -- A bunch of helper functions first...
-#
-
-function copynode(o::XML.Node) 
-    n = XML.parse(XML.Node, XML.write(o))[1]
-    n = XML.Node(n.nodetype, n.tag, isnothing(n.attributes) ? XML.OrderedDict{String,String}() : n.attributes, n.value, isnothing(n.children) ? Vector{XML.Node}() : n.children)
-    return n
-end
-function buildNode(tag::String, attributes::Dict{String,Union{Nothing,Dict{String,String}}})::XML.Node
-    if tag == "font"
-        attribute_tags = font_tags
-    elseif tag == "border"
-        attribute_tags = border_tags
-    elseif tag == "fill"
-        attribute_tags = fill_tags
-    else
-        error("Unknown tag: $tag")
-    end
-    new_node = XML.Element(tag)
-    for a in attribute_tags # Use this as a device to keep ordering constant for Excel
-        if tag == "font"
-            if haskey(attributes, a)
-                if isnothing(attributes[a])
-                    cnode = XML.Element(a)
-                else
-                    cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag ∈ ["border", "fill"] ? Vector{XML.Node}() : nothing)
-                    for (k, v) in attributes[a]
-                        cnode[k] = v
-                    end
-                end
-                push!(new_node, cnode)
-            end
-        elseif tag == "border"
-            if haskey(attributes, a)
-                if isnothing(attributes[a])
-                    cnode = XML.Element(a)
-                else
-                    cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag ∈ ["border", "fill"] ? Vector{XML.Node}() : nothing)
-                    color = XML.Element("color")
-                    for (k, v) in attributes[a]
-                        if k == "style" && v != "none"
-                            cnode[k] = v
-                        elseif k == "direction"
-                            if v in ["up", "both"]
-                                new_node["diagonalUp"] = "1"
-                            end
-                            if v in ["down", "both"]
-                                new_node["diagonalDown"] = "1"
-                            end
-                        else#if k == "rgb"
-                            color[k] = v
-                        #else
-                            #error("Incorect border attribute found: $k") # shouldn't happen!
-                        end
-                    end
-                    if length(XML.attributes(color)) > 0 # Don't push an empty color.
-                        push!(cnode, color)
-                    end
-                end
-                push!(new_node, cnode)
-            end
-        elseif tag == "fill"
-            if haskey(attributes, a)
-                if isnothing(attributes[a])
-                    cnode = XML.Element(a)
-                else
-                    cnode = XML.Node(XML.Element, a, XML.OrderedDict{String,String}(), nothing, tag ∈ ["border", "fill"] ? Vector{XML.Node}() : nothing)
-                    patternfill = XML.Element("patternFill")
-                    fgcolor = XML.Element("fgColor")
-                    bgcolor = XML.Element("bgColor")
-                    for (k, v) in attributes[a]
-                        if k == "patternType"
-                            patternfill[k] = v
-                        elseif first(k, 2) == "fg"
-                            fgcolor[k[3:end]] = v
-                        elseif first(k, 2) == "bg"
-                            bgcolor[k[3:end]] = v
-                        end
-                    end
-                    @assert haskey(patternfill, "patternType") "No `patternType` attribute found."
-                    length(XML.attributes(fgcolor)) > 0 && push!(patternfill, fgcolor)
-                    length(XML.attributes(bgcolor)) > 0 && push!(patternfill, bgcolor)
-                end
-                push!(new_node, patternfill)
-            end
-        else
-        end
-    end
-    return new_node
-end
-function unlink_cols(node::XML.Node) # removes each `col` from a `cols` XML node.
-    new_cols = XML.Element("cols")
-    a = XML.attributes(node)
-    if !isnothing(a) # Copy attributes across to new node
-        for (k, v) in XML.attributes(node)
-            new_cols[k] = v
-        end
-    end
-    for child in XML.children(node) # Copy any child nodes that are not cols across to new node
-        if XML.tag(child) != "col"  # Shouldn't be any.
-            push!(new_cols, child)
-        end
-    end
-    return new_cols
-end
-function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, attributes::Vector{String}, vals::Vector{String})::CellDataFormat
-    old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
-    new_cell_xf = copynode(old_cell_xf)
-    @assert length(attributes) == length(vals) "Attributes and values must be of the same length."
-    for (a, v) in zip(attributes, vals)
-        new_cell_xf[a] = v
-    end
-    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
-end
-function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
-    old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
-    new_cell_xf = copynode(old_cell_xf)
-    if length(XML.children(new_cell_xf))==0
-        push!(new_cell_xf, alignment)
-    else
-        new_cell_xf[1] = alignment
-    end
-    return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
-end
-
-# Only used in testing!
-function styles_add_cell_font(wb::Workbook, attributes::Dict{String,Union{Dict{String,String},Nothing}})::Int
-    new_font = buildNode("font", attributes)
-    return styles_add_cell_attribute(wb, new_font, "fonts")
-end
-
-# Used by setFont(), setBorder(), setFill(), setAlignment() and setNumFmt()
-function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)::Int
-    xroot = styles_xmlroot(wb)
-    i, j = get_idces(xroot, "styleSheet", att)
-    existing_elements_count = length(XML.children(xroot[i][j]))
-    @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of elements elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
-
-    # Check new_att doesn't duplicate any existing att. If yes, use that rather than create new.
-    for (k, node) in enumerate(XML.children(xroot[i][j]))
-        if XML.tag(new_att) == "numFmt" # mustn't compare numFmtId attribute for formats
-            if XML.parse(XML.Node, XML.write(node))[1]["formatCode"] == XML.parse(XML.Node, XML.write(new_att))[1]["formatCode"] # XML.jl defines `Base.:(==)`
-                return k - 1 # CellDataFormat is zero-indexed
-            end
-        else
-            if XML.parse(XML.Node, XML.write(node))[1] == XML.parse(XML.Node, XML.write(new_att))[1] # XML.jl defines `Base.:(==)`
-                return k - 1 # CellDataFormat is zero-indexed
-            end
-        end
-    end
-
-    push!(xroot[i][j], new_att)
-    xroot[i][j]["count"] = string(existing_elements_count + 1)
-
-    return existing_elements_count # turns out this is the new index (because it's zero-based)
-end
-function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
-    if is_workbook_defined_name(xl, sheetcell)
-        v = get_defined_name_value(xl.workbook, sheetcell)
-        if is_defined_name_value_a_constant(v)
-            error("Can only assign attributes to cells but `$(sheetcell)` is a constant: $(sheetcell)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            newid = process_ranges(f, xl, string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_valid_sheet_column_range(sheetcell)
-        sheetcolrng = SheetColumnRange(sheetcell)
-        newid = f(xl[sheetcolrng.sheet], sheetcolrng.colrng; kw...)
-    elseif is_valid_sheet_cellrange(sheetcell)
-        sheetcellrng = SheetCellRange(sheetcell)
-        newid = f(xl[sheetcellrng.sheet], sheetcellrng.rng; kw...)
-    elseif is_valid_sheet_cellname(sheetcell)
-        ref = SheetCellRef(sheetcell)
-        @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-        newid = f(getsheet(xl, ref.sheet), ref.cellref; kw...)
-     else
-        error("Invalid sheet cell reference: $sheetcell")
-    end
-    return newid
-end
-function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
-    # Moved the tests for defined names to be first in case a name looks like a column name (e.g. "ID")
-    if is_worksheet_defined_name(ws, ref_or_rng)
-        v = get_defined_name_value(ws, ref_or_rng)
-        if is_defined_name_value_a_constant(v)
-            error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            wb = get_workbook(ws)
-            newid = f(get_xlsxfile(wb), string(v); kw...)
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_workbook_defined_name(get_workbook(ws), ref_or_rng)
-        wb = get_workbook(ws)
-        v = get_defined_name_value(wb, ref_or_rng)
-        if is_defined_name_value_a_constant(v)
-            error("Can only assign attributes to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            if is_non_contiguous_range(v)
-                _ = f.(Ref(get_xlsxfile(wb)), replace.(split(string(v), ","), "'" => "", "\$" => ""); kw...)
-                newid = -1
-            else
-                newid = f(get_xlsxfile(wb), replace(string(v), "'" => "", "\$" => ""); kw...)
-            end
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_valid_column_range(ref_or_rng)
-        colrng = ColumnRange(ref_or_rng)
-        newid = f(ws, colrng; kw...)
-    elseif is_valid_cellrange(ref_or_rng)
-        rng = CellRange(ref_or_rng)
-        newid = f(ws, rng; kw...)
-    elseif is_valid_cellname(ref_or_rng)
-        newid = f(ws, CellRef(ref_or_rng); kw...)
-    else
-        error("Invalid cell reference or range: $ref_or_rng")
-    end
-    return newid
-end
-function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; kw...)::Int
-    bounds = column_bounds(colrng)
-    dim = (get_dimension(ws))
-
-    left = bounds[begin]
-    right = bounds[end]
-    top = dim.start.row_number
-    bottom = dim.stop.row_number
-
-    OK = dim.start.column_number <= left
-    OK &= dim.stop.column_number >= right
-    OK &= dim.start.row_number <= top
-    OK &= dim.stop.row_number >= bottom
-
-    if OK
-        rng = CellRange(top, left, bottom, right)
-        return f(ws, rng; kw...)
-    else
-        error("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`.")
-    end
-end
-function process_cellranges(f::Function, ws::Worksheet, rng::CellRange; kw...)::Int
-    for cellref in rng
-        if getcell(ws, cellref) isa EmptyCell
-            continue
-        end
-        _ = f(ws, cellref; kw...)
-    end
-    return -1 # Each cell may have a different attribute Id so we can't return a single value.
-end
-function process_get_sheetcell(f::Function, xl::XLSXFile, sheetcell::String)
-    ref = SheetCellRef(sheetcell)
-    @assert hassheet(xl, ref.sheet) "Sheet $(ref.sheet) not found."
-    return f(getsheet(xl, ref.sheet), ref.cellref)
-end
-function process_get_cellref(f::Function, ws::Worksheet, cellref::CellRef)
-    wb = get_workbook(ws)
-    cell = getcell(ws, cellref)
-
-    if cell isa EmptyCell || cell.style == ""
-        return nothing
-    end
-
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    return f(wb, cell_style)
-end
-function process_get_cellname(f::Function, ws::Worksheet, ref_or_rng::AbstractString)
-    if is_workbook_defined_name(get_workbook(ws), ref_or_rng)
-        wb = get_workbook(ws)
-        v = get_defined_name_value(wb, ref_or_rng)
-        if is_defined_name_value_a_constant(v) # Can these have fonts?
-            error("Can only assign borderds to cells but `$(ref_or_rng)` is a constant: $(ref_or_rng)=$v.")
-        elseif is_defined_name_value_a_reference(v)
-            new_att = f(get_xlsxfile(wb), replace(string(v), "'" => ""))
-        else
-            error("Unexpected defined name value: $v.")
-        end
-    elseif is_valid_cellname(ref_or_rng)
-        new_att = f(ws, CellRef(ref_or_rng))
-    else
-        error("Invalid cell reference or range: $ref_or_rng")
-    end
-    return new_att
-end
-function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, atts::Vector{String}; kw...)
-
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
-
-    let newid
-        first = true
-        for cellref in rng
-            cell = getcell(ws, cellref)
-            if cell isa EmptyCell # Can't add a attribute to an empty cell.
-                continue
-            end
-            if first                           # Get the attribute of the first cell in the range.
-                newid = f(ws, cellref; kw...)
-                first = false
-            else                               # Apply the same attribute to the rest of the cells in the range.
-                if cell.style == ""
-                    cell.style = string(get_num_style_index(ws, 0).id)
-                end
-                cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), atts, ["$newid", "1"]).id)
-            end
-        end
-        if first
-            newid = -1
-        end
-        return newid
-    end
-end
-function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange; kw...)
-
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set uniform attributes because cache is not enabled."
-
-    let newid, alignment_node
-        first = true
-        for cellref in rng
-            cell = getcell(ws, cellref)
-            if cell isa EmptyCell # Can't add a attribute to an empty cell.
-                continue
-            end
-            if first                           # Get the attribute of the first cell in the range.
-                newid = f(ws, cellref; kw...)
-                new_alignment = getAlignment(ws, cellref).alignment["alignment"]
-                alignment_node = XML.Node(XML.Element, "alignment", new_alignment, nothing, nothing)
-                first = false
-            else                               # Apply the same attribute to the rest of the cells in the range.
-                if cell.style == ""
-                    cell.style = string(get_num_style_index(ws, 0).id)
-                end
-                cell.style = string(update_template_xf(ws, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
-            end
-        end
-        if first
-            newid = -1
-        end
-        return newid
-    end
-end
-
 # ==========================================================================================
 #
 # -- Get and set font attributes
@@ -405,8 +8,12 @@ end
     setFont(sh::Worksheet, cr::String; kw...) -> ::Int
     setFont(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setFont(sh::Worksheet, row, col; kw...) -> ::Int
+
 Set the font used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 Font attributes are specified using keyword arguments:
 - `bold::Bool = nothing`    : set to `true` to make the font bold.
@@ -414,7 +21,7 @@ Font attributes are specified using keyword arguments:
 - `under::String = nothing` : set to `single`, `double` or `none`.
 - `strike::Bool = nothing`  : set to `true` to strike through the font.
 - `size::Int = nothing`     : set the font size (0 < size < 410).
-- `color::String = nothing` : set the font color using an 8-digit hexadecimal RGB value.
+- `color::String = nothing` : set the font color.
 - `name::String = nothing`  : set the font name.
 
 Only the attributes specified will be changed. If an attribute is not specified, the current
@@ -422,17 +29,20 @@ value will be retained. These are the only attributes supported currently.
 
 No validation of the font names specified is performed. Available fonts will depend
 on what your system has installed. If you specify, for example, `name = "badFont"`,
-that value will be written to the XLSXfile.
+that value will be written to the XLSXFile.
 
 As an expedient to get fonts to work, the `scheme` attribute is simply dropped from
 new font definitions.
 
-The `color` attribute can only be defined as rgb values.
-- The first two digits represent transparency (α). FF is fully opaque, while 00 is fully transparent.
+The `color` attribute can be defined using 8-digit rgb values.
+- The first two digits represent transparency (α). Excel ignores transparency.
 - The next two digits give the red component.
 - The next two digits give the green component.
 - The next two digits give the blue component.
 So, FF000000 means a fully opaque black color.
+
+Alternatively, you can use the name of any named color from Colors.jl
+([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
@@ -447,49 +57,82 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 ```julia
 julia> setFont(sh, "A1"; bold=true, italic=true, size=12, name="Arial")          # Single cell
 
-julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="FFB3081F")           # Single cell
+julia> setFont(xf, "Sheet1!A1"; bold=false, size=14, color="yellow")             # Single cell
 
 julia> setFont(sh, "A1:B7"; name="Aptos", under="double", strike=true)           # Cell range
 
 julia> setFont(xf, "Sheet1!A1:B7"; size=24, name="Berlin Sans FB Demi")          # Cell range
 
-julia> setFont(sh, "A:B"; italic=true, color="FF8888FF", under="single")         # Column range
+julia> setFont(sh, "A:B"; italic=true, color="green", under="single")            # Column range
 
-julia> setFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
+julia> setFont(xf, "Sheet1!A:B"; italic=true, color="red", under="single")       # Column range
+
+julia> setFont(xf, "Sheet1!6:12"; italic=false, color="FF8888FF", under="none")  # Row range
 
 julia> setFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
 
-julia> setFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named cell or range
- 
+julia> setFont(xf, "bigred"; size=48, color="magenta")                           # Named cell or range
+
+julia> setFont(sh, 1, 2; size=48, color="magenta")                               # row and column as integers
+
+julia> setFont(sh, 1:3, 2; size=48, color="magenta")                             # row as unit range
+
+julia> setFont(sh, 6, [2, 3, 8, 12]; size=48, color="magenta")                   # column as vector of indices
+
+julia> setFont(sh, :, 2:6; size=48, color="lightskyblue2")                       # all rows, columns 2 to 6
+
 ```
 """
 function setFont end
+setFont(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setFont(ws, ref.cellref; kw...)
+setFont(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setFont(ws, rng.rng; kw...)
+setFont(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setFont(ws, rng.colrng; kw...)
+setFont(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setFont(ws, rng.rowrng; kw...)
 setFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFont, ws, rng; kw...)
 setFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFont, ws, colrng; kw...)
+setFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFont, ws, rowrng; kw...)
+setFont(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFont, ws, ncrng; kw...)
 setFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFont, ws, ref_or_rng; kw...)
 setFont(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFont, xl, sheetcell; kw...)
-function setFont(sh::Worksheet, cellref::CellRef; 
-        bold::Union{Nothing,Bool}=nothing,
-        italic::Union{Nothing,Bool}=nothing,
-        under::Union{Nothing,String}=nothing,
-        strike::Union{Nothing,Bool}=nothing,
-        size::Union{Nothing,Int}=nothing,
-        color::Union{Nothing,String}=nothing,
-        name::Union{Nothing,String}=nothing
-    )::Int
+setFont(ws::Worksheet, row::Integer, col::Integer; kw...) = setFont(ws, CellRef(row, col); kw...)
+setFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFont, ws, row, nothing; kw...)
+setFont(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFont, ws, nothing, col; kw...)
+setFont(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setFont, ws, nothing, nothing; kw...)
+setFont(ws::Worksheet, ::Colon; kw...) = process_colon(setFont, ws, nothing, nothing; kw...)
+setFont(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setFont, ws, row, nothing; kw...)
+setFont(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setFont, ws, nothing, col; kw...)
+setFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFont, ws, row, col; kw...)
+setFont(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setFont, ws, row, col; kw...)
+setFont(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFont, ws, row, col; kw...)
+setFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFont(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+function setFont(sh::Worksheet, cellref::CellRef;
+    bold::Union{Nothing,Bool}=nothing,
+    italic::Union{Nothing,Bool}=nothing,
+    under::Union{Nothing,String}=nothing,
+    strike::Union{Nothing,Bool}=nothing,
+    size::Union{Nothing,Int}=nothing,
+    color::Union{Nothing,String}=nothing,
+    name::Union{Nothing,String}=nothing
+)::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set font because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set font because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."
-
-    if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set attribute for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
+    end
+
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
 
     new_font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     cell_font = getFont(wb, cell_style)
@@ -506,7 +149,9 @@ function setFont(sh::Worksheet, cellref::CellRef;
                 new_font_atts["i"] = nothing
             end
         elseif a == "u"
-            @assert isnothing(under) || under ∈ ["none", "single", "double"] "Invalid value for under: $under. Must be one of: `none`, `single`, `double`."
+            if !isnothing(under) && under ∉ ["none", "single", "double"]
+                throw(XLSXError("Invalid value for under: $under. Must be one of: `none`, `single`, `double`."))
+            end
             if isnothing(under) && haskey(old_font_atts, "u")
                 new_font_atts["u"] = old_font_atts["u"]
             elseif !isnothing(under)
@@ -521,14 +166,13 @@ function setFont(sh::Worksheet, cellref::CellRef;
                 new_font_atts["strike"] = nothing
             end
         elseif a == "color"
-            @assert isnothing(color) || occursin(r"^[0-9A-F]{8}$", color) "Invalid color value: $color. Must be an 8-digit hexadecimal RGB value."
             if isnothing(color) && haskey(old_font_atts, "color")
                 new_font_atts["color"] = old_font_atts["color"]
             elseif !isnothing(color)
-                new_font_atts["color"] = Dict("rgb" => color)
+                new_font_atts["color"] = Dict("rgb" => get_color(color))
             end
         elseif a == "sz"
-            @assert isnothing(size) || (size > 0 && size < 410) "Invalid size value: $size. Must be between 1 and 409."
+            (!isnothing(size) && (size < 1 || size > 409)) && throw(XLSXError("Invalid size value: $size. Must be between 1 and 409."))
             if isnothing(size) && haskey(old_font_atts, "sz")
                 new_font_atts["sz"] = old_font_atts["sz"]
             elseif !isnothing(size)
@@ -550,7 +194,7 @@ function setFont(sh::Worksheet, cellref::CellRef;
 
     new_fontid = styles_add_cell_attribute(wb, font_node, "fonts")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], ["$new_fontid", "1"]).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], [string(new_fontid), "1"]).id)
     cell.style = newstyle
     return new_fontid
 end
@@ -559,8 +203,12 @@ end
     setUniformFont(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFont(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the font used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same font.
+    setUniformFont(sh::Worksheet, rows, cols; kw...) -> ::Int
+
+Set the font used by a cell range, a column range or row range or 
+a named range in a worksheet or XLSXfile to be uniformly the same font.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the font attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFont()`). The resultant font is 
@@ -580,6 +228,9 @@ etc) to all the other cells in the range.
 
 This can be more efficient when setting the same font for a large number of cells.
 
+Applying `setUniformFont()` without any keyword arguments simply copies the `Font` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `fontId` of the font uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
@@ -595,24 +246,46 @@ julia> setUniformFont(sh, "A:B"; italic=true, color="FF8888FF", under="single") 
 
 julia> setUniformFont(xf, "Sheet1!A:B"; italic=true, color="FF8888FF", under="single")  # Column range
 
+julia> setUniformFont(sh, "33"; italic=true, color="FF8888FF", under="single")          # Row
+
 julia> setUniformFont(sh, "bigred"; size=48, color="FF00FF00")                          # Named range
 
-julia> setUniformFont(xf, "bigred"; size=48, color="FF00FF00")                          # Named range
+julia> setUniformFont(sh, 1, [2, 4, 6]; size=48, color="lightskyblue2")                 # vector of column indices
+
+julia> setUniformFont(sh, "B2,A5:D22")                                                  # Copy `Font` from B2 to cells in A5:D22
  
 ```
 """
 function setUniformFont end
+setUniformFont(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFont(ws, rng.rng; kw...)
+setUniformFont(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFont(ws, rng.colrng; kw...)
+setUniformFont(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFont(ws, rng.rowrng; kw...)
 setUniformFont(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFont, ws, colrng; kw...)
+setUniformFont(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFont, ws, rowrng; kw...)
+setUniformFont(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_uniform_ncranges(setFont, ws, ncrng, ["fontId", "applyFont"]; kw...)
 setUniformFont(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFont, xl, sheetcell; kw...)
 setUniformFont(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFont, ws, ref_or_rng; kw...)
+setUniformFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFont, ws, row, nothing; kw...)
+setUniformFont(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFont, ws, nothing, col; kw...)
+setUniformFont(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setUniformFont, ws, nothing, nothing; kw...)
+setUniformFont(ws::Worksheet, ::Colon; kw...) = process_colon(setUniformFont, ws, nothing, nothing; kw...)
+setUniformFont(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_uniform_veccolon(setFont, ws, row, nothing, ["fontId", "applyFont"]; kw...)
+setUniformFont(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_veccolon(setFont, ws, nothing, col, ["fontId", "applyFont"]; kw...)
+setUniformFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setFont, ws, row, col, ["fontId", "applyFont"]; kw...)
+setUniformFont(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setFont, ws, row, col, ["fontId", "applyFont"]; kw...)
+setUniformFont(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setFont, ws, row, col, ["fontId", "applyFont"]; kw...)
+setUniformFont(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformFont(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformFont(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFont, ws, rng, ["fontId", "applyFont"]; kw...)
 
 
 """
     getFont(sh::Worksheet, cr::String) -> ::Union{Nothing, CellFont}
     getFont(xf::XLSXFile, cr::String)  -> ::Union{Nothing, CellFont}
-   
-Get the font used by a single cell at reference `cr` in a worksheet `sh` or XLSXfile `xf`.
+
+    getFont(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellFont}
+
+Get the font used by a single cell reference in a worksheet `sh` or XLSXfile `xf`.
+The specified cell must be within the sheet dimension.
 
 Return a `CellFont` object containing:
 - `fontId`    : a 0-based index of the font in the workbook
@@ -645,6 +318,10 @@ e.g. `"color" => ("theme" => "1")`.
 julia> getFont(sh, "A1")
 
 julia> getFont(xf, "Sheet1!A1")
+
+julia> getFont(sh, "Sheet1!A1")
+
+julia> getFont(sh, 1, 1)
  
 ```
 """
@@ -652,24 +329,28 @@ function getFont end
 getFont(ws::Worksheet, cr::String) = process_get_cellname(getFont, ws, cr)
 getFont(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFont} = process_get_sheetcell(getFont, xl, sheetcell)
 getFont(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFont} = process_get_cellref(getFont, ws, cellref)
+getFont(ws::Worksheet, row::Integer, col::Integer) = getFont(ws, CellRef(row, col))
 getDefaultFont(ws::Worksheet) = getFont(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFont(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFont}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get font because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get font because cache is not enabled."))
+    end
 
     if haskey(cell_style, "fontId")
         fontid = cell_style["fontId"]
         applyfont = haskey(cell_style, "applyFont") ? cell_style["applyFont"] : "0"
         xroot = styles_xmlroot(wb)
-        font_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fonts", xroot)[begin]
-        @assert parse(Int, font_elements["count"]) == length(XML.children(font_elements)) "Unexpected number of font definitions found : $(length(XML.children(font_elements))). Expected $(parse(Int, font_elements["count"]))"
+        font_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":fonts", xroot)[begin]
+        if parse(Int, font_elements["count"]) != length(XML.children(font_elements))
+            throw(XLSXError("Unexpected number of font definitions found : $(length(XML.children(font_elements))). Expected $(parse(Int, font_elements["count"]))"))
+        end
         current_font = XML.children(font_elements)[parse(Int, fontid)+1] # Zero based!
         font_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         for c in XML.children(current_font)
             if isnothing(XML.attributes(c)) || length(XML.attributes(c)) == 0
                 font_atts[XML.tag(c)] = nothing
             else
-                # @assert length(XML.attributes(c)) == 1 "Too many font attributes found for $(XML.tag(c)) Expected 1, found $(length(XML.attributes(c)))."
                 for (k, v) in XML.attributes(c)
                     font_atts[XML.tag(c)] = Dict(k => v)
                 end
@@ -688,8 +369,11 @@ end
 """
     getBorder(sh::Worksheet, cr::String) -> ::Union{Nothing, CellBorder}
     getBorder(xf::XLSXFile, cr::String)  -> ::Union{Nothing, CellBorder}
+
+    getBorder(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellBorder}
    
-Get the borders used by a single cell at reference `cr` in a worksheet or XLSXfile.
+Get the borders used by a single cell at reference in a worksheet or XLSXfile.
+The specified cell must be within the sheet dimension.
 
 Return a `CellBorder` object containing:
 - `borderId`    : a 0-based index of the border in the workbook
@@ -736,11 +420,11 @@ The `color` element can have the following attributes:
 `tint` can only be used in conjunction with the theme attribute to derive different shades of the theme color.
 For example: <color theme="1" tint="-0.5"/>.
 
-Only the `rgb` attribute can be used in `setBorder()` to define a border color.
-
 # Examples:
 ```julia
 julia> getBorder(sh, "A1")
+
+julia> getBorder(sh, 3, 6)
 
 julia> getBorder(xf, "Sheet1!A1")
  
@@ -750,17 +434,22 @@ function getBorder end
 getBorder(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellBorder} = process_get_sheetcell(getBorder, xl, sheetcell)
 getBorder(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellBorder} = process_get_cellref(getBorder, ws, cellref)
 getBorder(ws::Worksheet, cr::String) = process_get_cellname(getBorder, ws, cr)
+getBorder(ws::Worksheet, row::Integer, col::Integer) = getBorder(ws, CellRef(row, col))
 getDefaultBorders(ws::Worksheet) = getBorder(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get border because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get border because cache is not enabled."))
+    end
 
     if haskey(cell_style, "borderId")
         borderid = cell_style["borderId"]
         applyborder = haskey(cell_style, "applyBorder") ? cell_style["applyBorder"] : "0"
         xroot = styles_xmlroot(wb)
-        border_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:borders", xroot)[begin]
-        @assert parse(Int, border_elements["count"]) == length(XML.children(border_elements)) "Unexpected number of border definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"
+        border_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":borders", xroot)[begin]
+        if parse(Int, border_elements["count"]) != length(XML.children(border_elements))
+            throw(XLSXError("Unexpected number of border definitions found : $(length(XML.children(border_elements))). Expected $(parse(Int, border_elements["count"]))"))
+        end
         current_border = XML.children(border_elements)[parse(Int, borderid)+1] # Zero based!
         diag_atts = XML.attributes(current_border)
         border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
@@ -768,10 +457,12 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
             if isnothing(XML.attributes(side)) || length(XML.attributes(side)) == 0
                 border_atts[XML.tag(side)] = nothing
             else
-                @assert length(XML.attributes(side)) == 1 "Too many border attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."
+                if length(XML.attributes(side)) != 1
+                    throw(XLSXError("Too many border attributes found for $(XML.tag(side)) Expected 1, found $(length(XML.attributes(side)))."))
+                end
                 for (k, v) in XML.attributes(side) # style is the only possible attribute of a side
                     border_atts[XML.tag(side)] = Dict(k => v)
-                    if side == "diagonal" && !isnothing(diag_atts)
+                    if XML.tag(side) == "diagonal" && !isnothing(diag_atts)
                         if haskey(diag_atts, "diagonalUp") && haskey(diag_atts, "diagonalDown")
                             border_atts[XML.tag(side)]["direction"] = "both"
                         elseif haskey(diag_atts, "diagonalUp")
@@ -779,7 +470,7 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
                         elseif haskey(diag_atts, "diagonalDown")
                             border_atts[XML.tag(side)]["direction"] = "down"
                         else
-                            @assert false "No direction set for `diagonal` border"
+                            throw(XLSXError("No direction set for `diagonal` border"))
                         end
                     end
                     for subc in XML.children(side) # color is a child of a border element
@@ -799,27 +490,38 @@ end
 """
     setBorder(sh::Worksheet, cr::String; kw...) -> ::Int}
     setBorder(xf::XLSXFile, cr::String; kw...) -> ::Int
+
+    setBorder(sh::Worksheet, row, col; kw...) -> ::Int}
    
 Set the borders used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 Borders are independently defined for the keywords:
-- `left::Vector{Pair{String,String} = nothing`
-- `right::Vector{Pair{String,String} = nothing`
-- `top::Vector{Pair{String,String} = nothing`
-- `bottom::Vector{Pair{String,String} = nothing`
-- `diagonal::Vector{Pair{String,String} = nothing`
-- `[allsides::Vector{Pair{String,String} = nothing]`
+- `left::Vector{Pair{String,String}} = nothing`
+- `right::Vector{Pair{String,String}} = nothing`
+- `top::Vector{Pair{String,String}} = nothing`
+- `bottom::Vector{Pair{String,String}} = nothing`
+- `diagonal::Vector{Pair{String,String}} = nothing`
+- `[allsides::Vector{Pair{String,String}} = nothing]`
+- `[outside::Vector{Pair{String,String}} = nothing]`
 
-These represent each of the sides of a cell . The keyword `diagonal` defines diagonal lines running 
-across the cell. These lines must share the same style and color in any cell.
+These represent each of the sides of a cell . The keyword `diagonal` defines 
+diagonal lines running across the cell. These lines must share the same style 
+and color in any cell.
 
 An additional keyword, `allsides`, is provided for convenience. It can be used 
 in place of the four side keywords to apply the same border setting to all four 
 sides at once. It cannot be used in conjunction with any of the side-specific 
-keywords but it can be used together with `diagonal`.
+keywords or with `outside` but it can be used together with `diagonal`.
 
-The two attributes that can be set for each keyword are `style` and `rgb`.
+A further keyword, `outside`, can be used to set the outside border around a 
+range. Any internal borders will remain unchanged. An outside border cannot be 
+set for any non-contiguous/non-rectangular range, cannot be indexed with 
+vectors and cannot be used in conjunction with any other keywords.
+
+The two attributes that can be set for each keyword are `style` and `color`.
 Additionally, for diagonal borders, a third keyword, `direction` can be used.
 
 Allowed values for `style` are:
@@ -838,8 +540,11 @@ Allowed values for `style` are:
 - `mediumDashDotDot`
 - `slantDashDot`
 
-The `color` attribute is set by specifying an 8-digit hexadecimal value.
-No other color attributes can be applied.
+The `color` attribute can be set by specifying an 8-digit hexadecimal value 
+in the format "FFRRGGBB". The transparency ("FF") is ignored by Excel but 
+is required.
+Alternatively, you can use the name of any named color from Colors.jl
+([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
 Valid values for the `direction` keyword (for diagonal borders) are:
 - `up`   : diagonal border runs bottom-left to top-right
@@ -865,30 +570,126 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 ```julia
 Julia> setBorder(sh, "D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "direction" => "up"])
 
+Julia> setBorder(sh, 2:45, 2:12; outside = ["style" => "thick", "color" => "lightskyblue2"])
+
 Julia> setBorder(xf, "Sheet1!D4"; left     = ["style" => "dotted", "color" => "FF000FF0"],
-                                  right    = ["style" => "medium", "color" => "FF765000"],
+                                  right    = ["style" => "medium", "color" => "firebrick2"],
                                   top      = ["style" => "thick",  "color" => "FF230000"],
-                                  bottom   = ["style" => "medium", "color" => "FF0000FF"],
-                                  diagonal = ["style" => "dotted", "color" => "FF00D4D4"]
+                                  bottom   = ["style" => "medium", "color" => "goldenrod3"],
+                                  diagonal = ["style" => "dotted", "color" => "FF00D4D4", "direction" => "both"]
                                   )
  
 ```
 """
 function setBorder end
-setBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setBorder, ws, rng; kw...)
-setBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setBorder, ws, colrng; kw...)
+setBorder(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setBorder(ws, ref.cellref; kw...)
+setBorder(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setBorder(ws, rng.rng; kw...)
+setBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setBorder(ws, rng.colrng; kw...)
+setBorder(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setBorder(ws, rng.rowrng; kw...)
+setBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setBorder, ws, ncrng; kw...)
 setBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setBorder, ws, ref_or_rng; kw...)
-setBorder(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setBorder, xl, sheetcell; kw...)
+setBorder(ws::Worksheet, row::Integer, col::Integer; kw...) = setBorder(ws, CellRef(row, col); kw...)
+setBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setBorder, ws, row, nothing; kw...)
+setBorder(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setBorder, ws, nothing, col; kw...)
+setBorder(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setBorder, ws, nothing, nothing; kw...)
+setBorder(ws::Worksheet, ::Colon; kw...) = process_colon(setBorder, ws, nothing, nothing; kw...)
+setBorder(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setBorder, ws, row, nothing; kw...)
+setBorder(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setBorder, ws, nothing, col; kw...)
+setBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setBorder, ws, row, col; kw...)
+setBorder(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setBorder, ws, row, col; kw...)
+setBorder(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setBorder, ws, row, col; kw...)
+setBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+function setBorder(ws::Worksheet, rng::CellRange;
+    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
+    if isnothing(outside)
+        return process_cellranges(setBorder, ws, rng; allsides, left, right, top, bottom, diagonal)
+    else
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides])
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords."))
+        end
+        return setOutsideBorder(ws, rng; outside)
+    end
+end
+function setBorder(ws::Worksheet, colrng::ColumnRange;
+    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
+    if isnothing(outside)
+        return process_columnranges(setBorder, ws, colrng; allsides, left, right, top, bottom, diagonal)
+    else
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides])
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords"))
+        end
+        return process_columnranges(setOutsideBorder, ws, colrng; outside)
+    end
+end
+function setBorder(ws::Worksheet, rowrng::RowRange;
+    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
+    if isnothing(outside)
+        return process_rowranges(setBorder, ws, rowrng; allsides, left, right, top, bottom, diagonal)
+    else
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides])
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords except `diagonal`."))
+        end
+        return process_rowranges(setOutsideBorder, ws, rowrng; outside)
+    end
+end
+function setBorder(xl::XLSXFile, sheetcell::String;
+    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
+    if isnothing(outside)
+        return process_sheetcell(setBorder, xl, sheetcell; allsides, left, right, top, bottom, diagonal)
+    else
+        if !all(isnothing, [left, right, top, bottom, diagonal, allsides])
+            throw(XLSXError("Keyword `outside` is incompatible with any other keywords except `diagonal`."))
+        end
+        return process_sheetcell(setOutsideBorder, xl, sheetcell; outside)
+    end
+end
 function setBorder(sh::Worksheet, cellref::CellRef;
-        allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
-        diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
-    )::Int
+    allsides::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    left::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    right::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    top::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    bottom::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+    diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
+)::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set borders because cache is not enabled."))
+    end
+
+    if !isnothing(allsides)
+        if !all(isnothing, [left, right, top, bottom])
+            throw(XLSXError("Keyword `allsides` is incompatible with any other keywords except `diagonal`."))
+        end
+        return setBorder(sh, cellref; left=allsides, right=allsides, top=allsides, bottom=allsides, diagonal=diagonal)
+    end
 
     kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
     kwdict["allsides"] = isnothing(allsides) ? nothing : Dict{String,String}(p for p in allsides)
@@ -898,21 +699,20 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     kwdict["bottom"] = isnothing(bottom) ? nothing : Dict{String,String}(p for p in bottom)
     kwdict["diagonal"] = isnothing(diagonal) ? nothing : Dict{String,String}(p for p in diagonal)
 
-    if !isnothing(allsides)
-        @assert all(isnothing, [left, right, top, bottom]) "Keyword `allsides` is incompatible with any other keywords except `diagonal`."
-        return setBorder(sh, cellref; left=allsides, right=allsides, top=allsides, bottom=allsides, diagonal=diagonal)
-    end
-
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set border for an `EmptyCell`: $(cellref.name). Set the value first."
-
-    if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set border for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
+    end
+
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
     new_border_atts = Dict{String,Union{Dict{String,String},Nothing}}()
 
     cell_borders = getBorder(wb, cell_style)
@@ -921,38 +721,45 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     for a in ["left", "right", "top", "bottom", "diagonal"]
         new_border_atts[a] = Dict{String,String}()
-        if isnothing(kwdict[a]) && haskey(old_border_atts, a)
-            new_border_atts[a] = old_border_atts[a]
-        elseif !isnothing(kwdict[a])
-            if !haskey(kwdict[a], "style") && haskey(old_border_atts, a) && haskey(old_border_atts[a], "style")
-                new_border_atts[a]["style"] = old_border_atts[a]["style"]
-            elseif haskey(kwdict[a], "style")
-                @assert kwdict[a]["style"] ∈ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"] "Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."
-                new_border_atts[a]["style"] = kwdict[a]["style"]
-            end
-            if a == "diagonal"
-                if !haskey(kwdict[a], "direction")
-                    if haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "direction")
-                        new_border_atts[a]["direction"] = old_border_atts[a]["direction"]
-                    else
-                        new_border_atts[a]["direction"] = "both" # default if direction not specified or inherited
+        if !isnothing(old_border_atts) # Need to merge new into old atts
+            if isnothing(kwdict[a]) && haskey(old_border_atts, a)
+                new_border_atts[a] = old_border_atts[a]
+            elseif !isnothing(kwdict[a])
+                if !haskey(kwdict[a], "style") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "style")
+                    new_border_atts[a]["style"] = old_border_atts[a]["style"]
+                elseif haskey(kwdict[a], "style")
+                    if kwdict[a]["style"] ∉ ["none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair", "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"]
+                        throw(XLSXError("Invalid style: $v. Must be one of: `none`, `thin`, `medium`, `dashed`, `dotted`, `thick`, `double`, `hair`, `mediumDashed`, `dashDot`, `mediumDashDot`, `dashDotDot`, `mediumDashDotDot`, `slantDashDot`."))
                     end
-                elseif haskey(kwdict[a], "direction")
-                    @assert kwdict[a]["direction"] ∈ ["up", "down", "both"] "Invalid direction: $v. Must be one of: `up`, `down`, `both`."
-                    new_border_atts[a]["direction"] = kwdict[a]["direction"]
+                    new_border_atts[a]["style"] = kwdict[a]["style"]
+                end
+                if a == "diagonal"
+                    if !haskey(kwdict[a], "direction")
+                        if haskey(old_border_atts, a) && !isnothing(old_border_atts[a]) && haskey(old_border_atts[a], "direction")
+                            new_border_atts[a]["direction"] = old_border_atts[a]["direction"]
+                        else
+                            new_border_atts[a]["direction"] = "both" # default if direction not specified or inherited
+                        end
+                    elseif haskey(kwdict[a], "direction")
+                        if kwdict[a]["direction"] ∉ ["up", "down", "both"]
+                            throw(XLSXError("Invalid direction: $v. Must be one of: `up`, `down`, `both`."))
+                        end
+                        new_border_atts[a]["direction"] = kwdict[a]["direction"]
+                    end
+                end
+                if !haskey(kwdict[a], "color") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
+                    for (k, v) in old_border_atts[a]
+                        if k != "style"
+                            new_border_atts[a][k] = v
+                        end
+                    end
+                elseif haskey(kwdict[a], "color")
+                    v = kwdict[a]["color"]
+                    new_border_atts[a]["rgb"] = get_color(v)
                 end
             end
-            if !haskey(kwdict[a], "color") && haskey(old_border_atts, a) && !isnothing(old_border_atts[a])
-                for (k, v) in old_border_atts[a]
-                    if k != "style"
-                        new_border_atts[a][k] = v
-                    end
-                end
-            elseif haskey(kwdict[a], "color")
-                v = kwdict[a]["color"]
-                @assert occursin(r"^[0-9A-F]{8}$", v) "Invalid color value: $v. Must be an 8-digit hexadecimal RGB value."
-                new_border_atts[a]["rgb"] = v
-            end
+        else
+            new_border_atts = kwdict
         end
     end
 
@@ -960,7 +767,7 @@ function setBorder(sh::Worksheet, cellref::CellRef;
 
     new_borderid = styles_add_cell_attribute(wb, border_node, "borders")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["borderId", "applyBorder"], ["$new_borderid", "1"]).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["borderId", "applyBorder"], [string(new_borderid), "1"]).id)
     cell.style = newstyle
     return new_borderid
 end
@@ -969,8 +776,12 @@ end
     setUniformBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformBorder(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the border used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same border.
+    setUniformBorder(sh::Worksheet, rows, cols; kw...) -> ::Int
+
+Set the border used by a cell range, a column range or row range or 
+a named range in a worksheet or XLSXfile to be uniformly the same border.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the border attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setBorder()`). The resultant border is 
@@ -980,7 +791,7 @@ As a result, every cell in the range will have a uniform border setting.
 
 This differs from `setBorder()` which merges the attributes defined by `kw...` into 
 the border definition used by each cell individually. For example, if you set the 
-border style to `thin` for a range of cells, but these cells all use different border  
+border style to `thin` for a range of cells, but these cells all use different border 
 colors, `setBorder()` will change the border style but leave the border color unchanged 
 for each cell individually. 
 
@@ -990,14 +801,21 @@ and `color`) to all the other cells in the range.
 
 This can be more efficient when setting the same border for a large number of cells.
 
+Applying `setUniformBorder()` without any keyword arguments simply copies the `Border` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `borderId` of the border uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
 For keyword definitions see [`setBorder()`](@ref).
 
+Note: `setUniformBorder` cannot be used with the `outside` keyword.
+
 # Examples:
 ```julia
 Julia> setUniformBorder(sh, "B2:D6"; allsides = ["style" => "thick"], diagonal = ["style" => "hair"])
+
+Julia> setUniformBorder(sh, [1, 2, 3], [3, 5, 9]; allsides = ["style" => "thick"], diagonal = ["style" => "hair", "color" => "yellow2"])
 
 Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "color" => "FF000FF0"],
                                              right    = ["style" => "medium", "color" => "FF765000"],
@@ -1005,75 +823,105 @@ Julia> setUniformBorder(xf, "Sheet1!A1:F20"; left     = ["style" => "dotted", "c
                                              bottom   = ["style" => "medium", "color" => "FF0000FF"],
                                              diagonal = ["style" => "none"]
                                              )
+                                             
+julia> setUniformBorder(sh, "B2,A5:D22")     # Copy `Border` from B2 to cells in A5:D22
+
  
 ```
 """
 function setUniformBorder end
+setUniformBorder(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformBorder(ws, rng.rng; kw...)
+setUniformBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformBorder(ws, rng.colrng; kw...)
+setUniformBorder(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformBorder(ws, rng.rowrng; kw...)
 setUniformBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformBorder, ws, colrng; kw...)
+setUniformBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformBorder, ws, rowrng; kw...)
+setUniformBorder(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_uniform_ncranges(setBorder, ws, ncrng, ["borderId", "applyBorder"]; kw...)
 setUniformBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformBorder, xl, sheetcell; kw...)
 setUniformBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformBorder, ws, ref_or_rng; kw...)
+setUniformBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setBorder, ws, row, nothing; kw...)
+setUniformBorder(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setBorder, ws, nothing, col; kw...)
+setUniformBorder(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setUniformBorder, ws, nothing, nothing; kw...)
+setUniformBorder(ws::Worksheet, ::Colon; kw...) = process_colon(setUniformBorder, ws, nothing, nothing; kw...)
+setUniformBorder(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_uniform_veccolon(setBorder, ws, row, nothing, ["borderId", "applyBorder"]; kw...)
+setUniformBorder(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_veccolon(setBorder, ws, nothing, col, ["borderId", "applyBorder"]; kw...)
+setUniformBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setBorder, ws, row, col, ["borderId", "applyBorder"]; kw...)
+setUniformBorder(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setBorder, ws, row, col, ["borderId", "applyBorder"]; kw...)
+setUniformBorder(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setBorder, ws, row, col, ["borderId", "applyBorder"]; kw...)
+setUniformBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformBorder(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setBorder, ws, rng, ["borderId", "applyBorder"]; kw...)
 
 """
     setOutsideBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setOutsideBorder(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the border around the outside of a cell range, a column range or a named 
-range in a worksheet or XLSXfile.
+    setOutsideBorder(sh::Worksheet, rows, cols; kw...) -> ::Int
 
-Two key words can be defined:
-- `style::String = nothing`   : defines the style of the outside border
-- `color::String = nothing`   : defines the color of the outside border
+Set the border around the outside of a cell range, a column range or row range 
+or a named range in a worksheet or XLSXfile.
+Alternatively, specify the rows and columns using integers, UnitRanges or `:`.
+
+There is one key word:
+- `outside::Vector{Pair{String,String} = nothing`
+
+For keyword definition see [`setBorder()`](@ref).
 
 Only the border definitions for the sides of boundary cells that are on the 
 ouside edge of the range will be set to the specified style and color. The 
-borders of internal edges and any diagonal will remain unchanged. Border 
+borders of internal edges and any diagonals will remain unchanged. Border 
 settings for all internal cells in the range will remain unchanged.
+
+Top and bottom borders for column ranges and left and right borders for 
+row ranges are taken from the worksheet `dimension`.
+
+An outside border cannot be set for a non-contiguous range.
 
 The value returned is is -1.
 
-For keyword definitions see [`setBorder()`](@ref).
-
 # Examples:
 ```julia
-Julia> setOutsideBorder(sh, "B2:D6"; style = "thick")
+Julia> setOutsideBorder(sh, "B2:D6"; outside = ["style" => "thick")
 
-Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; style = "dotted", color = "FF000FF0")
- 
+Julia> setOutsideBorder(xf, "Sheet1!A1:F20"; outside = ["style" => "dotted", "color" => "FF000FF0"])
 ```
+This function is equivalent to `setBorder()` called with the same arguments and keywords.
+
 """
 function setOutsideBorder end
+setOutsideBorder(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setOutsideBorder(ws, rng.rng; kw...)
+setOutsideBorder(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setOutsideBorder(ws, rng.colrng; kw...)
+setOutsideBorder(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setOutsideBorder(ws, rng.rowrng; kw...)
 setOutsideBorder(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setOutsideBorder, ws, colrng; kw...)
+setOutsideBorder(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setOutsideBorder, ws, rowrng; kw...)
 setOutsideBorder(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setOutsideBorder, xl, sheetcell; kw...)
 setOutsideBorder(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setOutsideBorder, ws, ref_or_rng; kw...)
-function setOutsideBorder(ws::Worksheet, rng::CellRange; 
-    style::Union{String, Nothing}=nothing,
-    color::Union{String, Nothing}=nothing
-    )::Int
+setOutsideBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setOutsideBorder, ws, row, nothing; kw...)
+setOutsideBorder(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setOutsideBorder, ws, nothing, col; kw...)
+setOutsideBorder(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setOutsideBorder, ws, nothing, nothing; kw...)
+setOutsideBorder(ws::Worksheet, ::Colon; kw...) = process_colon(setOutsideBorder, ws, nothing, nothing; kw...)
+setOutsideBorder(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setOutsideBorder(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+function setOutsideBorder(ws::Worksheet, rng::CellRange;
+    outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
+)::Int
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set borders because cache is not enabled."
-
-    topLeft      = CellRef(rng.start.row_number, rng.start.column_number)
-    topRight     = CellRef(rng.start.row_number, rng.stop.column_number)
-    bottomLeft   = CellRef(rng.stop.row_number, rng.start.column_number)
-    bottomRight  = CellRef(rng.stop.row_number, rng.stop.column_number)
-    if !isnothing(style) && !isnothing(color)
-        setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style, "color" => color])
-        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style, "color" => color])
-        setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style, "color" => color])
-        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style, "color" => color])
-    elseif !isnothing(style)
-        setBorder(ws, CellRange(topLeft, topRight); top= ["style" => style])
-        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["style" => style])
-        setBorder(ws, CellRange(topRight, bottomRight); right= ["style" => style])
-        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["style" => style])
-    elseif !isnothing(color)
-        setBorder(ws, CellRange(topLeft, topRight); top= ["color" => color])
-        setBorder(ws, CellRange(topLeft, bottomLeft); left= ["color" => color])
-        setBorder(ws, CellRange(topRight, bottomRight); right= ["color" => color])
-        setBorder(ws, CellRange(bottomLeft, bottomRight); bottom= ["color" => color])
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set borders because cache is not enabled."))
     end
-    
+
+    #    length(rng) <= 1 && throw(XLSXError("Cannot set outside border for a single cell."))
+
+    kwdict = Dict{String,Union{Dict{String,String},Nothing}}()
+    kwdict["outside"] = Dict{String,String}(p for p in outside)
+
+
+    topLeft = CellRef(rng.start.row_number, rng.start.column_number)
+    topRight = CellRef(rng.start.row_number, rng.stop.column_number)
+    bottomLeft = CellRef(rng.stop.row_number, rng.start.column_number)
+    bottomRight = CellRef(rng.stop.row_number, rng.stop.column_number)
+
+    setBorder(ws, CellRange(topLeft, topRight); top=outside)
+    setBorder(ws, CellRange(topLeft, bottomLeft); left=outside)
+    setBorder(ws, CellRange(topRight, bottomRight); right=outside)
+    setBorder(ws, CellRange(bottomLeft, bottomRight); bottom=outside)
 
     return -1
 
@@ -1086,8 +934,11 @@ end
 """
     getFill(sh::Worksheet, cr::String) -> ::Union{Nothing, CellFill}
     getFill(xf::XLSXFile, cr::String)  -> ::Union{Nothing, CellFill}
+
+    getFill(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellFill}
    
 Get the fill used by a single cell at reference `cr` in a worksheet or XLSXfile.
+The specified cell must be within the sheet dimension.
 
 Return a `CellFill` object containing:
 - `fillId`    : a 0-based index of the fill in the workbook
@@ -1152,6 +1003,8 @@ needed, they will simply be ignored by Excel, and the default appearance will be
 ```julia
 julia> getFill(sh, "A1")
 
+julia> getFill(sh, 3, 4)
+
 julia> getFill(xf, "Sheet1!A1")
  
 ```
@@ -1160,29 +1013,40 @@ function getFill end
 getFill(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFill} = process_get_sheetcell(getFill, xl, sheetcell)
 getFill(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFill} = process_get_cellref(getFill, ws, cellref)
 getFill(ws::Worksheet, cr::String) = process_get_cellname(getFill, ws, cr)
+getFill(ws::Worksheet, row::Integer, col::Integer) = getFill(ws, CellRef(row, col))
 getDefaultFill(ws::Worksheet) = getFill(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get fill because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get fill because cache is not enabled."))
+    end
 
     if haskey(cell_style, "fillId")
         fillid = cell_style["fillId"]
         applyfill = haskey(cell_style, "applyFill") ? cell_style["applyFill"] : "0"
         xroot = styles_xmlroot(wb)
-        fill_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:fills", xroot)[begin]
-        @assert parse(Int, fill_elements["count"]) == length(XML.children(fill_elements)) "Unexpected number of font definitions found : $(length(XML.children(fill_elements))). Expected $(parse(Int, fill_elements["count"]))"
+        fill_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":fills", xroot)[begin]
+        if parse(Int, fill_elements["count"]) != length(XML.children(fill_elements))
+            throw(XLSXError("Unexpected number of font definitions found : $(length(XML.children(fill_elements))). Expected $(parse(Int, fill_elements["count"]))"))
+        end
         current_fill = XML.children(fill_elements)[parse(Int, fillid)+1] # Zero based!
         fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         for pattern in XML.children(current_fill)
             if isnothing(XML.attributes(pattern)) || length(XML.attributes(pattern)) == 0
                 fill_atts[XML.tag(pattern)] = nothing
             else
-                @assert length(XML.attributes(pattern)) == 1 "Too many fill attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(pattern)))."
+                if length(XML.attributes(pattern)) != 1
+                    throw(XLSXError("Too many fill attributes found for $(XML.tag(pattern)) Expected 1, found $(length(XML.attributes(pattern)))."))
+                end
                 for (k, v) in XML.attributes(pattern) # patternType is the only possible attribute of a fill
                     fill_atts[XML.tag(pattern)] = Dict(k => v)
                     for subc in XML.children(pattern) # foreground and background colors are children of a patternFill element
-                        @assert !isnothing(XML.children(subc)) && length(XML.attributes(subc)) > 0 "Too few children found for $(XML.tag(subc)) Expected 1, found 0."
-                        @assert length(XML.children(subc)) < 3 "Too many children found for $(XML.tag(subc)) Expected < 3, found $(length(XML.attributes(subc)))."
+                        if !isnothing(XML.children(subc)) && length(XML.attributes(subc)) <= 0
+                            throw(XLSXError("Too few children found for $(XML.tag(subc)) Expected 1, found 0."))
+                        end
+                        if length(XML.children(subc)) > 2
+                            throw(XLSXError("Too many children found for $(XML.tag(subc)) Expected < 3, found $(length(XML.attributes(subc)))."))
+                        end
                         tag = first(XML.tag(subc), 2)
                         for (k, v) in XML.attributes(subc)
                             fill_atts[XML.tag(pattern)][tag*k] = v
@@ -1200,9 +1064,13 @@ end
 """
     setFill(sh::Worksheet, cr::String; kw...) -> ::Int}
     setFill(xf::XLSXFile,  cr::String; kw...) -> ::Int
-   
+
+    setFill(sh::Worksheet, row, col; kw...) -> ::Int}
+
 Set the fill used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 The following keywords are used to define a fill:
 - `pattern::String = nothing`   : Sets the patternType for the fill.
@@ -1230,8 +1098,10 @@ Here is a list of the available `pattern` values (thanks to Copilot!):
 - `gray125`
 - `gray0625`
 
-The two colors are set by specifying an 8-digit hexadecimal value for the `fgColor`
-and/or `bgColor` keywords. No other color attributes can be applied.
+The two colors may be set by specifying an 8-digit hexadecimal value for the `fgColor`
+and/or `bgColor` keywords. 
+Alternatively, you can use the name of any named color from Colors.jl
+([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
 
 Setting only one or two of the attributes leaves the other attribute(s) unchanged 
 for that cell's fill.
@@ -1249,34 +1119,59 @@ For cell ranges, column ranges and named ranges, the value returned is -1.
 ```julia
 Julia> setFill(sh, "B2"; pattern="gray125", bgColor = "FF000000")
 
-Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
+Julia> setFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "darkseagreen3")
+ 
+Julia> setFill(sh, "11:24"; pattern="none", fgColor = "yellow2")
  
 ```
 """
 function setFill end
+setFill(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setFill(ws, ref.cellref; kw...)
+setFill(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setFill(ws, rng.rng; kw...)
+setFill(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setFill(ws, rng.colrng; kw...)
+setFill(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setFill(ws, rng.rowrng; kw...)
 setFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFill, ws, rng; kw...)
+setFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFill, ws, rowrng; kw...)
+setFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFill, ws, ncrng; kw...)
 setFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFill, ws, colrng; kw...)
 setFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFill, ws, ref_or_rng; kw...)
 setFill(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFill, xl, sheetcell; kw...)
+setFill(ws::Worksheet, row::Integer, col::Integer; kw...) = setFill(ws, CellRef(row, col); kw...)
+setFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFill, ws, row, nothing; kw...)
+setFill(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setFill, ws, nothing, nothing; kw...)
+setFill(ws::Worksheet, ::Colon; kw...) = process_colon(setFill, ws, nothing, nothing; kw...)
+setFill(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFill, ws, nothing, col; kw...)
+setFill(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setFill, ws, row, nothing; kw...)
+setFill(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setFill, ws, nothing, col; kw...)
+setFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFill, ws, row, col; kw...)
+setFill(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setFill, ws, row, col; kw...)
+setFill(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFill, ws, row, col; kw...)
+setFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFill(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFill(sh::Worksheet, cellref::CellRef;
-        pattern::Union{Nothing,String}=nothing,
-        fgColor::Union{Nothing,String}=nothing,
-        bgColor::Union{Nothing,String}=nothing,
-    )::Int
+    pattern::Union{Nothing,String}=nothing,
+    fgColor::Union{Nothing,String}=nothing,
+    bgColor::Union{Nothing,String}=nothing,
+)::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set fill because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set fill because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."
-
-    if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
+    end
+
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
+
     new_fill_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     patternFill = Dict{String,String}()
 
@@ -1289,6 +1184,9 @@ function setFill(sh::Worksheet, cellref::CellRef;
             if isnothing(pattern) && haskey(old_fill_atts, "patternType")
                 patternFill["patternType"] = old_fill_atts["patternType"]
             elseif !isnothing(pattern)
+                if pattern ∉ ["none", "solid", "mediumGray", "darkGray", "lightGray", "darkHorizontal", "darkVertical", "darkDown", "darkUp", "darkGrid", "darkTrellis", "lightHorizontal", "lightVertical", "lightDown", "lightUp", "lightGrid", "lightTrellis", "gray125", "gray0625"]
+                    throw(XLSXError("Invalid style: $pattern. Must be one of: `none`, `solid`, `mediumGray`, `darkGray`, `lightGray`, `darkHorizontal`, `darkVertical`, `darkDown`, `darkUp`, `darkGrid`, `darkTrellis`, `lightHorizontal`, `lightVertical`, `lightDown`, `lightUp`, `lightGrid`, `lightTrellis`, `gray125`, `gray0625`."))
+                end
                 patternFill["patternType"] = pattern
             end
         elseif a == "fg"
@@ -1299,8 +1197,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
                     end
                 end
             else
-                @assert occursin(r"^[0-9A-F]{8}$", fgColor) "Invalid color value: $fgColor. Must be an 8-digit hexadecimal RGB value."
-                patternFill["fgrgb"] = fgColor
+                patternFill["fgrgb"] = get_color(fgColor)
             end
         elseif a == "bg"
             if isnothing(bgColor)
@@ -1310,8 +1207,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
                     end
                 end
             else
-                @assert occursin(r"^[0-9A-F]{8}$", bgColor) "Invalid color value: $bgColor. Must be an 8-digit hexadecimal RGB value."
-                patternFill["bgrgb"] = bgColor
+                patternFill["bgrgb"] = get_color(bgColor)
             end
         end
     end
@@ -1321,7 +1217,7 @@ function setFill(sh::Worksheet, cellref::CellRef;
 
     new_fillid = styles_add_cell_attribute(wb, fill_node, "fills")
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], ["$new_fillid", "1"]).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["fillId", "applyFill"], [string(new_fillid), "1"]).id)
     cell.style = newstyle
     return new_fillid
 end
@@ -1330,8 +1226,12 @@ end
     setUniformFill(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFill(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the fill used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same fill.
+    setUniformFill(sh::Worksheet, rows, cols; kw...) -> ::Int
+
+Set the fill used by a cell range, a column range or row range or a 
+named range in a worksheet or XLSXfile to be uniformly the same fill.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the fill attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setFill()`). The resultant fill is 
@@ -1351,6 +1251,9 @@ and both foreground and background colors) to all the other cells in the range.
 
 This can be more efficient when setting the same fill for a large number of cells.
 
+Applying `setUniformFill()` without any keyword arguments simply copies the `Fill` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `fillId` of the fill uniformly applied to the cells.
 If all cells in the range are `EmptyCells` the returned value is -1.
 
@@ -1360,14 +1263,31 @@ For keyword definitions see [`setFill()`](@ref).
 ```julia
 Julia> setUniformFill(sh, "B2:D4"; pattern="gray125", bgColor = "FF000000")
 
-Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "88FF8800")
+Julia> setUniformFill(xf, "Sheet1!A1:F20"; pattern="none", fgColor = "darkseagreen3")
+
+julia> setUniformFill(sh, "B2,A5:D22")               # Copy `Fill` from B2 to cells in A5:D22
  
 ```
 """
 function setUniformFill end
+setUniformFill(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFill(ws, rng.rng; kw...)
+setUniformFill(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFill(ws, rng.colrng; kw...)
+setUniformFill(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFill(ws, rng.rowrng; kw...)
 setUniformFill(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFill, ws, colrng; kw...)
+setUniformFill(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFill, ws, rowrng; kw...)
+setUniformFill(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_uniform_ncranges(setFill, ws, ncrng, ["fillId", "applyFill"]; kw...)
 setUniformFill(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFill, xl, sheetcell; kw...)
 setUniformFill(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFill, ws, ref_or_rng; kw...)
+setUniformFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFill, ws, row, nothing; kw...)
+setUniformFill(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFill, ws, nothing, col; kw...)
+setUniformFill(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setUniformFill, ws, nothing, nothing; kw...)
+setUniformFill(ws::Worksheet, ::Colon; kw...) = process_colon(setUniformFill, ws, nothing, nothing; kw...)
+setUniformFill(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_uniform_veccolon(setFill, ws, row, nothing, ["fillId", "applyFill"]; kw...)
+setUniformFill(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_veccolon(setFill, ws, nothing, col, ["fillId", "applyFill"]; kw...)
+setUniformFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setFill, ws, row, col, ["fillId", "applyFill"]; kw...)
+setUniformFill(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setFill, ws, row, col, ["fillId", "applyFill"]; kw...)
+setUniformFill(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setFill, ws, row, col, ["fillId", "applyFill"]; kw...)
+setUniformFill(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformFill(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFill, ws, rng, ["fillId", "applyFill"]; kw...)
 
 #
@@ -1377,8 +1297,11 @@ setUniformFill(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attr
 """
     getAlignment(sh::Worksheet, cr::String) -> ::Union{Nothing, CellAlignment}
     getAlignment(xf::XLSXFile,  cr::String) -> ::Union{Nothing, CellAlignment}
+
+    getAlignment(sh::Worksheet, row::Int, col::Int) -> ::Union{Nothing, CellAlignment}
    
 Get the alignment used by a single cell at reference `cr` in a worksheet or XLSXfile.
+The specified cell must be within the sheet dimension.
 
 Return a `CellAlignment` object containing:
 - `alignment`      : a dictionary of alignment attributes: alignmentAttribute -> (attribute -> value)
@@ -1418,6 +1341,8 @@ Excel supports the following values for the vertical alignment:
 ```julia
 julia> getAlignment(sh, "A1")
 
+julia> getAlignment(sh, 2, 5) # Cell E2
+
 julia> getAlignment(xf, "Sheet1!A1")
  
 ```
@@ -1426,19 +1351,24 @@ function getAlignment end
 getAlignment(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellAlignment} = process_get_sheetcell(getAlignment, xl, sheetcell)
 getAlignment(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellAlignment} = process_get_cellref(getAlignment, ws, cellref)
 getAlignment(ws::Worksheet, cr::String) = process_get_cellname(getAlignment, ws, cr)
+getAlignment(ws::Worksheet, row::Integer, col::Integer) = getAlignment(ws, CellRef(row, col))
 #getDefaultAlignment(ws::Worksheet) = getAlignment(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getAlignment(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellAlignment}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get alignment because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get alignment because cache is not enabled."))
+    end
 
     if length(XML.children(cell_style)) == 0 # `alignment` is a child node of the cell `xf`.
         return nothing
     end
-    @assert length(XML.children(cell_style)) == 1 "Expected cell `xf` to have 1 child node, found $(length(XML.children(cell_style)))"
-    @assert XML.tag(cell_style[1]) == "alignment" "Error cell alignment found but it has no attributes!"
+    if length(XML.children(cell_style)) != 1
+        throw(XLSXError("Expected cell style to have 1 child node, found $(length(XML.children(cell_style)))"))
+    end
+    XML.tag(cell_style[1]) != "alignment" && throw(XLSXError("Cell style has a child node but it is not for alignment!"))
     atts = Dict{String,String}()
     for (k, v) in XML.attributes(cell_style[1])
-        atts[k]=v
+        atts[k] = v
     end
     alignment_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     alignment_atts["alignment"] = atts
@@ -1449,9 +1379,14 @@ end
 """
     setAlignment(sh::Worksheet, cr::String; kw...) -> ::Int}
     setAlignment(xf::XLSXFile,  cr::String; kw...) -> ::Int}
+
+    setAlignment(sh::Worksheet, row, col; kw...) -> ::Int}
+
    
 Set the alignment used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+row range or a named cell or named range in a worksheet or XLSXfile.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 The following keywords are used to define an alignment:
 - `horizontal::String = nothing` : Sets the horizontal alignment.
@@ -1493,35 +1428,60 @@ julia> setAlignment(sh, "D18"; horizontal="center", wrapText=true)
 julia> setAlignment(xf, "sheet1!D18"; horizontal="right", vertical="top", wrapText=true)
 
 julia> setAlignment(sh, "L6"; horizontal="center", rotation="90", shrink=true, indent="2")
+
+julia> setAlignment(sh, 1:3, 3:6; horizontal="center", rotation="90", shrink=true, indent="2")
  
 ```
 """
 function setAlignment end
+setAlignment(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setAlignment(ws, ref.cellref; kw...)
+setAlignment(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setAlignment(ws, rng.rng; kw...)
+setAlignment(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setAlignment(ws, rng.colrng; kw...)
+setAlignment(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setAlignment(ws, rng.rowrng; kw...)
 setAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setAlignment, ws, rng; kw...)
 setAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setAlignment, ws, colrng; kw...)
+setAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setAlignment, ws, rowrng; kw...)
+setAlignment(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setAlignment, ws, ncrng; kw...)
 setAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setAlignment, ws, ref_or_rng; kw...)
 setAlignment(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setAlignment, xl, sheetcell; kw...)
-function setAlignment(sh::Worksheet, cellref::CellRef; 
+setAlignment(ws::Worksheet, row::Integer, col::Integer; kw...) = setAlignment(ws, CellRef(row, col); kw...)
+setAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setAlignment, ws, row, nothing; kw...)
+setAlignment(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setAlignment, ws, nothing, nothing; kw...)
+setAlignment(ws::Worksheet, ::Colon; kw...) = process_colon(setAlignment, ws, nothing, nothing; kw...)
+setAlignment(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setAlignment, ws, nothing, col; kw...)
+setAlignment(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setAlignment, ws, row, nothing; kw...)
+setAlignment(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setAlignment, ws, nothing, col; kw...)
+setAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setAlignment, ws, row, col; kw...)
+setAlignment(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setAlignment, ws, row, col; kw...)
+setAlignment(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setAlignment, ws, row, col; kw...)
+setAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setAlignment(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+function setAlignment(sh::Worksheet, cellref::CellRef;
     horizontal::Union{Nothing,String}=nothing,
     vertical::Union{Nothing,String}=nothing,
     wrapText::Union{Nothing,Bool}=nothing,
     shrink::Union{Nothing,Bool}=nothing,
     indent::Union{Nothing,Int}=nothing,
     rotation::Union{Nothing,Int}=nothing
-    )::Int
+)::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set alignment because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set alignment because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set fill for an `EmptyCell`: $(cellref.name). Set the value first."
-
-    if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set alignment for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
+    end
+
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
 
     atts = XML.OrderedDict{String,String}()
     cell_alignment = getAlignment(wb, cell_style)
@@ -1531,12 +1491,12 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
         old_applyAlignment = cell_alignment.applyAlignment
     end
 
-    @assert isnothing(horizontal) || horizontal ∈ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] "Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."
-    @assert isnothing(vertical) || vertical ∈ ["top", "center", "bottom", "justify", "distributed"] "Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."
-    @assert isnothing(wrapText) || wrapText ∈ [true, false] "Invalid wrap option: $wrapText. Must be one of: `true`, `false`."
-    @assert isnothing(shrink) || shrink ∈ [true, false] "Invalid shrink option: $shrink. Must be one of: `true`, `false`."
-    @assert isnothing(indent) || indent > 0 "Invalid indent value specified: $indent. Must be a postive integer."
-    @assert isnothing(rotation) || rotation ∈ -90:90 "Invalid rotation value specified: $rotation. Must be an integer between -90 and 90."
+    !isnothing(horizontal) && horizontal ∉ ["left", "center", "right", "fill", "justify", "centerContinuous", "distributed"] && throw(XLSXError("Invalid horizontal alignment: $horizontal. Must be one of: `left`, `center`, `right`, `fill`, `justify`, `centerContinuous`, `distributed`."))
+    !isnothing(vertical) && vertical ∉ ["top", "center", "bottom", "justify", "distributed"] && throw(XLSXError("Invalid vertical aligment: $vertical. Must be one of: `top`, `center`, `bottom`, `justify`, `distributed`."))
+    !isnothing(wrapText) && wrapText ∉ [true, false] && throw(XLSXError("Invalid wrap option: $wrapText. Must be one of: `true`, `false`."))
+    !isnothing(shrink) && shrink ∉ [true, false] && throw(XLSXError("Invalid shrink option: $shrink. Must be one of: `true`, `false`."))
+    !isnothing(indent) && indent < 0 && throw(XLSXError("Invalid indent value specified: $indent. Must be a postive integer."))
+    !isnothing(rotation) && rotation ∉ -90:90 && throw(XLSXError("Invalid rotation value specified: $rotation. Must be an integer between -90 and 90."))
 
     if isnothing(horizontal) && !isnothing(cell_alignment) && haskey(old_alignment_atts, "horizontal")
         atts["horizontal"] = old_alignment_atts["horizontal"]
@@ -1571,7 +1531,7 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
 
     alignment_node = XML.Node(XML.Element, "alignment", atts, nothing, nothing)
 
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), alignment_node).id)
     cell.style = newstyle
 
     return parse(Int, newstyle)
@@ -1581,8 +1541,12 @@ end
     setUniformAlignment(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformAlignment(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the alignment used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be uniformly the same alignment.
+    setUniformAlignment(sh::Worksheet, rows, cols; kw...) -> ::Int
+
+Set the alignment used by a cell range, a column range or row range or a 
+named range in a worksheet or XLSXfile to be uniformly the same alignment.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the alignment attributes of the first cell in the range (the top-left cell) are
 updated according to the given `kw...` (using `setAlignment()`). The resultant alignment 
@@ -1602,6 +1566,9 @@ cell to all the other cells in the range.
 
 This can be more efficient when setting the same alignment for a large number of cells.
 
+Applying `setUniformAlignment()` without any keyword arguments simply copies the `Alignment` 
+attributes from the first cell specified to all the others.
+
 The value returned is the `styleId` of the reference (top-left) cell, from which the 
 alignment uniformly applied to the cells was taken.
 If all cells in the range are `EmptyCells`, the returned value is -1.
@@ -1613,13 +1580,32 @@ For keyword definitions see [`setAlignment()`](@ref).
 Julia> setUniformAlignment(sh, "B2:D4"; horizontal="center", wrap = true)
 
 Julia> setUniformAlignment(xf, "Sheet1!A1:F20"; horizontal="center", vertical="top")
+
+Julia> setUniformAlignment(sh, :, 1:24; horizontal="center", vertical="top")
+
+julia> setUniformAlignment(sh, "B2,A5:D22")                # Copy `Alignment` from B2 to cells in A5:D22
  
 ```
 """
 function setUniformAlignment end
+setUniformAlignment(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformAlignment(ws, rng.rng; kw...)
+setUniformAlignment(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformAlignment(ws, rng.colrng; kw...)
+setUniformAlignment(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformAlignment(ws, rng.rowrng; kw...)
 setUniformAlignment(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformAlignment, ws, colrng; kw...)
+setUniformAlignment(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformAlignment, ws, rowrng; kw...)
+setUniformAlignment(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_uniform_ncranges(setAlignment, ws, ncrng; kw...)
 setUniformAlignment(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformAlignment, xl, sheetcell; kw...)
 setUniformAlignment(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformAlignment, ws, ref_or_rng; kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setAlignment, ws, row, nothing; kw...)
+setUniformAlignment(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setAlignment, ws, nothing, col; kw...)
+setUniformAlignment(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setUniformAlignment, ws, nothing, nothing; kw...)
+setUniformAlignment(ws::Worksheet, ::Colon; kw...) = process_colon(setUniformAlignment, ws, nothing, nothing; kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_uniform_veccolon(setAlignment, ws, row, nothing; kw...)
+setUniformAlignment(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_veccolon(setAlignment, ws, nothing, col; kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setAlignment, ws, row, col; kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setAlignment, ws, row, col; kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setAlignment, ws, row, col; kw...)
+setUniformAlignment(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformAlignment(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setAlignment, ws, rng; kw...)
 
 #
@@ -1629,8 +1615,11 @@ setUniformAlignment(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform
 """
     getFormat(sh::Worksheet, cr::String) -> ::Union{Nothing, CellFormat}
     getFormat(xf::XLSXFile,  cr::String) -> ::Union{Nothing, CellFormat}
+
+    getFormat(sh::Worksheet, row::Int, col::int) -> ::Union{Nothing, CellFormat}
    
 Get the format (numFmt) used by a single cell at reference `cr` in a worksheet or XLSXfile.
+The specified cell must be within the sheet dimension.
 
 Return a `CellFormat` object containing:
 - `numFmtId`          : a 0-based index of the formats in the workbook. Values below 164 are 
@@ -1649,6 +1638,8 @@ the format for built-in formats, too.
 julia> getFormat(sh, "A1")
 
 julia> getFormat(xf, "Sheet1!A1")
+
+julia> getFormat(sh, 1, 1)
  
 ```
 """
@@ -1656,10 +1647,13 @@ function getFormat end
 getFormat(xl::XLSXFile, sheetcell::String)::Union{Nothing,CellFormat} = process_get_sheetcell(getFormat, xl, sheetcell)
 getFormat(ws::Worksheet, cellref::CellRef)::Union{Nothing,CellFormat} = process_get_cellref(getFormat, ws, cellref)
 getFormat(ws::Worksheet, cr::String) = process_get_cellname(getFormat, ws, cr)
+getFormat(ws::Worksheet, row::Integer, col::Integer) = getFormat(ws, CellRef(row, col))
 #getDefaultFill(ws::Worksheet) = getFormat(get_workbook(ws), styles_cell_xf(get_workbook(ws), 0))
 function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat}
 
-    @assert get_xlsxfile(wb).use_cache_for_sheet_data "Cannot get number formats because cache is not enabled."
+    if !get_xlsxfile(wb).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get number formats because cache is not enabled."))
+    end
 
     if haskey(cell_style, "numFmtId")
         numfmtid = cell_style["numFmtId"]
@@ -1667,17 +1661,22 @@ function getFormat(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFormat
         format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
         if parse(Int, numfmtid) >= PREDEFINED_NUMFMT_COUNT
             xroot = styles_xmlroot(wb)
-            format_elements = find_all_nodes("/$SPREADSHEET_NAMESPACE_XPATH_ARG:styleSheet/$SPREADSHEET_NAMESPACE_XPATH_ARG:numFmts", xroot)[begin]
-            @assert parse(Int, format_elements["count"]) == length(XML.children(format_elements)) "Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"
-            current_format = XML.children(format_elements)[parse(Int, numfmtid)+1-PREDEFINED_NUMFMT_COUNT] # Zero based!
-            @assert length(XML.attributes(current_format)) == 2 "Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."
+            format_elements = find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":numFmts", xroot)[begin]
+            if parse(Int, format_elements["count"]) != length(XML.children(format_elements))
+                throw(XLSXError("Unexpected number of format definitions found : $(length(XML.children(format_elements))). Expected $(parse(Int, format_elements["count"]))"))
+            end
+            current_format = [x for x in XML.children(format_elements) if x["numFmtId"] == numfmtid][1]
+            if length(XML.attributes(current_format)) != 2
+                throw(XLSXError("Wrong number of attributes found for $(XML.tag(current_format)) Expected 2, found $(length(XML.attributes(current_format)))."))
+            end
             for (k, v) in XML.attributes(current_format)
                 format_atts[XML.tag(current_format)] = Dict(k => XML.unescape(v))
             end
         else
-#            any(num in r for r in ranges)
             ranges = [0:22, 37:40, 45:49]
-            @assert any(parse(Int, numfmtid) == n for r ∈ ranges for n ∈ r) "Expected a built in format ID in the following ranges: 1:22, 37:40, 45:49. Got $numfmtid."
+            if !any(parse(Int, numfmtid) == n for r ∈ ranges for n ∈ r)
+                throw(XLSXError("Expected a built in format ID in the following ranges: 1:22, 37:40, 45:49. Got $numfmtid."))
+            end
             if haskey(builtinFormats, numfmtid)
                 format_atts["numFmt"] = Dict("numFmtId" => numfmtid, "formatCode" => builtinFormats[numfmtid])
             end
@@ -1691,9 +1690,13 @@ end
 """
     setFormat(sh::Worksheet, cr::String; kw...) -> ::Int
     setFormat(xf::XLSXFile,  cr::String; kw...) -> ::Int
+    
+    setFormat(sh::Worksheet, row, col; kw...) -> ::Int
    
-Set the format used used by a single cell, a cell range, a column range or 
-a named cell or named range in a worksheet or XLSXfile.
+Set the number format used used by a single cell, a cell range, a column 
+range or row range or a named cell or named range in a worksheet or 
+XLSXfile. Alternatively, specify the row and column using any combination 
+of Integer, UnitRange, Vector{Integer} or `:`.
 
 The function uses one keyword used to define a format:
 - `format::String = nothing` : Defines a built-in or custom number format
@@ -1725,33 +1728,58 @@ julia> XLSX.setFormat(xf, "Sheet1!A2"; format = "# ??/??")
 
 julia> XLSX.setFormat(sh, "F1:F5"; format = "Currency")
 
+julia> XLSX.setFormat(sh, "named_range"; format = "Percentage")
+
 julia> XLSX.setFormat(sh, "A2"; format = "_-£* #,##0.00_-;-£* #,##0.00_-;_-£* \\\"-\\\"??_-;_-@_-")
  
 ```
 """
 function setFormat end
+setFormat(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setFormat(ws, ref.cellref; kw...)
+setFormat(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setFormat(ws, rng.rng; kw...)
+setFormat(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setFormat(ws, rng.colrng; kw...)
+setFormat(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setFormat(ws, rng.rowrng; kw...)
 setFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_cellranges(setFormat, ws, rng; kw...)
 setFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setFormat, ws, colrng; kw...)
+setFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setFormat, ws, ncrng; kw...)
+setFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setFormat, ws, rowrng; kw...)
 setFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setFormat, ws, ref_or_rng; kw...)
 setFormat(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setFormat, xl, sheetcell; kw...)
+setFormat(ws::Worksheet, row::Integer, col::Integer; kw...) = setFormat(ws, CellRef(row, col); kw...)
+setFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFormat, ws, row, nothing; kw...)
+setFormat(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFormat, ws, nothing, col; kw...)
+setFormat(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setFormat, ws, nothing, nothing; kw...)
+setFormat(ws::Worksheet, ::Colon; kw...) = process_colon(setFormat, ws, nothing, nothing; kw...)
+setFormat(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setFormat, ws, row, nothing; kw...)
+setFormat(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setFormat, ws, nothing, col; kw...)
+setFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFormat, ws, row, col; kw...)
+setFormat(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setFormat, ws, row, col; kw...)
+setFormat(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFormat, ws, row, col; kw...)
+setFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFormat(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFormat(sh::Worksheet, cellref::CellRef;
-        format::Union{Nothing,String}=nothing,
-    )::Int
+    format::Union{Nothing,String}=nothing,
+)::Int
 
-    @assert get_xlsxfile(sh).use_cache_for_sheet_data "Cannot set number formats because cache is not enabled."
+    if !get_xlsxfile(sh).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set number formats because cache is not enabled."))
+    end
 
     wb = get_workbook(sh)
     cell = getcell(sh, cellref)
 
-    @assert !(cell isa EmptyCell) "Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."
-
-    if cell.style == ""
-        cell.style = string(get_num_style_index(sh, 0).id)
+    if cell isa EmptyCell
+        throw(XLSXError("Cannot set format for an `EmptyCell`: $(cellref.name). Set the value first."))
     end
 
-    cell_style = styles_cell_xf(wb, parse(Int, cell.style))
-    
-#    new_format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
+    allXfNodes=find_all_nodes("/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":styleSheet/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":cellXfs/" * SPREADSHEET_NAMESPACE_XPATH_ARG * ":xf", styles_xmlroot(wb))
+
+    if cell.style == ""
+        cell.style = string(get_num_style_index(sh, allXfNodes, 0).id)
+    end
+
+    cell_style = styles_cell_xf(allXfNodes, parse(Int, cell.style))
+
+    #    new_format_atts = Dict{String,Union{Dict{String,String},Nothing}}()
     new_format = XML.OrderedDict{String,String}()
 
     cell_format = getFormat(wb, cell_style)
@@ -1759,43 +1787,21 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     old_applyNumberFormat = cell_format.applyNumberFormat
 
     if isnothing(format)                          # User didn't specify any format so this is a no-op
-        return cell_format.formatId
+        return cell_format.numFmtId
     end
 
-    if haskey(builtinFormatNames, uppercasefirst(format)) # User specified a format by name
-        new_formatid = builtinFormatNames[uppercasefirst(format)]
-    else                                      # user specified a format code
-        code = lowercase(format)
-        code = remove_formatting(code)
-        @assert occursin(floatformats, code) || any(map(x->occursin(x, code), DATETIME_CODES)) "Specified format is not a valid numFmt: $format"
-  
-        xroot = styles_xmlroot(wb)
-        i, j = get_idces(xroot, "styleSheet", "numFmts")
-        if isnothing(j) # There are no existing custom formats
-            new_formatid = styles_add_numFmt(wb, format)
-        else
-            existing_elements_count = length(XML.children(xroot[i][j]))
-            @assert parse(Int, xroot[i][j]["count"]) == existing_elements_count "Wrong number of font elements found: $existing_elements_count. Expected $(parse(Int, xroot[i][j]["count"]))."
-
-            format_node = XML.Element("numFmt";
-                numFmtId = string(existing_elements_count + PREDEFINED_NUMFMT_COUNT),
-                formatCode = xlsx_escape(format)
-            )
-
-            new_formatid = styles_add_cell_attribute(wb, format_node, "numFmts") + PREDEFINED_NUMFMT_COUNT
-        end
-    end
+    new_formatid = get_new_formatId(wb, format)
 
     if new_formatid == 0
         atts = ["numFmtId"]
-        vals = ["$new_formatid"]
+        vals = [string(new_formatid)]
     else
         atts = ["numFmtId", "applyNumberFormat"]
-        vals = ["$new_formatid", "1"]
+        vals = [string(new_formatid), "1"]
     end
-    newstyle = string(update_template_xf(sh, CellDataFormat(parse(Int, cell.style)), atts, vals).id)
+    newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), atts, vals).id)
     cell.style = newstyle
- 
+
     return new_formatid
 end
 
@@ -1803,8 +1809,12 @@ end
     setUniformFormat(sh::Worksheet, cr::String; kw...) -> ::Int
     setUniformFormat(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
-Set the number format used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be  to be uniformly the same format.
+    setUniformFormat(sh::Worksheet, rows, cols; kw...) -> ::Int
+
+Set the number format used by a cell range, a column range or row range or a 
+named range in a worksheet or XLSXfile to be to be uniformly the same format.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 First, the number format of the first cell in the range (the top-left cell) is
 updated according to the given `kw...` (using `setFormat()`). The resultant format is 
@@ -1814,6 +1824,9 @@ As a result, every cell in the range will have a uniform number format.
 
 This is functionally equivalent to applying `setFormat()` to each cell in the range 
 but may be very marginally more efficient.
+
+Applying `setUniformFormat()` without any keyword arguments simply copies the `Format` 
+attributes from the first cell specified to all the others.
 
 The value returned is the `numfmtId` of the format uniformly applied to the cells.
 If all cells in the range are `EmptyCells`, the returned value is -1.
@@ -1825,14 +1838,31 @@ For keyword definitions see [`setFormat()`](@ref).
 julia> XLSX.setUniformFormat(xf, "Sheet1!A2:L6"; format = "# ??/??")
 
 julia> XLSX.setUniformFormat(sh, "F1:F5"; format = "Currency")
+
+julia> setUniformFormat(sh, "B2,A5:D22")                   # Copy `Format` from B2 to cells in A5:D22
  
 ```
 """
 function setUniformFormat end
+setUniformFormat(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFormat(ws, rng.rng; kw...)
+setUniformFormat(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFormat(ws, rng.colrng; kw...)
+setUniformFormat(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setUniformFormat(ws, rng.rowrng; kw...)
 setUniformFormat(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setUniformFormat, ws, colrng; kw...)
+setUniformFormat(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setUniformFormat, ws, rowrng; kw...)
+setUniformFormat(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_uniform_ncranges(setFormat, ws, ncrng, ["numFmtId", "applyNumberFormat"]; kw...)
 setUniformFormat(xl::XLSXFile, sheetcell::AbstractString; kw...)::Int = process_sheetcell(setUniformFormat, xl, sheetcell; kw...)
 setUniformFormat(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setUniformFormat, ws, ref_or_rng; kw...)
-setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng; kw...)
+setUniformFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFormat, ws, row, nothing; kw...)
+setUniformFormat(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFormat, ws, nothing, col; kw...)
+setUniformFormat(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setUniformFormat, ws, nothing, nothing; kw...)
+setUniformFormat(ws::Worksheet, ::Colon; kw...) = process_colon(setUniformFormat, ws, nothing, nothing; kw...)
+setUniformFormat(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_uniform_veccolon(setFormat, ws, row, nothing, ["numFmtId", "applyNumberFormat"]; kw...)
+setUniformFormat(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_veccolon(setFormat, ws, nothing, col, ["numFmtId", "applyNumberFormat"]; kw...)
+setUniformFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setFormat, ws, row, col, ["numFmtId", "applyNumberFormat"]; kw...)
+setUniformFormat(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_uniform_vecint(setFormat, ws, row, col, ["numFmtId", "applyNumberFormat"]; kw...)
+setUniformFormat(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_uniform_vecint(setFormat, ws, row, col, ["numFmtId", "applyNumberFormat"]; kw...)
+setUniformFormat(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setUniformFormat(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
+setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_attribute(setFormat, ws, rng, ["numFmtId", "applyNumberFormat"]; kw...)
 
 #
 # -- Set uniform styles
@@ -1842,9 +1872,13 @@ setUniformFormat(ws::Worksheet, rng::CellRange; kw...)::Int = process_uniform_at
     setUniformStyle(sh::Worksheet, cr::String) -> ::Int
     setUniformStyle(xf::XLSXFile,  cr::String) -> ::Int
 
-Set the cell `style` used by a cell range, a column range or a named range in a 
-worksheet or XLSXfile to be the same as that of the first cell in the range 
-that is not an `EmptyCell`.
+    setUniformStyle(sh::Worksheet, rows, cols) -> ::Int
+
+Set the cell `style` used by a cell range, a column range or row range 
+or a named range in a worksheet or XLSXfile to be the same as that of 
+the first cell in the range that is not an `EmptyCell`.
+Alternatively, specify the rows and columns using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`.
 
 As a result, every cell in the range will have a uniform `style`.
 
@@ -1863,37 +1897,52 @@ If all cells in the range are `EmptyCells`, the returned value is -1.
 julia> XLSX.setUniformStyle(xf, "Sheet1!A2:L6")
 
 julia> XLSX.setUniformStyle(sh, "F1:F5")
+
+julia> XLSX.setUniformStyle(sh, 2:5, 5)
+
+julia> XLSX.setUniformStyle(sh, 2, :)
  
 ```
 """
 function setUniformStyle end
+setUniformStyle(ws::Worksheet, rng::SheetCellRange) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.rng)
+setUniformStyle(ws::Worksheet, rng::SheetColumnRange) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.colrng)
+setUniformStyle(ws::Worksheet, rng::SheetRowRange) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.rowrng)
 setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
+setUniformStyle(ws::Worksheet, rowrng::RowRange)::Int = process_rowranges(setUniformStyle, ws, rowrng)
+setUniformStyle(ws::Worksheet, ncrng::NonContiguousRange)::Int = process_uniform_ncranges(ws, ncrng)
 setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
 setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
-function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing, Int}
+setUniformStyle(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = process_colon(ws, row, nothing)
+setUniformStyle(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = process_colon(ws, nothing, col)
+setUniformStyle(ws::Worksheet, ::Colon, ::Colon) = process_colon(ws, nothing, nothing)
+setUniformStyle(ws::Worksheet, ::Colon) = process_colon(ws, nothing, nothing)
+setUniformStyle(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon) = process_uniform_veccolon(ws, row, nothing)
+setUniformStyle(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}) = process_uniform_veccolon(ws, nothing, col)
+setUniformStyle(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = process_uniform_vecint(ws, row, col)
+setUniformStyle(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = process_uniform_vecint(ws, row, col)
+setUniformStyle(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}) = process_uniform_vecint(ws, row, col)
+setUniformStyle(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = setUniformStyle(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing,Int}
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set styles because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set styles because cache is not enabled."))
+    end
 
-    let newid::Union{Nothing, Int},
+    let newid::Union{Nothing,Int},
+        newid = nothing
+
         first = true
+
         for cellref in rng
-            cell = getcell(ws, cellref)
-            if cell isa EmptyCell # Can't add a attribute to an empty cell.
-                continue
-            end
-            if first                           # Get the style of the first cell in the range.
-                newid = cell.style
-                first = false
-            else                               # Apply the same style to the rest of the cells in the range.
-                cell.style = newid
-            end
+            newid, first = process_uniform_core(ws, cellref, newid, first)
         end
         if first
             newid = -1
         end
-        return isnothing(newID) ? nothing : newid
+        return isnothing(newid) ? nothing : newid
     end
-end    
+end
 
 #
 # -- Get and set column width
@@ -1903,11 +1952,16 @@ end
     setColumnWidth(sh::Worksheet, cr::String; kw...) -> ::Int
     setColumnWidth(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setColumnWidth(sh::Worksheet, row, col; kw...) -> ::Int
+
 Set the width of a column or column range.
 
 A standard cell reference or cell range can be used to define the column range. 
 The function will use the columns and ignore the rows. Named cells and named
 ranges can similarly be used.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`, but only the columns will be used.
+
 
 The function uses one keyword used to define a column width:
 - `width::Real = nothing` : Defines width in Excel's own (internal) units
@@ -1925,7 +1979,8 @@ You can set a column width to 0.
 The function returns a value of 0.
 
 NOTE: Unlike the other `set` and `get` XLSX functions, working with `ColumnWidth` requires 
-a file to be open for writing as well as reading (`mode="rw"` or open as a template)
+a file to be open for writing as well as reading (`mode="rw"` or open as a template) but 
+it can work on empty cells.
 
 # Examples:
 ```julia
@@ -1938,33 +1993,53 @@ julia> XLSX.setColumnWidth(sh, "I"; width = 24.37)
 ```
 """
 function setColumnWidth end
+setColumnWidth(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setColumnWidth(ws, ref.cellref; kw...)
+setColumnWidth(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setColumnWidth(ws, rng.rng; kw...)
+setColumnWidth(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setColumnWidth(ws, rng.colrng; kw...)
+setColumnWidth(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setColumnWidth(ws, rng.rowrng; kw...)
 setColumnWidth(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setColumnWidth, ws, colrng; kw...)
+setColumnWidth(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setColumnWidth, ws, rowrng; kw...)
+setColumnWidth(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setColumnWidth, ws, ncrng; kw...)
 setColumnWidth(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setColumnWidth, ws, ref_or_rng; kw...)
 setColumnWidth(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setColumnWidth, xl, sheetcell; kw...)
 setColumnWidth(ws::Worksheet, cr::CellRef; kw...)::Int = setColumnWidth(ws::Worksheet, CellRange(cr, cr); kw...)
+setColumnWidth(ws::Worksheet, row::Integer, col::Integer; kw...) = setColumnWidth(ws, CellRef(row, col); kw...)
+setColumnWidth(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setColumnWidth, ws, row, nothing; kw...)
+setColumnWidth(ws::Worksheet, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setColumnWidth, ws, nothing, col; kw...)
+setColumnWidth(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setColumnWidth, ws, nothing, col; kw...)
+setColumnWidth(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setColumnWidth, ws, nothing, nothing; kw...)
+setColumnWidth(ws::Worksheet, ::Colon; kw...) = process_colon(setColumnWidth, ws, nothing, nothing; kw...)
+setColumnWidth(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setColumnWidth, ws, row, nothing; kw...)
+setColumnWidth(ws::Worksheet, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setColumnWidth, ws, nothing, col; kw...)
+setColumnWidth(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setColumnWidth, ws, nothing, col; kw...)
+setColumnWidth(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setColumnWidth, ws, row, col; kw...)
+setColumnWidth(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setColumnWidth, ws, row, col; kw...)
+setColumnWidth(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setColumnWidth, ws, row, col; kw...)
+setColumnWidth(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setColumnWidth(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real}=nothing)::Int
-    
-    @assert get_xlsxfile(ws).is_writable "Cannot set column widths: `XLSXFile` is not writable."
 
-    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
-    update_worksheets_xml!(get_xlsxfile(ws)) 
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot set column widths: `XLSXFile` is not writable."))
+    end
 
-    left  = rng.start.column_number
+    left = rng.start.column_number
     right = rng.stop.column_number
     padded_width = isnothing(width) ? -1 : width + 0.7109375 # Excel adds cell padding to a user specified width
-    @assert isnothing(width) || width >= 0 "Invalid value specified for width: $width. Width must be >= 0."
+    if !isnothing(width) && width < 0
+        throw(XLSXError("Invalid value specified for width: $width. Width must be >= 0."))
+    end
 
     if isnothing(width) # No-op
         return 0
     end
 
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find the <cols> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "cols")
 
     if isnothing(j) # There are no existing column formats. Insert before the <sheetData> block and push everything else down one.
         k, l = get_idces(sheetdoc, "worksheet", "sheetData")
         len = length(sheetdoc[k])
-        @assert i==k "Some problem here!"
+        i != k && throw(XLSXError("Some problem here!"))
         push!(sheetdoc[k], sheetdoc[k][end])
         if l < len
             for pos = len-1:-1:l
@@ -1972,7 +2047,7 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
             end
         end
         sheetdoc[k][l] = XML.Element("Cols")
-        j=l
+        j = l
     end
 
     child_list = Dict{String,Union{Dict{String,String},Nothing}}()
@@ -1988,13 +2063,13 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
             end
         else
             if padded_width >= 0 # Add new <col> definitions where there is not one extant
-                scol=string(col)
+                scol = string(col)
                 push!(child_list, scol => Dict("max" => scol, "min" => scol, "width" => string(padded_width), "customWidth" => "1"))
             end
         end
     end
 
-    new_cols = unlink_cols(sheetdoc[i][j]) # Create the new <cols> Node
+    new_cols = unlink(sheetdoc[i][j], ("cols", "col")) # Create the new <cols> Node
     for atts in values(child_list)
         new_col = XML.Element("col")
         for (k, v) in atts
@@ -2005,6 +2080,9 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
 
     sheetdoc[i][j] = new_cols # Update the worksheet with the new cols.
 
+    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache. 
+    update_worksheets_xml!(get_xlsxfile(ws))
+
     return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end
 
@@ -2012,7 +2090,10 @@ end
     getColumnWidth(sh::Worksheet, cr::String) -> ::Union{Nothing, Real}
     getColumnWidth(xf::XLSXFile,  cr::String) -> ::Union{Nothing, Real}
 
+    getColumnWidth(sh::Worksheet,  row::Int, col::Int) -> ::Union{Nothing, Real}
+
 Get the width of a column defined by a cell reference or named cell.
+The specified cell must be within the sheet dimension.
 
 A standard cell reference or defined name may be used to define the column. 
 The function will use the column number and ignore the row.
@@ -2025,23 +2106,28 @@ does not have an explicitly defined width.
 julia> XLSX.getColumnWidth(xf, "Sheet1!A2")
 
 julia> XLSX.getColumnWidth(sh, "F1")
+
+julia> XLSX.getColumnWidth(sh, 1, 6)
  
 ```
 """
 function getColumnWidth end
 getColumnWidth(xl::XLSXFile, sheetcell::String)::Union{Nothing,Float64} = process_get_sheetcell(getColumnWidth, xl, sheetcell)
 getColumnWidth(ws::Worksheet, cr::String) = process_get_cellname(getColumnWidth, ws, cr)
+getColumnWidth(ws::Worksheet, row::Integer, col::Integer) = getColumnWidth(ws, CellRef(row, col))
 function getColumnWidth(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
+    # May be better if column width were part of ws.cache?
 
-    @assert get_xlsxfile(ws).is_writable "Cannot get column width: `XLSXFile` is not writable."
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get column width: `XLSXFile` is not writable."))
+    end
 
     d = get_dimension(ws)
-    @assert cellref.row_number >= d.start.row_number && cellref.row_number <= d.stop.row_number "Cell specified is outside sheet dimension \"$d\""
+    if cellref ∉ d
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
+    end
 
-    # Because we are working on worksheet data directly, we need to update the xml file using the worksheet cache first. 
-    update_worksheets_xml!(get_xlsxfile(ws)) 
-
-    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet$(ws.sheetId).xml") # find the <cols> block in the worksheet's xml file
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find the <cols> block in the worksheet's xml file
     i, j = get_idces(sheetdoc, "worksheet", "cols")
 
     if isnothing(j) # There are no existing column formats defined.
@@ -2069,11 +2155,15 @@ end
     setRowHeight(sh::Worksheet, cr::String; kw...) -> ::Int
     setRowHeight(xf::XLSXFile,  cr::String, kw...) -> ::Int
 
+    setRowHeight(sh::Worksheet, row, col; kw...) -> ::Int
+
 Set the height of a row or row range.
 
 A standard cell reference or cell range must be used to define the row range. 
 The function will use the rows and ignore the columns. Named cells and named
 ranges can similarly be used.
+Alternatively, specify the row and column using any combination of 
+Integer, UnitRange, Vector{Integer} or `:`, but only the rows will be used.
 
 The function uses one keyword used to define a row height:
 - `height::Real = nothing` : Defines height in Excel's own (internal) units.
@@ -2098,50 +2188,82 @@ it returns a value of -1.
 ```julia
 julia> XLSX.setRowHeight(xf, "Sheet1!A2"; height = 50)
 
-julia> XLSX.setRowHeight(sh, "F1:F5"; heighth = 0)
+julia> XLSX.setRowHeight(sh, "F1:F5"; height = 0)
 
 julia> XLSX.setRowHeight(sh, "I"; height = 24.56)
 
 ```
 """
 function setRowHeight end
+setRowHeight(ws::Worksheet, ref::SheetCellRef; kw...) = do_sheet_names_match(ws, ref) && setRowHeight(ws, ref.cellref; kw...)
+setRowHeight(ws::Worksheet, rng::SheetCellRange; kw...) = do_sheet_names_match(ws, rng) && setRowHeight(ws, rng.rng; kw...)
+setRowHeight(ws::Worksheet, rng::SheetColumnRange; kw...) = do_sheet_names_match(ws, rng) && setRowHeight(ws, rng.colrng; kw...)
+setRowHeight(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, rng) && setRowHeight(ws, rng.rowrng; kw...)
 setRowHeight(ws::Worksheet, colrng::ColumnRange; kw...)::Int = process_columnranges(setRowHeight, ws, colrng; kw...)
+setRowHeight(ws::Worksheet, rowrng::RowRange; kw...)::Int = process_rowranges(setRowHeight, ws, rowrng; kw...)
+setRowHeight(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(setRowHeight, ws, ncrng; kw...)
 setRowHeight(ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int = process_ranges(setRowHeight, ws, ref_or_rng; kw...)
 setRowHeight(xl::XLSXFile, sheetcell::String; kw...)::Int = process_sheetcell(setRowHeight, xl, sheetcell; kw...)
 setRowHeight(ws::Worksheet, cr::CellRef; kw...)::Int = setRowHeight(ws::Worksheet, CellRange(cr, cr); kw...)
+setRowHeight(ws::Worksheet, row::Integer, col::Integer; kw...) = setRowHeight(ws, CellRef(row, col); kw...)
+setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setRowHeight, ws, row, nothing; kw...)
+setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setRowHeight, ws, row, nothing; kw...)
+setRowHeight(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setRowHeight, ws, nothing, col; kw...)
+setRowHeight(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setRowHeight, ws, nothing, nothing; kw...)
+setRowHeight(ws::Worksheet, ::Colon; kw...) = process_colon(setRowHeight, ws, nothing, nothing; kw...)
+setRowHeight(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setRowHeight, ws, row, nothing; kw...)
+setRowHeight(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setRowHeight, ws, row, nothing; kw...)
+setRowHeight(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setRowHeight, ws, nothing, col; kw...)
+setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setRowHeight, ws, row, col; kw...)
+setRowHeight(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setRowHeight, ws, row, col; kw...)
+setRowHeight(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setRowHeight, ws, row, col; kw...)
+setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setRowHeight(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}=nothing)::Int
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot set row heights because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot set row heights because cache is not enabled."))
+    end
 
-    top  = rng.start.row_number
+    top = rng.start.row_number
     bottom = rng.stop.row_number
     padded_height = isnothing(height) ? -1 : height + 0.2109375 # Excel adds cell padding to a user specified width
-    @assert isnothing(height) || height >= 0 "Invalid value specified for height: $height. Height must be >= 0."
+    if !isnothing(height) && height < 0
+        throw(XLSXError("Invalid value specified for height: $height. Height must be >= 0."))
+    end
 
     if isnothing(height) # No-op
         return 0
     end
+
+    if isnothing(ws.cache) || !haskey(ws.cache.row_ht, rng.stop.row_number)
+        _ = ws[rng.stop] # Ensure cache filled at least to include the last row in `rng`.
+    end
+
     first = true
-    for r in eachrow(ws)
-        if r.row in top:bottom
-            if haskey(ws.cache.row_ht, r.row)
-                ws.cache.row_ht[r.row] = padded_height
-                first = false
-            end
+
+    for r in top:bottom
+        if haskey(ws.cache.row_ht, r) # may still be missing if row is entirely empty.
+            ws.cache.row_ht[r] = padded_height
+            first=false
         end
     end
 
-    if first == true 
-        return -1 # All rows were empty
+    if first == true
+        return -1
     end
-    return 0 # meaningless return value. Int required to comply with reference decoding structure.
+
+    return 0
+
 end
 
 """
     getRowHeight(sh::Worksheet, cr::String) -> ::Union{Nothing, Real}
     getRowHeight(xf::XLSXFile,  cr::String) -> ::Union{Nothing, Real}
 
+    getRowHeight(sh::Worksheet,  row::Int, col::Int) -> ::Union{Nothing, Real}
+
 Get the height of a row defined by a cell reference or named cell.
+The specified cell must be within the sheet dimension.
 
 A standard cell reference or defined name must be used to define the row. 
 The function will use the row number and ignore the column.
@@ -2156,27 +2278,354 @@ If the row is not found (an empty row), returns -1.
 julia> XLSX.getRowHeight(xf, "Sheet1!A2")
 
 julia> XLSX.getRowHeight(sh, "F1")
+
+julia> XLSX.getRowHeight(sh, 1, 6)
  
 ```
 """
 function getRowHeight end
 getRowHeight(xl::XLSXFile, sheetcell::String)::Union{Nothing,Real} = process_get_sheetcell(getRowHeight, xl, sheetcell)
 getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws, cr)
+getRowHeight(ws::Worksheet, row::Integer, col::Integer) = getRowHeight(ws, CellRef(row, col))
 function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
-    @assert get_xlsxfile(ws).use_cache_for_sheet_data "Cannot get row height because cache is not enabled."
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get row height because cache is not enabled."))
+    end
 
     d = get_dimension(ws)
-    @assert cellref.row_number >= d.start.row_number && cellref.row_number <= d.stop.row_number "Cell specified is outside sheet dimension \"$d\""
+    if cellref ∉ d
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
+    end
 
-    for r in eachrow(ws)
-        if r.row == cellref.row_number
-            if haskey(ws.cache.row_ht, r.row)
-                return ws.cache.row_ht[r.row]
-            end
-        end
+    if isnothing(ws.cache) || !haskey(ws.cache.row_ht, cellref.row_number)
+        _ = ws[cellref] # Ensure cache filled at least to include the last row in `rng`.
+    end
+
+    if haskey(ws.cache.row_ht, cellref.row_number) # Row might still be empty
+        return ws.cache.row_ht[cellref.row_number]
     end
 
     return -1 # Row specified not found (is empty)
 
+end
+
+#
+# -- Get merged cells
+#
+
+"""
+    getMergedCells(ws::Worksheet) -> Union{Vector{CellRange}, Nothing}
+
+Return a vector of the `CellRange` of all merged cells in the specified worksheet.
+Return nothing if the worksheet contains no merged cells.
+
+The Excel file must be opened in write mode to work with merged cells.
+
+# Examples:
+```julia
+julia> f = XLSX.readxlsx("test.xlsx")
+XLSXFile("C:\\Users\\tim\\Downloads\\test.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 2x2           A1:B2
+
+julia> s = f["Sheet1"]
+2×2 XLSX.Worksheet: ["Sheet1"](A1:B2)
+
+julia> XLSX.getMergedCells(s)
+1-element Vector{XLSX.CellRange}:
+ B1:B2
+ 
+```
+"""
+function getMergedCells(ws::Worksheet)::Union{Vector{CellRange},Nothing}
+    # May be better if merged cells were part of ws.cache?
+
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get merged cells: `XLSXFile` is not writable."))
+    end
+
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
+
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find the <mergeCells> block in the worksheet's xml file
+    i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
+
+    if isnothing(j) # There are no existing merged cells.
+        return nothing
+    end
+
+    c = XML.children(sheetdoc[i][j])
+    if length(c) != parse(Int, sheetdoc[i][j]["count"])
+        throw(XLSXError("Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."))
+    end
+
+    mergedCells = Vector{CellRange}()
+    for cell in c
+        !haskey(cell, "ref") && throw(XLSXError("No `ref` attribute found in `mergeCell` element."))
+        push!(mergedCells, CellRange(cell["ref"]))
+    end
+
+    return mergedCells
+end
+
+"""
+    isMergedCell(ws::Worksheet,  cr::String) -> Bool
+    isMergedCell(xf::XLSXFile,   cr::String) -> Bool
+
+    isMergedCell(ws::Worksheet,  row::Int, col::Int) -> Bool
+
+Return `true` if a cell is part of a merged cell range and `false` if not.
+The specified cell must be within the sheet dimension.
+
+Alternatively, if you have already obtained the merged cells for the worksheet,
+you can avoid repeated determinations and pass them as a keyword argument to 
+the function:
+
+    isMergedCell(ws::Worksheet, cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
+    isMergedCell(xf::XLSXFile,  cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
+
+    isMergedCell(ws::Worksheet,  row:Int, col::Int; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Bool
+
+The Excel file must be opened in write mode to work with merged cells.
+
+# Examples:
+```julia
+julia> XLSX.isMergedCell(xf, "Sheet1!A1")
+
+julia> XLSX.isMergedCell(sh, "A1")
+
+julia> XLSX.isMergedCell(sh, 2, 4) # cell D2
+
+julia> mc = XLSX.getMergedCells(sh)
+
+julia> XLSX.isMergedCell(sh, XLSX.CellRef("A1"), mc)
+ 
+```
+"""
+function isMergedCell end
+isMergedCell(xl::XLSXFile, sheetcell::String; kw...)::Bool = process_get_sheetcell(isMergedCell, xl, sheetcell; kw...)
+isMergedCell(ws::Worksheet, cr::String; kw...)::Bool = process_get_cellname(isMergedCell, ws, cr; kw...)
+isMergedCell(ws::Worksheet, row::Integer, col::Integer; kw...) = isMergedCell(ws, CellRef(row, col); kw...)
+function isMergedCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange},Nothing,Missing}=missing)::Bool
+
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get merged cells: `XLSXFile` is not writable."))
+    end
+
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
+
+    d = get_dimension(ws)
+    if cellref ∉ d
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
+    end
+
+    if ismissing(mergedCells) # Get mergedCells if missing
+        mergedCells = getMergedCells(ws)
+    end
+    if isnothing(mergedCells) # No merged cells in sheet
+        return false
+    end
+    for rng in mergedCells
+        if cellref ∈ rng
+            return true
+        end
+    end
+
+    return false
+end
+
+"""
+    getMergedBaseCell(ws::Worksheet, cr::String) -> Union{Nothing, NamedTuple{CellRef, Any}}
+    getMergedBaseCell(xf::XLSXFile,  cr::String) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
+    getMergedBaseCell(ws::Worksheet, row::Int, col::Int) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
+Return the cell reference and cell value of the base cell of a merged cell range in a worksheet as a named tuple.
+The specified cell must be within the sheet dimension.
+If the specified cell is not part of a merged cell range, return `nothing`.
+
+The base cell is the top-left cell of the merged cell range and is the reference cell for the range.
+
+The tuple returned contains:
+- `baseCell`  : the reference (`CellRef`) of the base cell
+- `baseValue` : the value of the base cell
+
+Additionally, if you have already obtained the merged cells for the worksheet,
+you can avoid repeated determinations and pass them as a keyword argument to 
+the function:
+
+    getMergedBaseCell(ws::Worksheet, cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
+    getMergedBaseCell(xf::XLSXFile,  cr::String; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
+    getMergedBaseCell(ws::Worksheet, row::Int, col::Int; mergedCells::Union{Vector{CellRange}, Nothing, Missing}=missing) -> Union{Nothing, NamedTuple{CellRef, Any}}
+
+The Excel file must be opened in write mode to work with merged cells.
+
+# Examples:
+```julia
+julia> XLSX.getMergedBaseCell(xf, "Sheet1!B2")
+(baseCell = B1, baseValue = 3)
+
+julia> XLSX.getMergedBaseCell(sh, "B2")
+(baseCell = B1, baseValue = 3)
+
+julia> XLSX.getMergedBaseCell(sh, 2, 2)
+(baseCell = B1, baseValue = 3)
+
+```
+"""
+function getMergedBaseCell end
+getMergedBaseCell(xl::XLSXFile, sheetcell::String; kw...) = process_get_sheetcell(getMergedBaseCell, xl, sheetcell; kw...)
+getMergedBaseCell(ws::Worksheet, cr::String; kw...) = process_get_cellname(getMergedBaseCell, ws, cr; kw...)
+getMergedBaseCell(ws::Worksheet, row::Integer, col::Integer; kw...) = getMergedBaseCell(ws, CellRef(row, col); kw...)
+function getMergedBaseCell(ws::Worksheet, cellref::CellRef; mergedCells::Union{Vector{CellRange},Nothing,Missing}=missing)
+
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get merged cells: `XLSXFile` is not writable."))
+    end
+
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
+
+    d = get_dimension(ws)
+    if cellref ∉ d
+        throw(XLSXError("Cell specified is outside sheet dimension `$d`"))
+    end
+
+    if ismissing(mergedCells) # Get mergedCells if missing
+        mergedCells = getMergedCells(ws)
+    end
+    if isnothing(mergedCells) # No merged cells in sheet
+        return nothing
+    end
+    for rng in mergedCells
+        if cellref ∈ rng
+            return (; baseCell=rng.start, baseValue=ws[rng.start])
+        end
+    end
+    return nothing
+end
+
+"""
+    mergeCells(ws::Worksheet, cr::String) -> 0
+    mergeCells(xf::XLSXFile,  cr::String) -> 0
+
+    mergeCells(ws::Worksheet, row::Int, col::Int) -> 0
+
+Merge the cells in the range given by `cr`. The value of the merged cell 
+will be the value of the first cell in the range (the base cell) prior 
+to the merge. All other cells in the range will be set to `missing`, 
+reflecting the behaviour of Excel itself.
+
+Merging is limited to the extent of the worksheet dimension.
+
+The specified range must not overlap with any previously merged cells.
+
+It is not possible to merge a single cell!
+
+A non-contiguous range composed of multiple cell ranges will be processed as a 
+list of separate ranges. Each range will be merged separately. No range within 
+a non-contiguous range may be a single cell.
+
+The Excel file must be opened in write mode to work with merged cells.
+
+# Examples:
+```julia
+julia> XLSX.mergeCells(xf, "Sheet1!B2:D3")  # Merge a cell range.
+
+julia> XLSX.mergeCells(sh, 1:3, :)          # Merge rows to the extent of the dimension.
+
+julia> XLSX.mergeCells(sh, "A:D")           # Merge columns to the extent of the dimension.
+
+```
+"""
+function mergeCells end
+mergeCells(ws::Worksheet, rng::SheetCellRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.rng)
+mergeCells(ws::Worksheet, rng::SheetColumnRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.colrng)
+mergeCells(ws::Worksheet, rng::SheetRowRange) = do_sheet_names_match(ws, rng) && mergeCells(ws, rng.rowrng)
+mergeCells(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(mergeCells, ws, colrng)
+mergeCells(ws::Worksheet, rowrng::RowRange)::Int = process_rowranges(mergeCells, ws, rowrng)
+mergeCells(ws::Worksheet, ncrng::NonContiguousRange; kw...)::Int = process_ncranges(mergeCells, ws, ncrng; kw...)
+mergeCells(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(mergeCells, xl, sheetcell)
+mergeCells(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(mergeCells, ws, ref_or_rng)
+mergeCells(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = process_colon(mergeCells, ws, row, nothing)
+mergeCells(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = process_colon(mergeCells, ws, nothing, col)
+mergeCells(ws::Worksheet, ::Colon, ::Colon) = process_colon(mergeCells, ws, nothing, nothing)
+mergeCells(ws::Worksheet, ::Colon) = process_colon(mergeCells, ws, nothing, nothing)
+mergeCells(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = mergeCells(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
+function mergeCells(ws::Worksheet, cr::CellRange)
+    # May be better if merged cells were part of ws.cache?
+
+    #    !is_valid_cell_range(cr) && throw(XLSXError("\"$cr\" is not a valid cell range."))
+
+    !issubset(cr, get_dimension(ws)) && throw(XLSXError("Range `$cr` goes outside worksheet dimension."))
+
+    length(cr) == 1 && throw(XLSXError("Cannot merge a single cell: `$cr`"))
+
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot merge cells: `XLSXFile` is not writable."))
+    end
+
+    if !get_xlsxfile(ws).use_cache_for_sheet_data
+        throw(XLSXError("Cannot get merged cells because cache is not enabled."))
+    end
+
+    sheetdoc = xmlroot(ws.package, "xl/worksheets/sheet" * string(ws.sheetId) * ".xml") # find the <mergeCells> block in the worksheet's xml file
+    i, j = get_idces(sheetdoc, "worksheet", "mergeCells")
+
+    if isnothing(j) # There are no existing merged cells. Insert immediately after the <sheetData> block and push everything else down one.
+        k, l = get_idces(sheetdoc, "worksheet", "sheetData")
+        len = length(sheetdoc[k])
+        i != k && throw(XLSXError("Some problem here!"))
+        if l != len
+            push!(sheetdoc[k], sheetdoc[k][end])
+            if l + 1 < len
+                for pos = len-1:-1:l+1
+                    sheetdoc[k][pos+1] = sheetdoc[k][pos]
+                end
+            end
+            sheetdoc[k][l+1] = XML.Element("mergeCells")
+        else
+            push!(sheetdoc[k], XML.Element("mergeCells"))
+        end
+        j = l + 1
+        count = 0
+    else # There are already some existing merged cells
+        c = XML.children(sheetdoc[i][j])
+        count = length(c)
+        if count != parse(Int, sheetdoc[i][j]["count"])
+            throw(XLSXError("Unexpected number of mergeCells found: $(length(c)). Expected $(sheetdoc[i][j]["count"])."))
+        end
+        for child in c
+            if intersects(cr, CellRange(child["ref"]))
+                throw(XLSXError("Merged range (`$cr`) cannot overlap with existing merged range (`" * child["ref"] * "`)."))
+            end
+        end
+    end
+
+    push!(sheetdoc[i][j], XML.Element("mergeCell", ref=string(cr))) # Add the new merged cell range.
+    count += 1
+    sheetdoc[i][j]["count"] = count
+
+    # All cells except the base cell are set to missing.
+    let first = true
+        for cell in cr
+            if first
+                first = false
+                continue
+            else
+                ws[cell] = ""
+            end
+        end
+    end
+
+    update_worksheets_xml!(get_xlsxfile(ws))
+
+    return 0 # meaningless return value. Int required to comply with reference decoding structure.
 end

@@ -102,18 +102,31 @@ that implements [`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface.
 You can use it to create a `DataFrame` from [DataFrames.jl](https://github.com/JuliaData/DataFrames.jl).
 Check the docstring for `gettable` method for more advanced options.
 
-There's also a helper method [`XLSX.readtable`](@ref) to read from file directly, as shown in the following example.
+There are also two helper methods [`XLSX.readtable`](@ref) and [`XLSX.readto`](@ref) to read from file 
+directly, as shown in the following examples.
 
 ```julia
 julia> using DataFrames, XLSX
 
-julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
-3×2 DataFrames.DataFrame
-│ Row │ HeaderA │ HeaderB  │
-├─────┼─────────┼──────────┤
-│ 1   │ 1       │ "first"  │
-│ 2   │ 2       │ "second" │
-│ 3   │ 3       │ "third"  │
+julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet")) # Returns a `Tables.jl` table that `DataFrame` can accept
+3×2 DataFrame
+ Row │ HeaderA  HeaderB 
+     │ Int64    String  
+─────┼──────────────────
+   1 │       1  first
+   2 │       2  second
+   3 │       3  third
+
+julia> df = XLSX.readto("myfile.xlsx", "mysheet", DataFrame) # Returns a `DataFrame` directly.
+3×2 DataFrame
+ Row │ HeaderA  HeaderB 
+     │ Int64    String  
+─────┼──────────────────
+   1 │       1  first
+   2 │       2  second
+   3 │       3  third
+
+
 ```
 
 ## Reading Cells as a Julia Matrix
@@ -185,8 +198,10 @@ The method `XLSX.openxlsx` has a `enable_cache` option to control worksheet cell
 Cache is enabled by default, so if you read a worksheet cell twice it will use the cached value instead of reading from disk
 in the second time.
 
-If `enable_cache=false`, worksheet cells will always be read from disk.
-This is useful when you want to read a spreadsheet that doesn't fit into memory.
+If `enable_cache=false`, worksheet cells will always be read from disk. In addition, if `enable_cache=false` 
+and `openxlsx` is used with do-syntax, the xlsx file itself will be opened usning `Mmap.mmap` so that the 
+zip archives themselves are not read into memory. This is useful when you want to read a spreadsheet that 
+doesn't fit into memory.
 
 The following example shows how you would read worksheet cells, one row at a time,
 where `myfile.xlsx` is a spreadsheet that doesn't fit into memory.
@@ -258,7 +273,7 @@ end
 ### Edit Existing Files
 
 Opening a file in `read-write` mode with `XLSX.openxlsx` will open an existing Excel file for editing.
-This will preserve existing data in the original file.
+This will preserve existing data and formatting in the original file.
 
 ```julia
 XLSX.openxlsx("my_new_file.xlsx", mode="rw") do xf
@@ -269,9 +284,9 @@ end
 
 !!! warning
 
-    The `read-write` mode is known to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159).
+    The `read-write` mode is known occasionally to produce some data loss. See [#159](https://github.com/felipenoris/XLSX.jl/issues/159) (now fixed!)
 
-    Simple data should work fine. Users are advised to use this feature with caution when working with formulas and charts.
+    Simple data should work fine. Users are advised to use this feature with caution when working with charts.
 
 ### Export Tabular Data from a Worksheet
 

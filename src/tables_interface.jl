@@ -18,14 +18,17 @@ function _table_to_arrays(x)
             colnames = collect(Symbol, Tables.columnnames(x))
             return columns, colnames
     else
-        error("$(typeof(x)) does not implement Tables.jl interface.")
+        throw(XLSXError("$(typeof(x)) does not implement Tables.jl interface."))
     end
 end
 
 """
     writetable(filename, table; [overwrite], [sheetname])
 
-Write Tables.jl `table` to the specified filename.
+Write a Tables.jl compatible `table` as an Excel file with the specified file name (and sheet name, if specified).
+
+If a file with the given name already exists, writing will fail unless `overwrite=true` is specified, in which 
+case the existing file will be overwritten.
 """
 writetable(filename::Union{AbstractString, IO}, x; kw...) = writetable(filename, _table_to_arrays(x)...; kw...)
 
@@ -43,7 +46,8 @@ writetable(filename::Union{AbstractString, IO}, tables::Pair{<:String, <:Any}...
 """
     writetable!(sheet::Worksheet, table; anchor_cell::CellRef=CellRef("A1")))
 
-Write Tables.jl `table` to the specified sheet.
+Write a Tables.jl compatible `table` to the specified sheet starting with the 
+anchor cell (if given) in the top left.
 """
 writetable!(sheet::Worksheet, x; kw...) = writetable!(sheet, _table_to_arrays(x)...; kw...)
 
@@ -59,7 +63,7 @@ Tables.getcolumn(dt::DataTable, i::Int) = dt.data[i]
 
 function Tables.getcolumn(dt::DataTable, column_label::Symbol)
     if !haskey(dt.column_label_index, column_label)
-        error("Column `$column_label` not found.")
+        throw(XLSXError("Column `$column_label` not found."))
     end
 
     column_index = dt.column_label_index[column_label]
