@@ -673,7 +673,7 @@ Valid values for the `operator` keyword are the following:
 
 Default keyowrds are `operator="TopN"` and `value="10"`.
     
-Multiple conditional formats may be applied to the smae or overlapping cell ranges. 
+Multiple conditional formats may be applied to the same or overlapping cell ranges. 
 If `stopIfTrue=true` the first condition that is met will be applied but all subsequent 
 conditional formats for that cell will be skipped. If `stopIfTrue=false` (default) all 
 relevant conditional formats will be applied to the cell in turn.
