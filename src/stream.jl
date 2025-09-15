@@ -371,12 +371,12 @@ end
 Base.length(r::WorksheetCache)=length(r.cells)
 
 #--------------------------------------------------------------------- Fill cache on first read (multi-threaded)
-function stream_rows(n::XML.LazyNode, handled_attributes::Set{String}; channel_size::Int=1 << 20)
+function stream_rows(n::XML.LazyNode; channel_size::Int=1 << 20)
     n = XML.next(n)
-    Channel{Tuple{XML.LazyNode, Set{String}}}(channel_size) do out
+    Channel{XML.LazyNode}(channel_size) do out
         while !isnothing(n)
             if n.tag == "row"
-                put!(out, (n, handled_attributes))
+                put!(out, n)
             end
             n = XML.next(n)
         end
@@ -419,6 +419,7 @@ function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Wor
 end
 
 function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
+    chunksize=1000
     handled_attributes = Set{String}([
         "r",            # the row number
         "spans",        # the columns the row spans
@@ -433,35 +434,46 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
         throw(XLSXError("Expecting empty cache but cache not empty!"))
     end
 
-    sheet_rows = Channel{Tuple{Int, SheetRow, Dict{String,String}}}(1 << 20)
+    sheet_rows = Channel{Vector{Tuple{Int, SheetRow, Dict{String,String}}}}(1 << 20)
 
     consumer = @async begin
         sst_total=0
-        for (row_sst_count, sheet_row, unatt) in sheet_rows
-            if !isempty(unatt)
-                unhandled_attributes[row_number(sheet_row)] = unatt
+        for rows in sheet_rows
+            for (row_sst_count, sheet_row, unatt) in rows
+                if !isempty(unatt)
+                    unhandled_attributes[row_number(sheet_row)] = unatt
+                end
+                push_sheetrow!(ws.cache, sheet_row)
+                sst_total += row_sst_count
             end
-            push_sheetrow!(ws.cache, sheet_row)
-            sst_total += row_sst_count
         end
         ws.sst_count = sst_total
         ws.unhandled_attributes = isempty(unhandled_attributes) ? nothing : unhandled_attributes
     end
 
-    rows = stream_rows(lznode, handled_attributes)
+    streamed_rows = stream_rows(lznode)
 
     # Producer tasks
     @sync for _ in 1:nthreads
         Threads.@spawn begin
-            for (row, handled_attributes) in rows
-                sheetrow = process_row(row, handled_attributes, ws) # process <row> LazyNodes into SheetRows
-                put!(sheet_rows, sheetrow)
+            chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
+            row_count=0
+            for row in streamed_rows
+                row_count += 1
+                chunk[row_count] = process_row(row, handled_attributes, ws) # process <row> LazyNodes into SheetRows
+                if row_count == chunksize
+                    put!(sheet_rows, copy(chunk))
+                    row_count=0
+                end
+            end
+            if row_count>0 # handle last incomplete chunk
+                put!(sheet_rows, chunk[1:row_count])
             end
         end
     end
     close(sheet_rows)
 
-    wait(consumer)
+    wait(consumer) # ensure consumer is done
 
     ws.cache.is_full=true
 end

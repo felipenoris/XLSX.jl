@@ -122,14 +122,17 @@ function process_sst(sst::SstToken)
 end
 
 function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
+    chunksize=1000
     sst_table = get_sst(wb)
 
-    sst_results = Channel{Sst}(1 << 24)
+    sst_results = Channel{Vector{Sst}}(1 << 24)
 
     all_ssts = Vector{Tuple{Int,Sst}}()
-    consumer = @async begin        
-        for sst in sst_results
-            push!(all_ssts, (sst.idx, sst))
+    consumer = @async begin
+        for ssts in sst_results        
+            for sst in ssts
+                push!(all_ssts, (sst.idx, sst))
+            end
         end    
 
         sort!(all_ssts, by = x -> x[1])
@@ -144,16 +147,24 @@ function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
     end
 
     # Producer tasks
-    @sync begin
-        for _ in 1:nthreads
-            Threads.@spawn begin
-                for tok in chan
-                    result = process_sst(tok)
-                    put!(sst_results, result)
+    @sync for _ in 1:nthreads
+        Threads.@spawn begin
+            chunk = Vector{Sst}(undef, chunksize)
+            sst_count=0
+            for tok in chan
+                sst_count += 1
+                chunk[sst_count]= process_sst(tok)
+                if sst_count == chunksize
+                    put!(sst_results, copy(chunk))
+                    sst_count=0
                 end
+            end
+            if sst_count>0 # handle last incomplete chunk
+                put!(sst_results, chunk[1:sst_count])
             end
         end
     end
+    
     close(sst_results)
 
     wait(consumer)  # ensure consumer is done
