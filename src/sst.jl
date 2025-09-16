@@ -28,19 +28,15 @@ function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractStr
         # it's already in the table
         return i
     else
-        locked_sst = Locked(sst)
-        withlock(locked_sst) do l
-            push!(l.unformatted_strings, str_unformatted)
-            push!(l.formatted_strings, str_formatted)
-            l.index[str_formatted] = length(sst.formatted_strings)
-            new_index = length(sst.formatted_strings) - 1 # 0-based
-            if new_index != get_shared_string_index(sst, str_formatted)
-                println("sst38 : ",new_index, " ", get_shared_string_index(sst, str_formatted))
-                throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
-            end
+        push!(sst.unformatted_strings, str_unformatted)
+        push!(sst.formatted_strings, str_formatted)
+        sst.index[str_formatted] = length(sst.formatted_strings)
+        new_index = length(sst.formatted_strings) - 1 # 0-based
+        if new_index != get_shared_string_index(sst, str_formatted)
+            throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
         end
-        return new_index
     end
+    return new_index
 end
 
 # Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
