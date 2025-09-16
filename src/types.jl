@@ -553,3 +553,15 @@ struct FileArray <: AbstractVector{UInt8}
     offset::Int64
     len::Int64
 end
+
+mutable struct Locked{T}
+    value::T
+    lock::ReentrantLock
+    Locked(x::T) where {T} = new{T}(x, ReentrantLock())
+end
+
+function withlock(f, obj::Locked)
+    lock(obj.lock) do
+        f(obj.value)
+    end
+end

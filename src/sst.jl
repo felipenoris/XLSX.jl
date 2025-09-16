@@ -23,16 +23,21 @@ end
 
 function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
     i = get_shared_string_index(sst, str_formatted)
+    local new_index::Int
     if i !== nothing
         # it's already in the table
         return i
     else
-        push!(sst.unformatted_strings, str_unformatted)
-        push!(sst.formatted_strings, str_formatted)
-        sst.index[str_formatted] = length(sst.formatted_strings)
-        new_index = length(sst.formatted_strings) - 1 # 0-based
-        if new_index != get_shared_string_index(sst, str_formatted)
-            throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
+        locked_sst = Locked(sst)
+        withlock(locked_sst) do l
+            push!(l.unformatted_strings, str_unformatted)
+            push!(l.formatted_strings, str_formatted)
+            l.index[str_formatted] = length(sst.formatted_strings)
+            new_index = length(sst.formatted_strings) - 1 # 0-based
+            if new_index != get_shared_string_index(sst, str_formatted)
+                println("sst38 : ",new_index, " ", get_shared_string_index(sst, str_formatted))
+                throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
+            end
         end
         return new_index
     end
@@ -40,8 +45,10 @@ end
 
 # Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
 function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
-    !is_writable(get_xlsxfile(wb)) && throw(XLSXError("XLSXFile instance is not writable."))
-    (isempty(str_unformatted) || isempty(str_formatted)) && throw(XLSXError("Can't add empty string to Shared String Table."))
+#    !is_writable(get_xlsxfile(wb)) && throw(XLSXError("XLSXFile instance is not writable."))
+    if (isempty(str_unformatted) || isempty(str_formatted))
+        throw(XLSXError("Can't add empty string to Shared String Table."))
+    end
     sst = get_sst(wb)
 
     if !sst.is_loaded

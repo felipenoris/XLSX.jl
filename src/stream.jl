@@ -159,7 +159,8 @@ function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRo
 
         elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
             cell_no += 1
-            cell = Cell(lznode)
+            cell = Cell(lznode, ws)
+            itr.sheet.sst_count += cell.datatype == "s" ? 1 : 0
             if row_number(cell) != current_row
                 throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
             end
@@ -399,7 +400,7 @@ function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Wor
     sst_count=0
     for c in cells
         if c.tag == "c"
-            cell = Cell(c)
+            cell = Cell(c, ws)
             col_num = column_number(cell)
             if cell.datatype=="s"
                 sst_count += 1
@@ -501,7 +502,7 @@ function match_rows(ws::Worksheet, rows_to_match::Vector{Int})::Vector{SheetRow}
                 cells = XML.children(n)
                 for c in cells
                     if c.tag == "c"
-                        cell = Cell(c)
+                        cell = Cell(c, ws)
                         col_num = column_number(cell)
 
                         # Verify row consistency

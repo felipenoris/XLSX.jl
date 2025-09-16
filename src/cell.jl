@@ -33,7 +33,7 @@ function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode
     return nothing
 end
 
-function Cell(c::XML.LazyNode)
+function Cell(c::XML.LazyNode, ws::Worksheet) :: Union{Cell, EmptyCell}
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
@@ -68,19 +68,32 @@ function Cell(c::XML.LazyNode)
 
     for c_child_element in XML.children(c)
 
-        if t == "inlineStr"
+        if t == "inlineStr" # Convert to sharedString
             if XML.tag(c_child_element) == "is"
-                t_node = find_t_node_recursively(c_child_element)
-                if t_node !== nothing
-                    c = XML.children(t_node)
-                    if length(c) == 0
-                        v = ""
-                    elseif length(c) == 1
-                        v= XML.value(c[1])
-                    else
-                        throw(XLSXError("Too amny children in `t` node. Expected >=1, found: $(length(c))"))
-                    end
+                uft = unformatted_text(c_child_element)
+                if uft=="" # Convert empty inlineStrings to EmptyCell. Can't have empty sharedStrings
+                    v=""
+                    t=""
+                else
+                    ft=("<si>\n  "*join(XML.write.(XML.children(c_child_element)), "\n")*"\n</si>")
+                    t = "s"
+                    v = string(add_shared_string!(get_workbook(ws), uft, ft))
                 end
+#                ws.sst_count+=1
+#                # old code, kept for reference
+#                t_node = find_t_node_recursively(c_child_element)
+#                if t_node !== nothing
+#                    c = XML.children(t_node)
+#                    if length(c) == 0
+#                        v = ""
+#                    elseif length(c) == 1
+#                        v= XML.value(c[1])
+#                    else
+#                        throw(XLSXError("Too many children in `t` node. Expected >=1, found: $(length(c))"))
+#                    end
+#                end
+#            else
+#                throw(XLSXError("Expected `is` node inside inlineStr cell. Found: `$(XML.tag(c_child_element))`"))
             end
 
         else
