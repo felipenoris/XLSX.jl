@@ -1281,7 +1281,7 @@ end
 Delete the given worksheet, the worksheet with the given name or the worksheet with the given `sheetId` from its `XLSXFile` 
 (`sheetId` is a 1-based integer representing the order in which worksheet tabs are displayed in Excel).
 
-# note "Caution"
+!!! note "Caution"
     Cells in the other sheets that have references to the deleted sheet will fail when the sheet is deleted.
     The formulae are updated to contain a `#Ref!` error in place of each sheetcell reference.
     

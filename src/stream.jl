@@ -420,9 +420,10 @@ end
 
 function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     handled_attributes = Set{String}([
-        "r",     # the row number
-        "spans", # the columns the row spans
-        "ht",    # the row height
+        "r",            # the row number
+        "spans",        # the columns the row spans
+        "ht",           # the row height
+        "customHeight"  # flag for when custom height is defined
     ])
     unhandled_attributes = Dict{Int,Dict{String,String}}() # Row number => (name, value)
 
