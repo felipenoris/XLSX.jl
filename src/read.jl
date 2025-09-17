@@ -575,46 +575,6 @@ function skipNode(r::XML.Raw, skipnode::String) # separate rows or ssts to speed
     return new, skipped
 end
 
-# Knuth-Morris-Pratt algorithm for substring search on byte arrays
-function kmp_contains(needle::Vector{UInt8}, haystack::Vector{UInt8}) :: Bool
-    m = length(needle)
-    m == 0 && return true
-
-    # Precompute longest prefix-suffix table
-    lps = zeros(Int, m)
-    len = 0
-    i = 2
-    while i <= m
-        if needle[i] == needle[len+1]
-            len += 1
-            lps[i] = len
-            i += 1
-        elseif len > 0
-            len = lps[len]
-        else
-            lps[i] = 0
-            i += 1
-        end
-    end
-
-    # Search
-    i = j = 1
-    while i <= length(haystack)
-        if haystack[i] == needle[j]
-            i += 1
-            j += 1
-            if j > m
-                return true
-            end
-        elseif j > 1
-            j = lps[j-1] + 1
-        else
-            i += 1
-        end
-    end
-    return false
-end
-
 function stream_files(xf::XLSXFile; pass::Int, channel_size::Int=1 << 10)
     Channel{String}(channel_size) do out
         for f in ZipArchives.zip_names(xf.io)
@@ -662,10 +622,10 @@ function load_files!(xf::XLSXFile; pass::Int)
                         rid=get_relationship_id_by_target(wb, file.name)
                         for sheet in wb.sheets
                             if sheet.relationship_id == rid
-                                if kmp_contains(Vector{UInt8}("t=\"inlineStr\""), file.raw.data)
-                                    nth=1 # single threaded if inlineStrings are present to avoid non-threadsafe access to shared string table
+                                if isnothing(findfirst(Vector{UInt8}("\"inlineStr\""), file.raw.data))
+                                    nth=Threads.nthreads() # multi-threaded if no inlineStrings are present
                                 else
-                                    nth=Threads.nthreads() # multi-threaded otherwise
+                                    nth=1 # single threaded if inlineStrings are present to avoid non-threadsafe access to shared string table
                                 end
                                 first_cache_fill!(sheet, XML.LazyNode(file.raw), nth)
                             end

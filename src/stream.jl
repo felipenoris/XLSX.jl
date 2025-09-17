@@ -357,10 +357,10 @@ function Base.eachrow(ws::Worksheet) :: SheetRowIterator
 #            ws.cache = WorksheetCache(ws) # the old way - fill cache incrementally only as far as needed using iterator
             target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             lznode = open_internal_file_stream(get_xlsxfile(ws), target_file)
-            if kmp_contains(Vector{UInt8}("\"inlineStr\""), lznode.raw.data)
-                nth=1 # single threaded if inlineStrings are present to avoid non-threadsafe access to shared string table
+            if isnothing(findfirst(Vector{UInt8}("\"inlineStr\""), lznode.raw.data))
+                nth=Threads.nthreads() # multi-threaded if no inlineStrings are present
             else
-                nth=Threads.nthreads() # multi-threaded otherwise
+                nth=1 # single threaded if inlineStrings are present to avoid non-threadsafe access to shared string table
             end
             first_cache_fill!(ws, lznode, nth) # fill cache if enabled but empty on first use of eachrow iterator
         end
