@@ -622,12 +622,7 @@ function load_files!(xf::XLSXFile; pass::Int)
                         rid=get_relationship_id_by_target(wb, file.name)
                         for sheet in wb.sheets
                             if sheet.relationship_id == rid
-                                if isnothing(findfirst(Vector{UInt8}("\"inlineStr\""), file.raw.data))
-                                    nth=Threads.nthreads() # multi-threaded if no inlineStrings are present
-                                else
-                                    nth=1 # single threaded if inlineStrings are present to avoid non-threadsafe access to shared string table
-                                end
-                                first_cache_fill!(sheet, XML.LazyNode(file.raw), nth)
+                                first_cache_fill!(sheet, XML.LazyNode(file.raw), Threads.nthreads())
                             end
                         end
                     end

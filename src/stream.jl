@@ -353,16 +353,10 @@ in any case, only succeed if the worksheet cache is in use.
 """
 function Base.eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
-        if ws.cache === nothing
-#            ws.cache = WorksheetCache(ws) # the old way - fill cache incrementally only as far as needed using iterator
+        if ws.cache === nothing # fill cache if enabled but empty on first use of eachrow iterator
             target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
             lznode = open_internal_file_stream(get_xlsxfile(ws), target_file)
-            if isnothing(findfirst(Vector{UInt8}("\"inlineStr\""), lznode.raw.data))
-                nth=Threads.nthreads() # multi-threaded if no inlineStrings are present
-            else
-                nth=1 # single threaded if inlineStrings are present to avoid non-threadsafe access to shared string table
-            end
-            first_cache_fill!(ws, lznode, nth) # fill cache if enabled but empty on first use of eachrow iterator
+            first_cache_fill!(ws, lznode, Threads.nthreads())
         end
         return ws.cache
     else
@@ -389,7 +383,7 @@ function stream_rows(n::XML.LazyNode; channel_size::Int=1 << 20)
     end
 end
 
-function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Worksheet)
+function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Worksheet, mylock::ReentrantLock)
     unhandled_attributes = Dict{String,String}()
 
     atts = XML.attributes(row)
@@ -405,7 +399,7 @@ function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Wor
     sst_count=0
     for c in cells
         if c.tag == "c"
-            cell = Cell(c, ws)
+            cell = Cell(c, ws; mylock)
             col_num = column_number(cell)
             if cell.datatype=="s"
                 sst_count += 1
@@ -460,13 +454,14 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     streamed_rows = stream_rows(lznode)
 
     # Producer tasks
+    mylock = ReentrantLock() # lock for thread-safe access to shared string table in case of inlineStrings
     @sync for _ in 1:nthreads
         Threads.@spawn begin
             chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
             row_count=0
             for row in streamed_rows
                 row_count += 1
-                chunk[row_count] = process_row(row, handled_attributes, ws) # process <row> LazyNodes into SheetRows
+                chunk[row_count] = process_row(row, handled_attributes, ws, mylock) # process <row> LazyNodes into SheetRows
                 if row_count == chunksize
                     put!(sheet_rows, copy(chunk))
                     row_count=0
@@ -484,6 +479,8 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     ws.cache.is_full=true
 end
 
+# Materialise specific rows from a worksheet.xml file into SheetRows
+# (faster than using eachrow which materialises every row).
 function match_rows(ws::Worksheet, rows_to_match::Vector{Int})::Vector{SheetRow}
     matched_rows=Vector{SheetRow}()
 

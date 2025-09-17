@@ -33,7 +33,7 @@ function find_t_node_recursively(n::XML.LazyNode) :: Union{Nothing, XML.LazyNode
     return nothing
 end
 
-function Cell(c::XML.LazyNode, ws::Worksheet) :: Union{Cell, EmptyCell}
+function Cell(c::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothing}=nothing) :: Union{Cell, EmptyCell}
     # c (Cell) element is defined at section 18.3.1.4
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
@@ -77,25 +77,9 @@ function Cell(c::XML.LazyNode, ws::Worksheet) :: Union{Cell, EmptyCell}
                 else
                     ft=("<si>\n  "*join(XML.write.(XML.children(c_child_element)), "\n")*"\n</si>")
                     t = "s"
-                    v = string(add_shared_string!(get_workbook(ws), uft, ft))
+                    v = string(add_shared_string!(get_workbook(ws), uft, ft; mylock))
                 end
-#                ws.sst_count+=1
-#                # old code, kept for reference
-#                t_node = find_t_node_recursively(c_child_element)
-#                if t_node !== nothing
-#                    c = XML.children(t_node)
-#                    if length(c) == 0
-#                        v = ""
-#                    elseif length(c) == 1
-#                        v= XML.value(c[1])
-#                    else
-#                        throw(XLSXError("Too many children in `t` node. Expected >=1, found: $(length(c))"))
-#                    end
-#                end
-#            else
-#                throw(XLSXError("Expected `is` node inside inlineStr cell. Found: `$(XML.tag(c_child_element))`"))
             end
-
         else
             if XML.tag(c_child_element) == "v"
                 if found_v # we should have only one v element
