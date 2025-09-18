@@ -428,6 +428,7 @@ mutable struct XLSXFile <: MSOfficePackage
     workbook::Workbook
     relationships::Vector{Relationship} # contains package level relationships
     is_writable::Bool # indicates whether this XLSX file can be edited
+    uuid_rng::Random.Xoshiro # rng used to generate uuids for this file
 
     function XLSXFile(source::Union{AbstractString, IO}, use_cache::Bool, is_writable::Bool)
         check_for_xlsx_file_format(source)
@@ -436,7 +437,7 @@ mutable struct XLSXFile <: MSOfficePackage
         else
             io = ZipArchives.ZipReader(FileArray(abspath(source)))
         end
-        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable)
+        xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable, Random.Xoshiro(2468))
         xl.workbook.package = xl
         return xl
     end
