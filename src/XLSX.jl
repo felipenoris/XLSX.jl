@@ -10,6 +10,7 @@ import Tables
 import Unicode
 import Colors
 import Base.convert
+import Random
 import UUIDs
 import Mmap
 import Base.Threads

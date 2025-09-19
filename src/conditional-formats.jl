@@ -2218,7 +2218,7 @@ function setCfIconSet(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=()
             list = [(min_type, min_val, min_gte), (max_type, max_val, max_gte)]
         end
         if iconset in ["3Triangles", "3Stars", "5Boxes", "Custom"]
-            cfx["id"] = "{" * uppercase(string(UUIDs.uuid4())) * "}"
+            cfx["id"] = "{" * uppercase(string(UUIDs.uuid4(ws.package.uuid_rng))) * "}"
             cfx["priority"] = new_pr
             if !isnothing(showVal) && showVal == "false"
                 cfx[1]["showValue"] = "0"
@@ -2439,7 +2439,7 @@ function setCfDataBar(ws::Worksheet, rng::CellRange; allkws::Dict{Symbol,Any}=()
         haskey(allkws, "axis_pos") && isValidKw("axis_pos", allkws["axis_pos"], ["middle", "none"])
 
         # Define basic elements of dataBar definition
-        id = "{" * uppercase(string(UUIDs.uuid4())) * "}"
+        id = "{" * uppercase(string(UUIDs.uuid4(ws.package.uuid_rng))) * "}"
         mnt = allkws["min_type"] ∈ ["automatic", "least"] ? "min" : allkws["min_type"]
         mxt = allkws["max_type"] ∈ ["automatic", "highest"] ? "max" : allkws["max_type"]
         cfx = XML.h.cfRule(type="dataBar", priority=new_pr,
