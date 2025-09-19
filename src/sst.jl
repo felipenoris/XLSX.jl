@@ -20,33 +20,8 @@ function get_shared_string_index(sst::SharedStringTable, str_formatted::Abstract
     end
 
 end
-
-function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
-    i = get_shared_string_index(sst, str_formatted)
-    if i !== nothing
-        # it's already in the table
-        return i
-    else
-        push!(sst.unformatted_strings, str_unformatted)
-        push!(sst.formatted_strings, str_formatted)
-        sst.index[str_formatted] = length(sst.formatted_strings)
-        new_index = length(sst.formatted_strings) - 1 # 0-based
-        if new_index != get_shared_string_index(sst, str_formatted)
-            throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
-        end
-        return new_index
-    end
-end
-
-# Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
-function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
-    !is_writable(get_xlsxfile(wb)) && throw(XLSXError("XLSXFile instance is not writable."))
-    (isempty(str_unformatted) || isempty(str_formatted)) && throw(XLSXError("Can't add empty string to Shared String Table."))
-    sst = get_sst(wb)
-
+function create_new_sst(wb::Workbook, sst::SharedStringTable)
     if !sst.is_loaded
-        # if got to this point, the file was opened as template but doesn't have a Shared String Table.
-        # Will create a new one.
         sst.is_loaded = true
 
         # add relationship
@@ -63,8 +38,57 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_f
         push!(ctype_root, override_node)
         init_sst_index(sst)
     end
+end
 
-    return add_shared_string!(sst, str_unformatted, str_formatted)
+function add_to_sst!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString) :: Int
+    push!(sst.unformatted_strings, str_unformatted)
+    push!(sst.formatted_strings, str_formatted)
+    sst.index[str_formatted] = length(sst.formatted_strings)
+    new_index = length(sst.formatted_strings) - 1 # 0-based
+    if new_index != get_shared_string_index(sst, str_formatted)
+        throw(XLSXError("Inconsistent state after adding a string to the Shared String Table."))
+    end
+    return new_index
+end
+function add_shared_string!(sst::SharedStringTable, str_unformatted::AbstractString, str_formatted::AbstractString; mylock::Union{Nothing,ReentrantLock}=nothing) :: Int
+    i = get_shared_string_index(sst, str_formatted)
+    local new_index::Int
+    if i !== nothing
+        # it's already in the table
+        return i
+    else
+        if isnothing(mylock)
+            new_index = add_to_sst!(sst, str_unformatted, str_formatted)
+        else
+            lock(mylock) do
+                new_index = add_to_sst!(sst, str_unformatted, str_formatted)
+            end
+        end
+    end
+    return new_index
+end
+
+# Adds a string to shared string table. Returns the 0-based index of the shared string in the shared string table.
+function add_shared_string!(wb::Workbook, str_unformatted::AbstractString, str_formatted::AbstractString; mylock::Union{Nothing,ReentrantLock}=nothing) :: Int
+#    !is_writable(get_xlsxfile(wb)) && throw(XLSXError("XLSXFile instance is not writable."))
+    if (isempty(str_unformatted) || isempty(str_formatted))
+        throw(XLSXError("Can't add empty string to Shared String Table."))
+    end
+    sst = get_sst(wb)
+
+        # if got to this point, the file was opened as template but doesn't have a Shared String Table.
+        # Will create a new one.
+    if !sst.is_loaded
+        if isnothing(mylock)
+            create_new_sst(wb, sst)
+        else
+            lock(mylock) do # ensure thread-safety if multiple threads are trying to add inlineStrings
+                create_new_sst(wb, sst)
+            end
+        end
+    end
+    
+    return add_shared_string!(sst, str_unformatted, str_formatted; mylock)
 end
 
 # allow to write cells containing only whitespace characters or with leading or trailing whitespace.
@@ -122,14 +146,17 @@ function process_sst(sst::SstToken)
 end
 
 function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
+    chunksize=1000
     sst_table = get_sst(wb)
 
-    sst_results = Channel{Sst}(1 << 24)
+    sst_results = Channel{Vector{Sst}}(1 << 24)
 
     all_ssts = Vector{Tuple{Int,Sst}}()
-    consumer = @async begin        
-        for sst in sst_results
-            push!(all_ssts, (sst.idx, sst))
+    consumer = @async begin
+        for ssts in sst_results        
+            for sst in ssts
+                push!(all_ssts, (sst.idx, sst))
+            end
         end    
 
         sort!(all_ssts, by = x -> x[1])
@@ -144,16 +171,24 @@ function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
     end
 
     # Producer tasks
-    @sync begin
-        for _ in 1:nthreads
-            Threads.@spawn begin
-                for tok in chan
-                    result = process_sst(tok)
-                    put!(sst_results, result)
+    @sync for _ in 1:nthreads
+        Threads.@spawn begin
+            chunk = Vector{Sst}(undef, chunksize)
+            sst_count=0
+            for tok in chan
+                sst_count += 1
+                chunk[sst_count]= process_sst(tok)
+                if sst_count == chunksize
+                    put!(sst_results, copy(chunk))
+                    sst_count=0
                 end
+            end
+            if sst_count>0 # handle last incomplete chunk
+                put!(sst_results, chunk[1:sst_count])
             end
         end
     end
+    
     close(sst_results)
 
     wait(consumer)  # ensure consumer is done

@@ -78,7 +78,7 @@ end
 # Adds new relationship. Returns new generated rId.
 function add_relationship!(wb::Workbook, target::String, _type::String)::String
     xf = get_xlsxfile(wb)
-    !is_writable(xf) && throws(XLSXError("XLSXFile instance is not writable."))
+#    !is_writable(xf) && throw(XLSXError("XLSXFile instance is not writable."))
     local rId::String
 
     let

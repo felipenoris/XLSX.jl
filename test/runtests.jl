@@ -6022,6 +6022,32 @@ end
     @test ismissing(sheet["I2"])
     @test ismissing(sheet["J1"])
     @test ismissing(sheet["J2"])
+
+    xf = XLSX.openxlsx(joinpath(data_directory, "inlinestr.xlsx"), mode="rw")
+    XLSX.writexlsx("mydata.xlsx", xf, overwrite=true)
+    xf = XLSX.readxlsx("mydata.xlsx")
+    sheet = xf["Requirements"]
+    @test sheet["A1"] == "NN"
+    @test sheet["A2"] == 1
+    @test sheet["B1"] == "Hierarchy"
+    @test sheet["B2"] == "+"
+    @test ismissing(sheet["C1"])
+    @test ismissing(sheet["C2"])
+    @test sheet["D1"] == "Outline Number"
+    @test sheet["D2"] == "1."
+    @test sheet["E1"] == "ID"
+    @test sheet["E2"] == "RQ11610"
+    @test sheet["F1"] == "Name"
+    @test sheet["F2"] == "requirement"
+    @test sheet["G1"] == "Type"
+    @test sheet["G2"] == "Textual Requirement"
+    @test sheet["H1"] == "Description"
+    @test sheet["H2"] == "test"
+    @test ismissing(sheet["I1"])
+    @test ismissing(sheet["I2"])
+    @test ismissing(sheet["J1"])
+    @test ismissing(sheet["J2"])
+    isfile("mydata.xlsx") && rm("mydata.xlsx")
 end
 
 # issue #299 & 301
