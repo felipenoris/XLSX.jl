@@ -138,6 +138,7 @@ function process_sst(sst::SstToken)
 
     if XML.nodetype(el) != XML.Text
         XML.tag(el) != "si" && throw(XLSXError("Unsupported node $(XML.tag(el)) in sst table."))
+#        sst = Sst(unformatted_text(el), XML.write(el), i)
         sst = Sst(unformatted_text(el), XML.write(el), i)
         return sst
 

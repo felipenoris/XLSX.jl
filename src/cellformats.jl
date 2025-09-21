@@ -196,6 +196,12 @@ function setFont(sh::Worksheet, cellref::CellRef;
 
     newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], [string(new_fontid), "1"]).id)
     cell.style = newstyle
+
+    if cell.datatype=="s" # shared strings and former inline strings may have complex font formatting to manage
+        v=update_sharedString_font(sh, cell; bold, italic, under, strike, size, color, name)
+        cell.value = isnothing(v) ? cell.value : v
+    end
+
     return new_fontid
 end
 
@@ -298,16 +304,17 @@ Excel uses several tags to define font properties in its XML structure.
 Here's a list of some common tags and their purposes (thanks to Copilot!):
 - `b`        : Indicates bold font.
 - `i`        : Indicates italic font.
-- `u`        : Specifies underlining (e.g., single, double).
 - `strike`   : Indicates strikethrough.
-- `outline`  : Specifies outline text.
-- `shadow`   : Adds a shadow to the text.
 - `condense` : Condenses the font spacing.
 - `extend`   : Extends the font spacing.
+- `outline`  : Specifies outline text.
+- `shadow`   : Adds a shadow to the text.
+- `u`        : Specifies underlining (e.g., single, double).
 - `sz`       : Sets the font size.
 - `color`    : Sets the font color using RGB values).
 - `name`     : Specifies the font name.
 - `family`   : Defines the font family.
+- `charset`  : Specifies the character set code (e.g., 204 for Cyrillic).
 - `scheme`   : Specifies whether the font is part of the major or minor theme.
 
 Excel defines colours in several ways. Get font will return the colour in any of these
@@ -1933,9 +1940,10 @@ function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing,Int}
         newid = nothing
 
         first = true
+        firstFont = nothing
 
         for cellref in rng
-            newid, first = process_uniform_core(ws, cellref, newid, first)
+            newid, first, firstFont = process_uniform_core(ws, cellref, newid, first, firstFont)
         end
         if first
             newid = -1

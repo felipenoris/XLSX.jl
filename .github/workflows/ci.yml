@@ -27,7 +27,7 @@ jobs:
           - windows-latest
           - macOS-latest
         arch:
-          - x64
+          - 'default'
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2

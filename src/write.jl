@@ -1207,7 +1207,7 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, new_cache::WorksheetCache, s
     sheetId = max(current_sheet_ids...) + 1
 
     # generate a unique ID for the new sheet
-    xdoc[2]["xr:uid"] = "{" * string(UUIDs.uuid4()) * "}"
+    xdoc[2]["xr:uid"] = "{" * uppercase(string(UUIDs.uuid4(wb.package.uuid_rng))) * "}"
 
     # generate a unique name for the XML
     local xml_filename::String

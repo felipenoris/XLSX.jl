@@ -585,6 +585,13 @@ function process_uniform_attribute(f::Function, ws::Worksheet, rng::CellRange, a
         isInDim(ws, get_dimension(ws), rng)
         for cellref in rng
             newid, first = process_uniform_core(f, ws, allXfNodes, cellref, atts, newid, first; kw...)
+            if f==setFont
+                cell=getcell(ws, cellref)
+                if !(cell isa EmptyCell) && cell.datatype == "s"
+                    v=update_sharedString_font(ws, cell; kw...)
+                    cell.value = isnothing(v) ? cell.value : v
+                end
+            end
         end
         if first
             newid = -1
@@ -612,14 +619,26 @@ function process_uniform_ncranges(f::Function, ws::Worksheet, ncrng::NonContiguo
             for r in ncrng.rng
                 @assert r isa CellRef || r isa CellRange "Something wrong here"
                 if r isa CellRef
-                    if getcell(ws, r) isa EmptyCell
+                    cell=getcell(ws, r)
+                    if cell isa EmptyCell
                         single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
                         continue
                     end
                     newid, first = process_uniform_core(f, ws, allXfNodes, r, atts, newid, first; kw...)
+                    if f==setFont && cell.datatype == "s"
+                        v=update_sharedString_font(ws, cell; kw...)
+                        cell.value = isnothing(v) ? cell.value : v
+                    end
                 else
                     for c in r
                         newid, first = process_uniform_core(f, ws, allXfNodes, c, atts, newid, first; kw...)
+                        if f==setFont
+                            cell=getcell(ws, c)
+                            if !(cell isa EmptyCell) &&!(cell isa EmptyCell) && cell.datatype == "s"
+                                v=update_sharedString_font(ws, cell; kw...)
+                                cell.value = isnothing(v) ? cell.value : v
+                            end
+                        end
                     end
 #                else
 #                    throw(XLSXError("Something wrong here!"))
@@ -652,10 +671,15 @@ function process_uniform_veccolon(f::Function, ws::Worksheet, row, col, atts::Ve
         for a in row
             for b in col
                 cellref = CellRef(a, b)
-                if getcell(ws, cellref) isa EmptyCell
+                cell=getcell(ws, cellref)
+                if cell isa EmptyCell
                     continue
                 end
                 newid, first = process_uniform_core(f, ws, allXfNodes, cellref, atts, newid, first; kw...)
+                if f==setFont && cell.datatype == "s"
+                    v=update_sharedString_font(ws, cell; kw...)
+                    cell.value = isnothing(v) ? cell.value : v
+                end
             end
         end
         if first
@@ -673,10 +697,15 @@ function process_uniform_vecint(f::Function, ws::Worksheet, row, col, atts::Vect
         isInDim(ws, dim, row, col)
         for a in row, b in col
             cellref = CellRef(a, b)
-            if getcell(ws, cellref) isa EmptyCell
+            cell=getcell(ws, cellref)
+            if cell isa EmptyCell
                 continue
             end
             newid, first = process_uniform_core(f, ws, allXfNodes, cellref, atts, newid, first; kw...)
+            if f==setFont && cell.datatype == "s"
+                v=update_sharedString_font(ws, cell; kw...)
+                cell.value = isnothing(v) ? cell.value : v
+            end
         end
         if first
             newid = -1
@@ -688,18 +717,24 @@ end
 #
 # UniformStyles
 #
-function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool)
+function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool, firstFont::Union{CellFont,Nothing})
     cell = getcell(ws, cellref)
     if cell isa EmptyCell # Can't add a attribute to an empty cell.
         return newid, first
     end
     if first                           # Get the style of the first cell in the range.
         newid = parse(Int, cell.style)
+        firstFont=getFont(ws, cellref)
         first = false
     else                               # Apply the same style to the rest of the cells in the range.
         cell.style = string(newid)
     end
-    return newid, first
+    if cell.datatype == "s"
+        v=update_sharedString_font(ws, cell, firstFont)
+        cell.value= isnothing(v) ? cell.value : v
+    end
+
+    return newid, first, firstFont
 end
 function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
     bounds = nc_bounds(ncrng)
@@ -717,6 +752,7 @@ function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
         let newid::Union{Int,Nothing}, first::Bool
             newid = nothing
             first = true
+            firstFont=nothing
             for r in ncrng.rng
                 @assert r isa CellRef || r isa CellRange "Something wrong here"
                 if r isa CellRef
@@ -724,10 +760,10 @@ function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
                         single && throw(XLSXError("Cannot set format for an `EmptyCell`: $(r.name). Set the value first."))
                         continue
                     end
-                    newid, first = process_uniform_core(ws, r, newid, first)
+                    newid, first, firstFont = process_uniform_core(ws, r, newid, first, firstFont)
                 else
                     for c in r
-                        newid, first = process_uniform_core(ws, c, newid, first)
+                        newid, first, firstFont = process_uniform_core(ws, c, newid, first, firstFont)
                     end
 #                else
 #                    throw(XLSXError("Something wrong here!"))
@@ -771,13 +807,14 @@ function process_uniform_veccolon(ws::Worksheet, row, col)
     let newid::Union{Int,Nothing}, first::Bool
         newid = nothing
         first = true
+        firstFont = nothing
         for a in row
             for b in col
                 cellref = CellRef(a, b)
                 if getcell(ws, cellref) isa EmptyCell
                     continue
                 end
-                newid, first = process_uniform_core(ws, cellref, newid, first)
+                newid, first, firstFont = process_uniform_core(ws, cellref, newid, first, firstFont)
             end
         end
         if first
@@ -791,13 +828,14 @@ function process_uniform_vecint(ws::Worksheet, row, col)
         dim = get_dimension(ws)
         newid = nothing
         first = true
+        firstFont = nothing
         isInDim(ws, dim, row, col)
         for a in row, b in col
             cellref = CellRef(a, b)
             if getcell(ws, cellref) isa EmptyCell
                 continue
             end
-            newid, first = process_uniform_core(ws, cellref, newid, first)
+            newid, first, firstFont = process_uniform_core(ws, cellref, newid, first, firstFont)
         end
         if first
             newid = -1
@@ -975,4 +1013,186 @@ function get_color(s::String)::String
         throw(XLSXError("Invalid color specified: $s. Either give a valid color name (from Colors.jl) or an 8-digit rgb color in the form FFRRGGBB"))
     end
     return c
+end
+function update_sharedString_font(ws::Worksheet, cell::Cell, firstFont::CellFont)
+    let bold=nothing, italic=nothing, under=nothing, strike=nothing, size=nothing, color=nothing, name=nothing
+        for (k, v) in firstFont.font
+            if k=="bold"
+                bold = v === nothing ? nothing : v
+            elseif k=="italic"
+                italic = v === nothing ? nothing : v
+            elseif k=="strike"
+                strike = v === nothing ? nothing : v
+            elseif k=="u"
+                under = v === nothing ? nothing : v["val"]
+            elseif k=="sz"
+                size = v === nothing ? nothing : parse(Int, v["val"])
+            elseif k=="color"
+                color = v === nothing ? nothing : v
+            elseif k=="name"
+                name = v === nothing ? nothing : v["val"]
+            else
+                throw(XLSXError("Something wrong here!"))
+            end
+        end
+        return update_sharedString_font(ws, cell; bold, italic, under, strike, size, color, name)
+    end
+end
+        
+function update_sharedString_font(ws::Worksheet, cell::Cell;
+    bold::Union{Nothing,Bool}=nothing,
+    italic::Union{Nothing,Bool}=nothing,
+    under::Union{Nothing,String}=nothing,
+    strike::Union{Nothing,Bool}=nothing,
+    size::Union{Nothing,Int}=nothing,
+    color::Union{Nothing,String,Dict{String,String}}=nothing,
+    name::Union{Nothing,String}=nothing
+)
+    # <rPr> elements in a sharedString override any font attributes in the cell Style.
+    # If setFont is called, we need to replace any of the attributes it is setting in the <rPr> elements.
+    # When this makes successive <rPr> elements identical, the <r> elements that contain them can be merged.
+
+    # starting values
+    wb=get_workbook(ws)
+    index=parse(Int, cell.value)
+    sst=get_sst(wb)
+    str_unformatted=sst.unformatted_strings[index+1]
+    str_formatted=sst.formatted_strings[index+1]
+
+    isnothing(findfirst("<r>", str_formatted)) && return nothing # no <r> elements to manage
+
+    is = parse(str_formatted, XML.Node)[1] # Convert to XML.Node for ease of handling
+
+    all_r = filter(z -> z.tag == "r", XML.children(is))
+    run_elements = reduce(vcat, [XML.children(z) for z in all_r])
+    rPr_elements=filter(z -> z.tag == "rPr", run_elements) # rPr elements
+    t=String[] # text elements
+    xml_space=Bool[] # xml:space="preserve" flags
+    for i in filter(z -> z.tag == "t", run_elements)
+        push!(t, XML.is_simple(i[1]) ? XML.simple_value(i[1]) : XML.value(i[1]))
+        push!(xml_space, !isnothing(XML.attributes(i)) && haskey(XML.attributes(i), "xml:space") && XML.attributes(i)["xml:space"] == "preserve")
+    end
+
+    for rPr in rPr_elements
+        # Overwrite rPr attributes with any attributes (kw...) given in setFont
+        atts = ["b", "i", "strike", "u", "vertAlign", "sz", "color", "rFont", "family", "scheme"] # set of all possible rPr attributes in required order
+
+        new_rPr = fill(XML.Element("DeleteMe"), length(atts)) # to collect new rPr elements
+
+        for att in XML.children(rPr) # first copy existing attributes
+            for i in 1:length(atts)
+                if att.tag == atts[i]
+                    new_rPr[i] = att
+                end
+            end
+        end
+
+        # then overwrite from keywords given in setFont/setUniformFont
+        if !isnothing(bold)
+            if bold
+                new_rPr[1] = XML.Element("b")
+            else
+                new_rPr[1] = XML.Element("DeleteMe")
+            end
+        end
+        if !isnothing(italic)
+            if italic
+                new_rPr[2] = XML.Element("i")
+            else !isnothing(italic) && !italic
+                new_rPr[2] = XML.Element("DeleteMe")
+            end
+        end
+        if !isnothing(strike)
+            if strike
+                new_rPr[3] = XML.Element("strike")
+            else
+                new_rPr[3] = XML.Element("DeleteMe")
+            end
+        end
+        if !isnothing(under)
+            if under == "none"
+                new_rPr[4] = XML.Element("DeleteMe")
+            else
+                new_rPr[4] = XML.Element("u"; val = under)
+            end
+        end
+        if !isnothing(size)
+            new_rPr[6] = XML.Element("sz"; val = string(size))
+        end
+        if !isnothing(color)
+            if color isa String # specified in setFont
+                new_rPr[7] = XML.Element("color"; rgb = string(get_color(color)))
+            elseif color isa Dict{String,String} # specified in the original Excel file and (as yet) unchanged
+                new_rPr[7] = XML.Element("color") 
+                for (k, v) in color
+                    new_rPr[7][k] = v
+                end
+            else
+                throw(XLSXError("Something wrong here!"))
+            end
+        end
+        if !isnothing(name)
+            new_rPr[8] = XML.Element("rFont"; val = name)
+            new_rPr[9] = XML.Element("DeleteMe")
+            new_rPr[10] = XML.Element("DeleteMe")
+        end
+
+        # finally push merged elements back to rPr
+        empty!(rPr.children)
+        foreach(new_rPr) do element 
+            element.tag != "DeleteMe" && push!(rPr.children, element)
+        end
+    end
+
+    # now need to merge any adjacent <r> elements that have identical <rPr> elements
+    if length(t) == length(rPr_elements) # first <r> may or may not have an <rPr> element but always has a <t> element.
+        inc_first=0
+    elseif length(t) == length(rPr_elements)+1
+        inc_first=1
+    else
+        throw(XLSXError("Something wrong here!"))
+    end
+    for i in length(rPr_elements):-1:2 # merge adjacent <r> elements that have identical <rPr> elements
+        if rPr_elements[i] == rPr_elements[i-1]
+            t[i+inc_first-1] *= t[i+inc_first]
+            t[i+inc_first] = ")___DeleteMe___("
+            xml_space[i+inc_first-1] |= xml_space[i+inc_first]
+        end
+    end
+
+#=
+    # identify any rPr elements that are the same as the font definition in the cell Style
+    same_as_fontId = falses(length(rPr_elements))
+    fId = getFont(ws, cell.ref)
+    if !isnothing(fId)
+        if haskey(fId, "sz") && haskey(new_rPr[5], "sz") && fId["sz"]["val"] == new_rPr[5]["val"] &&
+              haskey(fId, "color") && haskey(new_rPr[6], "rgb") && fId["color"]["rgb"] == new_rPr[6]["rgb"] &&
+              haskey(fId, "rFont") && haskey(new_rPr[7], "val") && fId["rFont"]["val"] == new_rPr[7]["val"]
+                same_as_fontId .= true
+          end
+=#
+
+    # reconstruct updated str_formatted
+    new_r = String[]
+    push!(new_r, "<si>")
+    for r in 1:length(all_r)
+        if t[r] != ")___DeleteMe___(" # signals a merged <r> element to be skipped
+            push!(new_r, "  <r>")
+            r > inc_first && push!(new_r, XML.write(rPr_elements[r-inc_first];depth=3))
+            push!(new_r, "    <t" * (xml_space[r] ? " xml:space=\"preserve\"" : "") * ">" *t[r] * "</t>")
+            push!(new_r, "  </r>")
+        end
+    end
+    push!(new_r, "</si>")
+    str_formatted = join(new_r, "\n")
+
+    i = get_shared_string_index(sst, str_formatted) # see if new formatted string is already in the table
+    if i !== nothing # new formatted string is already in the table, so use that
+        return string(i)
+    end
+
+    new_index=add_shared_string!(sst, str_unformatted, str_formatted) # can't update existing sharded string in case it is used by another cell
+
+    return string(new_index)
+
 end
