@@ -720,7 +720,7 @@ end
 function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,Nothing}, first::Bool, firstFont::Union{CellFont,Nothing})
     cell = getcell(ws, cellref)
     if cell isa EmptyCell # Can't add a attribute to an empty cell.
-        return newid, first
+        return newid, first, firstFont
     end
     if first                           # Get the style of the first cell in the range.
         newid = parse(Int, cell.style)

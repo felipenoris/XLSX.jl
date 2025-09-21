@@ -323,7 +323,7 @@ julia> setFont(s, "B"; under="none")
 
 The underlining has been removed, but the other rich text formats remain in place.
 
-Applying `setUniformFont` to a range of cells will remove those elements of the rich text format that it is now applying 
+Applying `setUniformFont` to a range of cells will remove those elements of the rich text format that are now being applied 
 to the whole cell so that those elements become uniform. Any other heterogeneity arising from rich text formats 
 (which over-ride Style-based formatting) will remain.
 For example:
@@ -333,7 +333,7 @@ julia> setUniformFont(s, "A1:F2"; color="orange")
 ```
 ![image|320x500](../images/complexUniformColor.png)
 
-Similarly, applying `setUniformStyle` to a range of cells will remove those elements of the rich text format that it is now applying to the whole cells so that those elements become uniform. Any other heterogeneity arising from rich text formats will remain.
+Similarly, applying `setUniformStyle` to a range of cells will remove those elements of the rich text format that are now being applied to the whole cells so that those elements become uniform. Any other heterogeneity arising from rich text formats will remain.
 
 Rich text formats only affect the font settings; other elements of the style (number format, borders, fill, alignment) will be unaffected and will be applied uniformly to the range.
 
