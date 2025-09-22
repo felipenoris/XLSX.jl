@@ -310,7 +310,7 @@ function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...):
     end
     return newid
 end
-function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)::Int
+function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; kw...)
     # Moved the tests for defined names to be first in case a name looks like a column name (e.g. "ID")
     if is_worksheet_defined_name(ws, ref_or_rng)
         v = get_defined_name_value(ws, ref_or_rng)
@@ -723,20 +723,22 @@ function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,
         return newid, first, firstFont
     end
     if first                           # Get the style of the first cell in the range.
-        newid = parse(Int, cell.style)
-        firstFont=getFont(ws, cellref)
+        if cell.style !== ""
+            newid = parse(Int, cell.style)
+            firstFont=getFont(ws, cellref)
+        end
         first = false
     else                               # Apply the same style to the rest of the cells in the range.
-        cell.style = string(newid)
+        cell.style = isnothing(newid) ? "" : string(newid)
     end
-    if cell.datatype == "s"
+    if cell.datatype == "s" && !isnothing(firstFont)
         v=update_sharedString_font(ws, cell, firstFont)
         cell.value= isnothing(v) ? cell.value : v
     end
 
     return newid, first, firstFont
 end
-function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)::Int
+function process_uniform_ncranges(ws::Worksheet, ncrng::NonContiguousRange)
     bounds = nc_bounds(ncrng)
     if length(ncrng) == 1
         single = true
@@ -1018,17 +1020,17 @@ function update_sharedString_font(ws::Worksheet, cell::Cell, firstFont::CellFont
     let bold=nothing, italic=nothing, under=nothing, strike=nothing, size=nothing, color=nothing, name=nothing
         for (k, v) in firstFont.font
             if k=="bold"
-                bold = v === nothing ? nothing : v
+                bold = v
             elseif k=="italic"
-                italic = v === nothing ? nothing : v
+                italic = v
             elseif k=="strike"
-                strike = v === nothing ? nothing : v
+                strike = v
             elseif k=="u"
                 under = v === nothing ? nothing : v["val"]
             elseif k=="sz"
                 size = v === nothing ? nothing : parse(Int, v["val"])
             elseif k=="color"
-                color = v === nothing ? nothing : v
+                color = v
             elseif k=="name"
                 name = v === nothing ? nothing : v["val"]
             else

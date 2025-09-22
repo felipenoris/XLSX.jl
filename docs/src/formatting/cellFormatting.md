@@ -352,10 +352,12 @@ julia> setUniformStyle(s, "A1,D1:F2") # apply cell A1's Style to cells D1:F2
 
 The Style for cell `A1` has a specified font, size and color. These have been uniformly applied to the range `D1:F2`, but the other rich text attributes (in this case, bold, italic, underline, super- and sub-script) retain the original heterogeneity.
 
+If the first cell in the specified range has no defined Style (`s=""`), all cells will be given the same undefined style and any rich text formatting will remain unchanged.
+
 In Excel, subscript and superscript formatting to a substring (for example) can only be made using this kind of rich text formatting, and cannot be set at cell level (neither in Excel nor in `setFont`). Retaining rich text format heterogeneity in the ways described here preserves these string formatting elements through format changes.
 
-To clear any rich text string formatting and remove the heterogeneity it introduces, simply copy the cells over themselves.
-This strips out all formatting and style information from the cells, leaving only the content.
+To clear any rich text formatting and remove the heterogeneity it introduces, simply copy the cells over themselves.
+This strips out all formatting and style information from the cells, leaving only the cell content.
 For example, for arbitrary cells:
 
 ```julia
