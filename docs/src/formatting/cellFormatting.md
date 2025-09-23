@@ -370,6 +370,8 @@ julia> writetable!(s, gettable(s, "A:F"; header=false); write_columnnames=false)
 ```
 ![image|320x500](../images/complexNone.png)
 
+An `XLSXFile` must be opened in write mode for rich text formatting to be editable, otherwise an error is thrown.
+
 ## Setting column width and row height
 
 Two functions offer the ability to set the column width and row height within a worksheet. These can use 

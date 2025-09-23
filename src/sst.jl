@@ -147,7 +147,6 @@ function process_sst(sst::SstToken)
 end
 
 function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
-    chunksize=1000
     sst_table = get_sst(wb)
 
     sst_results = Channel{Vector{Sst}}(1 << 24)
@@ -174,6 +173,7 @@ function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
     # Producer tasks
     @sync for _ in 1:nthreads
         Threads.@spawn begin
+            chunksize=1000
             chunk = Vector{Sst}(undef, chunksize)
             sst_count=0
             for tok in chan

@@ -211,7 +211,7 @@ function eachtablerow(
             normalizenames::Bool=false
         ) :: TableRowIterator
 
-    if first_row === nothing
+        if first_row === nothing
         # if no columns were given,
         # first_row must be provided and cannot be inferred.
         # If it was not provided, will use first row as default value
@@ -535,6 +535,7 @@ function check_table_data_dimension(data::Vector)
 end
 
 function gettable(itr::TableRowIterator; infer_eltypes::Bool=true) :: DataTable
+
     column_labels = get_column_labels(itr)
     columns_count = table_columns_count(itr)
     data = Vector{Any}(undef, columns_count)
@@ -545,7 +546,6 @@ function gettable(itr::TableRowIterator; infer_eltypes::Bool=true) :: DataTable
     for r in itr # r is a TableRow
         is_empty_row = true
         for (ci, cv) in enumerate(r) # iterate a TableRow to get column data
-#            cv = cv isa String ? XML.unescape(cv) : cv
             push!(data[ci], cv)
             if !ismissing(cv)
                 is_empty_row = false

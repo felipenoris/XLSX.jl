@@ -205,6 +205,7 @@ function unlink(node::XML.Node, att::Tuple{String,String})
     end
     return new_node
 end
+#=
 function get_idces(doc::XML.LazyNode, t, b)
     i = 1
     j = 1
@@ -229,6 +230,7 @@ function get_idces(doc::XML.LazyNode, t, b)
     end
     return i, j
 end
+=#
 function get_idces(doc::XML.Node, t, b)
     i = 1
     j = 1
@@ -390,11 +392,12 @@ function process_cache_row(cacherow::Tuple{CellRange, SheetRow, Dict{String, Str
             add_node_formula!(row_node, cell.formula)
         end
 
-        if cell.datatype == "inlineStr"
-            print(row_node,"\n",pad^4, "<is>\n",pad^5,"<t")
-            print(row_node, (startswith(cell.value, " ") || endswith(cell.value, " ") ? " xml:space=\"preserve\">" : ">"))
-            print(row_node, cell.value,"</t>\n",pad^4, "</is>")
-        elseif cell.value != ""
+#        if cell.datatype == "inlineStr" # intlineStrings now converted to sharedStrings on read
+#            print(row_node,"\n",pad^4, "<is>\n",pad^5,"<t")
+#            print(row_node, (startswith(cell.value, " ") || endswith(cell.value, " ") ? " xml:space=\"preserve\">" : ">"))
+#            print(row_node, cell.value,"</t>\n",pad^4, "</is>")
+#        elseif cell.value != ""
+        if cell.value != ""
             print(row_node,"\n",pad^4,"<v>",XML.escape(cell.value),"</v>")
         end
 
@@ -954,8 +957,6 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-#            sheet[target_cell_ref] = strip_illegal_chars(XML.escape(string(columnnames[c])))
-#            sheet[target_cell_ref] = XML.escape(string(columnnames[c]))
             sheet[target_cell_ref] = string(columnnames[c])
         end
         start_from_anchor = 0
@@ -963,12 +964,10 @@ function writetable!(
 
     # write table data
     data = [process_vector(col) for col in data] # Address issue #239
-    for c in 1:col_count
-        for r in 1:row_count
+    for r in 1:row_count
+        for c in 1:col_count # 15% speed up by inverting nesting of these for-loops!
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
             v = data[c][r]
-#            sheet[target_cell_ref] = v isa String ? strip_illegal_chars(XML.escape(v)) : v
-#            sheet[target_cell_ref] = v isa String ? XML.escape(v) : v
             sheet[target_cell_ref] = v 
         end
     end

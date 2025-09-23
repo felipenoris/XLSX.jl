@@ -59,7 +59,6 @@ const floatformats = r"""
 
 function copynode(o::XML.Node)
     n = XML.Node(o.nodetype, o.tag, o.attributes, o.value, isnothing(o.children) ? nothing : [copynode(x) for x in o.children])
-#    n = deepcopy(o)
     return n
 end
 function do_sheet_names_match(ws::Worksheet, rng::T) where {T<:Union{SheetCellRef,AbstractSheetCellRange}}
@@ -217,6 +216,7 @@ function update_template_xf(ws::Worksheet, allXfNodes::Vector{XML.Node}, existin
     end
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
+#=
 function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
     old_cell_xf = styles_cell_xf(ws.package.workbook, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
@@ -229,6 +229,7 @@ function update_template_xf(ws::Worksheet, existing_style::CellDataFormat, align
     end
     return styles_add_cell_xf(ws.package.workbook, new_cell_xf)
 end
+=#
 function update_template_xf(ws::Worksheet, allXfNodes::Vector{XML.Node}, existing_style::CellDataFormat, alignment::XML.Node)::CellDataFormat
     old_cell_xf = styles_cell_xf(allXfNodes, Int(existing_style.id))
     new_cell_xf = copynode(old_cell_xf)
@@ -725,8 +726,8 @@ function process_uniform_core(ws::Worksheet, cellref::CellRef, newid::Union{Int,
     if first                           # Get the style of the first cell in the range.
         if cell.style !== ""
             newid = parse(Int, cell.style)
-            firstFont=getFont(ws, cellref)
         end
+        firstFont=getFont(ws, cellref)
         first = false
     else                               # Apply the same style to the rest of the cells in the range.
         cell.style = isnothing(newid) ? "" : string(newid)
@@ -1019,12 +1020,12 @@ end
 function update_sharedString_font(ws::Worksheet, cell::Cell, firstFont::CellFont)
     let bold=nothing, italic=nothing, under=nothing, strike=nothing, size=nothing, color=nothing, name=nothing
         for (k, v) in firstFont.font
-            if k=="bold"
-                bold = v
-            elseif k=="italic"
-                italic = v
+            if k=="b"
+                bold = true
+            elseif k=="i"
+                italic = true
             elseif k=="strike"
-                strike = v
+                strike = true
             elseif k=="u"
                 under = v === nothing ? nothing : v["val"]
             elseif k=="sz"
@@ -1034,6 +1035,7 @@ function update_sharedString_font(ws::Worksheet, cell::Cell, firstFont::CellFont
             elseif k=="name"
                 name = v === nothing ? nothing : v["val"]
             else
+                println(k)
                 throw(XLSXError("Something wrong here!"))
             end
         end

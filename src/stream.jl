@@ -419,7 +419,6 @@ function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Wor
 end
 
 function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
-    chunksize=1000
     handled_attributes = Set{String}([
         "r",            # the row number
         "spans",        # the columns the row spans
@@ -457,6 +456,7 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     mylock = ReentrantLock() # lock for thread-safe access to shared string table in case of inlineStrings
     @sync for _ in 1:nthreads
         Threads.@spawn begin
+            chunksize=1000
             chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
             row_count=0
             for row in streamed_rows
