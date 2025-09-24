@@ -303,10 +303,8 @@ Implementations: SheetRowStreamIterator, WorksheetCache.
 abstract type SheetRowIterator end
 
 mutable struct SheetRowStreamIteratorState
-    itr::XML.LazyNode # Worksheet being processed
-    itr_state::Union{Nothing, XML.LazyNode} # Worksheet state
-    row::Int # number of current row in the worksheet. It´s set to 0 in the start state.
-    ht::Union{Float64, Nothing} # row height
+    next_rownode::Union{Nothing, XML.LazyNode} # Worksheet row being processed
+    rowcells::Dict{Int,Cell}
 end
 
 mutable struct WorksheetCacheIteratorState
@@ -435,7 +433,7 @@ mutable struct XLSXFile <: MSOfficePackage
         if use_cache || (source isa IO)
             io = ZipArchives.ZipReader(read(source))
         else
-            io = ZipArchives.ZipReader(FileArray(abspath(source)))
+            io = ZipArchives.ZipReader(Mmap.mmap(abspath(source)))
         end
         xl = new(source, use_cache, io, Dict{String, Bool}(), Dict{String, XML.Node}(), Dict{String, Vector{UInt8}}(), EmptyWorkbook(), Vector{Relationship}(), is_writable, Random.Xoshiro(2468))
         xl.workbook.package = xl

@@ -55,141 +55,166 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 
 end
 
-# Creates a reader for row elements in the Worksheet's XML.
-# Will return a stream reader positioned in the first row element if it exists.
-# If there's no row element inside sheetData XML tag, it will close all streams and return `nothing`.
-function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState}=nothing)
-    local current_row
-    local current_row_ht
-    local sheet_row
-    local nc = 0
-    local cell_no=0
+function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Worksheet)
+#=
+    @assert row.tag == "row" "Not a row node"
 
-    ws = get_worksheet(itr)
+    sst_count=0
+    d=row.depth
 
-    if isnothing(state) # first iteration. Will open a LazyNode for iteration, find the first row and create the first state instance
+    row_cellnodes = Channel{XML.LazyNode}(1 << 20)
+    row_cells = Channel{XLSX.Cell}(1 << 20)
 
-        state = let 
-
-            target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
-            reader = open_internal_file_stream(get_xlsxfile(ws), target_file)
-
-            length(reader) <= 0 && throw(XLSXError("Couldn't open reader for Worksheet $(ws.name)."))
-            XML.tag(reader[end]) != "worksheet" && throw(XLSXError("Expecting to find a worksheet node.: Found a $(XML.tag(reader[end]))."))
-            next_element=XML.next(reader)
-
-            while XML.tag(next_element) != "sheetData" # Check for `sheetData`
-                next_element = XML.next(next_element)
-                next_element === nothing && throw(XLSXError("No `sheetData` node found in worksheet"))
-            end
-
-            next = iterate(reader)
-
-            while next !== nothing
-                (lznode, lzstate) = next
-
-                if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "sheetData"
-
-                    XML.depth(lznode) != 2 && throw(XLSXError("Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."))
-
-                    while XML.tag(lznode) != "row" # Check for at least one `row`
-                        lznode = XML.next(lznode)
-                        lznode === nothing && return nothing # no rows found
-                    end
-
-                    break
-                end
-
-                next = iterate(reader, lzstate)
-            end
-            if next === nothing
-                return nothing
-            end
-
-            # Now let's look for a row element, if it exists
-            next = iterate(reader, lzstate)
-            while next !== nothing # go next node
-                (lznode, lzstate) = next
-                if XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row" # This is the first row
-                    a = XML.attributes(lzstate)
-                    current_row = parse(Int, a["r"])
-                    current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
-                    nc = 0
-                    for child in XML.children(lzstate)
-                        XML.nodetype(child) == XML.Element && XML.tag(child) == "c" && (nc += 1)
-                    end
-                    #nc = length(filter(n -> XML.nodetype(n) == XML.Element && XML.tag(n) == "c", XML.children(lzstate))) # number of cells in this row
-                    cell_no = 0
-                    break
-                end
-                next = iterate(reader, lzstate)
-            end
-            SheetRowStreamIteratorState(reader, lzstate, current_row, current_row_ht)
+    # consumer task
+    consumer = @async begin
+        for cell in row_cells        
+            sst_count += cell.datatype == "s" ? 1 : 0
+            @inbounds rowcells[column_number(cell)] = cell
         end
     end
 
-    # given that the first iteration case is done in the code above, we shouldn't get it again in here
-    state === nothing && throw(XLSXError("Error processing Worksheet $(ws.name): shouldn't get first iteration case again."))
-
-    reader = state.itr
-    lzstate = state.itr_state
-
-    # Expecting iterator to be at the first row element
-    current_row = state.row
-    current_row_ht = state.ht
-    rowcells = Dict{Int, Cell}() # column -> cell
-    isnothing(lzstate) && return nothing
-    next = iterate(reader, lzstate) # iterate through row cells
-    while next !== nothing
-
-        (lznode, lzstate) = next
-
-        if XML.nodetype(lznode) == XML.Element && XML.depth(lznode) == 2 # This is the end of sheetData
-            return nothing
-
-        elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "row" # This is the next row
-            a = XML.attributes(lzstate)
-            current_row = parse(Int, a["r"])
-            current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
-            nc = 0
-            for child in XML.children(lzstate)
-                XML.nodetype(child) == XML.Element && XML.tag(child) == "c" && (nc += 1)
-            end
-            cell_no = 0
-
-        elseif XML.nodetype(lznode) == XML.Element && XML.tag(lznode) == "c" # This is a cell
-            cell_no += 1
-            cell = Cell(lznode, ws)
-            itr.sheet.sst_count += cell.datatype == "s" ? 1 : 0
-            if row_number(cell) != current_row
-                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
-            end
-            rowcells[column_number(cell)] = cell
-            if cell_no == nc # when all cells found
-                sheet_row = SheetRow(get_worksheet(itr), current_row, current_row_ht, rowcells) # put them together in a sheet_row
-                break
-            end
-
+    # Feed row_cellnodes
+    cellnode=XML.next(row)
+    while cellnode.depth > d
+        if cellnode.tag == "c" # This is a cell
+            put!(row_cellnodes, cellnode)
+#            cell = Cell(cellnode, ws) # construct an XLSX.Cell from an XML.LazyNode
+#            if row_number(cell) != current_row
+#                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
+#            end
         end
+        cellnode = XML.next(cellnode)
+    end
+    close(row_cellnodes)
 
-        next = iterate(reader, lzstate)
-
-        if next === nothing
-            return nothing
+    # Producer tasks
+    @sync for _ in 1:Threads.nthreads()
+        Threads.@spawn begin
+            for cn in row_cellnodes
+                cell = Cell(cn, ws)
+#                println(cell)
+                put!(row_cells, cell)
+            end
         end
-
     end
 
-    # update state
-    state.row = current_row
+    close(row_cells)
 
-    state.ht = current_row_ht
-    state.itr_state = lzstate
+#=
+    cellnode=XML.next(row)
+    while cellnode.depth > d
+        if cellnode.tag == "c" # This is a cell
+            put!(row_cellnodes, copy(cellnode))
+#            cell = Cell(cellnode, ws) # construct an XLSX.Cell from an XML.LazyNode
+#            if row_number(cell) != current_row
+#                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
+#            end
+        end
+        cellnode = XML.next(cellnode)
+    end
 
-    return sheet_row, state
+    close(row_cellnodes)
+=#
+    wait(consumer)  # ensure consumer is done
+
+    if cellnode.tag == "row" # have reached the end og last row, beginning of next
+        return cellnode, sst_count
+    else
+        return nothing, sst_count
+    end
+=#
+    @assert row.tag == "row" "Not a row node"
+
+    sst_count=0
+
+    d=row.depth
+
+    cellnode=XML.next(row)
+
+    while cellnode.depth > d
+        if cellnode.tag == "c" # This is a cell
+            cell = Cell(cellnode, ws) # construct an XLSX.Cell from an XML.LazyNode
+            sst_count += cell.datatype == "s" ? 1 : 0
+            @inbounds rowcells[column_number(cell)] = cell
+        end
+        cellnode = XML.next(cellnode)
+    end
+    if !isnothing(cellnode) && cellnode.tag == "row" # have reached the end of last row, beginning of next
+        return cellnode, sst_count
+    else                                             # no more rows
+        return nothing, sst_count
+    end
 end
 
+# Creates an iterator for row elements in the Worksheet's XML.
+function Base.iterate(itr::SheetRowStreamIterator)
+    ws = get_worksheet(itr)
+    target_file = get_relationship_target_by_id("xl", get_workbook(ws), ws.relationship_id)
+    sheetnode = open_internal_file_stream(get_xlsxfile(ws), target_file) # worksheet target files are LazyNodes
 
+    length(sheetnode) <= 0 && throw(XLSXError("Couldn't open reader for Worksheet $(ws.name)."))
+    XML.tag(sheetnode[end]) != "worksheet" && throw(XLSXError("Expecting to find a worksheet node.: Found a $(XML.tag(sheetnode[end]))."))
+
+    sheetnode=XML.next(sheetnode)
+
+    while XML.tag(sheetnode) != "sheetData" # Check for `sheetData`
+        sheetnode = XML.next(sheetnode)
+        sheetnode === nothing && throw(XLSXError("No `sheetData` node found in worksheet"))
+    end
+
+    XML.depth(sheetnode) != 2 && throw(XLSXError("Malformed Worksheet \"$(ws.name)\": unexpected node depth for sheetData node: $(XML.depth(lznode))."))
+
+    rownode=XML.next(sheetnode)
+
+    while XML.tag(rownode) != "row" # Check for at least one `row`
+        rownode = XML.next(rownode)
+        rownode === nothing && return nothing # no rows found
+    end
+
+    # rownode is the now the first row
+    a = XML.attributes(rownode) # get row number and row heigth (if specified)
+    current_row = parse(Int, a["r"])
+    current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
+
+    # collect all cells in this row
+    rowcells = Dict{Int, Cell}()
+    next_rownode, sst_count = get_rowcells!(rowcells, rownode, ws)
+    
+    itr.sheet.sst_count += sst_count
+
+    sheet_row = SheetRow(ws, current_row, current_row_ht, rowcells) # create the sheet_row
+
+    # debug
+#    @assert sheetnode.raw.data == next_rownode.raw.data "LazyNode data don't match"
+
+    return sheet_row, SheetRowStreamIteratorState(next_rownode, rowcells)
+end
+
+function Base.iterate(itr::SheetRowStreamIterator, state::Union{Nothing, SheetRowStreamIteratorState})
+    ws = get_worksheet(itr)
+    rownode = state.next_rownode
+    rowcells = state.rowcells
+    empty!(rowcells)
+
+    if rownode === nothing # there is no next_rownode - all rows processed
+        return nothing
+    end
+
+    # get row number and row heigth (if specified)
+    a = XML.attributes(rownode)
+    current_row = parse(Int, a["r"])
+    current_row_ht = haskey(a, "ht") ? parse(Float64, a["ht"]) : nothing
+
+    # collect all cells in this row
+    next_rownode, sst_count = get_rowcells!(rowcells, rownode, ws)
+    
+    itr.sheet.sst_count += sst_count
+
+    sheet_row = SheetRow(ws, current_row, current_row_ht, rowcells) # create the sheet_row
+
+    return sheet_row, SheetRowStreamIteratorState(next_rownode, rowcells)
+end
+    
 #
 # WorksheetCache
 #
@@ -371,14 +396,24 @@ end
 Base.length(r::WorksheetCache)=length(r.cells)
 
 #--------------------------------------------------------------------- Fill cache on first read (multi-threaded)
-function stream_rows(n::XML.LazyNode; channel_size::Int=1 << 20)
-    n = XML.next(n)
-    Channel{XML.LazyNode}(channel_size) do out
+function stream_rows(n::XML.LazyNode, chunksize::Int; channel_size::Int=1 << 20)
+
+    rows = Vector{XML.LazyNode}(undef, chunksize)
+    pos=0
+    Channel{Vector{XML.LazyNode}}(channel_size) do out
         while !isnothing(n)
             if n.tag == "row"
-                put!(out, n)
+                pos += 1
+                rows[pos] = n
+            end
+            if pos >= chunksize
+                put!(out, copy(rows))
+                pos=0
             end
             n = XML.next(n)
+        end
+        if pos>0 # handle last incomplete chunk
+            put!(out, rows[1:pos])
         end
     end
 end
@@ -419,6 +454,8 @@ function process_row(row::XML.LazyNode, handled_attributes::Set{String}, ws::Wor
 end
 
 function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
+    chunksize=1000
+
     handled_attributes = Set{String}([
         "r",            # the row number
         "spans",        # the columns the row spans
@@ -450,25 +487,26 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
         ws.unhandled_attributes = isempty(unhandled_attributes) ? nothing : unhandled_attributes
     end
 
-    streamed_rows = stream_rows(lznode)
+    streamed_rows = stream_rows(lznode, chunksize)
 
     # Producer tasks
     mylock = ReentrantLock() # lock for thread-safe access to shared string table in case of inlineStrings
     @sync for _ in 1:nthreads
         Threads.@spawn begin
-            chunksize=1000
-            chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
-            row_count=0
-            for row in streamed_rows
-                row_count += 1
-                chunk[row_count] = process_row(row, handled_attributes, ws, mylock) # process <row> LazyNodes into SheetRows
-                if row_count == chunksize
-                    put!(sheet_rows, copy(chunk))
-                    row_count=0
+            for rows in streamed_rows
+                row_count=0
+                chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
+                for row in rows
+                    row_count += 1
+                    chunk[row_count] = process_row(row, handled_attributes, ws, mylock) # process <row> LazyNodes into SheetRows
+                    if row_count == chunksize
+                        put!(sheet_rows, copy(chunk))
+                        row_count=0
+                    end
                 end
-            end
-            if row_count>0 # handle last incomplete chunk
-                put!(sheet_rows, chunk[1:row_count])
+                if row_count>0 # handle last incomplete chunk
+                    put!(sheet_rows, chunk[1:row_count])
+                end
             end
         end
     end

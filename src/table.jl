@@ -168,8 +168,8 @@ function eachtablerow(
     if column_labels === nothing
         if header
             # will use getdata to get column names
+            sheet_row = find_row(itr, first_row)
             for column_index in column_range.start:column_range.stop
-                sheet_row = find_row(itr, first_row)
                 cell = getcell(sheet_row, column_index)
                 push_unique!(col_lab, sheet, cell)
             end

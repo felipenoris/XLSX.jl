@@ -39,6 +39,8 @@ function Cell(c::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothin
     # t (Cell Data Type) is an enumeration representing the cell's data type. The possible values for this attribute are defined by the ST_CellType simple type (§18.18.11).
     # s (Style Index) is the index of this cell's style. Style records are stored in the Styles Part.
 
+    wb=get_workbook(ws)
+
     if XML.tag(c) != "c"
         throw(XLSXError("`Cell` Expects a `c` (cell) XML node."))
     end
@@ -78,7 +80,7 @@ function Cell(c::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothin
                 else
                     ft=("<si>\n  "*join(XML.write.(XML.children(c_child_element)), "\n")*"\n</si>")
                     t = "s"
-                    v = string(add_shared_string!(get_workbook(ws), uft, ft; mylock))
+                    v = string(add_shared_string!(wb, uft, ft; mylock))
                 end
             end
         else
@@ -186,15 +188,15 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     ecd=isempty(cell.datatype)
     ecs=isempty(cell.style)
 
-    if cell.datatype == "inlineStr"
-
+#=
+    if cell.datatype == "inlineStr" # Now converted to sahred strings on read
         if ecv
             return missing
         else
             return cell.value
         end
-
     end
+=#
 
     if cell.datatype == "s"
 
