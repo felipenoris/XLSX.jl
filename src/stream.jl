@@ -56,7 +56,8 @@ Base.show(io::IO, state::SheetRowStreamIteratorState) = print(io, "SheetRowStrea
 end
 
 function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Worksheet)
-#=
+
+    # threaded cell extraction is (exceedingly marginally) faster.
     @assert row.tag == "row" "Not a row node"
 
     sst_count=0
@@ -78,21 +79,17 @@ function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Workshe
     while cellnode.depth > d
         if cellnode.tag == "c" # This is a cell
             put!(row_cellnodes, cellnode)
-#            cell = Cell(cellnode, ws) # construct an XLSX.Cell from an XML.LazyNode
-#            if row_number(cell) != current_row
-#                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
-#            end
         end
         cellnode = XML.next(cellnode)
     end
     close(row_cellnodes)
 
     # Producer tasks
+    mylock = ReentrantLock() # lock for thread-safe access to shared string table in case of inlineStrings
     @sync for _ in 1:Threads.nthreads()
         Threads.@spawn begin
             for cn in row_cellnodes
-                cell = Cell(cn, ws)
-#                println(cell)
+                cell = Cell(cn, ws; mylock)
                 put!(row_cells, cell)
             end
         end
@@ -100,29 +97,16 @@ function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Workshe
 
     close(row_cells)
 
-#=
-    cellnode=XML.next(row)
-    while cellnode.depth > d
-        if cellnode.tag == "c" # This is a cell
-            put!(row_cellnodes, copy(cellnode))
-#            cell = Cell(cellnode, ws) # construct an XLSX.Cell from an XML.LazyNode
-#            if row_number(cell) != current_row
-#                throw(XLSXError("Error processing Worksheet $(ws.name): Inconsistent state: expected row number $(current_row), but cell has row number $(row_number(cell))"))
-#            end
-        end
-        cellnode = XML.next(cellnode)
-    end
-
-    close(row_cellnodes)
-=#
     wait(consumer)  # ensure consumer is done
 
-    if cellnode.tag == "row" # have reached the end og last row, beginning of next
+    if !isnothing(cellnode) && cellnode.tag == "row" # have reached the end of last row, beginning of next
         return cellnode, sst_count
-    else
+    else                                             # no more rows
         return nothing, sst_count
     end
-=#
+end
+#=
+    # unthreaded cell extraction is (exceedingly marginally) slower.
     @assert row.tag == "row" "Not a row node"
 
     sst_count=0
@@ -144,8 +128,9 @@ function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Workshe
     else                                             # no more rows
         return nothing, sst_count
     end
-end
 
+end
+=#
 # Creates an iterator for row elements in the Worksheet's XML.
 function Base.iterate(itr::SheetRowStreamIterator)
     ws = get_worksheet(itr)
@@ -493,9 +478,9 @@ function first_cache_fill!(ws::Worksheet, lznode::XML.LazyNode, nthreads::Int)
     mylock = ReentrantLock() # lock for thread-safe access to shared string table in case of inlineStrings
     @sync for _ in 1:nthreads
         Threads.@spawn begin
+            chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
             for rows in streamed_rows
                 row_count=0
-                chunk=Vector{Tuple{Int, SheetRow, Dict{String,String}}}(undef, chunksize)
                 for row in rows
                     row_count += 1
                     chunk[row_count] = process_row(row, handled_attributes, ws, mylock) # process <row> LazyNodes into SheetRows

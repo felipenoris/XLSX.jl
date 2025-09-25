@@ -319,35 +319,71 @@ function update_single_sheet!(wb::Workbook, sheet_no::Int, full::Bool)::Union{No
     end
 end
 
-function stream_cache_rows(sheet::Worksheet)
-
-    Channel{Tuple{CellRange, SheetRow, Dict{String,String}}}(1 << 20) do out
+function stream_cache_rows(sheet::Worksheet, chunksize::Int)
+    cache_rows = Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}(undef, chunksize)
+    count=0
+    Channel{Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}}(1 << 20) do out
         d = get_dimension(sheet)
         for r in eachrow(sheet)
+            count += 1
             rn=row_number(r)
             uh = (!isnothing(sheet.unhandled_attributes) && haskey(sheet.unhandled_attributes, rn)) ? sheet.unhandled_attributes[rn] : Dict{String,String}()
-            put!(out, (d, r, uh))
+            cache_rows[count] = (d, r, uh)
+            if count >= chunksize
+                put!(out, copy(cache_rows))
+                count=0
+            end
+        end
+        if count>0
+            put!(out, cache_rows[1:count])
         end
     end
 end
 
-function get_cache_rows(sheet::Worksheet)
-    read_cache_rows = Channel{Tuple{Int64,Vector{UInt8}}}(1 << 24)
-    cache_rows = stream_cache_rows(sheet)
+function get_cache_rows(sheet::Worksheet)::Vector{UInt8}
+    chunksize = 1000
+
+    read_cache_rows = Channel{Vector{Tuple{Int64,Vector{UInt8}}}}(1 << 24)
+    all_cache_rows = Vector{Tuple{Int64,Vector{UInt8}}}()
+
+    consumer = @async begin
+        for rows in read_cache_rows
+            for row in rows
+                push!(all_cache_rows, row)
+            end
+        end
+    end
+
+    cache_rows = stream_cache_rows(sheet, chunksize)
 
     @sync for _ in 1:Threads.nthreads()
         Threads.@spawn begin
-            for row in cache_rows
-                put!(read_cache_rows, process_cache_row(row))
+            chunk = Vector{Tuple{Int64,Vector{UInt8}}}(undef, chunksize)
+            for rows in cache_rows
+                row_count=0
+                for row in rows
+                    row_count += 1
+                    chunk[row_count] = process_cache_row(row)
+                    if row_count == chunksize
+                        put!(read_cache_rows, copy(chunk))
+                        row_count=0
+                    end
+                end
+                if row_count>0 # handle last incomplete chunk
+                    put!(read_cache_rows, chunk[1:row_count])
+                end
             end
         end
     end
 
     close(read_cache_rows) # after all workers finish
 
-    all_rows=last.(sort(collect(read_cache_rows)))
+    wait(consumer) # ensure consumer is done
+
+    all_rows=last.(sort(all_cache_rows, by=first))
     return length(all_rows) == 0 ? Vector{UInt8}() : reduce(vcat, all_rows)
 end
+
 function process_cache_row(cacherow::Tuple{CellRange, SheetRow, Dict{String, String}})
     pad="  "
     d, r, unhandled_attributes = cacherow
