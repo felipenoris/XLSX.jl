@@ -118,7 +118,7 @@ function sst_load!(workbook::Workbook)
         throw(XLSXError("Shared Strings Table not found for this workbook."))
     end
 end
-function stream_ssts(n::XML.LazyNode, chunksize::Int; channel_size::Int=1 << 20)
+function stream_ssts(n::XML.LazyNode, chunksize::Int; channel_size::Int=1 << 10)
     n = XML.next(n)
     ssts = Vector{SstToken}(undef, chunksize)
     i=0
@@ -158,7 +158,7 @@ end
 function load_sst_table!(wb::Workbook, chan::Channel, chunksize::Int, nthreads::Int)
     sst_table = get_sst(wb)
 
-    sst_results = Channel{Vector{Sst}}(1 << 24)
+    sst_results = Channel{Vector{Sst}}(1 << 10)
     all_ssts = Vector{Tuple{Int,Sst}}()
 
     consumer = @async begin

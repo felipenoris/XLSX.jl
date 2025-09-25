@@ -322,7 +322,7 @@ end
 function stream_cache_rows(sheet::Worksheet, chunksize::Int)
     cache_rows = Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}(undef, chunksize)
     count=0
-    Channel{Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}}(1 << 20) do out
+    Channel{Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}}(1 << 10) do out
         d = get_dimension(sheet)
         for r in eachrow(sheet)
             count += 1
@@ -343,7 +343,7 @@ end
 function get_cache_rows(sheet::Worksheet)::Vector{UInt8}
     chunksize = 1000
 
-    read_cache_rows = Channel{Vector{Tuple{Int64,Vector{UInt8}}}}(1 << 24)
+    read_cache_rows = Channel{Vector{Tuple{Int64,Vector{UInt8}}}}(1 << 10)
     all_cache_rows = Vector{Tuple{Int64,Vector{UInt8}}}()
 
     consumer = @async begin
