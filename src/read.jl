@@ -647,6 +647,7 @@ function load_files!(xf::XLSXFile; pass::Int)
             end
         end
     end
+    
     close(read_files)
 
     wait(consumer)

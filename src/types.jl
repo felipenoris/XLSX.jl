@@ -305,11 +305,12 @@ abstract type SheetRowIterator end
 mutable struct SheetRowStreamIteratorState
     next_rownode::Union{Nothing, XML.LazyNode} # Worksheet row being processed
     rowcells::Dict{Int,Cell}
+    lock::ReentrantLock
 end
 
 mutable struct WorksheetCacheIteratorState
     row_from_last_iteration::Int
-    full_cache::Bool # is the cache full (true) or does it need filling (false)
+#    full_cache::Bool # is the cache full (true) or does it need filling (false)
 end
 
 mutable struct WorksheetCache{I<:SheetRowIterator} <: SheetRowIterator

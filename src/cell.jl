@@ -338,3 +338,107 @@ end
 function datetime_to_excel_value(dt::Dates.DateTime, _is_date_1904::Bool) :: Float64
     return date_to_excel_value(Dates.Date(dt), _is_date_1904) + time_to_excel_value(Dates.Time(dt))
 end
+
+# Extract cells from a <row> LazyNode and push them (in place) into a Dict(column -> Cell)
+function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothing}=nothing)
+
+#=
+    # threaded cell extraction causes hugely more lock conflicts for low cellchunk size.
+    # may be worthwhile if many columns (hundreds+), with a cellchunk size > ~10 or ~20, but this is unverified.
+
+    # debug
+    # @assert row.tag == "row" "Not a row node"
+    cellchunk=8 # bigger chunks, fewer lock conflicts but columns are generally relatively few.
+    sst_count=0
+    d=row.depth
+
+    row_cellnodes = Channel{Vector{XML.LazyNode}}(1 << 10)
+    row_cells = Channel{Vector{XLSX.Cell}}(1 << 10)
+
+    # consumer task
+    consumer = @async begin
+        for cells in row_cells  
+            for cell in cells      
+                sst_count += cell.datatype == "s" ? 1 : 0
+                rowcells[column_number(cell)] = cell
+            end
+        end
+    end
+
+    # Feed row_cellnodes
+    cellnodes = Vector{XML.LazyNode}(undef, cellchunk)
+    pos=0
+    cellnode=XML.next(row)
+    while !isnothing(cellnode) && cellnode.depth > d
+        if cellnode.tag == "c" # This is a cell
+            pos += 1
+            cellnodes[pos] = cellnode
+        end
+        if pos >= cellchunk
+            put!(row_cellnodes, copy(cellnodes))
+            pos=0
+        end
+        cellnode = XML.next(cellnode)
+    end
+    if pos>0 # handle last incomplete chunk
+        put!(row_cellnodes, cellnodes[1:pos])
+    end
+    close(row_cellnodes)
+
+    # Producer tasks
+    mylock = ReentrantLock() # lock for thread-safe access to shared string table in case of inlineStrings
+    @sync for _ in 1:Threads.nthreads()
+        Threads.@spawn begin
+            chunk = Vector{XLSX.Cell}(undef, cellchunk)
+            for cns in row_cellnodes
+                cell_count=0
+                for cn in cns
+                    cell_count += 1
+                    chunk[cell_count] = Cell(cn, ws; mylock)
+                    if cell_count >= cellchunk
+                        put!(row_cells, copy(chunk))
+                        cell_count=0
+                    end
+                end
+                if cell_count > 0 # handle last incomplete chunk
+                    put!(row_cells, chunk[1:cell_count])
+                end
+            end
+        end
+    end
+    close(row_cells)
+
+    wait(consumer)  # ensure consumer is done
+
+    if !isnothing(cellnode) && cellnode.tag == "row" # have reached the end of last row, beginning of next
+        return cellnode, sst_count
+    else                                             # no more rows
+        return nothing, sst_count
+    end
+=#
+    # unthreaded cell extraction is (exceedingly marginally) slower but no lock conflicts introduced.
+
+    # debug
+    # @assert row.tag == "row" "Not a row node"
+
+    sst_count=0
+
+    d=row.depth
+
+    cellnode=XML.next(row)
+
+    while !isnothing(cellnode) && cellnode.depth > d
+        if cellnode.tag == "c" # This is a cell
+            cell = Cell(cellnode, ws; mylock) # construct an XLSX.Cell from an XML.LazyNode
+            sst_count += cell.datatype == "s" ? 1 : 0
+            @inbounds rowcells[column_number(cell)] = cell
+        end
+        cellnode = XML.next(cellnode)
+    end
+    if !isnothing(cellnode) && cellnode.tag == "row" # have reached the end of last row, beginning of next
+        return cellnode, sst_count
+    else                                             # no more rows
+        return nothing, sst_count
+    end
+
+end

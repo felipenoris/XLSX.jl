@@ -1366,6 +1366,10 @@ end
     data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
 
+    dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4"; enable_cache=false)
+    data, col_names = dtable.data, dtable.column_labels
+    @test col_names == [:H1, :H2, :H3]
+
     @testset "Tables.jl DataTable interface" begin
         df = DataFrames.DataFrame(dtable)
         @test DataFrames.names(df) == ["H1", "H2", "H3"]

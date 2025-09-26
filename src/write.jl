@@ -101,11 +101,11 @@ function generate_sst_xml_string(wb::Workbook)::String
     !sst.is_loaded && throw(XLSXError("Can't generate XML string from a Shared String Table that is not loaded."))
     buff = IOBuffer()
 
-    # TODO - Done! : <sst count="89" (TimG: I don't know what this means! UPDATE: Aha! Got it!)
     sst_total = 0
     for sheet in wb.sheets
         sst_total += sheet.sst_count
     end
+
     print(
         buff,
         """
@@ -205,32 +205,7 @@ function unlink(node::XML.Node, att::Tuple{String,String})
     end
     return new_node
 end
-#=
-function get_idces(doc::XML.LazyNode, t, b)
-    i = 1
-    j = 1
-    n=XML.next(doc)
-    while XML.tag(n) != t
-        n=XML.next(n)
-        if isnothing(n)
-            return nothing, nothing
-        end
-        i += 1
-    end
-    n=XML.next(n)
-    d=n.depth
-    while XML.tag(n) != b
-        n=XML.next(n)
-        if isnothing(n)
-            return i, nothing
-        end
-        if n.depth == d
-            j += 1
-        end
-    end
-    return i, j
-end
-=#
+
 function get_idces(doc::XML.Node, t, b)
     i = 1
     j = 1
