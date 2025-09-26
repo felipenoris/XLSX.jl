@@ -65,3 +65,7 @@ function update_formulas_missing_sheet!(wb::Workbook, name::String)
         end
     end
 end
+
+function setFormula(ws::Worksheet, cellref::CellRef, val::AbstractString)
+    setdata!(ws, cellref, CellFormula(ws, Formula(val)))
+end
