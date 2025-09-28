@@ -102,15 +102,15 @@ function add_shared_string!(wb::Workbook, str_unformatted::AbstractString) :: In
 end
 
 function sst_load!(workbook::Workbook)
+    chunksize=1000
     sst = get_sst(workbook)
     if !sst.is_loaded
 
         relationship_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
         if has_relationship_by_type(workbook, relationship_type)
-            sst_chan = stream_ssts(open_internal_file_stream(get_xlsxfile(workbook), "xl/sharedStrings.xml")[end])
-            load_sst_table!(workbook, sst_chan, Threads.nthreads())
+            sst_chan = stream_ssts(open_internal_file_stream(get_xlsxfile(workbook), "xl/sharedStrings.xml")[end], chunksize)
+            load_sst_table!(workbook, sst_chan, chunksize, Threads.nthreads())
             init_sst_index(sst)
-            sst.is_loaded=true
             
             return
         end
@@ -118,16 +118,26 @@ function sst_load!(workbook::Workbook)
         throw(XLSXError("Shared Strings Table not found for this workbook."))
     end
 end
-function stream_ssts(io::XML.LazyNode; channel_size::Int=1 << 20)
-    n = XML.next(io)
+function stream_ssts(n::XML.LazyNode, chunksize::Int; channel_size::Int=1 << 10)
+    n = XML.next(n)
+    ssts = Vector{SstToken}(undef, chunksize)
     i=0
-    Channel{SstToken}(channel_size) do out
+    idx=0
+    Channel{Vector{SstToken}}(channel_size) do out
         while !isnothing(n)
             if n.tag == "si"
                 i += 1
-                put!(out, SstToken(n, i))
+                idx += 1
+                ssts[i] = SstToken(n, idx)
+            end
+            if i >= chunksize
+                put!(out, copy(ssts))
+                i=0
             end
             n = XML.next(n)
+        end
+        if i>0 # handle last incomplete chunk
+            put!(out, ssts[1:i])
         end
     end
 end
@@ -145,13 +155,12 @@ function process_sst(sst::SstToken)
 
 end
 
-function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
-    chunksize=1000
+function load_sst_table!(wb::Workbook, chan::Channel, chunksize::Int, nthreads::Int)
     sst_table = get_sst(wb)
 
-    sst_results = Channel{Vector{Sst}}(1 << 24)
-
+    sst_results = Channel{Vector{Sst}}(1 << 10)
     all_ssts = Vector{Tuple{Int,Sst}}()
+
     consumer = @async begin
         for ssts in sst_results        
             for sst in ssts
@@ -173,18 +182,20 @@ function load_sst_table!(wb::Workbook, chan::Channel, nthreads::Int)
     # Producer tasks
     @sync for _ in 1:nthreads
         Threads.@spawn begin
-            chunk = Vector{Sst}(undef, chunksize)
-            sst_count=0
-            for tok in chan
-                sst_count += 1
-                chunk[sst_count]= process_sst(tok)
-                if sst_count == chunksize
-                    put!(sst_results, copy(chunk))
-                    sst_count=0
+            for ssts in chan
+                chunk = Vector{Sst}(undef, chunksize)
+                sst_count=0
+                for tok in ssts
+                    sst_count += 1
+                    chunk[sst_count] = process_sst(tok)
+                    if sst_count == chunksize
+                        put!(sst_results, copy(chunk))
+                        sst_count=0
+                    end
                 end
-            end
-            if sst_count>0 # handle last incomplete chunk
-                put!(sst_results, chunk[1:sst_count])
+                if sst_count>0 # handle last incomplete chunk
+                    put!(sst_results, chunk[1:sst_count])
+                end
             end
         end
     end

@@ -424,6 +424,13 @@ end
     @test sheet2[:] == XLSX.getdata(sheet2)
     @test sheet2[:] == XLSX.getdata(sheet2, :)
     @test XLSX.getdata(sheet2, :, [1, 2]) == sheet2["A1:B3"]
+
+    f = XLSX.readxlsx(joinpath(data_directory, "Book1.xlsx"))
+    sheet1 = f["Sheet1"]
+    XLSX.getcellrange(sheet1, "B2:C3")
+    f = XLSX.openxlsx(joinpath(data_directory, "Book1.xlsx"); enable_cache=false)
+    sheet1 = f["Sheet1"]
+    XLSX.getcellrange(sheet1, "B2:C3")
 end
 
 @testset "setindex" begin
@@ -1356,6 +1363,10 @@ end
     test_data[3] = [missing, "D4", missing]
 
     dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4")
+    data, col_names = dtable.data, dtable.column_labels
+    @test col_names == [:H1, :H2, :H3]
+
+    dtable = XLSX.readtable(joinpath(data_directory, "general.xlsx"), "table4"; enable_cache=false)
     data, col_names = dtable.data, dtable.column_labels
     @test col_names == [:H1, :H2, :H3]
 
@@ -3387,7 +3398,7 @@ end
 
     @testset "No cache" begin
         XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=true) do f
-            @test XLSX.getRowHeight(f, "Mock-up!B2") ≈ 23.25
+            @test_throws XLSX.XLSXError XLSX.getRowHeight(f, "Mock-up!B2") ≈ 23.25 # File not writable
             @test_throws XLSX.XLSXError XLSX.getColumnWidth(f, "Mock-up!B2") # File not writable
         end
         XLSX.openxlsx(joinpath(data_directory, "customXml.xlsx"); mode="r", enable_cache=false) do f
@@ -6048,6 +6059,76 @@ end
     @test ismissing(sheet["J1"])
     @test ismissing(sheet["J2"])
     isfile("mydata.xlsx") && rm("mydata.xlsx")
+end
+
+@testset "rich text formats" begin
+    xf = XLSX.readxlsx(joinpath(data_directory, "is.xlsx"))
+    sh = xf["Sheet1"]
+    @test_throws XLSX.XLSXError XLSX.setFont(sh, "A1"; name="Palatino") # Must be in write mode for rich text formats
+
+    xf = XLSX.opentemplate(joinpath(data_directory, "is.xlsx"))
+    sh = xf["Sheet1"]
+    @test XLSX.getFont(sh, "A1") === nothing
+    XLSX.setFont(sh, "A1"; name="Palatino")
+    @test XLSX.getFont(sh, "A1").font == Dict("name" => Dict("val" => "Palatino"), "sz" => Dict("val" => "11"), "color" => Dict("theme" => "1"))
+    @test XLSX.get_workbook(sh).sst.formatted_strings[parse(Int, XLSX.getcell(sh, "A1").value)] == "<si>\n  <r>\n    <t>h</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"20\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>e</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>l</t>\n  </r>\n  <r>\n    <rPr>\n      <vertAlign val=\"subscript\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>lo</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n  <r>\n    <rPr>\n      <b/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>ki</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>y</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n</si>"
+    XLSX.setFont(sh, "A1:F2"; name="Palatino")
+    @test XLSX.get_workbook(sh).sst.formatted_strings[parse(Int, XLSX.getcell(sh, "E2").value)] == "<si>\n  <r>\n    <t>h</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"20\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>e</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>l</t>\n  </r>\n  <r>\n    <rPr>\n      <vertAlign val=\"subscript\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>lo</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n  <r>\n    <rPr>\n      <b/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>ki</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t>y</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Palatino\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n</si>"
+    @test XLSX.getFont(sh, "B2").font["name"] == Dict("val" => "Palatino")
+    XLSX.setFont(sh, "B"; under="none")
+    @test haskey(XLSX.getFont(sh, "B2").font, "u") == false
+    XLSX.setFont(sh, "C1,D2:E2", color="orange")
+    @test XLSX.getFont(sh, "C1").font["color"] == Dict("rgb" => XLSX.get_color("orange"))
+    @test XLSX.getFont(sh, "D2").font["color"] == Dict("rgb" => XLSX.get_color("orange"))
+    @test XLSX.getFont(sh, "D1").font["color"] == Dict("theme" => "1")
+
+    xf = XLSX.opentemplate(joinpath(data_directory, "is.xlsx"))
+    sh = xf["Sheet1"]
+    XLSX.setUniformFont(sh, [1,2], 1:2; under="double")
+    @test XLSX.getFont(sh, "A1").font["u"] == Dict("val" => "double")
+    @test XLSX.getFont(sh, "B2").font["u"] == Dict("val" => "double")
+    @test XLSX.getFont(sh, "A1").font["sz"] == Dict("val" => "11")
+    @test XLSX.getFont(sh, "B2").font["sz"] == Dict("val" => "11")
+    @test XLSX.getFont(sh, "A1").font["color"] == Dict("theme" => "1")
+    @test XLSX.getFont(sh, "B2").font["color"] == Dict("theme" => "1")
+    @test XLSX.getFont(sh, "C2") === nothing
+    @test XLSX.get_workbook(sh).sst.formatted_strings[parse(Int, XLSX.getcell(sh, "B2").value)] == "<si>\n  <r>\n    <t>h</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"20\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>e</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>l</t>\n  </r>\n  <r>\n    <rPr>\n      <vertAlign val=\"subscript\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>lo</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n  <r>\n    <rPr>\n      <b/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>ki</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>y</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n</si>"
+
+    XLSX.setUniformFont(sh, :, 3:2:5; color = "orange")
+    @test XLSX.getFont(sh, "C1").font["sz"] == Dict("val" => "11")
+    @test XLSX.getFont(sh, "E2").font["sz"] == Dict("val" => "11")
+    @test XLSX.getFont(sh, "C1").font["color"] == Dict("rgb" => XLSX.get_color("orange"))
+    @test XLSX.getFont(sh, "E2").font["color"] == Dict("rgb" => XLSX.get_color("orange"))
+    @test XLSX.getFont(sh, "D2") === nothing
+    @test XLSX.get_workbook(sh).sst.formatted_strings[parse(Int, XLSX.getcell(sh, "E2").value)] == "<si>\n  <r>\n    <t>h</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"20\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>e</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>l</t>\n  </r>\n  <r>\n    <rPr>\n      <vertAlign val=\"subscript\"/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>lo</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n  <r>\n    <rPr>\n      <b/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>ki</t>\n  </r>\n  <r>\n    <rPr>\n      <u/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>tt</t>\n  </r>\n  <r>\n    <rPr>\n      <sz val=\"11\"/>\n      <color rgb=\"FFFFA500\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\">y </t>\n  </r>\n</si>"
+
+    xf = XLSX.opentemplate(joinpath(data_directory, "is.xlsx"))
+    sh = xf["Sheet1"]
+    XLSX.setUniformFont(sh, "A1,C2,D1:F1"; under="double")
+    @test XLSX.getFont(sh, "A1").font["u"] == Dict("val" => "double")
+    @test XLSX.getFont(sh, "C2").font["u"] == Dict("val" => "double")
+    @test XLSX.getFont(sh, "D1").font["sz"] == Dict("val" => "11")
+    @test XLSX.getFont(sh, "E1").font["sz"] == Dict("val" => "11")
+    @test XLSX.getFont(sh, "F1").font["color"] == Dict("theme" => "1")
+    @test XLSX.getFont(sh, "C2").font["color"] == Dict("theme" => "1")
+    @test XLSX.getFont(sh, "B2") === nothing
+    @test XLSX.get_workbook(sh).sst.formatted_strings[parse(Int, XLSX.getcell(sh, "F1").value)] == "<si>\n  <r>\n    <t>h</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"20\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>e</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>l</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <vertAlign val=\"subscript\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>lo</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n  <r>\n    <rPr>\n      <b/>\n      <u val=\"double\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>ki</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"24\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"24\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>t</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"11\"/>\n      <color rgb=\"FFFF0000\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t>y</t>\n  </r>\n  <r>\n    <rPr>\n      <u val=\"double\"/>\n      <sz val=\"11\"/>\n      <color theme=\"1\"/>\n      <rFont val=\"Aptos Narrow\"/>\n      <family val=\"2\"/>\n      <scheme val=\"minor\"/>\n    </rPr>\n    <t xml:space=\"preserve\"> </t>\n  </r>\n</si>"
+    xf = XLSX.opentemplate(joinpath(data_directory, "is.xlsx"))
+    sh = xf["Sheet1"]
+    XLSX.setFont(sh, "A1"; under="double", color="orange", name="Palatino", size=20, bold=true, italic=true, strike=true)
+    XLSX.setUniformStyle(sh, "A1:F2")
+    @test XLSX.getFont(sh, "A1").font["u"] == Dict("val" => "double")
+    @test XLSX.getFont(sh, "C2").font["u"] == Dict("val" => "double")
+    @test XLSX.getFont(sh, "D1").font["sz"] == Dict("val" => "20")
+    @test XLSX.getFont(sh, "E1").font["sz"] == Dict("val" => "20")
+    @test XLSX.getFont(sh, "F1").font["color"] == Dict("rgb" => XLSX.get_color("orange"))
+    @test XLSX.getFont(sh, "C2").font["color"] == Dict("rgb" => XLSX.get_color("orange"))
+    @test XLSX.getFont(sh, "A1").font["name"] == Dict("val" => "Palatino")
+    @test XLSX.getFont(sh, "F2").font["name"] == Dict("val" => "Palatino")
+    @test haskey(XLSX.getFont(sh, "B2").font, "b") == true
+    @test haskey(XLSX.getFont(sh, "B2").font, "i") == true
+    @test haskey(XLSX.getFont(sh, "B2").font, "strike") == true
+
 end
 
 # issue #299 & 301

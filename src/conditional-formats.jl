@@ -1124,7 +1124,7 @@ julia> XLSX.setConditionalFormat(s, "D1:D11", :dataBar;
             showVal="false"
         )
 
-jjulia> XLSX.setConditionalFormat(s, "F1:F11", :dataBar;
+julia> XLSX.setConditionalFormat(s, "F1:F11", :dataBar;
             gradient="false",
             sameNegFill="true",
             sameNegBorders="true"

@@ -101,11 +101,11 @@ function generate_sst_xml_string(wb::Workbook)::String
     !sst.is_loaded && throw(XLSXError("Can't generate XML string from a Shared String Table that is not loaded."))
     buff = IOBuffer()
 
-    # TODO - Done! : <sst count="89" (TimG: I don't know what this means! UPDATE: Aha! Got it!)
     sst_total = 0
     for sheet in wb.sheets
         sst_total += sheet.sst_count
     end
+
     print(
         buff,
         """
@@ -205,30 +205,7 @@ function unlink(node::XML.Node, att::Tuple{String,String})
     end
     return new_node
 end
-function get_idces(doc::XML.LazyNode, t, b)
-    i = 1
-    j = 1
-    n=XML.next(doc)
-    while XML.tag(n) != t
-        n=XML.next(n)
-        if isnothing(n)
-            return nothing, nothing
-        end
-        i += 1
-    end
-    n=XML.next(n)
-    d=n.depth
-    while XML.tag(n) != b
-        n=XML.next(n)
-        if isnothing(n)
-            return i, nothing
-        end
-        if n.depth == d
-            j += 1
-        end
-    end
-    return i, j
-end
+
 function get_idces(doc::XML.Node, t, b)
     i = 1
     j = 1
@@ -317,35 +294,71 @@ function update_single_sheet!(wb::Workbook, sheet_no::Int, full::Bool)::Union{No
     end
 end
 
-function stream_cache_rows(sheet::Worksheet)
-
-    Channel{Tuple{CellRange, SheetRow, Dict{String,String}}}(1 << 20) do out
+function stream_cache_rows(sheet::Worksheet, chunksize::Int)
+    cache_rows = Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}(undef, chunksize)
+    count=0
+    Channel{Vector{Tuple{CellRange, SheetRow, Dict{String,String}}}}(1 << 10) do out
         d = get_dimension(sheet)
         for r in eachrow(sheet)
+            count += 1
             rn=row_number(r)
             uh = (!isnothing(sheet.unhandled_attributes) && haskey(sheet.unhandled_attributes, rn)) ? sheet.unhandled_attributes[rn] : Dict{String,String}()
-            put!(out, (d, r, uh))
+            cache_rows[count] = (d, r, uh)
+            if count >= chunksize
+                put!(out, copy(cache_rows))
+                count=0
+            end
+        end
+        if count>0
+            put!(out, cache_rows[1:count])
         end
     end
 end
 
-function get_cache_rows(sheet::Worksheet)
-    read_cache_rows = Channel{Tuple{Int64,Vector{UInt8}}}(1 << 24)
-    cache_rows = stream_cache_rows(sheet)
+function get_cache_rows(sheet::Worksheet)::Vector{UInt8}
+    chunksize = 1000
+
+    read_cache_rows = Channel{Vector{Tuple{Int64,Vector{UInt8}}}}(1 << 10)
+    all_cache_rows = Vector{Tuple{Int64,Vector{UInt8}}}()
+
+    consumer = @async begin
+        for rows in read_cache_rows
+            for row in rows
+                push!(all_cache_rows, row)
+            end
+        end
+    end
+
+    cache_rows = stream_cache_rows(sheet, chunksize)
 
     @sync for _ in 1:Threads.nthreads()
         Threads.@spawn begin
-            for row in cache_rows
-                put!(read_cache_rows, process_cache_row(row))
+            chunk = Vector{Tuple{Int64,Vector{UInt8}}}(undef, chunksize)
+            for rows in cache_rows
+                row_count=0
+                for row in rows
+                    row_count += 1
+                    chunk[row_count] = process_cache_row(row)
+                    if row_count == chunksize
+                        put!(read_cache_rows, copy(chunk))
+                        row_count=0
+                    end
+                end
+                if row_count>0 # handle last incomplete chunk
+                    put!(read_cache_rows, chunk[1:row_count])
+                end
             end
         end
     end
 
     close(read_cache_rows) # after all workers finish
 
-    all_rows=last.(sort(collect(read_cache_rows)))
+    wait(consumer) # ensure consumer is done
+
+    all_rows=last.(sort(all_cache_rows, by=first))
     return length(all_rows) == 0 ? Vector{UInt8}() : reduce(vcat, all_rows)
 end
+
 function process_cache_row(cacherow::Tuple{CellRange, SheetRow, Dict{String, String}})
     pad="  "
     d, r, unhandled_attributes = cacherow
@@ -390,11 +403,12 @@ function process_cache_row(cacherow::Tuple{CellRange, SheetRow, Dict{String, Str
             add_node_formula!(row_node, cell.formula)
         end
 
-        if cell.datatype == "inlineStr"
-            print(row_node,"\n",pad^4, "<is>\n",pad^5,"<t")
-            print(row_node, (startswith(cell.value, " ") || endswith(cell.value, " ") ? " xml:space=\"preserve\">" : ">"))
-            print(row_node, cell.value,"</t>\n",pad^4, "</is>")
-        elseif cell.value != ""
+#        if cell.datatype == "inlineStr" # intlineStrings now converted to sharedStrings on read
+#            print(row_node,"\n",pad^4, "<is>\n",pad^5,"<t")
+#            print(row_node, (startswith(cell.value, " ") || endswith(cell.value, " ") ? " xml:space=\"preserve\">" : ">"))
+#            print(row_node, cell.value,"</t>\n",pad^4, "</is>")
+#        elseif cell.value != ""
+        if cell.value != ""
             print(row_node,"\n",pad^4,"<v>",XML.escape(cell.value),"</v>")
         end
 
@@ -954,8 +968,6 @@ function writetable!(
     if write_columnnames
         for c in 1:col_count
             target_cell_ref = CellRef(anchor_row, c + anchor_col - 1)
-#            sheet[target_cell_ref] = strip_illegal_chars(XML.escape(string(columnnames[c])))
-#            sheet[target_cell_ref] = XML.escape(string(columnnames[c]))
             sheet[target_cell_ref] = string(columnnames[c])
         end
         start_from_anchor = 0
@@ -963,12 +975,10 @@ function writetable!(
 
     # write table data
     data = [process_vector(col) for col in data] # Address issue #239
-    for c in 1:col_count
-        for r in 1:row_count
+    for r in 1:row_count
+        for c in 1:col_count # 15% speed up by inverting nesting of these for-loops!
             target_cell_ref = CellRef(r + anchor_row - start_from_anchor, c + anchor_col - 1)
             v = data[c][r]
-#            sheet[target_cell_ref] = v isa String ? strip_illegal_chars(XML.escape(v)) : v
-#            sheet[target_cell_ref] = v isa String ? XML.escape(v) : v
             sheet[target_cell_ref] = v 
         end
     end

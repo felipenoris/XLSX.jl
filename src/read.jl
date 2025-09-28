@@ -602,7 +602,7 @@ function load_files!(xf::XLSXFile; pass::Int)
     (pass < 1 || pass > 2) && throw(XLSXError("Unknown pass to read files."))
     wb=get_workbook(xf)
 
-    read_files = Channel{ReadFile}(1 << 20)
+    read_files = Channel{ReadFile}(1 << 10)
     files = stream_files(xf; pass)
 
     consumer = @async begin
@@ -647,6 +647,7 @@ function load_files!(xf::XLSXFile; pass::Int)
             end
         end
     end
+    
     close(read_files)
 
     wait(consumer)

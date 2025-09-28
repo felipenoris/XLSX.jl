@@ -115,8 +115,8 @@ function setFont(sh::Worksheet, cellref::CellRef;
     name::Union{Nothing,String}=nothing
 )::Int
 
-    if !get_xlsxfile(sh).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set font because cache is not enabled."))
+    if get_xlsxfile(sh).is_writable == false
+        throw(XLSXError("Cannot set font because because XLSXFile is not writable."))
     end
 
     wb = get_workbook(sh)
@@ -196,6 +196,12 @@ function setFont(sh::Worksheet, cellref::CellRef;
 
     newstyle = string(update_template_xf(sh, allXfNodes, CellDataFormat(parse(Int, cell.style)), ["fontId", "applyFont"], [string(new_fontid), "1"]).id)
     cell.style = newstyle
+
+    if cell.datatype=="s" # shared strings and former inline strings may have complex font formatting to manage
+        v=update_sharedString_font(sh, cell; bold, italic, under, strike, size, color, name)
+        cell.value = isnothing(v) ? cell.value : v
+    end
+
     return new_fontid
 end
 
@@ -298,16 +304,17 @@ Excel uses several tags to define font properties in its XML structure.
 Here's a list of some common tags and their purposes (thanks to Copilot!):
 - `b`        : Indicates bold font.
 - `i`        : Indicates italic font.
-- `u`        : Specifies underlining (e.g., single, double).
 - `strike`   : Indicates strikethrough.
-- `outline`  : Specifies outline text.
-- `shadow`   : Adds a shadow to the text.
 - `condense` : Condenses the font spacing.
 - `extend`   : Extends the font spacing.
+- `outline`  : Specifies outline text.
+- `shadow`   : Adds a shadow to the text.
+- `u`        : Specifies underlining (e.g., single, double).
 - `sz`       : Sets the font size.
 - `color`    : Sets the font color using RGB values).
 - `name`     : Specifies the font name.
 - `family`   : Defines the font family.
+- `charset`  : Specifies the character set code (e.g., 204 for Cyrillic).
 - `scheme`   : Specifies whether the font is part of the major or minor theme.
 
 Excel defines colours in several ways. Get font will return the colour in any of these
@@ -488,10 +495,10 @@ function getBorder(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellBorder
 end
 
 """
-    setBorder(sh::Worksheet, cr::String; kw...) -> ::Int}
+    setBorder(sh::Worksheet, cr::String; kw...) -> ::Int
     setBorder(xf::XLSXFile, cr::String; kw...) -> ::Int
 
-    setBorder(sh::Worksheet, row, col; kw...) -> ::Int}
+    setBorder(sh::Worksheet, row, col; kw...) -> ::Int
    
 Set the borders used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
@@ -680,8 +687,8 @@ function setBorder(sh::Worksheet, cellref::CellRef;
     diagonal::Union{Nothing,Vector{Pair{String,String}}}=nothing
 )::Int
 
-    if !get_xlsxfile(sh).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set borders because cache is not enabled."))
+    if get_xlsxfile(sh).is_writable == false
+        throw(XLSXError("Cannot set borders because because XLSXFile is not writable."))
     end
 
     if !isnothing(allsides)
@@ -903,8 +910,8 @@ function setOutsideBorder(ws::Worksheet, rng::CellRange;
     outside::Union{Nothing,Vector{Pair{String,String}}}=nothing,
 )::Int
 
-    if !get_xlsxfile(ws).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set borders because cache is not enabled."))
+    if get_xlsxfile(ws).is_writable == false
+        throw(XLSXError("Cannot set borders because because XLSXFile is not writable."))
     end
 
     #    length(rng) <= 1 && throw(XLSXError("Cannot set outside border for a single cell."))
@@ -1062,10 +1069,10 @@ function getFill(wb::Workbook, cell_style::XML.Node)::Union{Nothing,CellFill}
 end
 
 """
-    setFill(sh::Worksheet, cr::String; kw...) -> ::Int}
+    setFill(sh::Worksheet, cr::String; kw...) -> ::Int
     setFill(xf::XLSXFile,  cr::String; kw...) -> ::Int
 
-    setFill(sh::Worksheet, row, col; kw...) -> ::Int}
+    setFill(sh::Worksheet, row, col; kw...) -> ::Int
 
 Set the fill used used by a single cell, a cell range, a column range or 
 row range or a named cell or named range in a worksheet or XLSXfile.
@@ -1153,8 +1160,8 @@ function setFill(sh::Worksheet, cellref::CellRef;
     bgColor::Union{Nothing,String}=nothing,
 )::Int
 
-    if !get_xlsxfile(sh).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set fill because cache is not enabled."))
+    if get_xlsxfile(sh).is_writable == false
+        throw(XLSXError("Cannot set fill because because XLSXFile is not writable."))
     end
 
     wb = get_workbook(sh)
@@ -1464,8 +1471,8 @@ function setAlignment(sh::Worksheet, cellref::CellRef;
     rotation::Union{Nothing,Int}=nothing
 )::Int
 
-    if !get_xlsxfile(sh).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set alignment because cache is not enabled."))
+    if get_xlsxfile(sh).is_writable == false
+        throw(XLSXError("Cannot set alignment because because XLSXFile is not writable."))
     end
 
     wb = get_workbook(sh)
@@ -1760,8 +1767,8 @@ function setFormat(sh::Worksheet, cellref::CellRef;
     format::Union{Nothing,String}=nothing,
 )::Int
 
-    if !get_xlsxfile(sh).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set number formats because cache is not enabled."))
+    if get_xlsxfile(sh).is_writable == false
+        throw(XLSXError("Cannot set number format because because XLSXFile is not writable."))
     end
 
     wb = get_workbook(sh)
@@ -1908,11 +1915,11 @@ function setUniformStyle end
 setUniformStyle(ws::Worksheet, rng::SheetCellRange) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.rng)
 setUniformStyle(ws::Worksheet, rng::SheetColumnRange) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.colrng)
 setUniformStyle(ws::Worksheet, rng::SheetRowRange) = do_sheet_names_match(ws, rng) && setUniformStyle(ws, rng.rowrng)
-setUniformStyle(ws::Worksheet, colrng::ColumnRange)::Int = process_columnranges(setUniformStyle, ws, colrng)
-setUniformStyle(ws::Worksheet, rowrng::RowRange)::Int = process_rowranges(setUniformStyle, ws, rowrng)
-setUniformStyle(ws::Worksheet, ncrng::NonContiguousRange)::Int = process_uniform_ncranges(ws, ncrng)
-setUniformStyle(xl::XLSXFile, sheetcell::AbstractString)::Int = process_sheetcell(setUniformStyle, xl, sheetcell)
-setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString)::Int = process_ranges(setUniformStyle, ws, ref_or_rng)
+setUniformStyle(ws::Worksheet, colrng::ColumnRange) = process_columnranges(setUniformStyle, ws, colrng)
+setUniformStyle(ws::Worksheet, rowrng::RowRange) = process_rowranges(setUniformStyle, ws, rowrng)
+setUniformStyle(ws::Worksheet, ncrng::NonContiguousRange) = process_uniform_ncranges(ws, ncrng)
+setUniformStyle(xl::XLSXFile, sheetcell::AbstractString) = process_sheetcell(setUniformStyle, xl, sheetcell)
+setUniformStyle(ws::Worksheet, ref_or_rng::AbstractString) = process_ranges(setUniformStyle, ws, ref_or_rng)
 setUniformStyle(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon) = process_colon(ws, row, nothing)
 setUniformStyle(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}) = process_colon(ws, nothing, col)
 setUniformStyle(ws::Worksheet, ::Colon, ::Colon) = process_colon(ws, nothing, nothing)
@@ -1925,17 +1932,18 @@ setUniformStyle(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col
 setUniformStyle(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}) = setUniformStyle(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))))
 function setUniformStyle(ws::Worksheet, rng::CellRange)::Union{Nothing,Int}
 
-    if !get_xlsxfile(ws).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set styles because cache is not enabled."))
+    if get_xlsxfile(ws).is_writable == false
+        throw(XLSXError("Cannot set styles because because XLSXFile is not writable."))
     end
 
     let newid::Union{Nothing,Int},
         newid = nothing
 
         first = true
+        firstFont = nothing
 
         for cellref in rng
-            newid, first = process_uniform_core(ws, cellref, newid, first)
+            newid, first, firstFont = process_uniform_core(ws, cellref, newid, first, firstFont)
         end
         if first
             newid = -1
@@ -1978,8 +1986,7 @@ You can set a column width to 0.
 
 The function returns a value of 0.
 
-NOTE: Unlike the other `set` and `get` XLSX functions, working with `ColumnWidth` requires 
-a file to be open for writing as well as reading (`mode="rw"` or open as a template) but 
+`setColumnWidth` requires a file to be open for writing as well as reading (`mode="rw"` or open as a template) but 
 it can work on empty cells.
 
 # Examples:
@@ -2220,8 +2227,8 @@ setRowHeight(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::U
 setRowHeight(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setRowHeight(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setRowHeight(ws::Worksheet, rng::CellRange; height::Union{Nothing,Real}=nothing)::Int
 
-    if !get_xlsxfile(ws).use_cache_for_sheet_data
-        throw(XLSXError("Cannot set row heights because cache is not enabled."))
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get row height: `XLSXFile` is not writable."))
     end
 
     top = rng.start.row_number
@@ -2289,8 +2296,8 @@ getRowHeight(ws::Worksheet, cr::String) = process_get_cellname(getRowHeight, ws,
 getRowHeight(ws::Worksheet, row::Integer, col::Integer) = getRowHeight(ws, CellRef(row, col))
 function getRowHeight(ws::Worksheet, cellref::CellRef)::Union{Nothing,Real}
 
-    if !get_xlsxfile(ws).use_cache_for_sheet_data
-        throw(XLSXError("Cannot get row height because cache is not enabled."))
+    if !get_xlsxfile(ws).is_writable
+        throw(XLSXError("Cannot get row height: `XLSXFile` is not writable."))
     end
 
     d = get_dimension(ws)

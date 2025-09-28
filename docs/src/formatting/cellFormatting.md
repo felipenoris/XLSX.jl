@@ -298,6 +298,80 @@ julia> XLSX.setUniformStyle(s, "BB50,A1:CV100") # Or if I want to apply all form
 11
 ```
 
+## Rich text formats
+
+Text in a cell can have font formats applied to any substring element as in this example:
+
+![image|320x500](../images/complexFontFormats.png)
+
+This is referred to here as rich text formatting.
+
+These rich text formats are stored separately from the cell Style and over-ride any Style-based formatting.
+
+The `setFont`, `setUniformFont` and `setUniformStyle` functions operate at the cell level and cannot appply 
+formatting at a substring level. Instead, using any of these functions will remove from a cell's rich text format 
+any attributes that these functions are themselves applying or updating to the whole cell, but will leave the remaining 
+rich text format attributes in place.
+
+For example, to remove the underlining in column B:
+
+```julia
+julia> setFont(s, "B"; under="none")
+-1
+```
+![image|320x500](../images/complexNoUnder.png)
+
+The underlining has been removed, but the other rich text formats remain in place.
+
+Applying `setUniformFont` to a range of cells will remove those elements of the rich text format that are now being applied 
+to the whole cell so that those elements become uniform. Any other heterogeneity arising from rich text formats 
+(which over-ride Style-based formatting) will remain.
+For example:
+```julia
+julia> setUniformFont(s, "A1:F2"; color="orange")
+23
+```
+![image|320x500](../images/complexUniformColor.png)
+
+Similarly, applying `setUniformStyle` to a range of cells will remove those elements of the rich text format that are now being applied to the whole cells so that those elements become uniform. Any other heterogeneity arising from rich text formats will remain.
+
+Rich text formats only affect the font settings; other elements of the style (number format, borders, fill, alignment) will be unaffected and will be applied uniformly to the range.
+
+To illustrate, starting from the initial Excel file above, and using `setUniformStyle` to apply the Style in cell `A1` to the cells `D1:F2`:
+```julia
+julia> setFont(s, "A1"; size=20) # make sure cell A1 has the formatting we want
+22
+
+julia> XLSX.getFont(s, "A1") # just to illustrate the cell A1 Style's font attributes
+XLSX.CellFont(22, Dict{String, Union{Nothing, Dict{String, String}}}("name" => Dict("val" => "Aptos Narrow"), "sz" => Dict("val" => "20"), "color" => Dict("theme" => "1")), "1")
+
+julia> setUniformStyle(s, "A1,D1:F2") # apply cell A1's Style to cells D1:F2
+1
+```
+![image|320x500](../images/complexUniformStyle.png)
+
+The Style for cell `A1` has a specified font, size and color. These have been uniformly applied to the range `D1:F2`, but the other rich text attributes (in this case, bold, italic, underline, super- and sub-script) retain the original heterogeneity.
+
+If the first cell in the specified range has no defined Style (`s=""`), all cells will be given the same undefined style and any rich text formatting will remain unchanged.
+
+In Excel, subscript and superscript formatting to a substring (for example) can only be made using this kind of rich text formatting, and cannot be set at cell level (neither in Excel nor in `setFont`). Retaining rich text format heterogeneity in the ways described here preserves these string formatting elements through format changes.
+
+To clear any rich text formatting and remove the heterogeneity it introduces, simply copy the cells over themselves.
+This strips out all formatting and style information from the cells, leaving only the cell content.
+For example, for arbitrary cells:
+
+```julia
+julia> for row=1:2, col=1:6; s[row,col] = s[row,col]; end
+```
+or, for tabular data:
+
+```julia
+julia> writetable!(s, gettable(s, "A:F"; header=false); write_columnnames=false)
+```
+![image|320x500](../images/complexNone.png)
+
+An `XLSXFile` must be opened in write mode for rich text formatting to be editable, otherwise an error is thrown.
+
 ## Setting column width and row height
 
 Two functions offer the ability to set the column width and row height within a worksheet. These can use 

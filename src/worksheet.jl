@@ -336,7 +336,7 @@ function getcell(ws::Worksheet, single::CellRef)::AbstractCell
                 return ws.cache.cells[single.row_number][single.column_number]
             end
         end
-         ws.cache.is_full && return EmptyCell(single)
+        ws.cache.is_full && return EmptyCell(single)
     end
 
     # If can't use cache then iterate sheetrows
