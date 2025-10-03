@@ -24,7 +24,7 @@ export
     # Cells & data
     CellRef, row_number, column_number, eachrow, eachtablerow,
     readdata, getdata, gettable, readtable, readto, writetable, writetable!,
-    addDefinedName,
+    addDefinedName, setFormula,
     # Formats
     setFormat, setFont, setBorder, setFill, setAlignment,
     setUniformFormat, setUniformFont, setUniformBorder, setUniformFill, setUniformAlignment, setUniformStyle,

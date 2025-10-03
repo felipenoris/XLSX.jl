@@ -283,6 +283,9 @@ function open_or_read_xlsx(source::Union{IO,AbstractString}, _read::Bool, enable
     parse_relationships!(xf)
     parse_workbook!(xf)
 
+    # need to remove calcChain.xml from [Content_Types].xml since file is never loaded
+    _write && remove_calcChain!(xf)
+
     load_files!(xf; pass=2) # multi-threaded file load
 
     for sheet in get_workbook(xf).sheets
@@ -510,6 +513,17 @@ function parse_workbook!(xf::XLSXFile)
     nothing
 end
 
+# delete Override PartName=calcChain since this was never loaded (#31)
+function remove_calcChain!(xf::XLSXFile)
+    xf.data["[Content_Types].xml"]
+    ctype_root = xmlroot(xf, "[Content_Types].xml")[end]
+    for (i, c) in enumerate(XML.children(ctype_root))
+        if c.tag == "Override" && haskey(c.attributes, "PartName") && c.attributes["PartName"]=="/xl/calcChain.xml"
+            deleteat!(ctype_root.children, i)
+            break
+        end
+    end
+end
 # Lists internal files from the XLSX package.
 @inline filenames(xl::XLSXFile) = keys(xl.files)
 
@@ -915,7 +929,7 @@ end
     ) -> sink
 
 Read and parse an Excel worksheet, materializing directly using 
-the `sink` function (e.g. `DataFrame` or `StructArray`).
+the given `Tables.jl`-compatible `sink` function (e.g. `DataFrame` or `StructArray`).
 
 Takes the same keyword arguments as [`XLSX.readtable`](@ref) 
 
