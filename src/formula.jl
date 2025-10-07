@@ -345,9 +345,8 @@ function setFormula(ws::Worksheet, cellref::CellRef; val::AbstractString)
         cm = "1"
         if !haskey(xf.files, "xl/metadata.xml") # add metadata.xml on first use of a dynamicArray formula
 #            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(joinpath(_relocatable_data_path(), "metadata.xml"))))
-            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(raw"C:\Users\tim\OneDrive\Documents\Julia\XLSX\XLSX.jl\data\metadata.xml")))
+            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(raw"C:\Users\tim\OneDrive\Documents\Julia\XLSX\XLSX.jl\relocatable_data\metadata.xml")))
             xf.files["xl/metadata.xml"] = true # set file as read
-#            wbdoc = xmlroot(xf, "xl/workbook.xml")
             add_override!(xf, "/xl/metadata.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml")
             rId = add_relationship!(get_workbook(ws), "metadata.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata")
         end

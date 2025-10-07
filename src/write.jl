@@ -632,8 +632,6 @@ function Base.setindex!(ws::Worksheet, v, row::Union{Vector{Int},StepRange{<:Int
 end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellFormula)
-    println("here")
-    println(val)
     c = getcell(ws, ref)
     if !(c isa EmptyCell) && c.formula isa ReferencedFormula
         rereference_formulae(ws, c)

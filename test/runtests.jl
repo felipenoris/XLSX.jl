@@ -511,53 +511,105 @@ end
 
 end
 
-@testset "ReferencedFormulae" begin
+@testset "formulas" begin
 
-    f=XLSX.openxlsx(joinpath(data_directory, "reftest.xlsx"), mode="rw")
+    @testset "simple formulas" begin
+        f=XLSX.newxlsx("mySheet")
+        for i=1:10
+            f[1][i, 1]=i
+        end
+        f[1]["B1:B10"] = 10
+        XLSX.setFormula(f[1], "C1:C10", "=A1+B1")
+        @test XLSX.getcell(f[1], "C1").formula == XLSX.ReferencedFormula("=A1+B1", 0, "C1:C10", nothing)
+        @test XLSX.getcell(f[1], "C2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "C10").formula == XLSX.FormulaReference(0, nothing)
+        XLSX.setFormula(f[1], 11, 1:3, "sum(A1:A10)")
+        @test XLSX.getcell(f[1], "C11").formula == XLSX.FormulaReference(1, nothing)
+        XLSX.setFormula(f[1], 11, 4, "=sum(A1:C10)")
+        @test XLSX.getcell(f[1], "D11").formula == XLSX.Formula("=sum(A1:C10)", "", "", nothing)
+        XLSX.setFormula(f, "mySheet!A11:C11", "=A10/\$D11")
+        XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
+ 
+        f = XLSX.openxlsx("formulas.xlsx")
+        @test XLSX.getcell(f[1], "C1").formula == XLSX.ReferencedFormula("=A1+B1", 0, "C1:C10", nothing)
+        @test XLSX.getcell(f[1], "C2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "C10").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "A11").formula == XLSX.ReferencedFormula("=A10/\$D11", 1, "A11:C11", nothing)
+        @test XLSX.getcell(f[1], "C11").formula == XLSX.FormulaReference(1, nothing)
+        @test XLSX.getcell(f[1], "D11").formula == XLSX.Formula("=sum(A1:C10)", "", "", nothing)
+        isfile("formulas.xlsx") && rm("formulas.xlsx")
+    end
+    @testset "dynamic array" begin
+        f = XLSX.openxlsx(joinpath(data_directory, "Unique.xlsx"), mode="rw")
+        @test XLSX.getcell(f[1], "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "1", "1", XLSX.Formula("_xlfn.UNIQUE(A1:A9)", "array", "C1:C3", nothing))
+        s=f[1]
+        XLSX.setFormula(s, "B1", "=A1")
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.Formula("=A1", "", "", nothing)
+        XLSX.setFormula(s, "B2:B10", "=A2+B1")
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.ReferencedFormula("=A2+B1", 0, "B2:B10", nothing)
+        @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
+        XLSX.setFormula(s, "D1", "=sort(B1:B10,,-1)")
+        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
+        XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
 
-    s=f[1]
-    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "20", "", XLSX.ReferencedFormula("SUM(O2:S2)", 0, "A2:A10", nothing))
-    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "25", "", XLSX.FormulaReference(0, nothing))
-    s["A2"]=3
-    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
-    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SUM(O3:S3)", 4, "A3:A10", nothing))
+        XLSX.readxlsx("formulas.xlsx")
+        @test XLSX.getcell(f[1], "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "1", "1", XLSX.Formula("_xlfn.UNIQUE(A1:A9)", "array", "C1:C3", nothing))
+        s=f[1]
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.Formula("=A1", "", "", nothing)
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.ReferencedFormula("=A2+B1", 0, "B2:B10", nothing)
+        @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
+        isfile("formulas.xlsx") && rm("formulas.xlsx")
 
-    s2=f[2]
-    @test XLSX.getcell(s2, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "54", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A2:A5", Dict("ca" => "1")))
-    s2["A2"]=3
-    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
-    @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
-    @test XLSX.getcell(s2, "A3").formula.id == 2
-    @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
-    @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
-    @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1"))
-    @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "54", "", XLSX.ReferencedFormula("SECOND(NOW())", 0, "B1:C5", Dict("ca" => "1")))
-    s2["B1"]=3
-    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
-    @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "B2:C5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, nothing))
+    end
+    @testset "ReferencedFormulae" begin
 
-    XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
-    f2=XLSX.openxlsx("mytest.xlsx", mode="rw")
+        f=XLSX.openxlsx(joinpath(data_directory, "reftest.xlsx"), mode="rw")
 
-    s=f2[1]
-    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
-    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SUM(O3:S3)", 4, "A3:A10", nothing))
+        s=f[1]
+        @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "20", "", XLSX.ReferencedFormula("SUM(O2:S2)", 0, "A2:A10", nothing))
+        @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "25", "", XLSX.FormulaReference(0, nothing))
+        s["A2"]=3
+        @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SUM(O3:S3)", 4, "A3:A10", nothing))
 
-    s2=f[2]
-    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
-    @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
-    @test XLSX.getcell(s2, "A3").formula.id == 2
-    @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
-    @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
-    @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1"))
-    @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
-    @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "B2:C5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, nothing))
+        s2=f[2]
+        @test XLSX.getcell(s2, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "54", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A2:A5", Dict("ca" => "1")))
+        s2["A2"]=3
+        @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
+        @test XLSX.getcell(s2, "A3").formula.id == 2
+        @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
+        @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
+        @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1"))
+        @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "54", "", XLSX.ReferencedFormula("SECOND(NOW())", 0, "B1:C5", Dict("ca" => "1")))
+        s2["B1"]=3
+        @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "B2:C5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, nothing))
 
+        XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+        f2=XLSX.openxlsx("mytest.xlsx", mode="rw")
+
+        s=f2[1]
+        @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SUM(O3:S3)", 4, "A3:A10", nothing))
+
+        s2=f[2]
+        @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
+        @test XLSX.getcell(s2, "A3").formula.id == 2
+        @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
+        @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
+        @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1"))
+        @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "B2:C5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, nothing))
+
+    end
 end
 
 @testset "getcell" begin

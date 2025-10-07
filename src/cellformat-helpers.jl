@@ -276,7 +276,7 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
 
     return existing_elements_count # turns out this is the new index (because it's zero-based)
 end
-function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
+function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)
     if is_workbook_defined_name(xl, sheetcell)
         v = get_defined_name_value(xl.workbook, sheetcell)
         if is_defined_name_value_a_constant(v)
