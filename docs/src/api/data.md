@@ -26,7 +26,7 @@ XLSX.writetable!
 
 ## Cell formulas
 
-```
+```@docs
 XLSX.setFormula
 ```
 

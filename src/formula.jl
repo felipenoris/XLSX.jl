@@ -1,3 +1,4 @@
+const RGX_FORMULA_SHEET_CELLRANGE = r"!\$?[A-Z]+\$?[0-9]"
 const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions
     # Dynamic array core
     "UNIQUE"      => "_xlfn.",
@@ -67,7 +68,7 @@ function new_ReferencedFormula_Id(ws::Worksheet)
 end
 
 # If overwriting a cell containing a referencedFormula, need to re-reference all referring cells.
-# The referencedFormula will be in the top right cell of the referenced block. Need to rereference 
+# The referencedFormula will be in the top left cell of the referenced block. Need to rereference 
 # the rest of the block on this top row (without the first, overwritten cell) and then the rest of 
 # the block without this top row. Need to do this as two new, separate rectangular blocks with the 
 # referencedFormula in the first cell of each and the other cells set to formulaReferences.
@@ -149,23 +150,29 @@ Set the Excel formula to be used in the given cell or cell range.
 Formulae must be valid Excel formulae and written in US english with comma
 separators. Cell references may be absolute or relative references in either 
 the row or the column or both (e.g. `\$A\$2`). No validation of the specified 
-formulae is made by `XLSX.jl` and formulae are stored verbatim, as given.
+formula is made by `XLSX.jl` and formulae are stored verbatim, as given.
 
 If a contiguous range is specfied, `setFormula` will usually create a 
 referencedFormula. This is the same as Excel would use if using drag fill to 
 copy a formula into a range of cells.
 
+Non-contiguous ranges are not supported by `setFormula`. Set the formula in 
+each cell or contiguous range separately.
+
 Since XLSX.jl does not and cannot replicate all the functions built in to Excel, 
-setting a formula in a cell does not permit the cell's value to be re-calculated.
-Instead, the value is set to missing so that Excel will re-calculate it on opening. 
+setting a formula in a cell does not permit the cell's value to be re-calculated 
+within XLSX.jl. Instead, although the formula is properly added to the cell, the 
+value is set to missing so that Excel will re-calculate it on opening. 
 
 Unlike with conventional functions, dynamic array functions (e.g. `SORT` or `UNIQUE`)
-should not be put into ReferencedFormulae. When functions of this type are identified,
-they will instead be duplicated individually in each cell in the given range (but 
-with relative cell references appropriately adjusted).
+should not be put into ReferencedFormulae and neither should functions that refer to 
+cells in other sheets. When functions of this type are identified, they will instead be 
+duplicated individually in each cell in the given range (but with relative cell references 
+appropriately adjusted). This is an internal process that should be transparent 
+to the user.
 
 Note that dynamic array functions will return values into a spill range the extent of 
-which depends on the data on which the functions is operating. If any of the cells in the 
+which depends on the data on which the function is operating. If any of the cells in the 
 spill range already contains a value, Excel will show an `@SPILL` error.
 
 # Examples:
@@ -260,6 +267,45 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
 ```
 ![image|320x500](../images/SortUnique.png)
 
+!!! note
+
+    Excel is often very fussy about the structure of the internal xml in an xlsx file but 
+    often the resulting error messages (when Excel tries to open a file it considers mal-formed) 
+    are somewhat cryptic. If there is an error in the formula you enter, it may not be clear what 
+    it is from the error Excel produces. A safe fall back is to test the formula in Excel itself 
+    and copy/paste it into julia.
+
+    For example:
+
+    ```julia
+
+    julia> f=newxlsx()
+    XLSXFile("blank.xlsx") containing 1 Worksheet
+                sheetname size          range        
+    -------------------------------------------------
+                Sheet1 1x1           A1:A1        
+
+
+    julia> f[1][1:3, 1]=[x for x in 1:3]
+    3-element Vector{Int64}:
+    1
+    2
+    3
+
+    julia> setFormula(f[1], "B1", "=max(A1:A3") # missing closing parenthesis
+    ""
+
+    julia> XLSX.getcell(f[1], "B1")
+    XLSX.Cell(B1, "", "", "", "", XLSX.Formula("=max(A1:A3", "", "", nothing))
+
+    julia> writexlsx("mytest.xlsx", f, overwrite=true)
+    "C:\\Users\\tim\\OneDrive\\Documents\\Julia\\XLSX\\mytest.xlsx"
+
+    ```
+
+    ![image|320x500](../images/problemContent.png)
+    ![image|320x500](../images/ExcelRepairs.png)
+
 """
 setFormula(w, r, f::AbstractString) = setFormula(w, r; val=f)
 setFormula(w, r, c, f::AbstractString) = setFormula(w, r, c; val=f)
@@ -270,7 +316,7 @@ setFormula(ws::Worksheet, rng::SheetRowRange; kw...) = do_sheet_names_match(ws, 
 #setFormula(ws::Worksheet, rng::CellRange; kw...) = process_cellranges(setFormula, ws, rng; kw...) # do this explicitly, below
 setFormula(ws::Worksheet, colrng::ColumnRange; kw...) = process_columnranges(setFormula, ws, colrng; kw...)
 setFormula(ws::Worksheet, rowrng::RowRange; kw...) = process_rowranges(setFormula, ws, rowrng; kw...)
-setFormula(ws::Worksheet, ncrng::NonContiguousRange; kw...) = process_ncranges(setFormula, ws, ncrng; kw...)
+#setFormula(ws::Worksheet, ncrng::NonContiguousRange; kw...) = process_ncranges(setFormula, ws, ncrng; kw...)
 setFormula(ws::Worksheet, ref_or_rng::AbstractString; kw...) = process_ranges(setFormula, ws, ref_or_rng; kw...)
 setFormula(xl::XLSXFile, sheetcell::String; kw...) = process_sheetcell(setFormula, xl, sheetcell; kw...)
 setFormula(ws::Worksheet, row::Integer, col::Integer; kw...) = setFormula(ws, CellRef(row, col); kw...)
@@ -278,21 +324,23 @@ setFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw.
 setFormula(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFormula, ws, nothing, col; kw...)
 setFormula(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setFormula, ws, nothing, nothing; kw...)
 setFormula(ws::Worksheet, ::Colon; kw...) = process_colon(setFormula, ws, nothing, nothing; kw...)
-setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setFormula, ws, row, nothing; kw...)
-setFormula(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setFormula, ws, nothing, col; kw...)
-setFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFormula, ws, row, col; kw...)
-setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setFormula, ws, row, col; kw...)
-setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFormula, ws, row, col; kw...)
+#setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setFormula, ws, row, nothing; kw...)
+#setFormula(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setFormula, ws, nothing, col; kw...)
+#setFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFormula, ws, row, col; kw...)
+#setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_vecint(setFormula, ws, row, col; kw...)
+#setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_vecint(setFormula, ws, row, col; kw...)
 setFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFormula(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFormula(ws::Worksheet, rng::CellRange; val::AbstractString)
 
     is_array=false
-    for k in keys(EXCEL_FUNCTION_PREFIX) # Identify dynamic arrays
+    for k in keys(EXCEL_FUNCTION_PREFIX) # Identify formulas containing dynamic array functions
         r = Regex(k, "i")
         is_array |= occursin(r, val)
     end
 
-    if is_array # Don't use ReferencedFormulas for dynamic arrays. set each cell individually
+    is_sheetcell = occursin(RGX_FORMULA_SHEET_CELLRANGE, val)
+    
+    if is_array || is_sheetcell # Don't use ReferencedFormulas for sheetcell formulas or dynamic array functions. Set each cell individually.
         start = rng.start
         for c in rng
             offset = (c.row_number - start.row_number, c.column_number - start.column_number)

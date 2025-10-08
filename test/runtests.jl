@@ -538,6 +538,48 @@ end
         @test XLSX.getcell(f[1], "C11").formula == XLSX.FormulaReference(1, nothing)
         @test XLSX.getcell(f[1], "D11").formula == XLSX.Formula("=sum(A1:C10)", "", "", nothing)
         isfile("formulas.xlsx") && rm("formulas.xlsx")
+
+        f=XLSX.newxlsx("mySheet")
+        s=f["mySheet"]
+        s[1:12, 1]=[x for x in 1:12]
+        s["B1:L12"]=""
+        XLSX.setFormula(s, "B:L", "=\$A1+A1")
+        XLSX.addsheet!(f, "moreFormulas")
+        XLSX.addsheet!(f, "empty")
+        s1=f["moreFormulas"]
+        s2=f["empty"]
+        s1[1:12, 1:12]=""
+        s2[1:12, 1:12]=""
+        XLSX.setFormula(s1, 1, :, "=max(mySheet!A1:A12)")
+        XLSX.setFormula(s1, "2", "=min(\$A1:A1)")
+        XLSX.setFormula(s2, :, "=mySheet!A\$1+mySheet!A1")
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.ReferencedFormula("=\$A1+A1", 0, "B1:L12", nothing)
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "L10").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[2], "A1").formula == XLSX.Formula("=max(mySheet!A1:A12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "G1").formula == XLSX.Formula("=max(mySheet!G1:G12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "L1").formula == XLSX.Formula("=max(mySheet!L1:L12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "A2").formula == XLSX.ReferencedFormula("=min(\$A1:A1)", 0, "A2:L2", nothing)
+        @test XLSX.getcell(f[2], "L2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[3], "A1").formula == XLSX.Formula("=mySheet!A\$1+mySheet!A1", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "F6").formula == XLSX.Formula("=mySheet!F\$1+mySheet!F6", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "L12").formula == XLSX.Formula("=mySheet!L\$1+mySheet!L12", nothing, nothing, nothing)
+        XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
+
+        f = XLSX.openxlsx("formulas.xlsx")
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.ReferencedFormula("=\$A1+A1", 0, "B1:L12", nothing)
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "L10").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[2], "A1").formula == XLSX.Formula("=max(mySheet!A1:A12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "G1").formula == XLSX.Formula("=max(mySheet!G1:G12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "L1").formula == XLSX.Formula("=max(mySheet!L1:L12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "A2").formula == XLSX.ReferencedFormula("=min(\$A1:A1)", 0, "A2:L2", nothing)
+        @test XLSX.getcell(f[2], "L2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[3], "A1").formula == XLSX.Formula("=mySheet!A\$1+mySheet!A1", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "F6").formula == XLSX.Formula("=mySheet!F\$1+mySheet!F6", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "L12").formula == XLSX.Formula("=mySheet!L\$1+mySheet!L12", nothing, nothing, nothing)
+        isfile("formulas.xlsx") && rm("formulas.xlsx")
+
     end
     @testset "dynamic array" begin
         f = XLSX.openxlsx(joinpath(data_directory, "Unique.xlsx"), mode="rw")

@@ -129,8 +129,11 @@ add_node_formula!(io, f::CellFormula) = add_node_formula!(io, f.value)
 
 function add_node_formula!(io, f::Formula)
     print(io, "\n        <f")
-    if !isnothing(f.type)
-        print(io, " t=\""*f.type,"\" ref=\""*f.ref*"\"")
+    if !isnothing(f.type) && f.type==""
+        print(io, " t=\""*f.type,"\"")
+    end
+    if !isnothing(f.ref) && f.ref==""
+        print(io, " ref=\""*f.ref*"\"")
     end
     if !isnothing(f.unhandled)
         for (k, v) in f.unhandled
