@@ -1,4 +1,4 @@
-const RGX_FORMULA_SHEET_CELLRANGE = r"!\$?[A-Z]+\$?[0-9]"
+const RGX_FORMULA_SHEET_CELL = r"!\$?[A-Z]+\$?[0-9]"
 const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions
     # Dynamic array core
     "UNIQUE"      => "_xlfn.",
@@ -76,10 +76,10 @@ end
 # 
 function rereference_formulae(ws::Worksheet, cell::Cell)
     old_range = CellRange(cell.formula.ref)
-    if size(old_range) == (1, 2) || size(old_range) == (2, 1)
-        getcell(ws, old_range.stop).formula = Formula(cell.formula.formula)
-        return
-    end
+#    if size(old_range) == (1, 2) || size(old_range) == (2, 1)
+#        getcell(ws, old_range.stop).formula = Formula(cell.formula.formula)
+#        return
+#    end
     ranges=CellRange[]
     if old_range.stop.column_number > old_range.start.column_number
         push!(ranges, CellRange(CellRef(old_range.start.row_number, old_range.start.column_number+1), CellRef(old_range.start.row_number, old_range.stop.column_number)))
@@ -191,9 +191,6 @@ XLSXFile("blank.xlsx") containing 1 Worksheet
 julia> s=f[1]
 1×1 Worksheet: ["setting formulas"](A1:A1) 
 
-julia> s["A1:G1"]=1
-1
-
 julia> s["A2:A10"]=1
 1
 
@@ -269,7 +266,7 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
 
 !!! note
 
-    Excel is often very fussy about the structure of the internal xml in an xlsx file but 
+    Excel is often very fussy about the structure of the internal structure of an xlsx file but 
     often the resulting error messages (when Excel tries to open a file it considers mal-formed) 
     are somewhat cryptic. If there is an error in the formula you enter, it may not be clear what 
     it is from the error Excel produces. A safe fall back is to test the formula in Excel itself 
@@ -285,14 +282,13 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
     -------------------------------------------------
                 Sheet1 1x1           A1:A1        
 
-
     julia> f[1][1:3, 1]=[x for x in 1:3]
     3-element Vector{Int64}:
     1
     2
     3
 
-    julia> setFormula(f[1], "B1", "=max(A1:A3") # missing closing parenthesis
+    julia> setFormula(f[1], "B1", "=max(A1:A3") # missing closing parenthesis in the formula
     ""
 
     julia> XLSX.getcell(f[1], "B1")
@@ -322,7 +318,7 @@ setFormula(xl::XLSXFile, sheetcell::String; kw...) = process_sheetcell(setFormul
 setFormula(ws::Worksheet, row::Integer, col::Integer; kw...) = setFormula(ws, CellRef(row, col); kw...)
 setFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, ::Colon; kw...) = process_colon(setFormula, ws, row, nothing; kw...)
 setFormula(ws::Worksheet, ::Colon, col::Union{Integer,UnitRange{<:Integer}}; kw...) = process_colon(setFormula, ws, nothing, col; kw...)
-setFormula(ws::Worksheet, ::Colon, ::Colon; kw...) = process_colon(setFormula, ws, nothing, nothing; kw...)
+setFormula(ws::Worksheet, ::Colon, ::Colon; kw...) = setFormula(ws, :; kw...)
 setFormula(ws::Worksheet, ::Colon; kw...) = process_colon(setFormula, ws, nothing, nothing; kw...)
 #setFormula(ws::Worksheet, row::Union{Vector{Int},StepRange{<:Integer}}, ::Colon; kw...) = process_veccolon(setFormula, ws, row, nothing; kw...)
 #setFormula(ws::Worksheet, ::Colon, col::Union{Vector{Int},StepRange{<:Integer}}; kw...) = process_veccolon(setFormula, ws, nothing, col; kw...)
@@ -338,7 +334,7 @@ function setFormula(ws::Worksheet, rng::CellRange; val::AbstractString)
         is_array |= occursin(r, val)
     end
 
-    is_sheetcell = occursin(RGX_FORMULA_SHEET_CELLRANGE, val)
+    is_sheetcell = occursin(RGX_FORMULA_SHEET_CELL, val)
     
     if is_array || is_sheetcell # Don't use ReferencedFormulas for sheetcell formulas or dynamic array functions. Set each cell individually.
         start = rng.start
@@ -392,8 +388,7 @@ function setFormula(ws::Worksheet, cellref::CellRef; val::AbstractString)
         ref = cellref.name*":"*cellref.name
         cm = "1"
         if !haskey(xf.files, "xl/metadata.xml") # add metadata.xml on first use of a dynamicArray formula
-#            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(joinpath(_relocatable_data_path(), "metadata.xml"))))
-            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(raw"C:\Users\tim\OneDrive\Documents\Julia\XLSX\XLSX.jl\relocatable_data\metadata.xml")))
+            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(joinpath(_relocatable_data_path(), "metadata.xml"))))
             xf.files["xl/metadata.xml"] = true # set file as read
             add_override!(xf, "/xl/metadata.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml")
             rId = add_relationship!(get_workbook(ws), "metadata.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata")

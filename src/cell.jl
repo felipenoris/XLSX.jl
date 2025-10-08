@@ -207,7 +207,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     ecs=isempty(cell.style)
 
 #=
-    if cell.datatype == "inlineStr" # Now converted to sahred strings on read
+    if cell.datatype == "inlineStr" # Now converted to shared strings on read
         if ecv
             return missing
         else

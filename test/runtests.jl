@@ -552,7 +552,7 @@ end
         s2[1:12, 1:12]=""
         XLSX.setFormula(s1, 1, :, "=max(mySheet!A1:A12)")
         XLSX.setFormula(s1, "2", "=min(\$A1:A1)")
-        XLSX.setFormula(s2, :, "=mySheet!A\$1+mySheet!A1")
+        XLSX.setFormula(s2, :, :, "=mySheet!A\$1+mySheet!A1")
         @test XLSX.getcell(f[1], "B1").formula == XLSX.ReferencedFormula("=\$A1+A1", 0, "B1:L12", nothing)
         @test XLSX.getcell(f[1], "B2").formula == XLSX.FormulaReference(0, nothing)
         @test XLSX.getcell(f[1], "L10").formula == XLSX.FormulaReference(0, nothing)
@@ -580,6 +580,27 @@ end
         @test XLSX.getcell(f[3], "L12").formula == XLSX.Formula("=mySheet!L\$1+mySheet!L12", nothing, nothing, nothing)
         isfile("formulas.xlsx") && rm("formulas.xlsx")
 
+        f=XLSX.newxlsx("mySheet")
+        s=f[1]
+        s[1:10, 1:10] = rand(10,10)
+        XLSX.setFont(s, :; color="red")
+        XLSX.setFormula(s, "mySheet!B2:J2", "=\$A\$2+A2")
+        XLSX.setFormula(s, "mySheet!3:4", "=\$A1+B1")
+        XLSX.setFormula(s, "mySheet!F:G", "=E\$1+E1")
+        XLSX.setFormula(s, "J10", "=A1+10")
+        @test XLSX.getcell(s, "D2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(s, "D4").formula == XLSX.FormulaReference(1, nothing)
+        @test XLSX.getcell(s, "G4").formula == XLSX.FormulaReference(2, nothing)
+        @test XLSX.getcell(s, "J10").formula == XLSX.Formula("=A1+10", nothing, nothing, nothing)
+        XLSX.setFormula(s, :, 10, "=\$A\$1+5")
+        @test XLSX.getcell(f[1], "J1").formula == XLSX.ReferencedFormula("=\$A\$1+5", 3, "J1:J10", nothing)
+        @test XLSX.getcell(f[1], "J2").formula == XLSX.FormulaReference(3, nothing)
+        @test XLSX.getcell(f[1], "J8").formula == XLSX.FormulaReference(3, nothing)
+        XLSX.setFormula(s, 10, :, "=\$A\$1+6")
+        @test XLSX.getcell(f[1], "A10").formula == XLSX.ReferencedFormula("=\$A\$1+6", 4, "A10:J10", nothing)
+        @test XLSX.getcell(f[1], "B10").formula == XLSX.FormulaReference(4, nothing)
+        @test XLSX.getcell(f[1], "G10").formula == XLSX.FormulaReference(4, nothing)
+
     end
     @testset "dynamic array" begin
         f = XLSX.openxlsx(joinpath(data_directory, "Unique.xlsx"), mode="rw")
@@ -602,6 +623,13 @@ end
         @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
         @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
         isfile("formulas.xlsx") && rm("formulas.xlsx")
+
+        f=XLSX.newxlsx("mySheet")
+        s=f[1]
+        s[1:5, 1]=[x for x in 3:3:15]
+        s[1:5, 2]=""
+        XLSX.setFormula(s, "mySheet!B1", "=sort(A1:A5, , -1)")
+        @test XLSX.getcell(f[1], "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(A1:A5, , -1)", "array", "B1:B1", nothing))
 
     end
     @testset "ReferencedFormulae" begin
