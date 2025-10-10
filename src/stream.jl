@@ -247,6 +247,7 @@ getdata(r::SheetRow, column::Union{Vector{T}, UnitRange{T}}) where {T<:Integer} 
 getdata(r::SheetRow, column) = getdata(get_worksheet(r), getcell(r, column))
 Base.getindex(r::SheetRow, x) = getdata(r, x)
 
+Base.eachrow(ws::Worksheet) = eachrow(ws)
 """
     eachrow(sheet)
 
@@ -278,7 +279,6 @@ end
     case, only succeed if the worksheet cache is in use.
 
 """
-Base.eachrow(ws::Worksheet) = eachrow(ws)
 function eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
         if ws.cache === nothing # fill cache if enabled but empty on first use of eachrow iterator
