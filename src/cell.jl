@@ -449,7 +449,7 @@ function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Workshe
         if cellnode.tag == "c" # This is a cell
             cell = Cell(cellnode, ws; mylock) # construct an XLSX.Cell from an XML.LazyNode
             sst_count += cell.datatype == "s" ? 1 : 0
-            @inbounds rowcells[column_number(cell)] = cell
+            rowcells[column_number(cell)] = cell
         end
         cellnode = XML.next(cellnode)
     end

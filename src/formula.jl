@@ -1,49 +1,51 @@
-const RGX_FORMULA_SHEET_CELL = r"!\$?[A-Z]+\$?[0-9]"
-const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions
-    # Dynamic array core
-    "UNIQUE"      => "_xlfn.",
-    "FILTER"      => "_xlfn.",
+#----------------------------------------------------------------------------------------------------
+# metadata.xml should perhaps better be a package artifact. Put it here in the meantime.
+const metadata = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<metadata xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:xda="http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"><metadataTypes count="1"><metadataType name="XLDAPR" minSupportedVersion="120000" copy="1" pasteAll="1" pasteValues="1" merge="1" splitFirst="1" rowColShift="1" clearFormats="1" clearComments="1" assign="1" coerce="1" cellMeta="1"/></metadataTypes><futureMetadata name="XLDAPR" count="1"><bk><extLst><ext uri="{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"><xda:dynamicArrayProperties fDynamic="1" fCollapsed="0"/></ext></extLst></bk></futureMetadata><cellMetadata count="1"><bk><rc t="1" v="0"/></bk></cellMetadata></metadata>"""
+#-----------------------------------------------------------------------------------------------------
+
+const RGX_FORMULA_SHEET_CELL = r"!\$?[A-Z]+\$?[0-9]" # to recognise sheetcell references like "otherSheet!A1"
+const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions - previously two different prefixes (hence Dict) but now only one.
+    # Core dynamic array + LAMBDA family
+    "MAKEARRAY"   => "_xlfn.",
+    "MAP"         => "_xlfn.",
+    "REDUCE"      => "_xlfn.",
+    "SCAN"        => "_xlfn.",
+    "BYROW"       => "_xlfn.",
+    "BYCOL"       => "_xlfn.",
+    "LAMBDA"      => "_xlfn.",
+    "ANCHORARRAY" => "_xlfn.",
+
+    # Generators
     "SEQUENCE"    => "_xlfn.",
     "RANDARRAY"   => "_xlfn.",
 
-    # Sorting / reshaping
-    "SORT"        => "_xlfn._xlws.",
-    "SORTBY"      => "_xlfn._xlws.",   # some builds use _xlfn., safest to force _xlws
+    # Array shaping/stacking
+    "VSTACK"      => "_xlfn.",
+    "HSTACK"      => "_xlfn.",
+    "TOCOL"       => "_xlfn.",
+    "TOROW"       => "_xlfn.",
+    "WRAPROWS"    => "_xlfn.",
+    "WRAPCOLS"    => "_xlfn.",
+    "TAKE"        => "_xlfn.",
+    "DROP"        => "_xlfn.",
+    "CHOOSECOLS"  => "_xlfn.",
+    "CHOOSEROWS"  => "_xlfn.",
+
+    # Sort/filter/distinct (historically also seen with "_xlws.")
+    "SORT"        => "_xlfn.",
+    "SORTBY"      => "_xlfn.",
+    "FILTER"      => "_xlfn.",
+    "UNIQUE"      => "_xlfn.",
 
     # Lookup
     "XLOOKUP"     => "_xlfn.",
     "XMATCH"      => "_xlfn.",
 
-    # Financial / data
-    "STOCKHISTORY"=> "_xlfn.",
-
-    # Text split/join
+    # Text functions (dynamic-array aware)
     "TEXTSPLIT"   => "_xlfn.",
     "TEXTBEFORE"  => "_xlfn.",
-    "TEXTAFTER"   => "_xlfn.",
-
-    # Stacking / reshaping
-    "VSTACK"      => "_xlfn.",
-    "HSTACK"      => "_xlfn.",
-    "TAKE"        => "_xlfn.",
-    "DROP"        => "_xlfn.",
-    "TOROW"       => "_xlfn.",
-    "TOCOL"       => "_xlfn.",
-    "WRAPROWS"    => "_xlfn.",
-    "WRAPCOLS"    => "_xlfn.",
-    "EXPAND"      => "_xlfn.",
-    "CHOOSECOLS"  => "_xlfn.",
-    "CHOOSEROWS"  => "_xlfn.",
-
-    # Lambda / Let
-    "LAMBDA"      => "_xlfn.",
-    "LET"         => "_xlfn.",
-
-    # Parameter markers (appear only inside LAMBDA/LET bodies)
-    "_xlpm"       => "_xlpm.",
-
-    # User‑defined functions
-    "_xludf"      => "_xludf."
+    "TEXTAFTER"   => "_xlfn."
 )
 
 Base.isempty(f::Formula) = f.formula == ""
@@ -72,14 +74,15 @@ end
 # the rest of the block on this top row (without the first, overwritten cell) and then the rest of 
 # the block without this top row. Need to do this as two new, separate rectangular blocks with the 
 # referencedFormula in the first cell of each and the other cells set to formulaReferences.
+# 
+# overwritten newRF1    FR1       FR1       FR1
+# newRF2      FR2       FR2       FR2       FR2
+# FR2         FR2       FR2       FR2       FR2
+#
 # Note that a block of referencedFormulas can have a separate referencedFormula block set within it! 
 # 
 function rereference_formulae(ws::Worksheet, cell::Cell)
     old_range = CellRange(cell.formula.ref)
-#    if size(old_range) == (1, 2) || size(old_range) == (2, 1)
-#        getcell(ws, old_range.stop).formula = Formula(cell.formula.formula)
-#        return
-#    end
     ranges=CellRange[]
     if old_range.stop.column_number > old_range.start.column_number
         push!(ranges, CellRange(CellRef(old_range.start.row_number, old_range.start.column_number+1), CellRef(old_range.start.row_number, old_range.stop.column_number)))
@@ -89,7 +92,7 @@ function rereference_formulae(ws::Worksheet, cell::Cell)
     end
 
     for newrng in ranges
-        if size(newrng) == (1, 1)# || size(newrng) == (2, 1)
+        if size(newrng) == (1, 1)
             getcell(ws, newrng.stop).formula = Formula(cell.formula.formula)
         else
             newid = new_ReferencedFormula_Id(ws)
@@ -97,7 +100,6 @@ function rereference_formulae(ws::Worksheet, cell::Cell)
         end
     end
 end
-
 function rereference_formulae(ws::Worksheet, oldcell::Cell, newrng::CellRange, newid::Int64)
     oldform = oldcell.formula.formula
     oldunhandled = oldcell.formula.unhandled
@@ -116,7 +118,39 @@ function rereference_formulae(ws::Worksheet, oldcell::Cell, newrng::CellRange, n
     return nothing
 end
 
-# Replace formula references to a sheet that has been deleted
+# shift the relative cell references in a formula when shifting a ReferencedFormula
+function shift_excel_references(formula::String, offset::Tuple{Int64,Int64})
+    # Regex to match Excel-style cell references (e.g., A1, $A$1, A$1, $A1)
+    pattern = r"\$?[A-Z]{1,3}\$?[1-9][0-9]*"
+    row_shift, col_shift = offset
+
+    initial = [string(x.match) for x in eachmatch(pattern, formula)]
+    result = Vector{String}()
+
+    for ref in eachmatch(pattern, formula)
+        # Extract parts using regex
+        m = match(r"(\$?)([A-Z]{1,3})(\$?)([1-9][0-9]*)", ref.match)
+        col_abs, col_letters, row_abs, row_digits = m.captures
+
+        col_num = decode_column_number(col_letters)
+        row_num = parse(Int, row_digits)
+
+        # Apply shifts only if not absolute
+        new_col = col_abs == "\$" ? col_letters : encode_column_number(col_num + col_shift)
+        new_row = row_abs == "\$" ? row_digits : string(row_num + row_shift)
+
+        push!(result, col_abs * new_col * row_abs * new_row)
+    end
+
+    pairs = Dict(zip(initial, result))
+    if !isempty(pairs)
+        formula = replace(formula, pairs...)
+    end
+
+    return formula
+end
+
+# Replace formula references to a sheet that has been deleted with #REF errors
 function update_formulas_missing_sheet!(wb::Workbook, name::String)
     pattern = (name * "!" => "#REF!", r"\$?[A-Z]{1,3}\$?[1-9][0-9]*" => "")
     for i = 1:sheetcount(wb)
@@ -159,6 +193,8 @@ copy a formula into a range of cells.
 Non-contiguous ranges are not supported by `setFormula`. Set the formula in 
 each cell or contiguous range separately.
 
+An `XLSXFile` must be open in write mode to use `setFormula`.
+
 Since XLSX.jl does not and cannot replicate all the functions built in to Excel, 
 setting a formula in a cell does not permit the cell's value to be re-calculated 
 within XLSX.jl. Instead, although the formula is properly added to the cell, the 
@@ -173,7 +209,7 @@ to the user.
 
 Note that dynamic array functions will return values into a spill range the extent of 
 which depends on the data on which the function is operating. If any of the cells in the 
-spill range already contains a value, Excel will show an `@SPILL` error.
+spill range already contains a value, Excel will show an `#SPILL` error.
 
 # Examples:
 
@@ -269,7 +305,7 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
     Excel is often very fussy about the structure of the internal structure of an xlsx file but 
     often the resulting error messages (when Excel tries to open a file it considers mal-formed) 
     are somewhat cryptic. If there is an error in the formula you enter, it may not be clear what 
-    it is from the error Excel produces. A safe fall back is to test the formula in Excel itself 
+    it is from the error Excel produces. A safe fall back may be to test the formula in Excel itself 
     and copy/paste it into julia.
 
     For example:
@@ -282,7 +318,7 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
     -------------------------------------------------
                 Sheet1 1x1           A1:A1        
 
-    julia> f[1][1:3, 1]=[x for x in 1:3]
+    julia> f[1][1:3, 1]=collect(1:3)
     3-element Vector{Int64}:
     1
     2
@@ -328,6 +364,12 @@ setFormula(ws::Worksheet, ::Colon; kw...) = process_colon(setFormula, ws, nothin
 setFormula(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}; kw...) = setFormula(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))); kw...)
 function setFormula(ws::Worksheet, rng::CellRange; val::AbstractString)
 
+    xf=get_xlsxfile(ws)
+
+    if xf.is_writable == false
+        throw(XLSXError("Cannot set formula because because XLSXFile is not writable."))
+    end
+
     is_array=false
     for k in keys(EXCEL_FUNCTION_PREFIX) # Identify formulas containing dynamic array functions
         r = Regex(k, "i")
@@ -336,7 +378,7 @@ function setFormula(ws::Worksheet, rng::CellRange; val::AbstractString)
 
     is_sheetcell = occursin(RGX_FORMULA_SHEET_CELL, val)
     
-    if is_array || is_sheetcell # Don't use ReferencedFormulas for sheetcell formulas or dynamic array functions. Set each cell individually.
+    if is_array || is_sheetcell || occursin("#", val) # Don't use ReferencedFormulas for sheetcell formulas or dynamic array functions. Set each cell individually.
         start = rng.start
         for c in rng
             offset = (c.row_number - start.row_number, c.column_number - start.column_number)
@@ -371,24 +413,36 @@ function setFormula(ws::Worksheet, rng::CellRange; val::AbstractString)
     return
 end
 function setFormula(ws::Worksheet, cellref::CellRef; val::AbstractString)
+
     xf=get_xlsxfile(ws)
+
+    if xf.is_writable == false
+        throw(XLSXError("Cannot set formula because because XLSXFile is not writable."))
+    end
+
     c=getcell(ws, cellref)
     t   = ""
     ref = ""
     cm  = ""
 
+
     formula=val
+    if occursin("#", formula) # handle spill references like A1# or myName#
+        formula=replace(formula, r"(\$?[A-Za-z]{1,3}\$?\d+|[A-Za-z_][A-Za-z0-9_.]*)#" => s"ANCHORARRAY(\1)")
+    end
     for (k, v) in EXCEL_FUNCTION_PREFIX # add prefixes to any array functions
         r = Regex(k, "i")
         formula = replace(formula, r => v*k) # replace any dynamic array function name with its prefixed name
     end
-
     if formula != val # contains a dynamic array function (now with prefix(es))
-        t = "array"
-        ref = cellref.name*":"*cellref.name
-        cm = "1"
+        if occursin(r"^ *=? *_xlfn", formula)
+            t = "array"
+            ref = cellref.name*":"*cellref.name
+            cm = "1"
+        end
         if !haskey(xf.files, "xl/metadata.xml") # add metadata.xml on first use of a dynamicArray formula
-            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(joinpath(_relocatable_data_path(), "metadata.xml"))))
+#            xf.data["xl/metadata.xml"] = XML.Node(XML.Raw(read(joinpath(_relocatable_data_path(), "metadata.xml"))))
+            xf.data["xl/metadata.xml"] = parse(metadata, XML.Node)
             xf.files["xl/metadata.xml"] = true # set file as read
             add_override!(xf, "/xl/metadata.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml")
             rId = add_relationship!(get_workbook(ws), "metadata.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata")

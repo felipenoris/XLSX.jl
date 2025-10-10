@@ -252,6 +252,8 @@ Base.getindex(r::SheetRow, x) = getdata(r, x)
 
 Creates a row iterator for a worksheet.
 
+Base.eachrow(sheet::Worksheet) is defined as a synonym of XLSX.eachrow(sheet::Worksheet)
+
 Example: Query all cells from columns 1 to 4.
 
 ```julia
@@ -266,12 +268,17 @@ for sheetrow in eachrow(sheet)
 end
 ```
 
-Note: The `eachrow` row iterator will not return any row that 
-consists entirely of `EmptyCell`s. These are simply not seen 
-by the iterator. The `length(eachrow(sheet))` function therefore 
-defines the number of rows that are not entirely empty and will, 
-in any case, only succeed if the worksheet cache is in use.
+!!! note
+
+    The `eachrow` row iterator will not return any row that 
+    consists entirely of `EmptyCell`s. These empty rows are not 
+    represented in the .xlsx file and are therefore not seen by the 
+    iterator. The `length(eachrow(sheet))` function returns 
+    the number of rows that are not entirely empty and will, in any 
+    case, only succeed if the worksheet cache is in use.
+
 """
+Base.eachrow(ws::Worksheet) = eachrow(ws)
 function eachrow(ws::Worksheet) :: SheetRowIterator
     if is_cache_enabled(ws)
         if ws.cache === nothing # fill cache if enabled but empty on first use of eachrow iterator

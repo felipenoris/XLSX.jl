@@ -541,6 +541,10 @@ end
 
 function strip_bom_and_lf!(bytes::Vector{UInt8})
     # Issue 243 - Need to remove BOM characters that precede the XML declaration.
+    # Note: If an Excel file containing a BOM is opened in Excel itself and 
+    # subsequently saved, Excel will strip the BOM out. This means the test for 
+    # this issue will stop testing the fix if the file "BOM - issue243.xlsx" is 
+    # opened in Excel because the offending BOM will have been removed.
     bom = UInt8[0xEF, 0xBB, 0xBF]
     l = length(bytes)
     if l >= 3 && bytes[1:3] == bom
@@ -870,7 +874,7 @@ and `stop_in_row_function` (if specified).
 `keep_empty_rows` is only checked once the first and last row of the table 
 have been determined, to see whether to keep or drop empty rows between the 
 first and the last row.
-The default behavior is ``keep_empty_rows=false`.
+The default behavior is `keep_empty_rows=false`.
 
 # Example
 
@@ -880,7 +884,7 @@ julia> using DataFrames, XLSX
 julia> df = DataFrame(XLSX.readtable("myfile.xlsx", "mysheet"))
 ```
 
-See also: [`XLSX.gettable`](@ref).
+See also: [`XLSX.gettable`](@ref), [`XLSX.readto`](@ref).
 """
 function readtable(source::Union{AbstractString,IO}; first_row::Union{Nothing,Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Nothing,Function}=nothing, enable_cache::Bool=true, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     c = openxlsx(source; enable_cache) do xf
@@ -928,8 +932,9 @@ end
         [normalizenames]
     ) -> sink
 
-Read and parse an Excel worksheet, materializing directly using 
-the given `Tables.jl`-compatible `sink` function (e.g. `DataFrame` or `StructArray`).
+Read and parse an Excel worksheet, materializing directly using the 
+`sink` function, which can be any `Tables.jl`-compatible function 
+(e.g. `DataFrame` or `StructArray`).
 
 Takes the same keyword arguments as [`XLSX.readtable`](@ref) 
 
@@ -951,19 +956,19 @@ See also: [`XLSX.gettable`](@ref).
 """
 function readto(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, range::AbstractString, sink=nothing; kw...)
     if sink === nothing
-        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, columns, DataFrame)`"))
+        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readto(source, sheet, columns, DataFrame)`"))
     end
     return Tables.CopiedColumns(readtable(source, sheet, range; kw...)) |> sink
 end
 function readto(source::Union{AbstractString,IO}, sheet::Union{AbstractString,Int}, sink=nothing; kw...)
     if sink === nothing
-        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
+        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readto(source, sheet, DataFrame)`"))
     end
     return Tables.CopiedColumns(readtable(source, sheet; kw...)) |> sink
 end
 function readto(source::Union{AbstractString,IO}, sink=nothing; kw...)
     if sink === nothing
-        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readdf(source, sheet, DataFrame)`"))
+        throw(XLSXError("provide a valid sink argument, like `using DataFrames; XLSX.readto(source, DataFrame)`"))
     end
     return Tables.CopiedColumns(readtable(source; kw...)) |> sink
 end

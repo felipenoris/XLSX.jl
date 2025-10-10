@@ -22,7 +22,7 @@ export
     XLSXFile, readxlsx, openxlsx, opentemplate, newxlsx, writexlsx, savexlsx,
     Worksheet, sheetnames, sheetcount, hassheet, rename!, addsheet!, copysheet!, deletesheet!, 
     # Cells & data
-    CellRef, row_number, column_number, eachrow, eachtablerow,
+    CellRef, row_number, column_number, eachtablerow,
     readdata, getdata, gettable, readtable, readto, writetable, writetable!,
     addDefinedName, setFormula,
     # Formats

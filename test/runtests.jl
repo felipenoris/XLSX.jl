@@ -612,7 +612,7 @@ end
         @test XLSX.getcell(f[1], "B2").formula == XLSX.ReferencedFormula("=A2+B1", 0, "B2:B10", nothing)
         @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
         XLSX.setFormula(s, "D1", "=sort(B1:B10,,-1)")
-        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
+        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
         XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
 
         XLSX.readxlsx("formulas.xlsx")
@@ -621,7 +621,7 @@ end
         @test XLSX.getcell(f[1], "B1").formula == XLSX.Formula("=A1", "", "", nothing)
         @test XLSX.getcell(f[1], "B2").formula == XLSX.ReferencedFormula("=A2+B1", 0, "B2:B10", nothing)
         @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
-        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
+        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
         isfile("formulas.xlsx") && rm("formulas.xlsx")
 
         f=XLSX.newxlsx("mySheet")
@@ -629,7 +629,7 @@ end
         s[1:5, 1]=[x for x in 3:3:15]
         s[1:5, 2]=""
         XLSX.setFormula(s, "mySheet!B1", "=sort(A1:A5, , -1)")
-        @test XLSX.getcell(f[1], "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "", "1", XLSX.Formula("=_xlfn._xlws.SORT(A1:A5, , -1)", "array", "B1:B1", nothing))
+        @test XLSX.getcell(f[1], "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "", "1", XLSX.Formula("=_xlfn.SORT(A1:A5, , -1)", "array", "B1:B1", nothing))
 
     end
     @testset "ReferencedFormulae" begin

@@ -42,10 +42,6 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
     end
 
     update_workbook_xml!(xf)
-#    xf.data["xl/calcChain.xml"] = XML.Node(XML.Raw(Vector{UInt8}("<calcChain xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><c r=\"C1\" i=\"1\" l=\"1\" a=\"1\"/><c r=\"C1\" i=\"1\" s=\"1\"/></calcChain>")))
-#    xf.files["xl/calcChain.xml"] = true # set file as read
-#    rId = add_relationship!(get_workbook(xf), "calcChain.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/calcChain")
-
     
     wb=get_workbook(xf)
 
@@ -59,7 +55,7 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
             end
         end
 
-        # write worksheet files from cache (cach must be enabled in write mode)
+        # write worksheet files from cache (cache must be enabled in write mode)
         for sheet_no in 1:sheetcount(wb)
             doc = update_single_sheet!(wb, sheet_no, true)
             f = get_relationship_target_by_id("xl", wb, getsheet(wb, sheet_no).relationship_id)
@@ -129,10 +125,10 @@ add_node_formula!(io, f::CellFormula) = add_node_formula!(io, f.value)
 
 function add_node_formula!(io, f::Formula)
     print(io, "\n        <f")
-    if !isnothing(f.type) && f.type==""
+    if !isnothing(f.type) && f.type != ""
         print(io, " t=\""*f.type,"\"")
     end
-    if !isnothing(f.ref) && f.ref==""
+    if !isnothing(f.ref) && f.ref != ""
         print(io, " ref=\""*f.ref*"\"")
     end
     if !isnothing(f.unhandled)
@@ -473,11 +469,6 @@ function update_workbook_xml!(xl::XLSXFile) # Need to update <sheets> and <defin
             # there is no <definedNames> block in the workbook's xml file, so we'll need to create one
             # The <definedNames> block goes after the <sheets> block. Need to move everything down one to make room.    
             m, n = get_idces(wbdoc, "workbook", "sheets")
-#            nchildren = length(XML.children(wbdoc[m]))
-#            push!(wbdoc[m], wbdoc[m][end])
-#            for c in nchildren-1:-1:n+1
-#                wbdoc[m][c+1] = wbdoc[m][c]
-#            end
             definedNames = XML.Element("definedNames")
             insert!(wbdoc[m].children, n+1, definedNames)
             j = n + 1
@@ -567,6 +558,9 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+#= 
+# I think this issue went away when XML issue #48 was fixed
+#
 # This set of characters works in my use case. I don't know:
 # - if the set is sufficient, or if other charachers may be needed in other use cases
 # - if all of these characters are necessary or if one or two coulld be dropped
@@ -591,6 +585,7 @@ function strip_illegal_chars(x::String) # No-longer needed. Issue arose in XML.j
     end
     return result
 end
+=#
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
@@ -663,38 +658,6 @@ setdata!(ws::Worksheet, ref::CellRef, ::Nothing) = setdata!(ws, ref, CellValue(w
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
 setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, v) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
-
-# shift the relative cell references in a formula when shifting a ReferencedFormula
-function shift_excel_references(formula::String, offset::Tuple{Int64,Int64})
-    # Regex to match Excel-style cell references (e.g., A1, $A$1, A$1, $A1)
-    pattern = r"\$?[A-Z]{1,3}\$?[1-9][0-9]*"
-    row_shift, col_shift = offset
-
-    initial = [string(x.match) for x in eachmatch(pattern, formula)]
-    result = Vector{String}()
-
-    for ref in eachmatch(pattern, formula)
-        # Extract parts using regex
-        m = match(r"(\$?)([A-Z]{1,3})(\$?)([1-9][0-9]*)", ref.match)
-        col_abs, col_letters, row_abs, row_digits = m.captures
-
-        col_num = decode_column_number(col_letters)
-        row_num = parse(Int, row_digits)
-
-        # Apply shifts only if not absolute
-        new_col = col_abs == "\$" ? col_letters : encode_column_number(col_num + col_shift)
-        new_row = row_abs == "\$" ? row_digits : string(row_num + row_shift)
-
-        push!(result, col_abs * new_col * row_abs * new_row)
-    end
-
-    pairs = Dict(zip(initial, result))
-    if !isempty(pairs)
-        formula = replace(formula, pairs...)
-    end
-
-    return formula
-end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellValueType}) # use existing cell format if it exists
     c = getcell(ws, ref)
