@@ -55,7 +55,7 @@ function writexlsx(output_source::Union{AbstractString,IO}, xf::XLSXFile; overwr
             end
         end
 
-        # write worksheet files from cache (cach must be enabled in write mode)
+        # write worksheet files from cache (cache must be enabled in write mode)
         for sheet_no in 1:sheetcount(wb)
             doc = update_single_sheet!(wb, sheet_no, true)
             f = get_relationship_target_by_id("xl", wb, getsheet(wb, sheet_no).relationship_id)
@@ -121,8 +121,16 @@ function generate_sst_xml_string(wb::Workbook)::String
     return String(take!(buff))
 end
 
+add_node_formula!(io, f::CellFormula) = add_node_formula!(io, f.value)
+
 function add_node_formula!(io, f::Formula)
     print(io, "\n        <f")
+    if !isnothing(f.type) && f.type != ""
+        print(io, " t=\""*f.type,"\"")
+    end
+    if !isnothing(f.ref) && f.ref != ""
+        print(io, " ref=\""*f.ref*"\"")
+    end
     if !isnothing(f.unhandled)
         for (k, v) in f.unhandled
             print(io, " ", k, "=\"", v,"\"")
@@ -261,7 +269,6 @@ function update_single_sheet!(wb::Workbook, sheet_no::Int, full::Bool)::Union{No
         if !isnothing(j)
             dimension_node = doc[i][j]
             dimension_node["ref"] = string(get_dimension(sheet))
-#            doc[i][j] = dimension_node
         end
 
         empty_doc=XML.write(doc)
@@ -397,17 +404,16 @@ function process_cache_row(cacherow::Tuple{CellRange, SheetRow, Dict{String, Str
         if cell.style != ""
             print(row_node," s=\"",cell.style,"\"")
         end
+
+        if cell.meta != ""
+            print(row_node," cm=\"",cell.meta,"\"")
+        end
         print(row_node, ">")
         
-        if !isempty(cell.formula)
+        if isa(cell.formula, AbstractFormula)
             add_node_formula!(row_node, cell.formula)
         end
 
-#        if cell.datatype == "inlineStr" # intlineStrings now converted to sharedStrings on read
-#            print(row_node,"\n",pad^4, "<is>\n",pad^5,"<t")
-#            print(row_node, (startswith(cell.value, " ") || endswith(cell.value, " ") ? " xml:space=\"preserve\">" : ">"))
-#            print(row_node, cell.value,"</t>\n",pad^4, "</is>")
-#        elseif cell.value != ""
         if cell.value != ""
             print(row_node,"\n",pad^4,"<v>",XML.escape(cell.value),"</v>")
         end
@@ -448,20 +454,23 @@ end
 function update_workbook_xml!(xl::XLSXFile) # Need to update <sheets> and <definedNames>. 
     wb = get_workbook(xl)
 
+    wbdoc = xmlroot(xl, "xl/workbook.xml") # find the workbook's xml file
+
+    #update calcPr to force update on loaded
+    i, j = get_idces(wbdoc, "workbook", "calcPr")
+    if !isnothing(j)
+        wbdoc[i][j] = XML.Element("calcPr", fullCalcOnLoad="1", calcMode="auto")
+    end
+
     #update defined names
     if length(wb.workbook_names) > 0 || length(wb.worksheet_names) > 0 # skip if no defined names present
-        wbdoc = xmlroot(xl, "xl/workbook.xml") # find the <definedNames> block in the workbook's xml file
         i, j = get_idces(wbdoc, "workbook", "definedNames")
         if isnothing(j)
             # there is no <definedNames> block in the workbook's xml file, so we'll need to create one
             # The <definedNames> block goes after the <sheets> block. Need to move everything down one to make room.    
             m, n = get_idces(wbdoc, "workbook", "sheets")
-            nchildren = length(XML.children(wbdoc[m]))
-            push!(wbdoc[m], wbdoc[m][end])
-            for c in nchildren-1:-1:n+1
-                wbdoc[m][c+1] = wbdoc[m][c]
-            end
             definedNames = XML.Element("definedNames")
+            insert!(wbdoc[m].children, n+1, definedNames)
             j = n + 1
         else
             definedNames = unlink(wbdoc[i][j], ("definedNames", "definedName")) # Remove old defined names
@@ -549,6 +558,9 @@ function setdata!(ws::Worksheet, cell::Cell)
     nothing
 end
 
+#= 
+# I think this issue went away when XML issue #48 was fixed
+#
 # This set of characters works in my use case. I don't know:
 # - if the set is sufficient, or if other charachers may be needed in other use cases
 # - if all of these characters are necessary or if one or two coulld be dropped
@@ -573,6 +585,7 @@ function strip_illegal_chars(x::String) # No-longer needed. Issue arose in XML.j
     end
     return result
 end
+=#
 
 # Returns the datatype and value for `val` to be inserted into `ws`.
 function xlsx_encode(ws::Worksheet, val::AbstractString)
@@ -617,14 +630,20 @@ function Base.setindex!(ws::Worksheet, v, row::Union{Vector{Int},StepRange{<:Int
 end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::CellFormula)
+    c = getcell(ws, ref)
+    if !(c isa EmptyCell) && c.formula isa ReferencedFormula
+        rereference_formulae(ws, c)
+    end
     v = ""
     t = ""
-    cell = Cell(ref, t, id(val.styleid), v, Formula(val.value.formula))
+    m = ""
+    cell = Cell(ref, t, id(val.styleid), v, m, val.value)
     setdata!(ws, cell)
 end
 function setdata!(ws::Worksheet, ref::CellRef, val::CellValue)
     t, v = xlsx_encode(ws, val.value)
-    cell = Cell(ref, t, id(val.styleid), v, Formula())
+    m = ""
+    cell = Cell(ref, t, id(val.styleid), v, m, Formula())
     setdata!(ws, cell)
 end
 
@@ -639,39 +658,6 @@ setdata!(ws::Worksheet, ref::CellRef, ::Nothing) = setdata!(ws, ref, CellValue(w
 setdata!(ws::Worksheet, row::Integer, col::Integer, val::CellValue) = setdata!(ws, CellRef(row, col), val)
 
 setdata!(ws::Worksheet, row::Union{Integer,UnitRange{<:Integer}}, col::Union{Integer,UnitRange{<:Integer}}, v) = setdata!(ws, CellRange(CellRef(first(row), first(col)), CellRef(last(row), last(col))), v)
-
-# shift the relative cell references ina formula when shifting a ReferencedFormula
-function shift_excel_references(formula::String, offset::Tuple{Int64,Int64})
-    # Regex to match Excel-style cell references (e.g., A1, $A$1, A$1, $A1)
-    pattern = r"\$?[A-Z]{1,3}\$?[1-9][0-9]*"
-    row_shift, col_shift = offset
-
-    initial = [string(x.match) for x in eachmatch(pattern, formula)]
-    result = Vector{String}()
-
-    for ref in eachmatch(pattern, formula)
-        # Extract parts using regex
-        m = match(r"(\$?)([A-Z]{1,3})(\$?)([1-9][0-9]*)", ref.match)
-        col_abs, col_letters, row_abs, row_digits = m.captures
-
-        col_num = decode_column_number(col_letters)
-        row_num = parse(Int, row_digits)
-
-        # Apply shifts only if not absolute
-        new_col = col_abs == "\$" ? col_letters : encode_column_number(col_num + col_shift)
-        new_row = row_abs == "\$" ? row_digits : string(row_num + row_shift)
-
-        push!(result, col_abs * new_col * row_abs * new_row)
-    end
-
-    pairs = Dict(zip(initial, result))
-    if !isempty(pairs)
-        for (from, to) in pairs
-            formula = replace(formula, from => to)
-        end
-    end
-    return formula
-end
 
 function setdata!(ws::Worksheet, ref::CellRef, val::Union{AbstractFormula,CellValueType}) # use existing cell format if it exists
     c = getcell(ws, ref)
@@ -1248,19 +1234,31 @@ function insertsheet!(wb::Workbook, xdoc::XML.Node, new_cache::WorksheetCache, s
     push!(wb.sheets, ws)
 
     # update [Content_Types].xml (fix for issue #275)
-    ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
-    XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
-    override_node = XML.Element("Override";
-        PartName="/xl/worksheets/sheet" * string(sheetId) * ".xml",
-        ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
-    )
-    push!(ctype_root, override_node)
+#    ctype_root = xmlroot(get_xlsxfile(wb), "[Content_Types].xml")[end]
+#    XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
+#    override_node = XML.Element("Override";
+#        PartName="/xl/worksheets/sheet" * string(sheetId) * ".xml",
+#        ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
+#    )
+#    push!(ctype_root, override_node)
+    add_override!(get_xlsxfile(wb), "/xl/worksheets/sheet" * string(sheetId) * ".xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")
 
     update_workbook_xml!(xf)
 
     return ws
 end
 
+add_override!(wb::Workbook, part::String, content::String) = add_override!(get_xlsxfile(wb), part, content)
+function add_override!(xf::XLSXFile, part::String, content::String) 
+    ctype_root = xmlroot(xf, "[Content_Types].xml")[end]
+    XML.tag(ctype_root) != "Types" && throw(XLSXError("Something wrong here!"))
+    override_node = XML.Element("Override";
+        PartName=part,
+        ContentType=content
+    )
+    push!(ctype_root, override_node)
+    return nothing
+end
 function renumber_files!(xf::XLSXFile, rId::String)
     wb = get_workbook(xf)
     id = parse(Int64, rId[4:end])

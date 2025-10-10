@@ -33,6 +33,7 @@ XLSX.gettable
 XLSX.eachtablerow
 XLSX.writetable
 XLSX.writetable!
+XLSX.setFormula
 XLSX.setConditionalFormat
 XLSX.setFormat
 XLSX.setUniformFormat

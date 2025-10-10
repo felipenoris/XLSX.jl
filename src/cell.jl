@@ -63,6 +63,13 @@ function Cell(c::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothin
         s = ""
     end
 
+    # Cell metadata flag (for dynamicArrays)
+    if haskey(a, "cm")
+        m = a["cm"]
+    else
+        m = ""
+    end
+
     # iterate v and f elements
     local v::String = ""
     local f::AbstractFormula = Formula()
@@ -74,7 +81,7 @@ function Cell(c::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothin
         if t == "inlineStr" # Convert to sharedString
             if XML.tag(c_child_element) == "is"
                 uft = unformatted_text(c_child_element)
-                if uft=="" # Convert empty inlineStrings to EmptyCell. Can't have empty sharedStrings
+                if uft=="" # Convert empty inlineStrings to missing. Can't have empty sharedStrings
                     v=""
                     t=""
                 else
@@ -103,7 +110,7 @@ function Cell(c::XML.LazyNode, ws::Worksheet; mylock::Union{ReentrantLock,Nothin
             end
         end
     end
-    return Cell(ref, t, s, v, f)
+    return Cell(ref, t, s, v, m, f)
 end
 
 function parse_formula_from_element(c_child_element) :: AbstractFormula
@@ -132,31 +139,42 @@ function parse_formula_from_element(c_child_element) :: AbstractFormula
             end
         end
     end
-    if !isnothing(a)
-        if haskey(a, "t") && a["t"] == "shared"
-            haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
-            if haskey(a, "ref")
-                return ReferencedFormula(
-                    formula_string,
-                    parse(Int, a["si"]),
-                    a["ref"],
-                    length(unhandled_attributes) > 0 ? unhandled_attributes : nothing,
-                )
-            else
-                return FormulaReference(
-                    parse(Int, a["si"]),
-                    length(unhandled_attributes) > 0 ? unhandled_attributes : nothing,
-                )
+    is_array=false
+    let ref = nothing
+        if !isnothing(a)
+            if haskey(a, "t")
+                if a["t"] == "shared"
+                    haskey(a, "si") || throw(XLSXError("Expected shared formula to have an index. `si` attribute is missing: $c_child_element"))
+                    if haskey(a, "ref")
+                        return ReferencedFormula(
+                            formula_string,
+                            parse(Int, a["si"]),
+                            a["ref"],
+                            length(unhandled_attributes) > 0 ? unhandled_attributes : nothing,
+                        )
+                    else
+                        return FormulaReference(
+                            parse(Int, a["si"]),
+                            length(unhandled_attributes) > 0 ? unhandled_attributes : nothing,
+                        )
+                    end
+                elseif a["t"] == "array"
+                    is_array=true
+                    ref = haskey(a,"ref") ? a["ref"] : nothing
+                end
             end
         end
+        return Formula(
+            formula_string,
+            is_array ? "array" : nothing,
+            ref,
+            length(unhandled_attributes) > 0 ? unhandled_attributes : nothing)
     end
-
-    return Formula(formula_string, length(unhandled_attributes) > 0 ? unhandled_attributes : nothing)
 end
 
 # Constructor with simple formula string for backward compatibility
-function Cell(ref::CellRef, datatype::String, style::String, value::String, formula::String)
-    return Cell(ref, datatype, style, value, Formula(formula))
+function Cell(ref::CellRef, datatype::String, style::String, value::String, meta::String, formula::String)
+    return Cell(ref, datatype, style, value, meta, Formula(formula))
 end
 
 @inline getdata(ws::Worksheet, empty::EmptyCell) = missing
@@ -189,7 +207,7 @@ function getdata(ws::Worksheet, cell::Cell) :: CellValueType
     ecs=isempty(cell.style)
 
 #=
-    if cell.datatype == "inlineStr" # Now converted to sahred strings on read
+    if cell.datatype == "inlineStr" # Now converted to shared strings on read
         if ecv
             return missing
         else
@@ -431,7 +449,7 @@ function get_rowcells!(rowcells::Dict{Int, Cell}, row::XML.LazyNode, ws::Workshe
         if cellnode.tag == "c" # This is a cell
             cell = Cell(cellnode, ws; mylock) # construct an XLSX.Cell from an XML.LazyNode
             sst_count += cell.datatype == "s" ? 1 : 0
-            @inbounds rowcells[column_number(cell)] = cell
+            rowcells[column_number(cell)] = cell
         end
         cellnode = XML.next(cellnode)
     end

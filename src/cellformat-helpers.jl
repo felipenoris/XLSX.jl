@@ -276,7 +276,7 @@ function styles_add_cell_attribute(wb::Workbook, new_att::XML.Node, att::String)
 
     return existing_elements_count # turns out this is the new index (because it's zero-based)
 end
-function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)::Int
+function process_sheetcell(f::Function, xl::XLSXFile, sheetcell::String; kw...)
     if is_workbook_defined_name(xl, sheetcell)
         v = get_defined_name_value(xl.workbook, sheetcell)
         if is_defined_name_value_a_constant(v)
@@ -364,7 +364,7 @@ function process_ranges(f::Function, ws::Worksheet, ref_or_rng::AbstractString; 
     end
     return newid
 end
-function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; kw...)::Int
+function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; kw...)
     bounds = column_bounds(colrng)
     dim = (get_dimension(ws))
     left = bounds[begin]
@@ -384,7 +384,7 @@ function process_columnranges(f::Function, ws::Worksheet, colrng::ColumnRange; k
         throw(XLSXError("Column range $colrng is out of bounds. Worksheet `$(ws.name)` only has dimension `$dim`."))
     end
 end
-function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...)::Int
+function process_rowranges(f::Function, ws::Worksheet, rowrng::RowRange; kw...)
     bounds = row_bounds(rowrng)
     dim = (get_dimension(ws))
     top = bounds[begin]

@@ -1724,7 +1724,7 @@ Alternatively, `format` can be used to specify any custom format directly.
 Only weak checks are made of custom formats specified - they are otherwise added 
 to the XLSXfile verbatim.
 
-Formats may need characters that must be escaped when specified (see third 
+Formats may need characters that must be escaped when specified (see last 
 example, below).
 
 # Examples:
@@ -1830,7 +1830,7 @@ then applied to each remaining cell in the range.
 As a result, every cell in the range will have a uniform number format.
 
 This is functionally equivalent to applying `setFormat()` to each cell in the range 
-but may be very marginally more efficient.
+but may be more efficient.
 
 Applying `setUniformFormat()` without any keyword arguments simply copies the `Format` 
 attributes from the first cell specified to all the others.
@@ -2047,13 +2047,14 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
         k, l = get_idces(sheetdoc, "worksheet", "sheetData")
         len = length(sheetdoc[k])
         i != k && throw(XLSXError("Some problem here!"))
-        push!(sheetdoc[k], sheetdoc[k][end])
-        if l < len
-            for pos = len-1:-1:l
-                sheetdoc[k][pos+1] = sheetdoc[k][pos]
-            end
-        end
-        sheetdoc[k][l] = XML.Element("Cols")
+#        push!(sheetdoc[k], sheetdoc[k][end])
+#        if l < len
+#            for pos = len-1:-1:l
+#                sheetdoc[k][pos+1] = sheetdoc[k][pos]
+#            end
+#        end
+#        sheetdoc[k][l] = XML.Element("Cols")
+        insert!(sheetdoc[k].children, l, XML.Element("Cols"))
         j = l
     end
 
@@ -2591,13 +2592,14 @@ function mergeCells(ws::Worksheet, cr::CellRange)
         len = length(sheetdoc[k])
         i != k && throw(XLSXError("Some problem here!"))
         if l != len
-            push!(sheetdoc[k], sheetdoc[k][end])
-            if l + 1 < len
-                for pos = len-1:-1:l+1
-                    sheetdoc[k][pos+1] = sheetdoc[k][pos]
-                end
-            end
-            sheetdoc[k][l+1] = XML.Element("mergeCells")
+#            push!(sheetdoc[k], sheetdoc[k][end])
+#            if l + 1 < len
+#                for pos = len-1:-1:l+1
+#                    sheetdoc[k][pos+1] = sheetdoc[k][pos]
+#                end
+#            end
+#            sheetdoc[k][l+1] = XML.Element("mergeCells")
+            insert!(sheetdoc[k].children, l+1, XML.Element("mergeCells"))
         else
             push!(sheetdoc[k], XML.Element("mergeCells"))
         end

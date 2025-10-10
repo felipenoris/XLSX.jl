@@ -57,13 +57,14 @@ function add_cf_to_XML(ws, new_cf) # Add a new conditional formatting to the wor
     k, l = get_idces(sheetdoc, "worksheet", "sheetData")
     len = length(sheetdoc[k])
     if l != len
-        push!(sheetdoc[k], sheetdoc[k][end])
-        if l + 1 < len
-            for pos = len-1:-1:l+1
-                sheetdoc[k][pos+1] = sheetdoc[k][pos]
-            end
-        end
-        sheetdoc[k][l+1] = new_cf
+#        push!(sheetdoc[k], sheetdoc[k][end])
+#        if l + 1 < len
+#            for pos = len-1:-1:l+1
+#                sheetdoc[k][pos+1] = sheetdoc[k][pos]
+#            end
+#        end
+#        sheetdoc[k][l+1] = new_cf
+        insert!(sheetdoc[k].children, l+1, new_cf)
     else
         push!(sheetdoc[k], new_cf)
     end

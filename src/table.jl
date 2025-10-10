@@ -590,8 +590,9 @@ end
         [normalizenames]
     ) -> DataTable
 
-Returns tabular data from a spreadsheet as a struct `XLSX.DataTable`.
-Use this function to create a `DataFrame` from package `DataFrames.jl`.
+Returns data from a spreadsheet as a struct `XLSX.DataTable` which
+can be passed directly to any function that accepts `Tables.jl` data.
+(e.g. `DataFrame` from package `DataFrames.jl`).
 
 Use `columns` argument to specify which columns to get.
 For example, `"B:D"` will select columns `B`, `C` and `D`.
@@ -638,14 +639,24 @@ end
 # Example
 
 ```julia
-julia> using DataFrames, XLSX
+julia> using DataFrames, PrettyTables, XLSX
 
 julia> df = XLSX.openxlsx("myfile.xlsx") do xf
         DataFrame(XLSX.gettable(xf["mysheet"]))
     end
+
+julia> PrettyTable(XLSX.gettable(xf["mysheet"], "A:C"))
+┌─────────┬─────────┬─────────┐
+│ Header1 │ Header2 │ Header3 │
+├─────────┼─────────┼─────────┤
+│       1 │       2 │       3 │
+│       4 │       5 │       6 │
+│       7 │       8 │       9 │
+└─────────┴─────────┴─────────┘
+   
 ```
-        
-See also: [`XLSX.readtable`](@ref).
+
+See also: [`XLSX.readtable`](@ref), [`XLSX.readto`](@ref).
 """
 function gettable(sheet::Worksheet, cols::Union{ColumnRange, AbstractString}; first_row::Union{Nothing, Int}=nothing, column_labels=nothing, header::Bool=true, infer_eltypes::Bool=true, stop_in_empty_row::Bool=true, stop_in_row_function::Union{Function, Nothing}=nothing, keep_empty_rows::Bool=false, normalizenames::Bool=false)
     itr = eachtablerow(sheet, cols; first_row, column_labels, header, stop_in_empty_row, stop_in_row_function, keep_empty_rows, normalizenames)

@@ -58,13 +58,15 @@ A default formula simply storing the formula string.
 """
 mutable struct Formula <: AbstractFormula
     formula::String
+    type::Union{String,Nothing} # usually nothing but has value "array" for dynamic array functions.
+    ref::Union{String,Nothing} # usually nothing but refers to the "spill" range for dynamic array functions.
     unhandled::Union{Dict{String,String},Nothing}
 end
 function Formula()
-    return Formula("", nothing)
+    return Formula("", nothing, nothing, nothing)
 end
 function Formula(s::String)
-    return Formula(s, nothing)
+    return Formula(s, nothing, nothing, nothing)
 end
 
 
@@ -86,7 +88,7 @@ mutable struct ReferencedFormula <: AbstractFormula
     unhandled::Union{Dict{String,String},Nothing}
 end
 
-struct CellFormula <: AbstractFormula
+struct CellFormula# <: AbstractFormula
     value::T where T<:AbstractFormula
     styleid::AbstractCellDataFormat
 end
@@ -156,6 +158,7 @@ mutable struct Cell <: AbstractCell
     datatype::String
     style::String
     value::String
+    meta::String
     formula::AbstractFormula
 end
 
@@ -348,7 +351,7 @@ mutable struct Worksheet
     dimension::Union{Nothing, CellRange}
     is_hidden::Bool
     cache::Union{WorksheetCache, Nothing}
-    unhandled_attributes::Union{Nothing,Dict{Int,Dict{String,String}}}
+    unhandled_attributes::Union{Nothing,Dict{Int,Dict{String,String}}} # row => attributes(name=>value)
     sst_count::Int # number of cells containing a shared string
 
     function Worksheet(package::MSOfficePackage, sheetId::Int, relationship_id::String, name::String, dimension::Union{Nothing, CellRange}, is_hidden::Bool)
