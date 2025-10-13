@@ -6,19 +6,17 @@ const metadata = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 const RGX_FORMULA_SHEET_CELL = r"!\$?[A-Z]+\$?[0-9]" # to recognise sheetcell references like "otherSheet!A1"
 const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions - previously two different prefixes (hence Dict) but now only one.
-    # Core dynamic array + LAMBDA family
+    # Core dynamic array + higher-order
     "MAKEARRAY"   => "_xlfn.",
+    "SEQUENCE"    => "_xlfn.",
+    "RANDARRAY"   => "_xlfn.",
+    "LAMBDA"      => "_xlfn.",
     "MAP"         => "_xlfn.",
     "REDUCE"      => "_xlfn.",
     "SCAN"        => "_xlfn.",
     "BYROW"       => "_xlfn.",
     "BYCOL"       => "_xlfn.",
-    "LAMBDA"      => "_xlfn.",
-    "ANCHORARRAY" => "_xlfn.",
-
-    # Generators
-    "SEQUENCE"    => "_xlfn.",
-    "RANDARRAY"   => "_xlfn.",
+    "LET"         => "_xlfn.",  # parameters may be tagged with _xlpm.
 
     # Array shaping/stacking
     "VSTACK"      => "_xlfn.",
@@ -29,23 +27,55 @@ const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions 
     "WRAPCOLS"    => "_xlfn.",
     "TAKE"        => "_xlfn.",
     "DROP"        => "_xlfn.",
+    "EXPAND"      => "_xlfn.",
     "CHOOSECOLS"  => "_xlfn.",
     "CHOOSEROWS"  => "_xlfn.",
 
-    # Sort/filter/distinct (historically also seen with "_xlws.")
-    "SORT"        => "_xlfn.",
-    "SORTBY"      => "_xlfn.",
-    "FILTER"      => "_xlfn.",
-    "UNIQUE"      => "_xlfn.",
+    # Sort/filter/distinct/group/pivot
+    "SORT"        => "_xlfn.",  # historically also _xlws.
+    "SORTBY"      => "_xlfn.",  # historically also _xlws.
+    "FILTER"      => "_xlfn.",  # historically also _xlws.
+    "UNIQUE"      => "_xlfn.",  # historically also _xlws.
+    "GROUPBY"     => "_xlfn.",
+    "PIVOTBY"     => "_xlfn.",
+
+    # Text spill functions
+    "TEXTSPLIT"   => "_xlfn.",
+    "TEXTBEFORE"  => "_xlfn.",
+    "TEXTAFTER"   => "_xlfn.",
 
     # Lookup
     "XLOOKUP"     => "_xlfn.",
     "XMATCH"      => "_xlfn.",
 
-    # Text functions (dynamic-array aware)
-    "TEXTSPLIT"   => "_xlfn.",
-    "TEXTBEFORE"  => "_xlfn.",
-    "TEXTAFTER"   => "_xlfn."
+    # Other modern functions commonly serialized with _xlfn.
+    "IFS"         => "_xlfn.",
+    "SWITCH"      => "_xlfn.",
+    "IFNA"        => "_xlfn.",
+    "CONCAT"      => "_xlfn.",
+    "TEXTJOIN"    => "_xlfn.",
+
+    # Image insertion (modern Excel)
+    "IMAGE"       => "_xlfn."
+)
+# Map of aggregator names → serialization style
+const GROUPBY_AGGREGATORS = Dict(
+    # Eta-reduced aggregators (become _xleta.FUNC)
+    "SUM"      => "_xleta.",
+    "AVERAGE"  => "_xleta.",
+    "COUNT"    => "_xleta.",
+    "COUNTA"   => "_xleta.",
+    "MIN"      => "_xleta.",
+    "MAX"      => "_xleta.",
+    "MEDIAN"   => "_xleta.",
+    "PRODUCT"  => "_xleta.",
+    "STDEV"    => "_xleta.",
+    "STDEVP"   => "_xleta.",
+    "VAR"      => "_xleta.",
+    "VARP"     => "_xleta.",
+
+    # Everything else stays as _xlfn.LAMBDA(...)
+    # (or _xlfn.FUNC if used directly)
 )
 
 Base.isempty(f::Formula) = f.formula == ""
@@ -174,6 +204,52 @@ function update_formulas_missing_sheet!(wb::Workbook, name::String)
 end
 
 """
+    split_function_args(formula::String; fname::Union{Nothing,String}=nothing) -> Vector{String}
+
+Given a formula string like `=GROUPBY(E1:E151,A1:D151,LAMBDA(x,AVERAGE(x)),3,1)`,
+return the arguments as a vector of strings:
+["E1:E151", "A1:D151", "LAMBDA(x,AVERAGE(x))", "3", "1"].
+
+If `fname` is provided, it will look specifically for that function name.
+If not, it will match the first identifier followed by '('.
+"""
+function split_function_args(formula::String; fname::Union{Nothing,String}=nothing)
+    # Build regex for the function name
+    pat = isnothing(fname) ?
+        r"([A-Za-z_][A-Za-z0-9_]*)\s*\(" :
+        Regex("\\b$(fname)\\s*\\(", "i")
+
+    m = match(pat, formula)
+    isnothing(m) && return String[]
+    start = m.offset + length(m.match)
+    depth = 1
+    buf = IOBuffer()
+    args = String[]
+    i = start
+    while i <= lastindex(formula) && depth > 0
+        c = formula[i]
+        if c == '('
+            depth += 1
+            print(buf, c)
+        elseif c == ')'
+            depth -= 1
+            if depth > 0
+                print(buf, c)
+            end
+        elseif c == ',' && depth == 1
+            push!(args, strip(String(take!(buf))))
+        else
+            print(buf, c)
+        end
+        i += 1
+    end
+    if position(buf) > 0
+        push!(args, strip(String(take!(buf))))
+    end
+    return args
+end
+
+"""
     setFormula(ws::Worksheet, RefOrRange::AbstractString, formula::String)
     setFormula(xf::XLSXFile,  RefOrRange::AbstractString, formula::String)
 
@@ -207,9 +283,14 @@ duplicated individually in each cell in the given range (but with relative cell 
 appropriately adjusted). This is an internal process that should be transparent 
 to the user.
 
+Functions GROUPBY and PIVOTBY need an aggregation function as their 3rd argument. Currently 
+only simple aggregator functions are supported (e.g. `SUM`, `AVERAGE`, `COUNT`, `MIN`, `MAX` etc).
+
+In general, the Excel `LAMBDA` function is not well supported (in GROUPBY/PIVOTBY or otherwise).
+
 Note that dynamic array functions will return values into a spill range the extent of 
 which depends on the data on which the function is operating. If any of the cells in the 
-spill range already contains a value, Excel will show an `#SPILL` error.
+spill range already contains a value, Excel will show a `#SPILL` error.
 
 # Examples:
 
@@ -302,11 +383,11 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
 
 !!! note
 
-    Excel is often very fussy about the structure of the internal structure of an xlsx file but 
-    often the resulting error messages (when Excel tries to open a file it considers mal-formed) 
-    are somewhat cryptic. If there is an error in the formula you enter, it may not be clear what 
-    it is from the error Excel produces. A safe fall back may be to test the formula in Excel itself 
-    and copy/paste it into julia.
+    Excel is often very fussy about the internal structure of an xlsx file but often the resulting 
+    error messages (when Excel tries to open a file it considers mal-formed) are somewhat cryptic. 
+    If there is an error in the formula you enter, it may not be clear what it is from the error 
+    Excel produces. A safe fall back may be to test the formula in Excel itself and copy/paste 
+    it into julia.
 
     For example:
 
@@ -430,12 +511,36 @@ function setFormula(ws::Worksheet, cellref::CellRef; val::AbstractString)
     if occursin("#", formula) # handle spill references like A1# or myName#
         formula=replace(formula, r"(\$?[A-Za-z]{1,3}\$?\d+|[A-Za-z_][A-Za-z0-9_.]*)#" => s"ANCHORARRAY(\1)")
     end
+
+    # Handle the 3rd (function) arg of GROUPBY and PIVOTBY (NOTE. Can't handle anything but simple aggregation functions yet)
+    m = match(r"(?i)\b(GROUPBY|PIVOTBY)\s*\(", formula)
+    if !isnothing(m)
+        fname = uppercase(m.captures[1])
+
+        # Extract arguments
+        args = split_function_args(formula; fname=fname)
+        if length(args) >= 3
+
+            # Transform 3rd argument if it's a bare identifier
+            agg = args[3]
+            if haskey(GROUPBY_AGGREGATORS, uppercase(agg))
+                prefix = GROUPBY_AGGREGATORS[uppercase(agg)]
+                args[3] = prefix*agg
+            else
+                throw(XLSXError("Currently only simple aggregation functions like sum or average are supported."))
+            end
+
+            # Reconstruct
+            formula = fname*"(" * join(args, ",") * ")"
+        end
+    end
+
     for (k, v) in EXCEL_FUNCTION_PREFIX # add prefixes to any array functions
-        r = Regex(k, "i")
-        formula = replace(formula, r => v*k) # replace any dynamic array function name with its prefixed name
+        r = "(?i)\\b"*k
+        formula = replace(formula, Regex(r) => v*k) # replace any dynamic array function name with its prefixed name
     end
     if formula != val # contains a dynamic array function (now with prefix(es))
-        if occursin(r"^ *=? *_xlfn", formula)
+        if occursin(r"^.*=?.*_xlfn", formula)
             t = "array"
             ref = cellref.name*":"*cellref.name
             cm = "1"
@@ -448,7 +553,6 @@ function setFormula(ws::Worksheet, cellref::CellRef; val::AbstractString)
             rId = add_relationship!(get_workbook(ws), "metadata.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata")
         end
     end
-
     if c isa EmptyCell || c.style==""
         setdata!(ws, cellref, CellFormula(ws, Formula(formula, t, ref, nothing)))
     else

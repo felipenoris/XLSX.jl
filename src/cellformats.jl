@@ -41,8 +41,7 @@ The `color` attribute can be defined using 8-digit rgb values.
 - The next two digits give the blue component.
 So, FF000000 means a fully opaque black color.
 
-Alternatively, you can use the name of any named color from Colors.jl
-([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+Alternatively, you can use the name of any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
@@ -550,8 +549,7 @@ Allowed values for `style` are:
 The `color` attribute can be set by specifying an 8-digit hexadecimal value 
 in the format "FFRRGGBB". The transparency ("FF") is ignored by Excel but 
 is required.
-Alternatively, you can use the name of any named color from Colors.jl
-([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+Alternatively, you can use the name of any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 Valid values for the `direction` keyword (for diagonal borders) are:
 - `up`   : diagonal border runs bottom-left to top-right
@@ -1107,8 +1105,7 @@ Here is a list of the available `pattern` values (thanks to Copilot!):
 
 The two colors may be set by specifying an 8-digit hexadecimal value for the `fgColor`
 and/or `bgColor` keywords. 
-Alternatively, you can use the name of any named color from Colors.jl
-([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+Alternatively, you can use the name of any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 Setting only one or two of the attributes leaves the other attribute(s) unchanged 
 for that cell's fill.

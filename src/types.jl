@@ -379,7 +379,7 @@ struct Sst
     formatted::String
     idx::Int
 end
-const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, Int, Float64, String, Missing}
+const DefinedNameValueTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange, CellValueType}#Int, Float64, String, Missing}
 const DefinedNameRangeTypes = Union{SheetCellRef, SheetCellRange, NonContiguousRange}
 
 struct DefinedNameValue
@@ -407,10 +407,10 @@ end
 """
 `XLSXFile` represents a reference to an Excel file.
 
-It is created by using [`XLSX.readxlsx`](@ref) or [`XLSX.openxlsx`](@ref) 
-or [`XLSX.opentemplate`](@ref) or [`XLSX.newxlsx`](@ref).
+It is created by using [`XLSX.readxlsx`](@ref), [`XLSX.openxlsx`](@ref), 
+[`XLSX.opentemplate`](@ref) or [`XLSX.newxlsx`](@ref).
 
-From a `XLSXFile` you can navigate to a `XLSX.Worksheet` reference
+From an `XLSXFile` you can navigate to an `XLSX.Worksheet` reference
 as shown in the example below.
 
 # Example
@@ -445,6 +445,30 @@ mutable struct XLSXFile <: MSOfficePackage
     end
 end
 
+"""
+    XLSXFile(table)
+
+Take a `Tables.jl` compatible table and create a new `XLSXFile` object for writing.
+Can act as a sink for functions such as `CSV.read`.
+
+# Example
+
+```julia
+julia> using CSV, XLSX
+
+julia> xf = CSV.read("iris.csv", XLSXFile)
+XLSXFile("blank.xlsx") containing 1 Worksheet
+            sheetname size          range
+-------------------------------------------------
+               Sheet1 151x5         A1:E151
+```
+
+"""
+function XLSXFile(table)
+    xf=newxlsx()
+    writetable!(xf[1], table)
+    return xf
+end
 struct ReadFile
     node::Union{Nothing,XML.Node}
     raw::Union{Nothing,XML.Raw}

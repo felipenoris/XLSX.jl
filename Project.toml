@@ -1,9 +1,9 @@
 name = "XLSX"
 uuid = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 license = "MIT"
+version = "0.11.0-dev"
 authors = ["Felipe Noronha <felipenoris@gmail.com>"]
 repo = "https://github.com/felipenoris/XLSX.jl.git"
-version = "0.11.0-dev"
 
 [deps]
 Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -20,6 +20,7 @@ XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 ZipArchives = "49080126-0e18-4c2a-b176-c102e4b3760c"
 
 [compat]
+CSV = "0.10.15"
 Colors = "0.13.0"
 Distributions = "0.25.0"
 Mmap = "1"
@@ -31,10 +32,11 @@ ZipArchives = "2.5"
 julia = "1.8"
 
 [extras]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Distributions", "Random", "DataFrames"]
+test = ["CSV", "DataFrames", "Distributions", "Random", "Test"]

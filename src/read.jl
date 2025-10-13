@@ -972,3 +972,4 @@ function readto(source::Union{AbstractString,IO}, sink=nothing; kw...)
     end
     return Tables.CopiedColumns(readtable(source; kw...)) |> sink
 end
+

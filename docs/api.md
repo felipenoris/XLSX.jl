@@ -6,6 +6,7 @@
 
 ```@docs
 XLSX.XLSXFile
+XLSXFile(::Any)
 XLSX.readxlsx
 XLSX.openxlsx
 XLSX.opentemplate

@@ -1,4 +1,3 @@
-#const needsValue2::Vector{String} = ["between", "notBetween"]
 const highlights::Dict{String,Dict{String,Dict{String,String}}} = Dict(
     "redfilltext" => Dict(
         "font" => Dict("color" => "FF9C0006"),
@@ -551,7 +550,7 @@ Valid keywords are:
 - `operator`   : Defines the comparison to make.
 - `value`      : defines the first value to compare against. This can be a cell reference (e.g. `"A1"`) or a number.
 - `value2`     : defines the second value to compare against. This can be a cell reference (e.g. `"A1"`) or a number.
-- `stopIfTrue` : Stops evaluating the conditional formats for this cell if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.
@@ -657,7 +656,7 @@ The available keywords are:
 
 - `operator`   : Defines the comparison to make.
 - `value`      : Gives the for comparison or a cell reference (e.g. `"A1"`).
-- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply.
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.
@@ -740,7 +739,7 @@ average value for the range.
 The available keywords are:
 
 - `operator`   : Defines the comparison to make.
-- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply.
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.
@@ -873,7 +872,7 @@ a specific text string. The default is `containsText`.
 Valid keywords are:
 
 - `value`      : Gives the literal text to match or provides a cell reference (e.g. `"A1"`).
-- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply.
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.
@@ -928,7 +927,7 @@ When cells contain dates, this conditional format can be used to highlight cells
 The available keywords are:
 
 - `operator`   : Defines the comparison to make.
-- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.
@@ -994,7 +993,7 @@ These conditional formatting options highlight cells that contain or don't conta
 are blank (default) or not blank, are unique in the range or are duplicates within the range. 
 The available keywords are: 
 
-- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.
@@ -1039,7 +1038,7 @@ Set a conditional format when an expression evaluated in each cell is `true`.
 The available keywords are:
 
 - `formula`    : Specifies the formula to use. This must be a valid Excel formula.
-- `stopIfTrue` : Stops evaluating the conditional formats if this one is true.
+- `stopIfTrue` : Stops evaluating further conditional formats in any cell if this one is true.
 - `dxStyle`    : Used optionally to select one of the built-in Excel formats to apply
 - `format`     : defines the numFmt to apply if opting for a custom format.
 - `font`       : defines the font to apply if opting for a custom format.

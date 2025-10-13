@@ -4,6 +4,7 @@ import Tables
 using Test, Dates, XML
 import DataFrames, Random
 import Distributions as Dist
+import CSV
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 struct xpath
@@ -6369,6 +6370,22 @@ end
         finally
             isfile(file) && rm(file)
         end
+    end
+
+    @testset "Tables.jl as sink" begin
+        f = CSV.read(joinpath(data_directory, "iris.csv"), XLSX.XLSXFile)
+        @test XLSX.hassheet(f, "Sheet1") == true
+        sheet = f["Sheet1"]
+        @test sheet["A1"] == "sepal_length"
+        @test sheet["B1"] == "sepal_width"
+        @test sheet["C1"] == "petal_length"
+        @test sheet["D1"] == "petal_width"
+        @test sheet["E1"] == "species"
+        @test sheet["A150"] ≈ 6.2
+        @test sheet["B150"] ≈ 3.4
+        @test sheet["C150"] ≈ 5.4
+        @test sheet["D150"] ≈ 2.3
+        @test sheet["E150"] == "virginica"
     end
 end
 
