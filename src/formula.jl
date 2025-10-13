@@ -10,13 +10,14 @@ const EXCEL_FUNCTION_PREFIX = Dict( # Prefixes needed for newer Excel functions 
     "MAKEARRAY"   => "_xlfn.",
     "SEQUENCE"    => "_xlfn.",
     "RANDARRAY"   => "_xlfn.",
-    "LAMBDA"      => "_xlfn.",
+    "ANCHORARRAY" => "_xlfn.", # used internally to handle spill references like A1#
+    "LAMBDA"      => "_xlfn.", # not well supported at present
     "MAP"         => "_xlfn.",
     "REDUCE"      => "_xlfn.",
     "SCAN"        => "_xlfn.",
     "BYROW"       => "_xlfn.",
     "BYCOL"       => "_xlfn.",
-    "LET"         => "_xlfn.",  # parameters may be tagged with _xlpm.
+    "LET"         => "_xlfn.",  # not well supported at present. Parameters may be tagged with _xlpm.
 
     # Array shaping/stacking
     "VSTACK"      => "_xlfn.",
@@ -381,6 +382,18 @@ julia> setFormula(s, "E1:G1", "=sort(unique(A2:A7),,-1)") # using dynamic array 
 ```
 ![image|320x500](../images/SortUnique.png)
 
+```julia
+
+f = CSV.read("iris.csv", XLSXFile) # read a CSV file into an XLSXFile
+
+XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,AVERAGE,3,1)") # Find average of each species
+
+f[1]["M1"] = "versicolor"
+XLSX.setFormula(f[1], "M2", "=VLOOKUP(M1,G1#,3,FALSE)") # Lookup average sepal length for versicolor using the spill range of G1
+
+
+```
+
 !!! note
 
     Excel is often very fussy about the internal structure of an xlsx file but often the resulting 
@@ -540,7 +553,7 @@ function setFormula(ws::Worksheet, cellref::CellRef; val::AbstractString)
         formula = replace(formula, Regex(r) => v*k) # replace any dynamic array function name with its prefixed name
     end
     if formula != val # contains a dynamic array function (now with prefix(es))
-        if occursin(r"^.*=?.*_xlfn", formula)
+        if occursin(r"^\s*=?\s*_xlfn", formula)
             t = "array"
             ref = cellref.name*":"*cellref.name
             cm = "1"

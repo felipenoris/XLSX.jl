@@ -6388,6 +6388,9 @@ end
         @test sheet["E150"] == "virginica"
         XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,AVERAGE,3,1)")
         @test getcell(sheet, "G1").formula == XLSX.Formula("_xlfn.GROUPBY(E1:E151,A1:D151,_xleta.AVERAGE,3,1)", "array", "G1:G1", nothing)
+        f[1]["M1"] = "versicolor"
+        XLSX.setFormula(f[1], "M2", "=VLOOKUP(M1,G1#,3,FALSE)")
+        @test getcell(sheet, "M2").formula == XLSX.Formula("=VLOOKUP(M1,_xlfn.ANCHORARRAY(G1),3,FALSE)", "", "", nothing)
         XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,STDEV,3,1)")
         @test getcell(sheet, "G1").formula == XLSX.Formula("_xlfn.GROUPBY(E1:E151,A1:D151,_xleta.STDEV,3,1)", "array", "G1:G1", nothing)
     end
