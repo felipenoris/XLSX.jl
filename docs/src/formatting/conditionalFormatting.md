@@ -12,7 +12,7 @@ but not otherwise. Such conditional formatting is generally straightforward to a
     In Excel, conditional formats are dynamic. If the cell values change, the formats are updated based 
     on application of the condition to the new values.
 
-    The examples of conditional formatting given here a mix of static and dynamic formats.
+    The examples of conditional formatting given here are a mix of static and dynamic formats.
     
     Static conditional formats apply formatting based on the current cell values at the time the format 
     is set, but the formats are then static regardless of updates to cell values. They can be updated 

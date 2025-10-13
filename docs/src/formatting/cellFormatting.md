@@ -77,7 +77,7 @@ all remain unchanged from before. This new combination of attributes is unique,
 so a new `fontId` has been created.
 
 Font colors (and colors in any of the other formatting functions) can be set using a 
-hex RGB value or by name using any of the colors provided by [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)
+hex RGB value or by name using any of the colors provided by [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 The other set attribute functions behave in similar ways. See [`XLSX.setBorder`](@ref), 
 [`XLSX.setFill`](@ref), [`XLSX.setFormat`](@ref) and [`XLSX.setAlignment`](@ref).

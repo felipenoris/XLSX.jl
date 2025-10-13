@@ -41,8 +41,7 @@ The `color` attribute can be defined using 8-digit rgb values.
 - The next two digits give the blue component.
 So, FF000000 means a fully opaque black color.
 
-Alternatively, you can use the name of any named color from Colors.jl
-([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+Alternatively, you can use the name of any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 Font attributes cannot be set for `EmptyCell`s. Set a cell value first.
 If a cell range or column range includes any `EmptyCell`s, they will be
@@ -550,8 +549,7 @@ Allowed values for `style` are:
 The `color` attribute can be set by specifying an 8-digit hexadecimal value 
 in the format "FFRRGGBB". The transparency ("FF") is ignored by Excel but 
 is required.
-Alternatively, you can use the name of any named color from Colors.jl
-([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+Alternatively, you can use the name of any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 Valid values for the `direction` keyword (for diagonal borders) are:
 - `up`   : diagonal border runs bottom-left to top-right
@@ -1107,8 +1105,7 @@ Here is a list of the available `pattern` values (thanks to Copilot!):
 
 The two colors may be set by specifying an 8-digit hexadecimal value for the `fgColor`
 and/or `bgColor` keywords. 
-Alternatively, you can use the name of any named color from Colors.jl
-([here](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/)).
+Alternatively, you can use the name of any named color from [Colors.jl](https://juliagraphics.github.io/Colors.jl/stable/namedcolors/).
 
 Setting only one or two of the attributes leaves the other attribute(s) unchanged 
 for that cell's fill.
@@ -1724,7 +1721,7 @@ Alternatively, `format` can be used to specify any custom format directly.
 Only weak checks are made of custom formats specified - they are otherwise added 
 to the XLSXfile verbatim.
 
-Formats may need characters that must be escaped when specified (see third 
+Formats may need characters that must be escaped when specified (see last 
 example, below).
 
 # Examples:
@@ -1830,7 +1827,7 @@ then applied to each remaining cell in the range.
 As a result, every cell in the range will have a uniform number format.
 
 This is functionally equivalent to applying `setFormat()` to each cell in the range 
-but may be very marginally more efficient.
+but may be more efficient.
 
 Applying `setUniformFormat()` without any keyword arguments simply copies the `Format` 
 attributes from the first cell specified to all the others.
@@ -2047,13 +2044,14 @@ function setColumnWidth(ws::Worksheet, rng::CellRange; width::Union{Nothing,Real
         k, l = get_idces(sheetdoc, "worksheet", "sheetData")
         len = length(sheetdoc[k])
         i != k && throw(XLSXError("Some problem here!"))
-        push!(sheetdoc[k], sheetdoc[k][end])
-        if l < len
-            for pos = len-1:-1:l
-                sheetdoc[k][pos+1] = sheetdoc[k][pos]
-            end
-        end
-        sheetdoc[k][l] = XML.Element("Cols")
+#        push!(sheetdoc[k], sheetdoc[k][end])
+#        if l < len
+#            for pos = len-1:-1:l
+#                sheetdoc[k][pos+1] = sheetdoc[k][pos]
+#            end
+#        end
+#        sheetdoc[k][l] = XML.Element("Cols")
+        insert!(sheetdoc[k].children, l, XML.Element("Cols"))
         j = l
     end
 
@@ -2591,13 +2589,14 @@ function mergeCells(ws::Worksheet, cr::CellRange)
         len = length(sheetdoc[k])
         i != k && throw(XLSXError("Some problem here!"))
         if l != len
-            push!(sheetdoc[k], sheetdoc[k][end])
-            if l + 1 < len
-                for pos = len-1:-1:l+1
-                    sheetdoc[k][pos+1] = sheetdoc[k][pos]
-                end
-            end
-            sheetdoc[k][l+1] = XML.Element("mergeCells")
+#            push!(sheetdoc[k], sheetdoc[k][end])
+#            if l + 1 < len
+#                for pos = len-1:-1:l+1
+#                    sheetdoc[k][pos+1] = sheetdoc[k][pos]
+#                end
+#            end
+#            sheetdoc[k][l+1] = XML.Element("mergeCells")
+            insert!(sheetdoc[k].children, l+1, XML.Element("mergeCells"))
         else
             push!(sheetdoc[k], XML.Element("mergeCells"))
         end

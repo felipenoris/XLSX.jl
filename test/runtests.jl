@@ -4,6 +4,7 @@ import Tables
 using Test, Dates, XML
 import DataFrames, Random
 import Distributions as Dist
+import CSV
 
 const SPREADSHEET_NAMESPACE_XPATH_ARG = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 struct xpath
@@ -390,7 +391,7 @@ end
     @test sheet1["B5"] == Date(2018, 3, 21)
     @test sheet1["B8"] == "palavra1"
 
-    @test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+    @test XLSX.getcell(sheet1, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "", "")
     XLSX.getcell(sheet1, "B:C")
     XLSX.getcell(sheet1, "1:2")
     XLSX.getcell(sheet1, 1:2, 1:2)
@@ -411,11 +412,11 @@ end
     c = XLSX.getcell(sheet1, "B2")
     show(IOBuffer(), c)
     dct = Dict("a" => c)
-    @test dct["a"] == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
+    @test dct["a"] == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "", "")
 
     # equality and hash
-    @test XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "")
-    @test hash(dct["a"]) == hash(XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", ""))
+    @test XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "", "") == XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "", "")
+    @test hash(dct["a"]) == hash(XLSX.Cell(XLSX.CellRef("B2"), "s", "", "0", "", ""))
 
     sheet2 = f[2]
     sheet2_data = [1 2 3; 4 5 6; 7 8 9]
@@ -511,53 +512,175 @@ end
 
 end
 
-@testset "ReferencedFormulae" begin
+@testset "formulas" begin
 
-    f=XLSX.openxlsx(joinpath(data_directory, "reftest.xlsx"), mode="rw")
+    @testset "simple formulas" begin
+        f=XLSX.newxlsx("mySheet")
+        for i=1:10
+            f[1][i, 1]=i
+        end
+        f[1]["B1:B10"] = 10
+        XLSX.setFormula(f[1], "C1:C10", "=A1+B1")
+        @test XLSX.getcell(f[1], "C1").formula == XLSX.ReferencedFormula("=A1+B1", 0, "C1:C10", nothing)
+        @test XLSX.getcell(f[1], "C2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "C10").formula == XLSX.FormulaReference(0, nothing)
+        XLSX.setFormula(f[1], 11, 1:3, "sum(A1:A10)")
+        @test XLSX.getcell(f[1], "C11").formula == XLSX.FormulaReference(1, nothing)
+        XLSX.setFormula(f[1], 11, 4, "=sum(A1:C10)")
+        @test XLSX.getcell(f[1], "D11").formula == XLSX.Formula("=sum(A1:C10)", "", "", nothing)
+        XLSX.setFormula(f, "mySheet!A11:C11", "=A10/\$D11")
+        XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
+ 
+        f = XLSX.openxlsx("formulas.xlsx")
+        @test XLSX.getcell(f[1], "C1").formula == XLSX.ReferencedFormula("=A1+B1", 0, "C1:C10", nothing)
+        @test XLSX.getcell(f[1], "C2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "C10").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "A11").formula == XLSX.ReferencedFormula("=A10/\$D11", 1, "A11:C11", nothing)
+        @test XLSX.getcell(f[1], "C11").formula == XLSX.FormulaReference(1, nothing)
+        @test XLSX.getcell(f[1], "D11").formula == XLSX.Formula("=sum(A1:C10)", "", "", nothing)
+        isfile("formulas.xlsx") && rm("formulas.xlsx")
 
-    s=f[1]
-    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "20", XLSX.ReferencedFormula("SUM(O2:S2)", 0, "A2:A10", nothing))
-    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "25", XLSX.FormulaReference(0, nothing))
-    s["A2"]=3
-    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
-    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "20", XLSX.ReferencedFormula("SUM(O3:S3)", 0, "A3:A10", nothing))
+        f=XLSX.newxlsx("mySheet")
+        s=f["mySheet"]
+        s[1:12, 1]=[x for x in 1:12]
+        s["B1:L12"]=""
+        XLSX.setFormula(s, "B:L", "=\$A1+A1")
+        XLSX.addsheet!(f, "moreFormulas")
+        XLSX.addsheet!(f, "empty")
+        s1=f["moreFormulas"]
+        s2=f["empty"]
+        s1[1:12, 1:12]=""
+        s2[1:12, 1:12]=""
+        XLSX.setFormula(s1, 1, :, "=max(mySheet!A1:A12)")
+        XLSX.setFormula(s1, "2", "=min(\$A1:A1)")
+        XLSX.setFormula(s2, :, :, "=mySheet!A\$1+mySheet!A1")
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.ReferencedFormula("=\$A1+A1", 0, "B1:L12", nothing)
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "L10").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[2], "A1").formula == XLSX.Formula("=max(mySheet!A1:A12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "G1").formula == XLSX.Formula("=max(mySheet!G1:G12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "L1").formula == XLSX.Formula("=max(mySheet!L1:L12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "A2").formula == XLSX.ReferencedFormula("=min(\$A1:A1)", 0, "A2:L2", nothing)
+        @test XLSX.getcell(f[2], "L2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[3], "A1").formula == XLSX.Formula("=mySheet!A\$1+mySheet!A1", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "F6").formula == XLSX.Formula("=mySheet!F\$1+mySheet!F6", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "L12").formula == XLSX.Formula("=mySheet!L\$1+mySheet!L12", nothing, nothing, nothing)
+        XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
 
-    s2=f[2]
-    @test XLSX.getcell(s2, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "54", XLSX.Formula("SECOND(NOW())", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A2:A5", Dict("ca" => "1")))
-    s2["A2"]=3
-    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
-    @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
-    @test XLSX.getcell(s2, "A3").formula.id == 1
-    @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
-    @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
-    @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1"))
-    @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "B1:C5", Dict("ca" => "1")))
-    s2["B1"]=3
-    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing))
-    @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 2, "B2:B5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "C1:C5", Dict("ca" => "1")))
+        f = XLSX.openxlsx("formulas.xlsx")
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.ReferencedFormula("=\$A1+A1", 0, "B1:L12", nothing)
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "L10").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[2], "A1").formula == XLSX.Formula("=max(mySheet!A1:A12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "G1").formula == XLSX.Formula("=max(mySheet!G1:G12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "L1").formula == XLSX.Formula("=max(mySheet!L1:L12)", "", "", nothing)
+        @test XLSX.getcell(f[2], "A2").formula == XLSX.ReferencedFormula("=min(\$A1:A1)", 0, "A2:L2", nothing)
+        @test XLSX.getcell(f[2], "L2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[3], "A1").formula == XLSX.Formula("=mySheet!A\$1+mySheet!A1", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "F6").formula == XLSX.Formula("=mySheet!F\$1+mySheet!F6", nothing, nothing, nothing)
+        @test XLSX.getcell(f[3], "L12").formula == XLSX.Formula("=mySheet!L\$1+mySheet!L12", nothing, nothing, nothing)
+        isfile("formulas.xlsx") && rm("formulas.xlsx")
 
-    XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
-    f2=XLSX.openxlsx("mytest.xlsx", mode="rw")
+        f=XLSX.newxlsx("mySheet")
+        s=f[1]
+        s[1:10, 1:10] = rand(10,10)
+        XLSX.setFont(s, :; color="red")
+        XLSX.setFormula(s, "mySheet!B2:J2", "=\$A\$2+A2")
+        XLSX.setFormula(s, "mySheet!3:4", "=\$A1+B1")
+        XLSX.setFormula(s, "mySheet!F:G", "=E\$1+E1")
+        XLSX.setFormula(s, "J10", "=A1+10")
+        @test XLSX.getcell(s, "D2").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(s, "D4").formula == XLSX.FormulaReference(1, nothing)
+        @test XLSX.getcell(s, "G4").formula == XLSX.FormulaReference(2, nothing)
+        @test XLSX.getcell(s, "J10").formula == XLSX.Formula("=A1+10", nothing, nothing, nothing)
+        XLSX.setFormula(s, :, 10, "=\$A\$1+5")
+        @test XLSX.getcell(f[1], "J1").formula == XLSX.ReferencedFormula("=\$A\$1+5", 3, "J1:J10", nothing)
+        @test XLSX.getcell(f[1], "J2").formula == XLSX.FormulaReference(3, nothing)
+        @test XLSX.getcell(f[1], "J8").formula == XLSX.FormulaReference(3, nothing)
+        XLSX.setFormula(s, 10, :, "=\$A\$1+6")
+        @test XLSX.getcell(f[1], "A10").formula == XLSX.ReferencedFormula("=\$A\$1+6", 4, "A10:J10", nothing)
+        @test XLSX.getcell(f[1], "B10").formula == XLSX.FormulaReference(4, nothing)
+        @test XLSX.getcell(f[1], "G10").formula == XLSX.FormulaReference(4, nothing)
 
-    s=f2[1]
-    @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
-    @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "20", XLSX.ReferencedFormula("SUM(O3:S3)", 0, "A3:A10", nothing))
+    end
+    @testset "dynamic array" begin
+        f = XLSX.openxlsx(joinpath(data_directory, "Unique.xlsx"), mode="rw")
+        @test XLSX.getcell(f[1], "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "1", "1", XLSX.Formula("_xlfn.UNIQUE(A1:A9)", "array", "C1:C3", nothing))
+        s=f[1]
+        XLSX.setFormula(s, "B1", "=A1")
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.Formula("=A1", "", "", nothing)
+        XLSX.setFormula(s, "B2:B10", "=A2+B1")
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.ReferencedFormula("=A2+B1", 0, "B2:B10", nothing)
+        @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
+        XLSX.setFormula(s, "D1", "=sort(B1:B10,,-1)")
+        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
+        XLSX.writexlsx("formulas.xlsx", f, overwrite=true)
 
-    s2=f[2]
-    @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", XLSX.Formula("", nothing))
-    @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
-    @test XLSX.getcell(s2, "A3").formula.id == 1
-    @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
-    @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
-    @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1"))
-    @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A3:A5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing))
-    @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 2, "B2:B5", Dict("ca" => "1")))
-    @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", XLSX.ReferencedFormula("SECOND(NOW())", 0, "C1:C5", Dict("ca" => "1")))
+        XLSX.readxlsx("formulas.xlsx")
+        @test XLSX.getcell(f[1], "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "1", "1", XLSX.Formula("_xlfn.UNIQUE(A1:A9)", "array", "C1:C3", nothing))
+        s=f[1]
+        @test XLSX.getcell(f[1], "B1").formula == XLSX.Formula("=A1", "", "", nothing)
+        @test XLSX.getcell(f[1], "B2").formula == XLSX.ReferencedFormula("=A2+B1", 0, "B2:B10", nothing)
+        @test XLSX.getcell(f[1], "B5").formula == XLSX.FormulaReference(0, nothing)
+        @test XLSX.getcell(f[1], "D1") == XLSX.Cell(XLSX.CellRef("D1"), "", "", "", "1", XLSX.Formula("=_xlfn.SORT(B1:B10,,-1)", "array", "D1:D1", nothing))
+        isfile("formulas.xlsx") && rm("formulas.xlsx")
 
+        f=XLSX.newxlsx("mySheet")
+        s=f[1]
+        s[1:5, 1]=[x for x in 3:3:15]
+        s[1:5, 2]=""
+        XLSX.setFormula(s, "mySheet!B1", "=sort(A1:A5, , -1)")
+        @test XLSX.getcell(f[1], "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "", "1", XLSX.Formula("=_xlfn.SORT(A1:A5, , -1)", "array", "B1:B1", nothing))
+
+    end
+    @testset "ReferencedFormulae" begin
+
+        f=XLSX.openxlsx(joinpath(data_directory, "reftest.xlsx"), mode="rw")
+
+        s=f[1]
+        @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "20", "", XLSX.ReferencedFormula("SUM(O2:S2)", 0, "A2:A10", nothing))
+        @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "25", "", XLSX.FormulaReference(0, nothing))
+        s["A2"]=3
+        @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SUM(O3:S3)", 4, "A3:A10", nothing))
+
+        s2=f[2]
+        @test XLSX.getcell(s2, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "54", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "A2:A5", Dict("ca" => "1")))
+        s2["A2"]=3
+        @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
+        @test XLSX.getcell(s2, "A3").formula.id == 2
+        @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
+        @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
+        @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1"))
+        @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "54", "", XLSX.ReferencedFormula("SECOND(NOW())", 0, "B1:C5", Dict("ca" => "1")))
+        s2["B1"]=3
+        @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "B2:C5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, nothing))
+
+        XLSX.writexlsx("mytest.xlsx", f, overwrite=true)
+        f2=XLSX.openxlsx("mytest.xlsx", mode="rw")
+
+        s=f2[1]
+        @test XLSX.getcell(s, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SUM(O3:S3)", 4, "A3:A10", nothing))
+
+        s2=f[2]
+        @test XLSX.getcell(s2, "A2") == XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "A3").formula.formula == "SECOND(NOW())"
+        @test XLSX.getcell(s2, "A3").formula.id == 2
+        @test XLSX.getcell(s2, "A3").formula.ref == "A3:A5"
+        @test XLSX.getcell(s2, "A3").formula.unhandled == Dict("ca" => "1")
+        @test XLSX.getcell(s2, "A3").formula == XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1"))
+        @test XLSX.getcell(s2, "A3") == XLSX.Cell(XLSX.CellRef("A3"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 2, "A3:A5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "B1") == XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing))
+        @test XLSX.getcell(s2, "B2") == XLSX.Cell(XLSX.CellRef("B2"), "", "", "", "", XLSX.ReferencedFormula("SECOND(NOW())", 1, "B2:C5", Dict("ca" => "1")))
+        @test XLSX.getcell(s2, "C1") == XLSX.Cell(XLSX.CellRef("C1"), "", "", "54", "", XLSX.Formula("SECOND(NOW())", nothing, nothing, nothing))
+
+    end
 end
 
 @testset "getcell" begin
@@ -568,43 +691,43 @@ end
             s[i, j] = i + j
         end
     end
-    @test XLSX.getcell(s, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
-    @test XLSX.getcell(s, "Sheet1!A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
-    @test XLSX.getcell(f, "Sheet1!A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
-    @test XLSX.getcell(s, XLSX.SheetCellRef("Sheet1!A1")) == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
-    @test XLSX.getcell(f, XLSX.SheetCellRef("Sheet1!A1")) == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "")
-    @test XLSX.getcell(s, "B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(f, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, XLSX.SheetCellRange("Sheet1!B1:B3")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, "B1,B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", XLSX.Formula("", nothing));;]]
-    @test XLSX.getcell(s, "Sheet1!B1,Sheet1!B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", XLSX.Formula("", nothing));;]]
-    @test XLSX.getcell(f, "Sheet1!B1,Sheet1!B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", XLSX.Formula("", nothing));;]]
-    @test XLSX.getcell(s, "B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, XLSX.SheetColumnRange("Sheet1!B:B")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(f, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(s, XLSX.SheetRowRange("Sheet1!2:2")) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(s, "2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(s, :, 2) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcell(s, 2, :) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(s, 2, 1:2:3) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(s, 2, [1, 3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcell(s, [2], 1) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "")]
-    @test XLSX.getcell(s, [2], [1, 3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
+    @test XLSX.getcell(s, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "", "")
+    @test XLSX.getcell(s, "Sheet1!A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "", "")
+    @test XLSX.getcell(f, "Sheet1!A1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "", "")
+    @test XLSX.getcell(s, XLSX.SheetCellRef("Sheet1!A1")) == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "", "")
+    @test XLSX.getcell(f, XLSX.SheetCellRef("Sheet1!A1")) == XLSX.Cell(XLSX.CellRef("A1"), "", "", "2", "", "")
+    @test XLSX.getcell(s, "B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(f, "Sheet1!B1:B3") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, XLSX.SheetCellRange("Sheet1!B1:B3")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, "B1,B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", XLSX.Formula("", nothing, nothing, nothing));;]]
+    @test XLSX.getcell(s, "Sheet1!B1,Sheet1!B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", XLSX.Formula("", nothing, nothing, nothing));;]]
+    @test XLSX.getcell(f, "Sheet1!B1,Sheet1!B3") == [[XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", XLSX.Formula("", nothing, nothing, nothing));;], [XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", XLSX.Formula("", nothing, nothing, nothing));;]]
+    @test XLSX.getcell(s, "B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, XLSX.SheetColumnRange("Sheet1!B:B")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(f, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(s, XLSX.SheetRowRange("Sheet1!2:2")) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(s, "2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(s, :, 2) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcell(s, 2, :) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(s, 2, 1:2:3) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(s, 2, [1, 3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", ""), XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcell(s, [2], 1) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "")]
+    @test XLSX.getcell(s, [2], [1, 3]) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
     @test_throws XLSX.XLSXError XLSX.getcell(f, "Sheet1!garbage")
     @test_throws XLSX.XLSXError XLSX.getcell(s, "Sheet1!garbage")
     @test_throws XLSX.XLSXError XLSX.getcell(s, "garbage")
     @test_throws XLSX.XLSXError XLSX.getcell(s, "garbage1:garbage2")
 
-    @test XLSX.getcellrange(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcellrange(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcellrange(s, XLSX.SheetColumnRange("Sheet1!B:B")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "");;]
-    @test XLSX.getcellrange(s, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcellrange(f, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
-    @test XLSX.getcellrange(s, XLSX.SheetRowRange("Sheet1!2:2")) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "")]
+    @test XLSX.getcellrange(s, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcellrange(f, "Sheet1!B:B") == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcellrange(s, XLSX.SheetColumnRange("Sheet1!B:B")) == [XLSX.Cell(XLSX.CellRef("B1"), "", "", "3", "", ""); XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", ""); XLSX.Cell(XLSX.CellRef("B3"), "", "", "5", "", "");;]
+    @test XLSX.getcellrange(s, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcellrange(f, "Sheet1!2:2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
+    @test XLSX.getcellrange(s, XLSX.SheetRowRange("Sheet1!2:2")) == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "3", "", "") XLSX.Cell(XLSX.CellRef("B2"), "", "", "4", "", "") XLSX.Cell(XLSX.CellRef("C2"), "", "", "5", "", "")]
 
     XLSX.addDefinedName(f, "MyName1", "Sheet1!A1")
     XLSX.addDefinedName(s, "MyName2", "Sheet1!A2:A3")
@@ -613,12 +736,12 @@ end
     @test s["MyName1"] == 12.9
     s["MyName2"] = 42
     @test s["MyName2"] == [42; 42;;]
-    @test XLSX.getcell(s, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "")
-    @test XLSX.getcell(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
-    @test XLSX.getcell(f, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "")
-    @test XLSX.getcellrange(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "");;]
-    @test XLSX.getcellrange(s, "MyName3") == [[XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", XLSX.Formula("", nothing));;]]
-    @test XLSX.getcellrange(f, "MyName3") == [[XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", XLSX.Formula("", nothing));;], [XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", XLSX.Formula("", nothing));;]]
+    @test XLSX.getcell(s, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "", "")
+    @test XLSX.getcell(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", "", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "", "");;]
+    @test XLSX.getcell(f, "MyName1") == XLSX.Cell(XLSX.CellRef("A1"), "", "", "12.9", "", "")
+    @test XLSX.getcellrange(s, "MyName2") == [XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", "", ""); XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "", "");;]
+    @test XLSX.getcellrange(s, "MyName3") == [[XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", "", XLSX.Formula("", nothing, nothing, nothing));;], [XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "", XLSX.Formula("", nothing, nothing, nothing));;]]
+    @test XLSX.getcellrange(f, "MyName3") == [[XLSX.Cell(XLSX.CellRef("A2"), "", "", "42", "", XLSX.Formula("", nothing, nothing, nothing));;], [XLSX.Cell(XLSX.CellRef("A3"), "", "", "42", "", XLSX.Formula("", nothing, nothing, nothing));;]]
 
 end
 
@@ -1731,7 +1854,7 @@ end
 
         f=XLSX.openxlsx(joinpath(data_directory,"deletesheet.xlsx"), mode="rw")
         XLSX.deletesheet!(f[1])
-        @test XLSX.getcell(f[1], "A1") == XLSX.Cell(XLSX.CellRef("A1"), "e", "", "#REF!", XLSX.Formula("#REF!+#REF!", nothing))
+        @test XLSX.getcell(f[1], "A1") == XLSX.Cell(XLSX.CellRef("A1"), "e", "", "#REF!", "", XLSX.Formula("#REF!+#REF!", nothing, nothing, nothing))
     end
 
     isfile("template_with_new_sheet.xlsx") && rm("template_with_new_sheet.xlsx")
@@ -6135,10 +6258,10 @@ end
 @testset "empty_v" begin
     xf = XLSX.openxlsx(joinpath(data_directory, "empty_v.xlsx"), mode="rw")
     sheet1 = xf["Sheet1"]
-    @test XLSX.getcell(sheet1, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", XLSX.Formula("\"\""))
+    @test XLSX.getcell(sheet1, "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", "", XLSX.Formula("\"\""))
     XLSX.writexlsx("mytest.xlsx", xf, overwrite=true)
     xf2 = XLSX.readxlsx(joinpath(data_directory, "empty_v.xlsx"))
-    @test XLSX.getcell(xf2[1], "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", XLSX.Formula("\"\""))
+    @test XLSX.getcell(xf2[1], "A1") == XLSX.Cell(XLSX.CellRef("A1"), "str", "", "", "", XLSX.Formula("\"\""))
     isfile("mytest.xlsx") && rm("mytest.xlsx")
 end
 
@@ -6247,6 +6370,29 @@ end
         finally
             isfile(file) && rm(file)
         end
+    end
+
+    @testset "Tables.jl as sink" begin
+        f = CSV.read(joinpath(data_directory, "iris.csv"), XLSX.XLSXFile)
+        @test XLSX.hassheet(f, "Sheet1") == true
+        sheet = f["Sheet1"]
+        @test sheet["A1"] == "sepal_length"
+        @test sheet["B1"] == "sepal_width"
+        @test sheet["C1"] == "petal_length"
+        @test sheet["D1"] == "petal_width"
+        @test sheet["E1"] == "species"
+        @test sheet["A150"] ≈ 6.2
+        @test sheet["B150"] ≈ 3.4
+        @test sheet["C150"] ≈ 5.4
+        @test sheet["D150"] ≈ 2.3
+        @test sheet["E150"] == "virginica"
+        XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,AVERAGE,3,1)")
+        @test getcell(sheet, "G1").formula == XLSX.Formula("_xlfn.GROUPBY(E1:E151,A1:D151,_xleta.AVERAGE,3,1)", "array", "G1:G1", nothing)
+        f[1]["M1"] = "versicolor"
+        XLSX.setFormula(f[1], "M2", "=VLOOKUP(M1,G1#,3,FALSE)")
+        @test getcell(sheet, "M2").formula == XLSX.Formula("=VLOOKUP(M1,_xlfn.ANCHORARRAY(G1),3,FALSE)", "", "", nothing)
+        XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,STDEV,3,1)")
+        @test getcell(sheet, "G1").formula == XLSX.Formula("_xlfn.GROUPBY(E1:E151,A1:D151,_xleta.STDEV,3,1)", "array", "G1:G1", nothing)
     end
 end
 
