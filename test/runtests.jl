@@ -6386,6 +6386,10 @@ end
         @test sheet["C150"] ≈ 5.4
         @test sheet["D150"] ≈ 2.3
         @test sheet["E150"] == "virginica"
+        XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,AVERAGE,3,1)")
+        @test getcell(sheet, "G1").formula == XLSX.Formula("_xlfn.GROUPBY(E1:E151,A1:D151,_xleta.AVERAGE,3,1)", "array", "G1:G1", nothing)
+        XLSX.setFormula(f[1], "G1", "=GROUPBY(E1:E151,A1:D151,STDEV,3,1)")
+        @test getcell(sheet, "G1").formula == XLSX.Formula("_xlfn.GROUPBY(E1:E151,A1:D151,_xleta.STDEV,3,1)", "array", "G1:G1", nothing)
     end
 end
 
